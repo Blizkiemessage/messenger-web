@@ -21,7 +21,14 @@ export function Sidebar() {
   const dataError = useChatsStore(s => s.dataError);
   const setChatFilter = useChatsStore(s => s.setChatFilter);
   const setActiveChatId = useChatsStore(s => s.setActiveChatId);
-  const filteredChats = useChatsStore(selectFilteredChats);
+  const filteredChats = useChatsStore(
+  (s) => {
+    if (s.chatFilter === 'groups') return s.chats.filter(c => c.type === 'group');
+    if (s.chatFilter === 'direct') return s.chats.filter(c => c.type === 'direct');
+    return s.chats;
+  },
+  (a, b) => a.length === b.length && a.every((c, i) => c === b[i])
+);
 
   // App store — individual selectors
   const theme = useAppStore(s => s.theme);

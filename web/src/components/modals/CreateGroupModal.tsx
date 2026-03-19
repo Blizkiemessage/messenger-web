@@ -15,7 +15,10 @@ interface Props {
 
 export function CreateGroupModal({ onClose }: Props) {
   const me = useSessionStore(s => s.me)!;
-  const contacts = useChatsStore(s => selectContacts(s, me.id));
+  const contacts = useChatsStore(
+  (s) => selectContacts(s, me.id),
+  (a, b) => a.length === b.length && a.every((c, i) => c === b[i])
+);
 
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
