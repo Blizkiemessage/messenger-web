@@ -2,6 +2,7 @@
  * CreateGroupModal — now uses useSearch hook instead of inline debounce.
  */
 import { useState, useMemo } from 'react';
+import { useShallow } from 'zustand/shallow';
 import { type User } from '../../types';
 import { avatarLetter } from '../../utils/format';
 import { useSearch } from '../../hooks/useSearch';
@@ -15,10 +16,7 @@ interface Props {
 
 export function CreateGroupModal({ onClose }: Props) {
   const me = useSessionStore(s => s.me)!;
-  const contacts = useChatsStore(
-  (s) => selectContacts(s, me.id),
-  (a, b) => a.length === b.length && a.every((c, i) => c === b[i])
-);
+  const contacts = useChatsStore(useShallow(s => selectContacts(s, me.id)));
 
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
@@ -48,9 +46,7 @@ export function CreateGroupModal({ onClose }: Props) {
     setBusy(true); setError(null);
     try {
       const chat = await createGroupChat({ name: name.trim(), description: description.trim() || undefined, memberIds: selected.map(u => u.id) });
-      // First upsert the chat, then switch filter to 'all' and activate it.
-      // Order matters: upsertChat before setChatFilter so the active chat
-      // is already in the list when the filter check runs.
+      // Order matters: upsert first, then switch filter, then activate
       useChatsStore.getState().upsertChat(chat);
       useChatsStore.getState().setChatFilter('all');
       useChatsStore.getState().setActiveChatId(chat.id);

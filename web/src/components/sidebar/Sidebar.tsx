@@ -1,8 +1,9 @@
 /**
  * Sidebar — proper Zustand v5 selectors (no bare useStore() calls).
  */
+import { useShallow } from 'zustand/shallow';
 import { useSessionStore } from '../../store/useSessionStore';
-import { useChatsStore, selectFilteredChats } from '../../store/useChatsStore';
+import { useChatsStore } from '../../store/useChatsStore';
 import { useAppStore } from '../../store/useAppStore';
 import { UserSearch } from './UserSearch';
 import { FolderTabs } from './FolderTabs';
@@ -21,14 +22,11 @@ export function Sidebar() {
   const dataError = useChatsStore(s => s.dataError);
   const setChatFilter = useChatsStore(s => s.setChatFilter);
   const setActiveChatId = useChatsStore(s => s.setActiveChatId);
-  const filteredChats = useChatsStore(
-  (s) => {
+  const filteredChats = useChatsStore(useShallow(s => {
     if (s.chatFilter === 'groups') return s.chats.filter(c => c.type === 'group');
     if (s.chatFilter === 'direct') return s.chats.filter(c => c.type === 'direct');
     return s.chats;
-  },
-  (a, b) => a.length === b.length && a.every((c, i) => c === b[i])
-);
+  }));
 
   // App store — individual selectors
   const theme = useAppStore(s => s.theme);
