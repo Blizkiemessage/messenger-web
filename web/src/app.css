@@ -178,6 +178,36 @@ input { font: inherit; color: inherit; background: transparent; }
 }
 .authBtn:hover:not(:disabled) { opacity: .9; transform: translateY(-1px); }
 .authBtn:disabled { opacity: .45; cursor: not-allowed; }
+.authSwitchRow {
+  text-align: center;
+  font-size: 13px;
+  color: var(--muted);
+  margin-top: -4px;
+}
+.authSwitchLink {
+  color: var(--accent);
+  font-weight: 600;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 13px;
+  padding: 0;
+  transition: opacity .15s;
+}
+.authSwitchLink:hover { opacity: .75; }
+.authFieldHint {
+  font-size: 12px;
+  color: var(--muted);
+  margin-top: -8px;
+  padding: 0 2px;
+}
+.authFieldHintError {
+  font-size: 12px;
+  color: var(--danger);
+  font-weight: 600;
+  margin-top: -8px;
+  padding: 0 2px;
+}
 
 /* ── Layout ────────────────────────────────────────────────────────── */
 .layout {
@@ -1114,87 +1144,86 @@ input { font: inherit; color: inherit; background: transparent; }
 .bubbleSenderName:hover { opacity: .75; }
 
 /* ── UserProfileModal (profile view card) ───────────────────────────── */
-.profileViewCard {
+/* ── UserProfileModal (upCard) ───────────────────────────────────────── */
+.upCard {
   position: relative;
-  width: min(380px, 100%);
+  width: min(360px, 100%);
   background: var(--sidebar);
   border: 1px solid var(--border);
   border-radius: 20px;
   overflow: hidden;
-  box-shadow: var(--shadow);
+  box-shadow: 0 8px 32px rgba(0,0,0,.35);
   animation: slideUp .2s ease;
 }
-.pvCloseBtn {
-  position: absolute;
-  top: 14px;
-  right: 14px;
-  width: 32px;
-  height: 32px;
-  border-radius: 10px;
-  background: var(--panel);
-  color: var(--muted);
-  display: grid;
-  place-items: center;
-  z-index: 2;
-  transition: background .15s, color .15s;
+.upCloseBtn {
+  position: absolute; top: 12px; right: 12px;
+  width: 30px; height: 30px; border-radius: 9px;
+  background: var(--panel); border: 1px solid var(--border);
+  color: var(--muted); display: grid; place-items: center;
+  z-index: 2; transition: background .15s, color .15s;
 }
-.pvCloseBtn:hover { background: var(--border); color: var(--text); }
-.pvLoading { padding: 48px; text-align: center; color: var(--muted); font-size: 14px; }
-.pvHeader {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 8px;
-  padding: 36px 24px 20px;
-  background: linear-gradient(180deg, var(--accent-dim) 0%, transparent 100%);
+.upCloseBtn:hover { background: var(--border); color: var(--text); }
+.upLoading { padding: 48px; text-align: center; color: var(--muted); font-size: 14px; }
+
+/* Header — clean, no heavy gradient */
+.upHeader {
+  display: flex; flex-direction: column; align-items: center;
+  gap: 6px; padding: 32px 24px 20px;
   border-bottom: 1px solid var(--border);
 }
-.pvAvatarWrap {
-  width: 80px;
-  height: 80px;
-  border-radius: 24px;
-  overflow: hidden;
-  box-shadow: 0 4px 16px rgba(0,0,0,.25);
+.upAvatarRing {
+  padding: 3px;
+  border-radius: 27px;
+  background: linear-gradient(135deg, var(--accent), color-mix(in srgb, var(--accent) 40%, var(--sidebar)));
+  margin-bottom: 2px;
 }
-.pvAvatarImg { width: 100%; height: 100%; object-fit: cover; display: block; }
-.pvAvatarFallback {
-  width: 100%;
-  height: 100%;
-  background: var(--accent-dim);
-  color: var(--accent);
-  display: grid;
-  place-items: center;
-  font-size: 32px;
-  font-weight: 800;
+.upAvatar {
+  width: 72px; height: 72px; border-radius: 22px; overflow: hidden;
+  background: var(--accent-dim); display: grid; place-items: center;
 }
-.pvName { font-size: 18px; font-weight: 700; text-align: center; }
-.pvUsername { font-size: 13px; color: var(--muted); }
-.pvBody { padding: 16px 24px; display: flex; flex-direction: column; gap: 12px; }
-.pvField {
-  background: var(--panel);
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  padding: 10px 14px;
+.upAvatarImg { width: 100%; height: 100%; object-fit: cover; display: block; }
+.upAvatarLetter { font-size: 28px; font-weight: 800; color: var(--accent); }
+.upName { font-size: 18px; font-weight: 700; text-align: center; }
+.upUsername { font-size: 13px; color: var(--muted); }
+
+/* Info rows — like ppAction style */
+.upInfoSection {
+  display: flex; flex-direction: column;
+  padding: 8px;
+  border-bottom: 1px solid var(--border);
 }
-.pvFieldLabel { font-size: 11px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; margin-bottom: 3px; }
-.pvFieldValue { font-size: 14px; line-height: 1.5; word-break: break-word; overflow-wrap: anywhere; white-space: pre-wrap; }
-.pvEmpty { text-align: center; color: var(--muted); font-size: 13px; padding: 8px 0; }
-.pvFooter { padding: 0 24px 20px; }
-.pvChatBtn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  width: 100%;
-  padding: 11px;
-  border-radius: 12px;
-  background: var(--accent);
-  color: #fff;
-  font-size: 14px;
-  font-weight: 600;
+.upInfoRow {
+  display: flex; align-items: flex-start; gap: 10px;
+  padding: 10px 10px;
+  border-radius: 10px;
+  transition: background .1s;
+}
+.upInfoRow:hover { background: var(--panel); }
+.upInfoIcon {
+  width: 32px; height: 32px; border-radius: 9px;
+  background: var(--panel); display: grid; place-items: center;
+  color: var(--muted); flex-shrink: 0; margin-top: 1px;
+}
+.upInfoContent { flex: 1; min-width: 0; }
+.upInfoLabel {
+  font-size: 10.5px; font-weight: 700; color: var(--muted);
+  text-transform: uppercase; letter-spacing: .05em; margin-bottom: 2px;
+}
+.upInfoValue {
+  font-size: 13.5px; line-height: 1.5;
+  word-break: break-word; overflow-wrap: anywhere; white-space: pre-wrap;
+}
+
+/* Footer */
+.upFooter { padding: 12px; }
+.upChatBtn {
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  width: 100%; padding: 11px; border-radius: 12px;
+  background: var(--accent); color: #fff;
+  font-size: 14px; font-weight: 600;
   transition: opacity .15s;
 }
-.pvChatBtn:hover { opacity: .88; }
+.upChatBtn:hover { opacity: .88; }
 
 /* ── GroupInfoModal ──────────────────────────────────────────────────── */
 .groupInfoCard {
@@ -1222,21 +1251,17 @@ input { font: inherit; color: inherit; background: transparent; }
   flex-direction: column;
   align-items: center;
   gap: 6px;
-  padding: 36px 24px 16px;
-  background: linear-gradient(180deg, var(--accent-dim) 0%, transparent 100%);
+  padding: 32px 24px 18px;
   border-bottom: 1px solid var(--border);
 }
 .giAvatarFallback {
-  width: 72px;
-  height: 72px;
-  border-radius: 22px;
+  width: 72px; height: 72px; border-radius: 22px;
   background: var(--accent-dim);
-  border: 2px solid var(--accent-border);
   color: var(--accent);
-  display: grid;
-  place-items: center;
-  font-size: 28px;
-  font-weight: 800;
+  display: grid; place-items: center;
+  font-size: 28px; font-weight: 800;
+  border: 2px solid var(--accent-border);
+  box-shadow: 0 4px 16px rgba(0,0,0,.15);
 }
 .giName { font-size: 18px; font-weight: 700; }
 .giMeta { font-size: 13px; color: var(--muted); }
@@ -2200,3 +2225,25 @@ input[type="date"].psInput::-webkit-calendar-picker-indicator {
 .psTextareaWrap .psTextarea { padding-bottom: 26px; }
 .psTextareaWrap .psCharCounter { bottom: 9px; right: 12px; }
 .giEditTextareaWrap { position: relative; width: 100%; }
+
+/* ── giCard — GroupInfoModal overlay on upCard ───────────────────────── */
+.giCard {
+  width: min(420px, 100%);
+  max-height: 85vh;
+  overflow-y: auto;
+  scroll-behavior: smooth;
+}
+.giCard::-webkit-scrollbar { width: 5px; }
+.giCard::-webkit-scrollbar-track { background: transparent; }
+.giCard::-webkit-scrollbar-thumb { background: var(--border); border-radius: 5px; }
+.giCard::-webkit-scrollbar-thumb:hover { background: var(--muted); }
+
+.giMembersSection { padding-bottom: 8px; }
+.giDescToggle {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-size: 12px; font-weight: 600; color: var(--accent);
+  background: none; border: none; padding: 0;
+  cursor: pointer; margin-top: 4px;
+  transition: opacity .15s;
+}
+.giDescToggle:hover { opacity: .75; }

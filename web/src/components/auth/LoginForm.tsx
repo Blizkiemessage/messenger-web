@@ -1,41 +1,37 @@
 /**
- * LoginForm
- *
- * Username-only or username+password login.
- * On success calls onAuthenticated — handled by AuthScreen.
+ * LoginForm — password required, "Нет аккаунта?" link at bottom.
  */
-
 import { useState, useCallback } from 'react';
 import { type User } from '../../types';
 import { PasswordInput } from '../ui/PasswordInput';
-import { authLogin, authLoginPassword } from '../../api/auth';
+import { authLoginPassword } from '../../api/auth';
 
 interface Props {
   onAuthenticated: (token: string, user: User) => void;
+  onSwitchTab: () => void;
 }
 
-export function LoginForm({ onAuthenticated }: Props) {
+export function LoginForm({ onAuthenticated, onSwitchTab }: Props) {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const ready = username.trim().length >= 3;
+  const ready = username.trim().length >= 3 && password.length >= 1;
 
   const onLogin = useCallback(async () => {
+    if (!ready || busy) return;
     setError(null);
     setBusy(true);
     try {
-      const res = password
-        ? await authLoginPassword(username.trim(), password)
-        : await authLogin(username.trim());
+      const res = await authLoginPassword(username.trim(), password);
       onAuthenticated(res.token, res.user);
     } catch (e: any) {
-      setError(e?.message ?? 'Ошибка входа');
+      setError(e?.message ?? 'Неверный username или пароль');
     } finally {
       setBusy(false);
     }
-  }, [username, password, onAuthenticated]);
+  }, [username, password, ready, busy, onAuthenticated]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && ready && !busy) onLogin();
@@ -43,8 +39,6 @@ export function LoginForm({ onAuthenticated }: Props) {
 
   return (
     <>
-      <div className="authSub">Введите username чтобы войти или добавьте пароль</div>
-
       <div className="authLabel">Username</div>
       <input
         className="authInput"
@@ -57,26 +51,26 @@ export function LoginForm({ onAuthenticated }: Props) {
         onKeyDown={handleKeyDown}
       />
 
-      <div className="authLabel">
-        Пароль <span style={{ color: 'var(--muted)', fontWeight: 400 }}>(необязательно)</span>
-      </div>
+      <div className="authLabel">Пароль</div>
       <PasswordInput
         value={password}
         onChange={setPassword}
-        placeholder="Пароль (если привязан)"
+        placeholder="Введите пароль"
         onKeyDown={handleKeyDown}
       />
-      <div className="authHint">Без пароля — вход по username · С паролем — проверка пароля</div>
 
       {error && <div className="authError">{error}</div>}
 
-      <button
-        className="authBtn"
-        disabled={!ready || busy}
-        onClick={onLogin}
-      >
+      <button className="authBtn" disabled={!ready || busy} onClick={onLogin}>
         {busy ? '…' : 'Войти'}
       </button>
+
+      <div className="authSwitchRow">
+        Нет аккаунта?{' '}
+        <button className="authSwitchLink" onClick={onSwitchTab}>
+          Зарегистрируйтесь
+        </button>
+      </div>
     </>
   );
 }
