@@ -1,8 +1,6 @@
 /**
- * AuthScreen
- *
- * Container for login/register. Delegates form rendering to LoginForm
- * and RegisterForm — this file only manages the tab and card wrapper.
+ * AuthScreen — manages login/register tabs.
+ * Passes onSwitchTab so forms can redirect each other.
  */
 import { useState } from 'react';
 import { type User } from '../../types';
@@ -11,6 +9,8 @@ import { ThemeIcon } from '../ui/icons/ThemeIcon';
 import { LoginForm } from './LoginForm';
 import { RegisterForm } from './RegisterForm';
 
+type AuthTab = 'login' | 'register';
+
 interface Props {
   theme: Theme;
   onThemeToggle: () => void;
@@ -18,10 +18,7 @@ interface Props {
 }
 
 export function AuthScreen({ theme, onThemeToggle, onAuthenticated }: Props) {
-  type AuthTab = 'login' | 'register';
   const [tab, setTab] = useState<AuthTab>('login');
-
-  function switchTab(t: AuthTab) { setTab(t); }
 
   return (
     <div className="authWrap">
@@ -31,14 +28,15 @@ export function AuthScreen({ theme, onThemeToggle, onAuthenticated }: Props) {
       <div className="authCard">
         <div className="authLogo">B</div>
         <div className="authTitle">Blizkie</div>
+
         <div className="authTabs">
-          <button className={`authTab${tab === 'login' ? ' active' : ''}`} onClick={() => switchTab('login')}>Войти</button>
-          <button className={`authTab${tab === 'register' ? ' active' : ''}`} onClick={() => switchTab('register')}>Регистрация</button>
+          <button className={`authTab${tab === 'login'    ? ' active' : ''}`} onClick={() => setTab('login')}>Войти</button>
+          <button className={`authTab${tab === 'register' ? ' active' : ''}`} onClick={() => setTab('register')}>Регистрация</button>
         </div>
 
         {tab === 'login'
-          ? <LoginForm onAuthenticated={onAuthenticated} />
-          : <RegisterForm onAuthenticated={onAuthenticated} />
+          ? <LoginForm    onAuthenticated={onAuthenticated} onSwitchTab={() => setTab('register')} />
+          : <RegisterForm onAuthenticated={onAuthenticated} onSwitchTab={() => setTab('login')} />
         }
       </div>
     </div>
