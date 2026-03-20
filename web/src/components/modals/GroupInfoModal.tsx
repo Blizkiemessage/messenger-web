@@ -58,6 +58,14 @@ export function GroupInfoModal({ chat, onClose, onViewUser, meId, onUpdateChat, 
     finally { setEditBusy(false); }
   }
 
+  async function handleRemoveConfirm() {
+    if (!removeConfirm) return;
+    setRemoveBusy(true);
+    try { await onRemoveMember(removeConfirm.id); setRemoveConfirm(null); }
+    catch { /* upstream */ }
+    finally { setRemoveBusy(false); }
+  }
+
   const desc = chat.description || '';
   const descNeedsExpand = desc.length > DESC_PREVIEW_CHARS;
   const descShown = descExpanded || !descNeedsExpand ? desc : desc.slice(0, DESC_PREVIEW_CHARS) + '…';
