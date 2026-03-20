@@ -1,16 +1,13 @@
 /**
- * useAppStore — UI-only shared state.
- * Initialises theme AND accent colour from localStorage on startup.
+ * useAppStore — UI-only shared state (theme, modals, menus).
+ * Accent colour is now managed in useSessionStore (per-user).
  */
 import { create } from 'zustand';
 import { type Chat } from '../types';
 import { type Theme, getStoredTheme, applyTheme } from '../utils/theme';
-import { getStoredAccent, applyAccent } from '../utils/accent';
 
 interface AppState {
   theme: Theme;
-  accent: string;
-
   showProfile: boolean;
   showProfileSettings: boolean;
   showCreateGroup: boolean;
@@ -23,7 +20,6 @@ interface AppState {
   deleteBusy: boolean;
 
   toggleTheme: () => void;
-  setAccent: (hex: string) => void;
   toggleProfile: () => void;
   setShowProfile: (v: boolean) => void;
   setShowProfileSettings: (v: boolean) => void;
@@ -40,13 +36,8 @@ interface AppState {
 const initialTheme = getStoredTheme();
 applyTheme(initialTheme);
 
-const initialAccent = getStoredAccent();
-applyAccent(initialAccent);
-
 export const useAppStore = create<AppState>((set) => ({
   theme: initialTheme,
-  accent: initialAccent,
-
   showProfile: false,
   showProfileSettings: false,
   showCreateGroup: false,
@@ -63,8 +54,6 @@ export const useAppStore = create<AppState>((set) => ({
     applyTheme(next);
     return { theme: next };
   }),
-
-  setAccent: (hex) => { applyAccent(hex); set({ accent: hex }); },
 
   toggleProfile: () => set(state => ({ showProfile: !state.showProfile })),
   setShowProfile: (showProfile) => set({ showProfile }),

@@ -13,18 +13,36 @@ interface Props {
   showAvatar: boolean;
   showName: boolean;
   hasSelection: boolean;
+  highlight?: string;        // search term to highlight
+  isSearchMatch?: boolean;   // this is the currently focused match
   onContextMenu: () => void;
   onClick: (e: React.MouseEvent) => void;
   onViewUser: (id: string) => void;
 }
 
+/** Wrap matched substrings in <mark> spans */
+function HighlightText({ text, term }: { text: string; term: string }) {
+  if (!term || !text) return <>{text}</>;
+  const parts = text.split(new RegExp(`(${term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi'));
+  return (
+    <>
+      {parts.map((part, i) =>
+        part.toLowerCase() === term.toLowerCase()
+          ? <mark key={i} className="msgHighlight">{part}</mark>
+          : part
+      )}
+    </>
+  );
+}
+
 export function MessageBubble({
   message: m, isOwn, isRead, isSelected, isGroup, sender,
-  showAvatar, showName, hasSelection, onContextMenu, onClick, onViewUser,
+  showAvatar, showName, hasSelection, highlight, isSearchMatch,
+  onContextMenu, onClick, onViewUser,
 }: Props) {
   return (
     <div
-      className={`msg ${isOwn ? 'out' : 'in'}${isSelected ? ' selected' : ''}${isGroup && !isOwn ? ' inGroup' : ''}`}
+      className={`msg ${isOwn ? 'out' : 'in'}${isSelected ? ' selected' : ''}${isGroup && !isOwn ? ' inGroup' : ''}${isSearchMatch ? ' msgSearchFocus' : ''}`}
       onContextMenu={e => { if (!isOwn) return; e.preventDefault(); onContextMenu(); }}
       onClick={e => { if (!isOwn || !hasSelection) return; e.stopPropagation(); onClick(e); }}
     >
@@ -55,7 +73,9 @@ export function MessageBubble({
             {sender?.display_name || sender?.username || 'Пользователь'}
           </button>
         )}
-        <div className="bubbleText">{m.text}</div>
+        <div className="bubbleText">
+          <HighlightText text={m.text || ''} term={highlight || ''} />
+        </div>
         <div className="bubbleMeta">
           <span className="bubbleTime">{formatTime(m.created_at)}</span>
           {isOwn && <MsgStatus isRead={isRead} />}

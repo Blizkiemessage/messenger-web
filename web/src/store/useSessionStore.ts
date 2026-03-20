@@ -2,44 +2,42 @@
  * useSessionStore
  *
  * Holds the authenticated user's token and profile.
- * Initialized from localStorage on first load via getSession().
- *
- * Used by: AuthScreen (write), App (read), useSocket (read), any component
- * that needs to know who is logged in.
+ * Applies/resets the per-user accent colour on login/logout.
  */
-
 import { create } from 'zustand';
 import { type User } from '../types';
 import { getSession, setSession as persistSession, clearSession as clearPersisted } from '../storage/session';
+import { onUserLogin, onUserLogout } from '../utils/accent';
 
 interface SessionState {
   token: string | null;
   me: User | null;
+  accent: string;
 
-  /** Called after successful login or registration */
   setSession: (token: string, me: User) => void;
-
-  /** Called on logout or account deletion */
   clearSession: () => void;
-
-  /** Called after profile update (PATCH /users/me) */
   updateMe: (user: User) => void;
 }
 
 const saved = getSession();
+// Apply saved user's accent immediately on startup (before React renders)
+const initialAccent = saved?.user?.id ? onUserLogin(saved.user.id) : '#2f81f7';
 
 export const useSessionStore = create<SessionState>((set) => ({
   token: saved?.token ?? null,
   me: saved?.user ?? null,
+  accent: initialAccent,
 
   setSession: (token, me) => {
     persistSession({ token, user: me });
-    set({ token, me });
+    const accent = onUserLogin(me.id);   // load + apply this user's colour
+    set({ token, me, accent });
   },
 
   clearSession: () => {
     clearPersisted();
-    set({ token: null, me: null });
+    onUserLogout();                       // reset CSS to default blue
+    set({ token: null, me: null, accent: '#2f81f7' });
   },
 
   updateMe: (me) => {
