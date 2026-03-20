@@ -1,17 +1,12 @@
 /**
- * accent.ts
- *
- * Manages the user's custom accent colour.
- * Stores hex value in localStorage and applies it as CSS custom properties.
+ * accent.ts — manages the user's custom accent colour.
+ * Stores hex in localStorage, applies it as CSS custom properties on :root.
  */
 
 const STORAGE_KEY = 'blizkie.accent';
 
-/** Default accent colours per theme */
-export const DEFAULT_ACCENT_DARK  = '#2f81f7';
-export const DEFAULT_ACCENT_LIGHT = '#2563eb';
+export const DEFAULT_ACCENT = '#2f81f7';
 
-/** Preset palette shown in the colour picker */
 export const ACCENT_PRESETS = [
   { label: 'Синий (по умолчанию)', value: '#2f81f7' },
   { label: 'Индиго',               value: '#6366f1' },
@@ -25,7 +20,6 @@ export const ACCENT_PRESETS = [
   { label: 'Голубой',              value: '#38bdf8' },
 ];
 
-/** Parse hex → { r, g, b } */
 function hexToRgb(hex: string): { r: number; g: number; b: number } | null {
   const clean = hex.replace('#', '');
   if (clean.length !== 6) return null;
@@ -36,10 +30,6 @@ function hexToRgb(hex: string): { r: number; g: number; b: number } | null {
   };
 }
 
-/**
- * Apply an accent colour to CSS variables on :root.
- * Affects --accent, --accent-dim, --accent-border.
- */
 export function applyAccent(hex: string): void {
   const rgb = hexToRgb(hex);
   if (!rgb) return;
@@ -51,20 +41,14 @@ export function applyAccent(hex: string): void {
   try { localStorage.setItem(STORAGE_KEY, hex); } catch {}
 }
 
-/** Load saved accent or fall back to default */
 export function getStoredAccent(): string {
-  try {
-    return localStorage.getItem(STORAGE_KEY) || DEFAULT_ACCENT_DARK;
-  } catch {
-    return DEFAULT_ACCENT_DARK;
-  }
+  try { return localStorage.getItem(STORAGE_KEY) || DEFAULT_ACCENT; }
+  catch { return DEFAULT_ACCENT; }
 }
 
-/** Reset to theme default and remove override */
 export function resetAccent(): void {
-  const root = document.documentElement;
-  root.style.removeProperty('--accent');
-  root.style.removeProperty('--accent-dim');
-  root.style.removeProperty('--accent-border');
+  document.documentElement.style.removeProperty('--accent');
+  document.documentElement.style.removeProperty('--accent-dim');
+  document.documentElement.style.removeProperty('--accent-border');
   try { localStorage.removeItem(STORAGE_KEY); } catch {}
 }
