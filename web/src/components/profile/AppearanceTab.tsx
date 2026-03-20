@@ -1,16 +1,11 @@
 /**
- * AppearanceTab
- *
- * «Внешний вид» tab in ProfileSettingsModal.
+ * AppearanceTab — «Внешний вид» tab in ProfileSettingsModal.
  * Lets the user pick a custom accent colour for the whole UI.
  */
-
 import { useState, useCallback } from 'react';
-import { ACCENT_PRESETS, DEFAULT_ACCENT_DARK, applyAccent, getStoredAccent, resetAccent } from '../../utils/accent';
-import { useAppStore } from '../../store/useAppStore';
+import { ACCENT_PRESETS, DEFAULT_ACCENT, applyAccent, getStoredAccent, resetAccent } from '../../utils/accent';
 
 export function AppearanceTab() {
-  const theme = useAppStore(s => s.theme);
   const [current, setCurrent] = useState<string>(getStoredAccent);
 
   const handleSelect = useCallback((hex: string) => {
@@ -25,13 +20,12 @@ export function AppearanceTab() {
   }, []);
 
   const handleReset = useCallback(() => {
-    const def = DEFAULT_ACCENT_DARK;
     resetAccent();
-    applyAccent(def);   // re-apply default so UI updates immediately
-    setCurrent(def);
-  }, [theme]);
+    applyAccent(DEFAULT_ACCENT);
+    setCurrent(DEFAULT_ACCENT);
+  }, []);
 
-  const isDefault = current.toLowerCase() === DEFAULT_ACCENT_DARK.toLowerCase();
+  const isDefault = current.toLowerCase() === DEFAULT_ACCENT.toLowerCase();
 
   return (
     <div className="psBody">
@@ -64,13 +58,12 @@ export function AppearanceTab() {
             <button
               key={p.value}
               className={`apPreset${current.toLowerCase() === p.value.toLowerCase() ? ' apPresetActive' : ''}`}
-              style={{ '--preset-color': p.value } as React.CSSProperties}
               onClick={() => handleSelect(p.value)}
               title={p.label}
             >
               <span className="apPresetDot" style={{ background: p.value }} />
               <span className="apPresetCheck">
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round">
                   <polyline points="20 6 9 17 4 12"/>
                 </svg>
               </span>
@@ -82,23 +75,21 @@ export function AppearanceTab() {
       {/* Custom colour picker */}
       <div className="apSection">
         <div className="apSectionTitle">Свой цвет</div>
-        <div className="apCustomRow">
-          <label className="apColorPickerLabel" title="Выбрать цвет">
-            <input
-              type="color"
-              className="apColorInput"
-              value={current}
-              onChange={handleCustom}
-            />
-            <span className="apColorSwatch" style={{ background: current }} />
-            <span className="apColorHex">{current.toUpperCase()}</span>
-            <span className="apColorArrow">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-                <polyline points="6 9 12 15 18 9"/>
-              </svg>
-            </span>
-          </label>
-        </div>
+        <label className="apColorPickerLabel">
+          <span className="apColorSwatch" style={{ background: current }} />
+          <span className="apColorHex">{current.toUpperCase()}</span>
+          <span className="apColorArrow">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+              <polyline points="6 9 12 15 18 9"/>
+            </svg>
+          </span>
+          <input
+            type="color"
+            className="apColorInput"
+            value={current}
+            onChange={handleCustom}
+          />
+        </label>
       </div>
 
       {/* Reset */}
