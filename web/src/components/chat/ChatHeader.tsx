@@ -1,3 +1,6 @@
+/**
+ * ChatHeader — with message search panel.
+ */
 import { type Chat } from '../../types';
 import { chatTitle, chatSubtitle, avatarLetter } from '../../utils/format';
 
@@ -10,11 +13,23 @@ interface Props {
   onDeleteSelected: () => void;
   onOpenInfo: () => void;
   onViewUser: (id: string) => void;
+  // Search
+  searchOpen: boolean;
+  searchQuery: string;
+  searchTotal: number;
+  searchCurrent: number;
+  onToggleSearch: () => void;
+  onSearchChange: (q: string) => void;
+  onSearchNext: () => void;
+  onSearchPrev: () => void;
+  onSearchClose: () => void;
 }
 
 export function ChatHeader({
   chat, meId, hasSelection, selectedCount,
   onCancelSelection, onDeleteSelected, onOpenInfo, onViewUser,
+  searchOpen, searchQuery, searchTotal, searchCurrent,
+  onToggleSearch, onSearchChange, onSearchNext, onSearchPrev, onSearchClose,
 }: Props) {
   const isGroup = chat.type === 'group';
 
@@ -44,26 +59,91 @@ export function ChatHeader({
   }
 
   return (
-    <div className="chatHeader">
-      <button
-        className="chHeaderBtn"
-        onClick={() => {
-          if (isGroup) {
-            onOpenInfo();
-          } else {
-            const other = chat.members.find(m => m.id !== meId);
-            if (other) onViewUser(other.id);
-          }
-        }}
-      >
-        <div className={`chAvatar${isGroup ? ' group' : ''}`}>
-          {avatarLetter(chatTitle(chat, meId))}
+    <div className={`chatHeaderWrap${searchOpen ? ' searchOpen' : ''}`}>
+      {/* Main header row */}
+      <div className="chatHeader">
+        <button
+          className="chHeaderBtn"
+          onClick={() => {
+            if (isGroup) onOpenInfo();
+            else {
+              const other = chat.members.find(m => m.id !== meId);
+              if (other) onViewUser(other.id);
+            }
+          }}
+        >
+          <div className={`chAvatar${isGroup ? ' group' : ''}`}>
+            {avatarLetter(chatTitle(chat, meId))}
+          </div>
+          <div>
+            <div className="chName">{chatTitle(chat, meId)}</div>
+            <div className="chSub">{chatSubtitle(chat, meId)}</div>
+          </div>
+        </button>
+
+        {/* Search toggle button */}
+        <button
+          className={`chSearchToggle${searchOpen ? ' active' : ''}`}
+          onClick={onToggleSearch}
+          title="Поиск по сообщениям"
+        >
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+            <circle cx="11" cy="11" r="8"/>
+            <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+          </svg>
+        </button>
+      </div>
+
+      {/* Slide-down search bar */}
+      {searchOpen && (
+        <div className="chSearchBar">
+          <div className="chSearchInputWrap">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" className="chSearchIcon">
+              <circle cx="11" cy="11" r="8"/>
+              <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+            </svg>
+            <input
+              className="chSearchInput"
+              placeholder="Найти сообщение…"
+              value={searchQuery}
+              onChange={e => onSearchChange(e.target.value)}
+              autoFocus
+            />
+            {searchQuery && (
+              <span className="chSearchCount">
+                {searchTotal === 0 ? 'Не найдено' : `${searchCurrent + 1} / ${searchTotal}`}
+              </span>
+            )}
+          </div>
+
+          <div className="chSearchActions">
+            {searchTotal > 0 && (
+              <>
+                <button className="chSearchNav" onClick={onSearchPrev} title="Предыдущее">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                    <polyline points="18 15 12 9 6 15"/>
+                  </svg>
+                </button>
+                <button className="chSearchNav" onClick={onSearchNext} title="Следующее">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                    <polyline points="6 9 12 15 18 9"/>
+                  </svg>
+                </button>
+              </>
+            )}
+            {searchQuery && (
+              <button className="chSearchReset" onClick={() => onSearchChange('')}>
+                Сброс
+              </button>
+            )}
+            <button className="chSearchClose" onClick={onSearchClose}>
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+              </svg>
+            </button>
+          </div>
         </div>
-        <div>
-          <div className="chName">{chatTitle(chat, meId)}</div>
-          <div className="chSub">{chatSubtitle(chat, meId)}</div>
-        </div>
-      </button>
+      )}
     </div>
   );
 }

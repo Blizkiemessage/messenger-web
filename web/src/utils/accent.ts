@@ -1,9 +1,10 @@
 /**
- * accent.ts — manages the user's custom accent colour.
- * Stores hex in localStorage, applies it as CSS custom properties on :root.
+ * accent.ts — manages per-user accent colour.
+ *
+ * Key in localStorage: `blizkie.accent.<userId>`
+ * On login  → load that user's colour and apply it
+ * On logout → reset to default (blue)
  */
-
-const STORAGE_KEY = 'blizkie.accent';
 
 export const DEFAULT_ACCENT = '#2f81f7';
 
@@ -20,17 +21,22 @@ export const ACCENT_PRESETS = [
   { label: 'Голубой',              value: '#38bdf8' },
 ];
 
-function hexToRgb(hex: string): { r: number; g: number; b: number } | null {
-  const clean = hex.replace('#', '');
-  if (clean.length !== 6) return null;
+function storageKey(userId: string) {
+  return `blizkie.accent.${userId}`;
+}
+
+function hexToRgb(hex: string) {
+  const c = hex.replace('#', '');
+  if (c.length !== 6) return null;
   return {
-    r: parseInt(clean.slice(0, 2), 16),
-    g: parseInt(clean.slice(2, 4), 16),
-    b: parseInt(clean.slice(4, 6), 16),
+    r: parseInt(c.slice(0, 2), 16),
+    g: parseInt(c.slice(2, 4), 16),
+    b: parseInt(c.slice(4, 6), 16),
   };
 }
 
-export function applyAccent(hex: string): void {
+/** Apply a hex colour to CSS variables (does NOT save to localStorage). */
+export function applyAccentCss(hex: string): void {
   const rgb = hexToRgb(hex);
   if (!rgb) return;
   const { r, g, b } = rgb;
@@ -38,17 +44,44 @@ export function applyAccent(hex: string): void {
   root.style.setProperty('--accent',        hex);
   root.style.setProperty('--accent-dim',    `rgba(${r},${g},${b},0.15)`);
   root.style.setProperty('--accent-border', `rgba(${r},${g},${b},0.35)`);
-  try { localStorage.setItem(STORAGE_KEY, hex); } catch {}
 }
 
-export function getStoredAccent(): string {
-  try { return localStorage.getItem(STORAGE_KEY) || DEFAULT_ACCENT; }
-  catch { return DEFAULT_ACCENT; }
+/** Reset CSS variables to stylesheet defaults (blue). */
+export function resetAccentCss(): void {
+  const root = document.documentElement;
+  root.style.removeProperty('--accent');
+  root.style.removeProperty('--accent-dim');
+  root.style.removeProperty('--accent-border');
 }
 
-export function resetAccent(): void {
-  document.documentElement.style.removeProperty('--accent');
-  document.documentElement.style.removeProperty('--accent-dim');
-  document.documentElement.style.removeProperty('--accent-border');
-  try { localStorage.removeItem(STORAGE_KEY); } catch {}
+/** Load this user's saved accent (or DEFAULT_ACCENT). */
+export function loadUserAccent(userId: string): string {
+  try {
+    return localStorage.getItem(storageKey(userId)) || DEFAULT_ACCENT;
+  } catch {
+    return DEFAULT_ACCENT;
+  }
+}
+
+/** Save accent for a specific user. */
+export function saveUserAccent(userId: string, hex: string): void {
+  try { localStorage.setItem(storageKey(userId), hex); } catch {}
+}
+
+/** Apply + save for a specific user. */
+export function applyAccent(userId: string, hex: string): void {
+  applyAccentCss(hex);
+  saveUserAccent(userId, hex);
+}
+
+/** Call on login: load and apply this user's colour. */
+export function onUserLogin(userId: string): string {
+  const hex = loadUserAccent(userId);
+  applyAccentCss(hex);
+  return hex;
+}
+
+/** Call on logout: reset CSS to default blue. */
+export function onUserLogout(): void {
+  resetAccentCss();
 }
