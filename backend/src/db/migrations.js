@@ -137,11 +137,11 @@ function runMigrations() {
     console.error('[DB] Failed to assign default creator:', err.message);
   }
 
-  
   // Add password_hash column for new username+password auth
   try {
     db.exec('ALTER TABLE users ADD COLUMN password_hash TEXT');
   } catch { /* already exists */ }
+
   // Add description column to chats for group descriptions
   try {
     db.exec('ALTER TABLE chats ADD COLUMN description TEXT');
@@ -163,14 +163,12 @@ function runMigrations() {
     db.exec('ALTER TABLE messages ADD COLUMN is_system INTEGER NOT NULL DEFAULT 0');
   } catch { /* already exists */ }
 
+  // ✅ NEW: Add is_closed flag to chats (admin deleted/closed the group)
+  try {
+    db.exec('ALTER TABLE chats ADD COLUMN is_closed INTEGER NOT NULL DEFAULT 0');
+  } catch { /* already exists */ }
+
   console.log('[DB] Migrations complete');
 }
 
 module.exports = { runMigrations };
-// This is appended but runMigrations already handles it via try/catch pattern
-
-// Add description column to chats
-function runDescriptionMigration() {
-  const db = require('./index') || require('../config/database').getDb();
-  try { db.exec('ALTER TABLE chats ADD COLUMN description TEXT'); } catch {}
-}

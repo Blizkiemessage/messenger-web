@@ -46,8 +46,10 @@ export async function deleteMessages(chatId: string, messageIds: string[]): Prom
   return res.data.deleted;
 }
 
-export async function leaveGroup(chatId: string): Promise<void> {
-  await client.post(`/chats/${chatId}/leave`);
+/** ✅ Returns closed=true if the requester is the admin (group closed instead of leaving) */
+export async function leaveGroup(chatId: string): Promise<{ ok: boolean; closed?: boolean }> {
+  const res = await client.post<{ ok: boolean; closed?: boolean }>(`/chats/${chatId}/leave`);
+  return res.data;
 }
 
 export async function deleteDirectChat(chatId: string): Promise<void> {
@@ -66,5 +68,16 @@ export async function removeGroupMember(chatId: string, userId: string): Promise
 
 export async function updateGroupChat(chatId: string, payload: { name?: string; description?: string }): Promise<Chat> {
   const res = await client.patch<Chat>(`/chats/${chatId}`, payload);
+  return res.data;
+}
+
+/** ✅ Admin closes the group — no one can send messages anymore */
+export async function closeGroup(chatId: string): Promise<void> {
+  await client.post(`/chats/${chatId}/close`);
+}
+
+/** ✅ Admin transfers admin rights to another member */
+export async function transferAdminRights(chatId: string, newAdminId: string): Promise<Chat> {
+  const res = await client.post<Chat>(`/chats/${chatId}/transfer-admin`, { newAdminId });
   return res.data;
 }

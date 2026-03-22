@@ -9,7 +9,9 @@
  *   - markChatAsRead        — update last_read_at for a user in a chat
  *   - addChatMember         — add a user to a group (creator only)
  *   - removeChatMember      — kick a user from a group (creator only)
- *   - leaveGroup            — user voluntarily leaves a group
+ *   - leaveGroup            — user voluntarily leaves a group (admin → closes group)
+ *   - closeGroup            — admin explicitly closes group (from GroupInfoModal)
+ *   - transferAdmin         — transfer admin rights to another member
  *   - deleteDirectChat      — delete a direct chat for both users
  *   - updateChatMetadata    — rename / re-describe a group (creator only)
  *   - deleteAccount         — full account teardown with notifications
@@ -33,7 +35,7 @@ function getChatById(chatId, userId) {
 
   const chat = db
     .prepare(
-      'SELECT id, type, name, description, avatar_url, created_at, creator_id FROM chats WHERE id = ?'
+      'SELECT id, type, name, description, avatar_url, created_at, creator_id, is_closed FROM chats WHERE id = ?'
     )
     .get(chatId);
   if (!chat) return null;
@@ -73,6 +75,7 @@ function getChatById(chatId, userId) {
 
   return {
     ...chat,
+    is_closed: chat.is_closed === 1,
     members,
     last_message: lastMsg ? decryptMessage(lastMsg) : null,
     unread_count: 0,
@@ -87,7 +90,7 @@ function getUserChats(userId) {
 
   const chats = db
     .prepare(
-      `SELECT c.id, c.type, c.name, c.description, c.avatar_url, c.created_at, c.creator_id
+      `SELECT c.id, c.type, c.name, c.description, c.avatar_url, c.created_at, c.creator_id, c.is_closed
        FROM chats c
        JOIN chat_members cm ON cm.chat_id = c.id
        WHERE cm.user_id = ?
@@ -140,6 +143,7 @@ function getUserChats(userId) {
 
     return {
       ...chat,
+      is_closed: chat.is_closed === 1,
       members,
       last_message: lastMsg ? decryptMessage(lastMsg) : null,
       unread_count: unread_count || 0,
@@ -285,10 +289,15 @@ function removeChatMember(chatId, requesterId, targetUserId) {
   return { updatedChat, sysMsg, remaining };
 }
 
+/**
+ * leaveGroup — user voluntarily leaves a group.
+ * ✅ If the user is the admin (creator), the group is CLOSED instead of leaving.
+ *    Admin stays as member, group gets is_closed=1, system message is sent.
+ */
 function leaveGroup(chatId, userId) {
   const db = getDb();
 
-  const chat = db.prepare('SELECT id, type FROM chats WHERE id = ?').get(chatId);
+  const chat = db.prepare('SELECT id, type, creator_id FROM chats WHERE id = ?').get(chatId);
   if (!chat || chat.type !== 'group') {
     throw Object.assign(new Error('Not a group'), { status: 400 });
   }
@@ -298,6 +307,18 @@ function leaveGroup(chatId, userId) {
     .get([chatId, userId]);
   if (!member) throw Object.assign(new Error('Not a member'), { status: 403 });
 
+  // ✅ Admin leaving → close the group instead
+  if (chat.creator_id === userId) {
+    db.prepare('UPDATE chats SET is_closed = 1 WHERE id = ?').run(chatId);
+    const sysMsg = saveMessage(chatId, userId, 'Администратор удалил(а) группу', {}, true);
+    const allMembers = db
+      .prepare('SELECT user_id FROM chat_members WHERE chat_id = ?')
+      .all(chatId)
+      .map(r => r.user_id);
+    return { sysMsg, remaining: allMembers, closed: true };
+  }
+
+  // Regular member leaving
   const user = db.prepare('SELECT display_name, username FROM users WHERE id = ?').get(userId);
   const userName = user?.display_name || user?.username || 'Пользователь';
 
@@ -312,7 +333,76 @@ function leaveGroup(chatId, userId) {
     sysMsg = saveMessage(chatId, userId, `${userName} покинул(а) чат`, {}, true);
   }
 
-  return { sysMsg, remaining: remaining.map(r => r.user_id) };
+  return { sysMsg, remaining: remaining.map(r => r.user_id), closed: false };
+}
+
+/**
+ * closeGroup — admin explicitly closes a group from GroupInfoModal.
+ * Sets is_closed=1, sends system message, admin stays in group.
+ */
+function closeGroup(chatId, requesterId) {
+  const db = getDb();
+
+  const chat = db.prepare('SELECT creator_id, type, is_closed FROM chats WHERE id = ?').get(chatId);
+  if (!chat || chat.type !== 'group') {
+    throw Object.assign(new Error('Not a group'), { status: 404 });
+  }
+  if (chat.creator_id !== requesterId) {
+    throw Object.assign(new Error('Only the group admin can close the group'), { status: 403 });
+  }
+  if (chat.is_closed) {
+    throw Object.assign(new Error('Group is already closed'), { status: 400 });
+  }
+
+  db.prepare('UPDATE chats SET is_closed = 1 WHERE id = ?').run(chatId);
+  const sysMsg = saveMessage(chatId, requesterId, 'Администратор удалил(а) группу', {}, true);
+  const allMembers = db
+    .prepare('SELECT user_id FROM chat_members WHERE chat_id = ?')
+    .all(chatId)
+    .map(r => r.user_id);
+
+  return { sysMsg, allMembers };
+}
+
+/**
+ * transferAdmin — admin transfers creator rights to another member.
+ * Updates creator_id, sends system message.
+ */
+function transferAdmin(chatId, requesterId, newAdminId) {
+  const db = getDb();
+
+  const chat = db.prepare('SELECT creator_id, type FROM chats WHERE id = ?').get(chatId);
+  if (!chat || chat.type !== 'group') {
+    throw Object.assign(new Error('Not a group'), { status: 404 });
+  }
+  if (chat.creator_id !== requesterId) {
+    throw Object.assign(new Error('Only the group admin can transfer admin rights'), { status: 403 });
+  }
+  if (requesterId === newAdminId) {
+    throw Object.assign(new Error('Cannot transfer to yourself'), { status: 400 });
+  }
+
+  const memberCheck = db
+    .prepare('SELECT 1 FROM chat_members WHERE chat_id = ? AND user_id = ?')
+    .get([chatId, newAdminId]);
+  if (!memberCheck) {
+    throw Object.assign(new Error('Target user is not a member of this group'), { status: 400 });
+  }
+
+  const newAdmin = db.prepare('SELECT display_name, username FROM users WHERE id = ?').get(newAdminId);
+  const newAdminName = newAdmin?.display_name || newAdmin?.username || 'Пользователь';
+
+  db.prepare('UPDATE chats SET creator_id = ? WHERE id = ?').run([newAdminId, chatId]);
+  const sysMsg = saveMessage(chatId, requesterId, `Новый администратор группы — ${newAdminName}`, {}, true);
+
+  const allMembers = db
+    .prepare('SELECT user_id FROM chat_members WHERE chat_id = ?')
+    .all(chatId)
+    .map(r => r.user_id);
+
+  // Return updated chat from the new admin's perspective
+  const updatedChat = getChatById(chatId, newAdminId);
+  return { sysMsg, allMembers, updatedChat };
 }
 
 function deleteDirectChat(chatId, userId) {
@@ -369,7 +459,7 @@ function deleteAccount(userId) {
 
   const groupChats = db
     .prepare(
-      `SELECT c.id FROM chats c
+      `SELECT c.id, c.creator_id FROM chats c
        JOIN chat_members cm ON cm.chat_id = c.id
        WHERE cm.user_id = ? AND c.type = 'group'`
     )
@@ -389,15 +479,24 @@ function deleteAccount(userId) {
 
   db.exec('BEGIN');
   try {
-    for (const { id: chatId } of groupChats) {
+    for (const { id: chatId, creator_id } of groupChats) {
       const remaining = db
         .prepare('SELECT user_id FROM chat_members WHERE chat_id = ? AND user_id != ?')
         .all(chatId, userId)
         .map(r => r.user_id);
 
       if (remaining.length > 0) {
-        const sysMsg = saveMessage(chatId, userId, `${userName} покинул(а) чат`, {}, true);
-        groupNotifications.push({ chatId, sysMsg, remainingUserIds: remaining });
+        // If user is admin, close the group
+        const msgText = creator_id === userId
+          ? 'Администратор удалил(а) группу'
+          : `${userName} покинул(а) чат`;
+
+        if (creator_id === userId) {
+          db.prepare('UPDATE chats SET is_closed = 1 WHERE id = ?').run(chatId);
+        }
+
+        const sysMsg = saveMessage(chatId, userId, msgText, {}, true);
+        groupNotifications.push({ chatId, sysMsg, remainingUserIds: remaining, closed: creator_id === userId });
       }
 
       db.prepare('DELETE FROM chat_members WHERE chat_id = ? AND user_id = ?').run(chatId, userId);
@@ -433,6 +532,8 @@ module.exports = {
   addChatMember,
   removeChatMember,
   leaveGroup,
+  closeGroup,
+  transferAdmin,
   deleteDirectChat,
   updateChatMetadata,
   deleteAccount,

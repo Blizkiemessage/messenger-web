@@ -1,5 +1,6 @@
 /**
  * ChatArea — wires search state between ChatHeader and MessageList.
+ * ✅ Hides Composer for closed groups and shows a "group closed" banner instead.
  */
 import { useState, useCallback, useMemo } from 'react';
 import { useChatsStore, selectActiveChat } from '../../store/useChatsStore';
@@ -34,7 +35,6 @@ export function ChatArea() {
   const [searchQuery, setSearchQuery] = useState('');
   const [searchIdx,   setSearchIdx]   = useState(0);
 
-  /** IDs of messages that match the query */
   const matchedIds = useMemo<string[]>(() => {
     const q = searchQuery.trim().toLowerCase();
     if (!q) return [];
@@ -71,7 +71,6 @@ export function ChatArea() {
     setSearchIdx(0);
   }, []);
 
-  // ── Send ──────────────────────────────────────────────────────────────────
   const handleSend = useCallback(async () => {
     const text = messageText.trim();
     if (!text) return;
@@ -80,6 +79,9 @@ export function ChatArea() {
   }, [messageText, sendMessage]);
 
   if (!activeChat) return <EmptyState />;
+
+  // ✅ Determine if the group is closed
+  const isGroupClosed = activeChat.type === 'group' && activeChat.is_closed === true;
 
   return (
     <>
@@ -117,11 +119,23 @@ export function ChatArea() {
         matchedIds={matchedIds}
         currentMatchId={currentMatchId}
       />
-      <Composer
-        value={messageText}
-        onChange={setMessageText}
-        onSend={handleSend}
-      />
+
+      {/* ✅ Show closed banner OR composer */}
+      {isGroupClosed ? (
+        <div className="groupClosedBanner">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+            <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+            <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+          </svg>
+          <span>Группа закрыта — отправка сообщений недоступна</span>
+        </div>
+      ) : (
+        <Composer
+          value={messageText}
+          onChange={setMessageText}
+          onSend={handleSend}
+        />
+      )}
     </>
   );
 }
