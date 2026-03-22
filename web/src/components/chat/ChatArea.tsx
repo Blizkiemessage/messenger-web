@@ -49,7 +49,7 @@ export function ChatArea() {
   const setViewUserId        = useAppStore(s => s.setViewUserId);
 
   const [messageText, setMessageText] = useState('');
-  const { sendMessage } = useMessages();
+  useMessages(); // keeps message loading side-effect
 
   // ── Search ────────────────────────────────────────────────────────────────
   const [searchOpen,  setSearchOpen]  = useState(false);
