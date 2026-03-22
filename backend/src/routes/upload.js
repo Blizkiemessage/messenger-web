@@ -17,9 +17,8 @@ const VIDEO_TYPES = [
   'video/mp4','video/quicktime','video/x-msvideo',
   'video/webm','video/mov','video/mpeg','video/x-matroska',
 ];
-const MAX_SIZE = 100 * 1024 * 1024; // 100 MB
+const MAX_SIZE = 100 * 1024 * 1024;
 
-// ✅ Yandex Cloud Object Storage — S3-совместимое хранилище
 const useS3 = !!(
   process.env.S3_ACCESS_KEY_ID &&
   process.env.S3_SECRET_ACCESS_KEY &&
@@ -39,15 +38,11 @@ if (useS3) {
   });
   console.log('[Upload] Using Yandex Cloud Object Storage');
 } else {
-  console.log('[Upload] Using local disk storage (S3 env vars not set)');
+  console.log('[Upload] Using local disk storage');
 }
 
-const upload = multer({
-  storage: multer.memoryStorage(),
-  limits:  { fileSize: MAX_SIZE },
-});
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: MAX_SIZE } });
 
-// POST /upload
 router.post('/', upload.single('file'), async (req, res) => {
   if (!req.file) return res.status(400).json({ error: 'No file provided' });
 
@@ -55,48 +50,37 @@ router.post('/', upload.single('file'), async (req, res) => {
   const type = IMAGE_TYPES.includes(mime) ? 'image'
              : VIDEO_TYPES.includes(mime) ? 'video'
              : 'file';
-  const ext      = path.extname(req.file.originalname) || '';
+  const ext = path.extname(req.file.originalname) || '';
+
+  // ✅ FIX CYRILLIC: multer decodes filenames as latin1. Re-encode to get UTF-8.
+  const originalName = Buffer.from(req.file.originalname, 'latin1').toString('utf8');
+
   const filename = `${uuidv4()}${ext}`;
-  const size     = req.file.size;
+  const size = req.file.size;
 
   if (useS3) {
     try {
-      // Images/videos: inline so browsers display them directly.
-      // Other files: attachment forces download with original filename.
       const contentDisposition = (type === 'image' || type === 'video')
         ? 'inline'
-        : `attachment; filename="${encodeURIComponent(req.file.originalname)}"`;
+        : `attachment; filename*=UTF-8''${encodeURIComponent(originalName)}`;
 
       await s3.send(new PutObjectCommand({
-        Bucket:             process.env.S3_BUCKET,
-        Key:                filename,
-        Body:               req.file.buffer,
-        ContentType:        mime,
+        Bucket: process.env.S3_BUCKET, Key: filename,
+        Body: req.file.buffer, ContentType: mime,
         ContentDisposition: contentDisposition,
       }));
 
       const publicUrl = process.env.S3_PUBLIC_URL.replace(/\/+$/, '');
-      res.json({
-        url:  `${publicUrl}/${filename}`,
-        type,
-        name: req.file.originalname,
-        size,
-      });
+      res.json({ url: `${publicUrl}/${filename}`, type, name: originalName, size });
     } catch (err) {
       console.error('[Upload] S3 error:', err.message);
       res.status(500).json({ error: 'Upload failed: ' + err.message });
     }
   } else {
-    // Fallback: local disk (ephemeral on Railway — only for local dev)
     const uploadDir = path.join(__dirname, '../../uploads');
     if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
     fs.writeFileSync(path.join(uploadDir, filename), req.file.buffer);
-    res.json({
-      url:  `/uploads/${filename}`,
-      type,
-      name: req.file.originalname,
-      size,
-    });
+    res.json({ url: `/uploads/${filename}`, type, name: originalName, size });
   }
 });
 

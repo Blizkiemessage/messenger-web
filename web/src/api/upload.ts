@@ -1,9 +1,7 @@
 /**
  * api/upload.ts
- * ✅ FIXED: pass `headers: { 'Content-Type': undefined }` to override the
- *   axios client's default `application/json` so axios can auto-set
- *   `multipart/form-data; boundary=...` from the FormData object.
- *   Without this multer receives the wrong Content-Type and req.file is undefined.
+ * ✅ Added: cancel() function returned alongside the promise.
+ *    Call cancel() to abort mid-upload — triggers an 'Upload cancelled' error.
  */
 import client from './client';
 
@@ -14,25 +12,45 @@ export interface UploadResult {
   size: number;
 }
 
-export async function uploadFile(
+export interface UploadTask {
+  /** Resolves with UploadResult on success */
+  promise: Promise<UploadResult>;
+  /** Call this to abort the upload */
+  cancel: () => void;
+}
+
+export function uploadFile(
   file: File,
   onProgress: (pct: number) => void,
-): Promise<UploadResult> {
-  const formData = new FormData();
-  formData.append('file', file);
+): UploadTask {
+  const controller = new AbortController();
 
-  const response = await client.post<UploadResult>('/upload', formData, {
-    headers:  { 'Content-Type': undefined }, // ← let axios detect boundary from FormData
+  const promise = client.post<UploadResult>('/upload', (() => {
+    const fd = new FormData();
+    fd.append('file', file);
+    return fd;
+  })(), {
+    headers:  { 'Content-Type': undefined },
     timeout:  120_000,
+    signal:   controller.signal,
     onUploadProgress: (e) => {
       if (e.total && e.total > 0) {
         onProgress(Math.round((e.loaded / e.total) * 100));
       }
     },
+  }).then(res => ({
+    ...res.data,
+    size: res.data.size ?? file.size,
+  })).catch(err => {
+    // Normalise cancellation error message
+    if (controller.signal.aborted) {
+      throw new Error('Загрузка отменена');
+    }
+    throw err;
   });
 
   return {
-    ...response.data,
-    size: response.data.size ?? file.size,
+    promise,
+    cancel: () => controller.abort(),
   };
 }

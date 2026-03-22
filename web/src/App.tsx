@@ -34,6 +34,7 @@ import {
   updateGroupChat as apiUpdateGroupChat,
   closeGroup as apiCloseGroup,
   transferAdminRights as apiTransferAdminRights,
+  updateGroupAvatar as apiUpdateGroupAvatar,
 } from './api/chats';
 
 export default function App() {
@@ -176,6 +177,11 @@ export default function App() {
           onCloseGroup={async () => {
             await apiCloseGroup(activeChat.id);
             // Socket 'chat-updated' will update the store automatically
+          }}
+          // ✅ Update group avatar — sends system message to group
+          onUpdateAvatar={async (url) => {
+            const updated = await apiUpdateGroupAvatar(activeChat.id, url);
+            useChatsStore.getState().upsertChat(updated);
           }}
           // ✅ Transfer admin — new admin takes over, system message is sent
           onTransferAdmin={async (userId) => {
