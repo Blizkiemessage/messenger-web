@@ -1,13 +1,14 @@
 /**
  * api/upload.ts
- * ✅ FIXED: No manual Content-Type header — axios sets multipart/form-data
- *   with correct boundary automatically when passed FormData.
- *   Without this, multer on the server may fail to detect MIME type correctly.
+ * ✅ FIXED: pass `headers: { 'Content-Type': undefined }` to override the
+ *   axios client's default `application/json` so axios can auto-set
+ *   `multipart/form-data; boundary=...` from the FormData object.
+ *   Without this multer receives the wrong Content-Type and req.file is undefined.
  */
 import client from './client';
 
 export interface UploadResult {
-  url: string;
+  url:  string;
   type: 'image' | 'video' | 'file';
   name: string;
   size: number;
@@ -21,10 +22,8 @@ export async function uploadFile(
   formData.append('file', file);
 
   const response = await client.post<UploadResult>('/upload', formData, {
-    // ✅ Do NOT set Content-Type manually.
-    // Axios auto-sets: "Content-Type: multipart/form-data; boundary=----..."
-    // Setting it manually drops the boundary → multer can't parse the body.
-    timeout: 120_000,
+    headers:  { 'Content-Type': undefined }, // ← let axios detect boundary from FormData
+    timeout:  120_000,
     onUploadProgress: (e) => {
       if (e.total && e.total > 0) {
         onProgress(Math.round((e.loaded / e.total) * 100));

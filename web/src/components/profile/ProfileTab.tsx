@@ -54,7 +54,7 @@ export function ProfileTab({ me, onUpdate }: Props) {
     const res = await client.post<{ url: string; type: string; name: string; size: number }>(
       '/upload',
       fd,
-      { timeout: 60_000 }
+      { headers: { 'Content-Type': undefined }, timeout: 60_000 }
     );
     return res.data.url;
   }
