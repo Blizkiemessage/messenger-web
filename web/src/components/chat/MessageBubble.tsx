@@ -103,8 +103,8 @@ function ImageAttachment({
 }
 
 function VideoAttachment({
-  url, name, caption,
-}: { url: string; name: string; caption?: string }) {
+  url, caption,
+}: { url: string; caption?: string }) {
   return (
     <div className="bubbleAttachVideo">
       <video
@@ -234,7 +234,7 @@ export function MessageBubble({
           <ImageAttachment url={m.attachment_url!} name={m.attachment_name || 'image'} caption={caption} isOwn={isOwn} />
         )}
         {hasAttachment && isVideo && (
-          <VideoAttachment url={m.attachment_url!} name={m.attachment_name || 'video'} caption={caption} />
+          <VideoAttachment url={m.attachment_url!} caption={caption} />
         )}
         {hasAttachment && isFile && (
           <FileAttachment url={m.attachment_url!} name={m.attachment_name || 'file'} size={m.attachment_size} caption={caption} isOwn={isOwn} />
