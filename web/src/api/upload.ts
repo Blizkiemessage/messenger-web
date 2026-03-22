@@ -1,7 +1,8 @@
 /**
  * api/upload.ts
- * File upload with real-time progress tracking via axios onUploadProgress.
- * Uses the shared axios client (handles auth token + base URL automatically).
+ * ✅ FIXED: No manual Content-Type header — axios sets multipart/form-data
+ *   with correct boundary automatically when passed FormData.
+ *   Without this, multer on the server may fail to detect MIME type correctly.
  */
 import client from './client';
 
@@ -12,12 +13,6 @@ export interface UploadResult {
   size: number;
 }
 
-/**
- * Upload a file to the server with progress reporting.
- * @param file        The File object to upload
- * @param onProgress  Callback called with 0–100 percentage during upload
- * @returns           Resolved UploadResult on success
- */
 export async function uploadFile(
   file: File,
   onProgress: (pct: number) => void,
@@ -26,8 +21,10 @@ export async function uploadFile(
   formData.append('file', file);
 
   const response = await client.post<UploadResult>('/upload', formData, {
-    headers: { 'Content-Type': 'multipart/form-data' },
-    timeout: 120_000, // 2 min — enough for large files
+    // ✅ Do NOT set Content-Type manually.
+    // Axios auto-sets: "Content-Type: multipart/form-data; boundary=----..."
+    // Setting it manually drops the boundary → multer can't parse the body.
+    timeout: 120_000,
     onUploadProgress: (e) => {
       if (e.total && e.total > 0) {
         onProgress(Math.round((e.loaded / e.total) * 100));
@@ -37,7 +34,6 @@ export async function uploadFile(
 
   return {
     ...response.data,
-    // Fallback: use File.size if backend didn't return size
     size: response.data.size ?? file.size,
   };
 }

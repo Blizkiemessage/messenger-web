@@ -1,8 +1,9 @@
 /**
  * ProfileTab
- *
- * «Профиль» tab inside ProfileSettingsModal.
- * Handles avatar upload, name, username, bio, birth date.
+ * ✅ FIXED: Avatar upload uses axios client instead of raw fetch.
+ *   - Axios client handles auth token automatically via interceptor
+ *   - No trailing-slash URL issues (axios baseURL handles this correctly)
+ *   - Better error messages from server responses
  */
 
 import { useState, useRef } from 'react';
@@ -10,7 +11,7 @@ import { type User } from '../../types';
 import { avatarLetter } from '../../utils/format';
 import { resolveUrl } from '../ui/Avatar';
 import { updateMe } from '../../api/users';
-import { API_BASE_URL } from '../../config';
+import client from '../../api/client';
 
 const BIO_MAX = 150;
 
@@ -20,18 +21,20 @@ interface Props {
   onUpdate: (u: User) => void;
 }
 
-export function ProfileTab({ me, token, onUpdate }: Props) {
+export function ProfileTab({ me, onUpdate }: Props) {
   const [displayName, setDisplayName] = useState(me.display_name ?? '');
-  const [username, setUsername] = useState(me.username ?? '');
-  const [bio, setBio] = useState(me.bio ?? '');
-  const [birthDate, setBirthDate] = useState(me.birth_date ?? '');
-  const [hideBio, setHideBio] = useState(me.hide_bio ?? false);
-  const [hideBirth, setHideBirth] = useState(me.hide_birth_date ?? false);
-  const [avatarPreview, setAvatarPreview] = useState<string | null>(resolveUrl(me.avatar_url) ?? null);
+  const [username,    setUsername]    = useState(me.username    ?? '');
+  const [bio,         setBio]         = useState(me.bio         ?? '');
+  const [birthDate,   setBirthDate]   = useState(me.birth_date  ?? '');
+  const [hideBio,     setHideBio]     = useState(me.hide_bio          ?? false);
+  const [hideBirth,   setHideBirth]   = useState(me.hide_birth_date   ?? false);
+  const [avatarPreview, setAvatarPreview] = useState<string | null>(
+    resolveUrl(me.avatar_url) ?? null
+  );
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
-  const [busy, setBusy] = useState(false);
+  const [busy,  setBusy]  = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [ok, setOk] = useState(false);
+  const [ok,    setOk]    = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
   function handleAvatarPick(e: React.ChangeEvent<HTMLInputElement>) {
@@ -43,16 +46,17 @@ export function ProfileTab({ me, token, onUpdate }: Props) {
     reader.readAsDataURL(f);
   }
 
+  // ✅ Use axios client — auth token added automatically, no URL issues
   async function uploadAvatar(file: File): Promise<string> {
     const fd = new FormData();
     fd.append('file', file);
-    const res = await fetch(`${API_BASE_URL}/upload`, {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${token}` },
-      body: fd,
-    });
-    if (!res.ok) throw new Error('Ошибка загрузки аватара');
-    return (await res.json()).url as string;
+    // axios sets Content-Type: multipart/form-data; boundary=... automatically
+    const res = await client.post<{ url: string; type: string; name: string; size: number }>(
+      '/upload',
+      fd,
+      { timeout: 60_000 }
+    );
+    return res.data.url;
   }
 
   async function onSave() {
@@ -61,18 +65,19 @@ export function ProfileTab({ me, token, onUpdate }: Props) {
       let avatar_url = me.avatar_url ?? null;
       if (avatarFile) avatar_url = await uploadAvatar(avatarFile);
       const next = await updateMe({
-        username: username.trim().toLowerCase() || null,
-        display_name: displayName.trim() || '',
+        username:        username.trim().toLowerCase() || null,
+        display_name:    displayName.trim() || '',
         avatar_url,
-        bio: bio.trim() || null,
-        birth_date: birthDate || null,
-        hide_bio: hideBio,
+        bio:             bio.trim() || null,
+        birth_date:      birthDate || null,
+        hide_bio:        hideBio,
         hide_birth_date: hideBirth,
       });
       onUpdate(next);
       setOk(true);
       setTimeout(() => setOk(false), 2500);
     } catch (e: any) {
+      // Surface the actual server error if available
       setError(e?.message ?? 'Ошибка сохранения');
     } finally {
       setBusy(false);
@@ -102,7 +107,9 @@ export function ProfileTab({ me, token, onUpdate }: Props) {
       {/* Fields */}
       <div className="psField">
         <label className="psLabel">Имя</label>
-        <input className="psInput" value={displayName} onChange={e => setDisplayName(e.target.value)} placeholder="Как вас зовут" maxLength={64} />
+        <input className="psInput" value={displayName}
+               onChange={e => setDisplayName(e.target.value)}
+               placeholder="Как вас зовут" maxLength={64} />
       </div>
 
       <div className="psField">
@@ -136,22 +143,25 @@ export function ProfileTab({ me, token, onUpdate }: Props) {
           </span>
         </div>
         <label className="psPrivacyLabel">
-          <input type="checkbox" className="psCheckbox" checked={hideBio} onChange={e => setHideBio(e.target.checked)} />
+          <input type="checkbox" className="psCheckbox" checked={hideBio}
+                 onChange={e => setHideBio(e.target.checked)} />
           Скрыть от других пользователей
         </label>
       </div>
 
       <div className="psField">
         <label className="psLabel">Дата рождения</label>
-        <input type="date" className="psInput" value={birthDate} onChange={e => setBirthDate(e.target.value)} />
+        <input type="date" className="psInput" value={birthDate}
+               onChange={e => setBirthDate(e.target.value)} />
         <label className="psPrivacyLabel">
-          <input type="checkbox" className="psCheckbox" checked={hideBirth} onChange={e => setHideBirth(e.target.checked)} />
+          <input type="checkbox" className="psCheckbox" checked={hideBirth}
+                 onChange={e => setHideBirth(e.target.checked)} />
           Скрыть от других пользователей
         </label>
       </div>
 
       {error && <div className="psError">{error}</div>}
-      {ok && <div className="psOk">✓ Профиль сохранён</div>}
+      {ok    && <div className="psOk">✓ Профиль сохранён</div>}
       <button className="psSaveBtn" onClick={onSave} disabled={busy}>
         {busy ? '…' : 'Сохранить изменения'}
       </button>
