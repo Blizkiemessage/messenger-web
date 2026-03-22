@@ -28,6 +28,7 @@ export type Message = {
   attachment_size?: number | null;
   liked_by?: string[];
   is_system?: boolean;
+  is_pinned?: boolean;   // ✅ NEW
 };
 
 export type Chat = {
@@ -35,7 +36,7 @@ export type Chat = {
   type: 'direct' | 'group';
   name?: string | null;
   description?: string | null;
-  avatar_url?: string | null;   // ✅ group avatar
+  avatar_url?: string | null;
   created_at: number;
   members: User[];
   last_message?: Message | null;

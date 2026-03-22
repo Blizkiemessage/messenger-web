@@ -93,3 +93,19 @@ export async function updateGroupAvatar(chatId: string, avatarUrl: string): Prom
   const res = await client.patch<Chat>(`/chats/${chatId}/avatar`, { avatar_url: avatarUrl });
   return res.data;
 }
+
+// ── Pin / Unpin ───────────────────────────────────────────────────────────────
+
+export async function getPinnedMessages(chatId: string): Promise<import('../types').Message[]> {
+  const res = await client.get(`/chats/${chatId}/messages/pinned`);
+  return res.data;
+}
+
+export async function pinMessage(chatId: string, messageId: string): Promise<import('../types').Message> {
+  const res = await client.post(`/chats/${chatId}/messages/${messageId}/pin`);
+  return res.data;
+}
+
+export async function unpinMessage(chatId: string, messageId: string): Promise<void> {
+  await client.delete(`/chats/${chatId}/messages/${messageId}/pin`);
+}

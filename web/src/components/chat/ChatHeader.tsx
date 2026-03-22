@@ -20,6 +20,13 @@ interface Props {
   searchTotal: number;
   searchCurrent: number;
   onToggleSearch: () => void;
+  // Pin navigation
+  pinnedCount: number;
+  pinnedOpen: boolean;
+  pinnedIndex: number;
+  onTogglePinned: () => void;
+  onPinnedNext: () => void;
+  onPinnedPrev: () => void;
   onSearchChange: (q: string) => void;
   onSearchNext: () => void;
   onSearchPrev: () => void;
@@ -31,6 +38,7 @@ export function ChatHeader({
   onCancelSelection, onDeleteSelected, onOpenInfo, onViewUser,
   searchOpen, searchQuery, searchTotal, searchCurrent,
   onToggleSearch, onSearchChange, onSearchNext, onSearchPrev, onSearchClose,
+  pinnedCount, pinnedOpen, pinnedIndex, onTogglePinned, onPinnedNext, onPinnedPrev,
 }: Props) {
   const isGroup = chat.type === 'group';
 
@@ -146,6 +154,36 @@ export function ChatHeader({
             )}
             <button className="chSearchClose" onClick={onSearchClose}>
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+              </svg>
+            </button>
+          </div>
+        </div>
+      )}
+      {/* Pin navigation bar */}
+      {pinnedOpen && pinnedCount > 0 && (
+        <div className="chPinBar">
+          <div className="chPinBarIcon">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+              <path d="M12 17v5"/><path d="M9 4l-3 3 4 1-4 4h8l-4-4 4-1-3-3z"/>
+            </svg>
+          </div>
+          <div className="chPinBarLabel">
+            Закреплённое <span className="chPinBarCount">{pinnedIndex + 1} / {pinnedCount}</span>
+          </div>
+          <div className="chPinBarActions">
+            <button className="chSearchNav" onClick={onPinnedPrev} title="Предыдущее">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                <polyline points="15 18 9 12 15 6"/>
+              </svg>
+            </button>
+            <button className="chSearchNav" onClick={onPinnedNext} title="Следующее">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                <polyline points="9 18 15 12 9 6"/>
+              </svg>
+            </button>
+            <button className="chSearchClose" onClick={onTogglePinned} title="Закрыть">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
                 <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
               </svg>
             </button>

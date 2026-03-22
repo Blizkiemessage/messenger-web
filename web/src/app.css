@@ -3033,3 +3033,152 @@ input[type="date"].psInput::-webkit-calendar-picker-indicator {
   from { transform: rotate(0deg); }
   to   { transform: rotate(360deg); }
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   ✅ PIN & SIDEBAR AVATAR STYLES
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ── Sidebar ChatItem: photo avatar ─────────────────────────────────────── */
+.ciAvatarPhoto {
+  padding: 0;
+  background: transparent;
+  overflow: hidden;
+}
+.ciAvatarPhoto img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: inherit;
+  display: block;
+}
+
+/* ── Pin badge on message bubble ─────────────────────────────────────────── */
+.msgPinBadge {
+  position: absolute;
+  top: -5px;
+  right: -5px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 0 0 2px var(--card), 0 2px 8px rgba(47,129,247,.45);
+  z-index: 2;
+  animation: pinBadgePop .25s cubic-bezier(.34,1.56,.64,1);
+}
+@keyframes pinBadgePop {
+  from { transform: scale(0); opacity: 0; }
+  to   { transform: scale(1); opacity: 1; }
+}
+
+/* Pinned message bubble — subtle glow highlight */
+.bubble:has(.msgPinBadge) {
+  box-shadow: 0 0 0 1.5px color-mix(in srgb, var(--accent) 35%, transparent),
+              0 2px 12px color-mix(in srgb, var(--accent) 12%, transparent);
+}
+
+/* ── Pin count badge on header button ────────────────────────────────────── */
+.chPinCount {
+  position: absolute;
+  top: -3px;
+  right: -3px;
+  min-width: 14px;
+  height: 14px;
+  border-radius: 7px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 9px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 3px;
+  line-height: 1;
+}
+
+/* ── Pin navigation bar (below main header row) ──────────────────────────── */
+.chPinBar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 14px 8px;
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+  border-top: 1px solid color-mix(in srgb, var(--accent) 20%, transparent);
+  animation: searchBarSlide .18s ease;
+}
+.chPinBarIcon {
+  color: var(--accent);
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+}
+.chPinBarLabel {
+  flex: 1;
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--muted);
+}
+.chPinBarCount {
+  font-weight: 700;
+  color: var(--accent);
+}
+.chPinBarActions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+/* ── Message context menu (right-click) ──────────────────────────────────── */
+.msgCtxMenu {
+  position: fixed;
+  z-index: 9999;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 5px;
+  box-shadow: 0 8px 32px rgba(0,0,0,.18);
+  min-width: 180px;
+  animation: ctxMenuPop .12s cubic-bezier(.34,1.56,.64,1);
+}
+@keyframes ctxMenuPop {
+  from { opacity: 0; transform: scale(.92); }
+  to   { opacity: 1; transform: scale(1); }
+}
+.msgCtxItem {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  padding: 9px 12px;
+  border: none;
+  background: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 13.5px;
+  font-weight: 500;
+  color: var(--text);
+  text-align: left;
+  transition: background .12s;
+}
+.msgCtxItem:hover { background: var(--surface); }
+.msgCtxItem svg { flex-shrink: 0; color: var(--muted); }
+.msgCtxItemPin:hover { background: color-mix(in srgb, var(--accent) 10%, transparent); }
+.msgCtxItemPin:hover svg { color: var(--accent); }
+.msgCtxItemDanger { color: var(--danger); }
+.msgCtxItemDanger:hover { background: color-mix(in srgb, var(--danger) 10%, transparent); }
+.msgCtxItemDanger svg { color: var(--danger); }
+
+/* ── Bubble: make position relative so pin badge can anchor ─────────────── */
+.bubble { position: relative; }
+
+/* ── Message bubble text overflow fix ────────────────────────────────────── */
+.bubbleText {
+  white-space: pre-wrap;
+  line-height: 1.45;
+  word-break: break-word;     /* break ONLY when no spaces (URLs, etc.) */
+  overflow-wrap: break-word;
+  max-width: 100%;
+}

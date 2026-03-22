@@ -255,6 +255,14 @@ export function MessageBubble({
       )}
 
       <div className={`bubble${hasAttachment ? ' bubbleWithAttach' : ''}`}>
+        {/* ✅ Pin indicator */}
+        {m.is_pinned && !isSelected && (
+          <div className="msgPinBadge" title="Закреплённое сообщение">
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+              <path d="M12 17v5"/><path d="M9 4l-3 3 4 1-4 4h8l-4-4 4-1-3-3z"/>
+            </svg>
+          </div>
+        )}
         {isSelected && (
           <div className="msgCheckmark">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
