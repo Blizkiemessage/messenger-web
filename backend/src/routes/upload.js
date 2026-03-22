@@ -19,32 +19,32 @@ const VIDEO_TYPES = [
 ];
 const MAX_SIZE = 100 * 1024 * 1024; // 100 MB
 
-const useR2 = !!(
-  process.env.R2_ACCOUNT_ID &&
-  process.env.R2_ACCESS_KEY_ID &&
-  process.env.R2_SECRET_ACCESS_KEY &&
-  process.env.R2_BUCKET &&
-  process.env.R2_PUBLIC_URL
+// ✅ Yandex Cloud Object Storage — S3-совместимое хранилище
+const useS3 = !!(
+  process.env.S3_ACCESS_KEY_ID &&
+  process.env.S3_SECRET_ACCESS_KEY &&
+  process.env.S3_BUCKET &&
+  process.env.S3_PUBLIC_URL
 );
 
 let s3;
-if (useR2) {
+if (useS3) {
   s3 = new S3Client({
-    region: 'auto',
-    endpoint: `https://${process.env.R2_ACCOUNT_ID}.r2.cloudflarestorage.com`,
+    region:   process.env.S3_REGION || 'ru-central1',
+    endpoint: process.env.S3_ENDPOINT || 'https://storage.yandexcloud.net',
     credentials: {
-      accessKeyId:     process.env.R2_ACCESS_KEY_ID,
-      secretAccessKey: process.env.R2_SECRET_ACCESS_KEY,
+      accessKeyId:     process.env.S3_ACCESS_KEY_ID,
+      secretAccessKey: process.env.S3_SECRET_ACCESS_KEY,
     },
   });
-  console.log('[Upload] Using Cloudflare R2 storage');
+  console.log('[Upload] Using Yandex Cloud Object Storage');
 } else {
-  console.log('[Upload] Using local disk storage');
+  console.log('[Upload] Using local disk storage (S3 env vars not set)');
 }
 
 const upload = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: MAX_SIZE },
+  limits:  { fileSize: MAX_SIZE },
 });
 
 // POST /upload
@@ -59,33 +59,35 @@ router.post('/', upload.single('file'), async (req, res) => {
   const filename = `${uuidv4()}${ext}`;
   const size     = req.file.size;
 
-  if (useR2) {
+  if (useS3) {
     try {
-      // FIXED: images/videos must be served inline so browsers can display them.
-      // Only non-media files get Content-Disposition: attachment (forces download).
+      // Images/videos: inline so browsers display them directly.
+      // Other files: attachment forces download with original filename.
       const contentDisposition = (type === 'image' || type === 'video')
         ? 'inline'
         : `attachment; filename="${encodeURIComponent(req.file.originalname)}"`;
 
       await s3.send(new PutObjectCommand({
-        Bucket:             process.env.R2_BUCKET,
+        Bucket:             process.env.S3_BUCKET,
         Key:                filename,
         Body:               req.file.buffer,
         ContentType:        mime,
         ContentDisposition: contentDisposition,
       }));
 
+      const publicUrl = process.env.S3_PUBLIC_URL.replace(/\/+$/, '');
       res.json({
-        url:  `${process.env.R2_PUBLIC_URL}/${filename}`,
+        url:  `${publicUrl}/${filename}`,
         type,
         name: req.file.originalname,
         size,
       });
     } catch (err) {
-      console.error('[Upload] R2 error:', err.message);
-      res.status(500).json({ error: 'Upload failed' });
+      console.error('[Upload] S3 error:', err.message);
+      res.status(500).json({ error: 'Upload failed: ' + err.message });
     }
   } else {
+    // Fallback: local disk (ephemeral on Railway — only for local dev)
     const uploadDir = path.join(__dirname, '../../uploads');
     if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
     fs.writeFileSync(path.join(uploadDir, filename), req.file.buffer);
