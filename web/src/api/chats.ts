@@ -28,7 +28,13 @@ export async function getChatMessages(chatId: string): Promise<Message[]> {
 
 export async function sendChatMessage(
   chatId: string,
-  payload: { text?: string; attachment_url?: string; attachment_type?: string; attachment_name?: string },
+  payload: {
+    text?: string;
+    attachment_url?: string;
+    attachment_type?: string;
+    attachment_name?: string;
+    attachment_size?: number | null;  // ✅ file size
+  },
 ): Promise<Message> {
   const res = await client.post<Message>(`/chats/${chatId}/messages`, payload);
   return res.data;

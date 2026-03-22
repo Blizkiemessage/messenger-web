@@ -25,7 +25,7 @@ export type Message = {
   attachment_url?: string | null;
   attachment_type?: string | null;
   attachment_name?: string | null;
-  attachment_size?: number | null;   // ✅ file size in bytes
+  attachment_size?: number | null;
   liked_by?: string[];
   is_system?: boolean;
 };
@@ -35,6 +35,7 @@ export type Chat = {
   type: 'direct' | 'group';
   name?: string | null;
   description?: string | null;
+  avatar_url?: string | null;   // ✅ group avatar
   created_at: number;
   members: User[];
   last_message?: Message | null;
