@@ -9,9 +9,15 @@ const { authMiddleware } = require('../middleware/auth');
 const router = express.Router();
 router.use(authMiddleware);
 
-const IMAGE_TYPES = ['image/jpeg','image/png','image/gif','image/webp','image/heic','image/heif','image/bmp','image/tiff','image/svg+xml'];
-const VIDEO_TYPES = ['video/mp4','video/quicktime','video/x-msvideo','video/webm','video/mov','video/mpeg','video/x-matroska'];
-const MAX_SIZE    = 100 * 1024 * 1024; // 100 MB
+const IMAGE_TYPES = [
+  'image/jpeg','image/png','image/gif','image/webp',
+  'image/heic','image/heif','image/bmp','image/tiff','image/svg+xml',
+];
+const VIDEO_TYPES = [
+  'video/mp4','video/quicktime','video/x-msvideo',
+  'video/webm','video/mov','video/mpeg','video/x-matroska',
+];
+const MAX_SIZE = 100 * 1024 * 1024; // 100 MB
 
 const useR2 = !!(
   process.env.R2_ACCOUNT_ID &&
@@ -51,23 +57,29 @@ router.post('/', upload.single('file'), async (req, res) => {
              : 'file';
   const ext      = path.extname(req.file.originalname) || '';
   const filename = `${uuidv4()}${ext}`;
-  const size     = req.file.size; // ✅ always return file size
+  const size     = req.file.size;
 
   if (useR2) {
     try {
+      // FIXED: images/videos must be served inline so browsers can display them.
+      // Only non-media files get Content-Disposition: attachment (forces download).
+      const contentDisposition = (type === 'image' || type === 'video')
+        ? 'inline'
+        : `attachment; filename="${encodeURIComponent(req.file.originalname)}"`;
+
       await s3.send(new PutObjectCommand({
-        Bucket:      process.env.R2_BUCKET,
-        Key:         filename,
-        Body:        req.file.buffer,
-        ContentType: mime,
-        // Allow direct download with original filename
-        ContentDisposition: `attachment; filename="${encodeURIComponent(req.file.originalname)}"`,
+        Bucket:             process.env.R2_BUCKET,
+        Key:                filename,
+        Body:               req.file.buffer,
+        ContentType:        mime,
+        ContentDisposition: contentDisposition,
       }));
+
       res.json({
         url:  `${process.env.R2_PUBLIC_URL}/${filename}`,
         type,
         name: req.file.originalname,
-        size,  // ✅ NEW
+        size,
       });
     } catch (err) {
       console.error('[Upload] R2 error:', err.message);
@@ -81,7 +93,7 @@ router.post('/', upload.single('file'), async (req, res) => {
       url:  `/uploads/${filename}`,
       type,
       name: req.file.originalname,
-      size,  // ✅ NEW
+      size,
     });
   }
 });

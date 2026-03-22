@@ -1,7 +1,8 @@
 /**
  * MessageBubble.tsx
- * ✅ Full file/image/video attachment rendering with download support.
+ * ✅ Fixed: image fallback to file card on error, custom video player with play button.
  */
+import { useState } from 'react';
 import { type Message, type User } from '../../types';
 import { formatTime } from '../../utils/format';
 import { Avatar } from '../ui/Avatar';
@@ -20,7 +21,7 @@ function formatFileSize(bytes: number | null | undefined): string {
 interface FileCategory { color: string; bgColor: string; label: string }
 
 function getFileCategory(name: string): FileCategory {
-  const ext = name.split('.').pop()?.toLowerCase() || '';
+  const ext = (name.split('.').pop() || '').toLowerCase();
   if (['jpg','jpeg','png','gif','webp','svg','heic','bmp','tiff'].includes(ext))
     return { color: '#9b59b6', bgColor: '#9b59b622', label: ext.toUpperCase() };
   if (ext === 'pdf')
@@ -39,13 +40,13 @@ function getFileCategory(name: string): FileCategory {
   if (['zip','rar','7z','tar','gz','bz2','xz'].includes(ext))
     return { color: '#f39c12', bgColor: '#f39c1222', label: 'ZIP' };
   if (['mp3','wav','aac','flac','ogg','m4a','wma'].includes(ext))
-    return { color: '#e91e63', bgColor: '#e91e6322', label: 'MP3' };
+    return { color: '#e91e63', bgColor: '#e91e6322', label: 'AUD' };
   if (['mp4','avi','mov','mkv','wmv','webm','flv','m4v'].includes(ext))
-    return { color: '#c0392b', bgColor: '#c0392b22', label: 'MP4' };
+    return { color: '#c0392b', bgColor: '#c0392b22', label: 'VID' };
   return { color: '#95a5a6', bgColor: '#95a5a622', label: ext.toUpperCase() || 'FILE' };
 }
 
-// ── File type icon (large, for bubbles) ──────────────────────────────────────
+// ── File icon (reused by bubbles and fallback) ────────────────────────────────
 function BubbleFileIcon({ name }: { name: string }) {
   const { color, bgColor, label } = getFileCategory(name);
   const fontSize = label.length > 3 ? 9 : 11;
@@ -61,7 +62,7 @@ function BubbleFileIcon({ name }: { name: string }) {
   );
 }
 
-// ── Download handler ──────────────────────────────────────────────────────────
+// ── Download helper ───────────────────────────────────────────────────────────
 function downloadFile(url: string, name: string) {
   const a = document.createElement('a');
   a.href = url;
@@ -73,56 +74,11 @@ function downloadFile(url: string, name: string) {
   document.body.removeChild(a);
 }
 
-// ── Attachment renderers ──────────────────────────────────────────────────────
-
-function ImageAttachment({
-  url, name, caption, isOwn,
-}: { url: string; name: string; caption?: string; isOwn: boolean }) {
-  return (
-    <div className={`bubbleAttachImg${isOwn ? ' bubbleAttachImgOwn' : ''}`}>
-      <a href={url} target="_blank" rel="noopener noreferrer" className="bubbleImgLink">
-        <img
-          src={url}
-          alt={name}
-          className="bubbleImg"
-          loading="lazy"
-          onError={e => {
-            (e.target as HTMLImageElement).style.display = 'none';
-          }}
-        />
-        <div className="bubbleImgOverlay">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-            <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
-            <line x1="11" y1="8" x2="11" y2="14"/><line x1="8" y1="11" x2="14" y2="11"/>
-          </svg>
-        </div>
-      </a>
-      {caption && <div className="bubbleCaption">{caption}</div>}
-    </div>
-  );
-}
-
-function VideoAttachment({
-  url, caption,
-}: { url: string; caption?: string }) {
-  return (
-    <div className="bubbleAttachVideo">
-      <video
-        src={url}
-        controls
-        className="bubbleVideo"
-        preload="metadata"
-      />
-      {caption && <div className="bubbleCaption">{caption}</div>}
-    </div>
-  );
-}
-
-function FileAttachment({
-  url, name, size, caption, isOwn,
-}: { url: string; name: string; size?: number | null; caption?: string; isOwn: boolean }) {
+// ── File card (used for real files AND as image error fallback) ───────────────
+function FileCard({
+  url, name, size, isOwn, caption,
+}: { url: string; name: string; size?: number | null; isOwn: boolean; caption?: string }) {
   const sizeStr = size ? formatFileSize(size) : '';
-
   return (
     <div className={`bubbleAttachFile${isOwn ? ' bubbleAttachFileOwn' : ''}`}>
       <button
@@ -148,7 +104,84 @@ function FileAttachment({
   );
 }
 
-// ── HighlightText ─────────────────────────────────────────────────────────────
+// ── Image attachment ──────────────────────────────────────────────────────────
+function ImageAttachment({
+  url, name, size, caption, isOwn,
+}: { url: string; name: string; size?: number | null; caption?: string; isOwn: boolean }) {
+  const [failed, setFailed] = useState(false);
+
+  // If image fails to load → fall back to a file card so the user can still download
+  if (failed) {
+    return <FileCard url={url} name={name} size={size} isOwn={isOwn} caption={caption} />;
+  }
+
+  return (
+    <div className="bubbleAttachImg">
+      <a href={url} target="_blank" rel="noopener noreferrer" className="bubbleImgLink">
+        <img
+          src={url}
+          alt={name}
+          className="bubbleImg"
+          loading="lazy"
+          onError={() => setFailed(true)}
+        />
+        <div className="bubbleImgOverlay">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+            <circle cx="11" cy="11" r="8"/>
+            <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+            <line x1="11" y1="8" x2="11" y2="14"/>
+            <line x1="8" y1="11" x2="14" y2="11"/>
+          </svg>
+        </div>
+      </a>
+      {caption && <div className="bubbleCaption">{caption}</div>}
+    </div>
+  );
+}
+
+// ── Video attachment — custom play button, native controls on demand ──────────
+function VideoAttachment({
+  url, caption,
+}: { url: string; caption?: string }) {
+  const [playing, setPlaying] = useState(false);
+
+  if (playing) {
+    return (
+      <div className="bubbleAttachVideo">
+        <video
+          src={url}
+          controls
+          autoPlay
+          className="bubbleVideo"
+          preload="metadata"
+        />
+        {caption && <div className="bubbleCaption">{caption}</div>}
+      </div>
+    );
+  }
+
+  // Show poster with big play button until user clicks
+  return (
+    <div className="bubbleAttachVideo">
+      <div className="bubbleVideoPoster" onClick={() => setPlaying(true)}>
+        <video
+          src={url}
+          className="bubbleVideo bubbleVideoPosterVideo"
+          preload="metadata"
+          muted
+        />
+        <div className="bubbleVideoPlayBtn">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M8 5v14l11-7z"/>
+          </svg>
+        </div>
+      </div>
+      {caption && <div className="bubbleCaption">{caption}</div>}
+    </div>
+  );
+}
+
+// ── Search highlight ──────────────────────────────────────────────────────────
 function HighlightText({ text, term }: { text: string; term: string }) {
   if (!term || !text) return <>{text}</>;
   const parts = text.split(new RegExp(`(${term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi'));
@@ -181,7 +214,7 @@ interface Props {
   onViewUser: (id: string) => void;
 }
 
-// ── Main component ────────────────────────────────────────────────────────────
+// ── Component ─────────────────────────────────────────────────────────────────
 export function MessageBubble({
   message: m, isOwn, isRead, isSelected, isGroup, sender,
   showAvatar, showName, hasSelection, highlight, isSearchMatch,
@@ -190,15 +223,20 @@ export function MessageBubble({
   const hasAttachment = !!m.attachment_url;
   const isImage = m.attachment_type === 'image';
   const isVideo = m.attachment_type === 'video';
-  const isFile  = m.attachment_type === 'file' || (hasAttachment && !isImage && !isVideo);
+  const isFile  = hasAttachment && !isImage && !isVideo;
 
-  // Caption = text when there's also an attachment
-  const caption    = hasAttachment && m.text ? m.text : undefined;
-  const pureText   = hasAttachment ? null : m.text;
+  // When there's an attachment, text becomes caption; otherwise it's the main content
+  const caption  = hasAttachment && m.text ? m.text : undefined;
+  const pureText = hasAttachment ? null : m.text;
 
   return (
     <div
-      className={`msg ${isOwn ? 'out' : 'in'}${isSelected ? ' selected' : ''}${isGroup && !isOwn ? ' inGroup' : ''}${isSearchMatch ? ' msgSearchFocus' : ''}`}
+      className={[
+        'msg', isOwn ? 'out' : 'in',
+        isSelected ? 'selected' : '',
+        isGroup && !isOwn ? 'inGroup' : '',
+        isSearchMatch ? 'msgSearchFocus' : '',
+      ].filter(Boolean).join(' ')}
       onContextMenu={e => { if (!isOwn) return; e.preventDefault(); onContextMenu(); }}
       onClick={e => { if (!isOwn || !hasSelection) return; e.stopPropagation(); onClick(e); }}
     >
@@ -229,18 +267,30 @@ export function MessageBubble({
           </button>
         )}
 
-        {/* ── Attachment area ── */}
-        {hasAttachment && isImage && (
-          <ImageAttachment url={m.attachment_url!} name={m.attachment_name || 'image'} caption={caption} isOwn={isOwn} />
+        {/* Attachments */}
+        {isImage && (
+          <ImageAttachment
+            url={m.attachment_url!}
+            name={m.attachment_name || 'image'}
+            size={m.attachment_size}
+            caption={caption}
+            isOwn={isOwn}
+          />
         )}
-        {hasAttachment && isVideo && (
+        {isVideo && (
           <VideoAttachment url={m.attachment_url!} caption={caption} />
         )}
-        {hasAttachment && isFile && (
-          <FileAttachment url={m.attachment_url!} name={m.attachment_name || 'file'} size={m.attachment_size} caption={caption} isOwn={isOwn} />
+        {isFile && (
+          <FileCard
+            url={m.attachment_url!}
+            name={m.attachment_name || 'file'}
+            size={m.attachment_size}
+            isOwn={isOwn}
+            caption={caption}
+          />
         )}
 
-        {/* ── Plain text (no attachment) ── */}
+        {/* Plain text (no attachment) */}
         {pureText && (
           <div className="bubbleText">
             <HighlightText text={pureText} term={highlight || ''} />
