@@ -1,8 +1,10 @@
 /**
  * ChatHeader — with message search panel.
+ * ✅ Fixed: uses Avatar component to show real photos instead of just letters.
  */
 import { type Chat } from '../../types';
 import { chatTitle, chatSubtitle, avatarLetter } from '../../utils/format';
+import { Avatar, resolveUrl } from '../ui/Avatar';
 
 interface Props {
   chat: Chat;
@@ -13,7 +15,6 @@ interface Props {
   onDeleteSelected: () => void;
   onOpenInfo: () => void;
   onViewUser: (id: string) => void;
-  // Search
   searchOpen: boolean;
   searchQuery: string;
   searchTotal: number;
@@ -32,6 +33,15 @@ export function ChatHeader({
   onToggleSearch, onSearchChange, onSearchNext, onSearchPrev, onSearchClose,
 }: Props) {
   const isGroup = chat.type === 'group';
+
+  // For direct chats — the other person's user object
+  const partner = !isGroup ? chat.members.find(m => m.id !== meId) : null;
+
+  // ✅ Build a synthetic "user" object for the Avatar component
+  // Groups use chat.avatar_url (new feature); direct chats use partner avatar
+  const avatarUser = isGroup
+    ? { id: chat.id, display_name: chat.name, avatar_url: chat.avatar_url ?? null }
+    : partner ?? null;
 
   if (hasSelection) {
     return (
@@ -60,20 +70,23 @@ export function ChatHeader({
 
   return (
     <div className={`chatHeaderWrap${searchOpen ? ' searchOpen' : ''}`}>
-      {/* Main header row */}
       <div className="chatHeader">
         <button
           className="chHeaderBtn"
           onClick={() => {
             if (isGroup) onOpenInfo();
-            else {
-              const other = chat.members.find(m => m.id !== meId);
-              if (other) onViewUser(other.id);
-            }
+            else if (partner) onViewUser(partner.id);
           }}
         >
-          <div className={`chAvatar${isGroup ? ' group' : ''}`}>
-            {avatarLetter(chatTitle(chat, meId))}
+          {/* ✅ Real avatar with photo support */}
+          <div className={`chAvatarWrap${isGroup ? ' group' : ''}`}>
+            {resolveUrl(avatarUser?.avatar_url) ? (
+              <Avatar user={avatarUser} size={38} radius={12} />
+            ) : (
+              <div className={`chAvatar${isGroup ? ' group' : ''}`}>
+                {avatarLetter(chatTitle(chat, meId))}
+              </div>
+            )}
           </div>
           <div>
             <div className="chName">{chatTitle(chat, meId)}</div>
@@ -81,7 +94,6 @@ export function ChatHeader({
           </div>
         </button>
 
-        {/* Search toggle button */}
         <button
           className={`chSearchToggle${searchOpen ? ' active' : ''}`}
           onClick={onToggleSearch}
@@ -94,7 +106,6 @@ export function ChatHeader({
         </button>
       </div>
 
-      {/* Slide-down search bar */}
       {searchOpen && (
         <div className="chSearchBar">
           <div className="chSearchInputWrap">
@@ -115,7 +126,6 @@ export function ChatHeader({
               </span>
             )}
           </div>
-
           <div className="chSearchActions">
             {searchTotal > 0 && (
               <>
@@ -132,9 +142,7 @@ export function ChatHeader({
               </>
             )}
             {searchQuery && (
-              <button className="chSearchReset" onClick={() => onSearchChange('')}>
-                Сброс
-              </button>
+              <button className="chSearchReset" onClick={() => onSearchChange('')}>Сброс</button>
             )}
             <button className="chSearchClose" onClick={onSearchClose}>
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">

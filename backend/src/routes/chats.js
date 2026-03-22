@@ -245,4 +245,28 @@ router.patch('/:id', (req, res, next) => {
   } catch (err) { next(err); }
 });
 
+// PATCH /chats/:id/avatar — update group avatar with system message
+router.patch('/:id/avatar', (req, res, next) => {
+  try {
+    const { avatar_url } = req.body;
+    if (!avatar_url) return res.status(400).json({ error: 'avatar_url is required' });
+
+    const updatedChat = updateChatMetadata(req.params.id, req.userId, { avatar_url });
+
+    // Send system message to group
+    const { saveMessage } = require('../services/messageService');
+    const sysMsg = saveMessage(req.params.id, req.userId, 'Администратор изменил(а) фото группы', {}, true);
+
+    const io = req.app.get('io');
+    if (io) {
+      for (const member of updatedChat.members) {
+        io.to(`user:${member.id}`).emit('chat-updated', updatedChat);
+        io.to(`user:${member.id}`).emit('new-message', sysMsg);
+      }
+    }
+
+    res.json(updatedChat);
+  } catch (err) { next(err); }
+});
+
 module.exports = router;

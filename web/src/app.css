@@ -2957,3 +2957,79 @@ input[type="date"].psInput::-webkit-calendar-picker-indicator {
   transform: scale(1.1);
   background: rgba(0,0,0,.72);
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   ✅ FIXES: cancel upload, group avatar overlay, chat header real avatar
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* Cancel upload button (red square-stop icon) */
+.fileStagingCancel {
+  width: 28px; height: 28px; border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  background: color-mix(in srgb, var(--danger) 15%, transparent);
+  border: 1px solid color-mix(in srgb, var(--danger) 40%, transparent);
+  color: var(--danger); cursor: pointer; flex-shrink: 0;
+  transition: background .15s;
+}
+.fileStagingCancel:hover { background: var(--danger); color: #fff; }
+
+/* Chat header: wrapper for Avatar component */
+.chAvatarWrap {
+  width: 38px; height: 38px; flex-shrink: 0;
+  border-radius: 12px; overflow: hidden;
+}
+.chAvatarWrap.group { border-radius: 14px; }
+
+/* Group avatar overlay (camera icon on hover) */
+.giAvatarOverlay {
+  position: absolute; inset: 0;
+  background: rgba(0,0,0,.45);
+  display: flex; align-items: center; justify-content: center;
+  color: #fff; border-radius: inherit;
+  opacity: 0; transition: opacity .18s;
+}
+.upAvatar:hover .giAvatarOverlay { opacity: 1; }
+
+/* Spin animation for avatar upload spinner */
+@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   ✅ LATEST FIXES: cancel upload, group avatar overlay, chat header avatar
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* Cancel upload button (square-stop icon, red) */
+.fileStagingCancel {
+  width: 28px; height: 28px; border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  background: color-mix(in srgb, var(--danger) 15%, transparent);
+  border: 1px solid color-mix(in srgb, var(--danger) 40%, transparent);
+  color: var(--danger); cursor: pointer; flex-shrink: 0;
+  transition: background .15s, color .15s;
+}
+.fileStagingCancel:hover { background: var(--danger); color: #fff; }
+
+/* Chat header: wrapper lets Avatar component render in the header */
+.chAvatarWrap {
+  width: 38px; height: 38px;
+  flex-shrink: 0;
+  border-radius: 12px;
+  overflow: hidden;
+}
+.chAvatarWrap.group { border-radius: 14px; }
+
+/* Group avatar overlay — camera icon appears on hover (admin only) */
+.giAvatarOverlay {
+  position: absolute; inset: 0;
+  background: rgba(0,0,0,.48);
+  display: flex; align-items: center; justify-content: center;
+  color: #fff; border-radius: inherit;
+  opacity: 0; transition: opacity .18s;
+  cursor: pointer;
+}
+.upAvatar:hover .giAvatarOverlay { opacity: 1; }
+
+/* Spin animation reused for avatar upload spinner */
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}

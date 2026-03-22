@@ -11,7 +11,7 @@ import { ChatHeader } from './ChatHeader';
 import { MessageList } from './MessageList';
 import { Composer } from './Composer';
 import { EmptyState } from './EmptyState';
-import { uploadFile } from '../../api/upload';
+
 import { sendChatMessage } from '../../api/chats';
 
 export function ChatArea() {
@@ -64,18 +64,13 @@ export function ChatArea() {
   }, [messageText, sendMessage]);
 
   // ── Send file ─────────────────────────────────────────────────────────────
-  const handleSendWithFile = useCallback(async (
-    file: File,
+  // ✅ Called by Composer after upload is complete — just sends the message
+  const handleSendAttachment = useCallback(async (
+    result: { url: string; type: string; name: string; size: number },
     caption: string,
-    onProgress: (pct: number) => void,
   ) => {
     const chatId = useChatsStore.getState().activeChatId;
     if (!chatId) return;
-
-    // 1. Upload with progress
-    const result = await uploadFile(file, onProgress);
-
-    // 2. Send message with attachment
     await sendChatMessage(chatId, {
       text:            caption.trim() || '',
       attachment_url:  result.url,
@@ -192,7 +187,7 @@ export function ChatArea() {
           value={messageText}
           onChange={setMessageText}
           onSend={handleSend}
-          onSendWithFile={handleSendWithFile}
+          onSendAttachment={handleSendAttachment}
           externalFile={droppedFile}
           onExternalFileConsumed={handleDroppedFileConsumed}
         />
