@@ -25,6 +25,7 @@ export type Message = {
   attachment_url?: string | null;
   attachment_type?: string | null;
   attachment_name?: string | null;
+  attachment_size?: number | null;   // ✅ file size in bytes
   liked_by?: string[];
   is_system?: boolean;
 };
@@ -40,7 +41,6 @@ export type Chat = {
   unread_count?: number;
   partner_last_read_at?: number;
   creator_id?: string | null;
-  /** ✅ True when the admin has closed the group — no new messages allowed */
   is_closed?: boolean;
 };
 

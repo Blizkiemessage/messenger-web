@@ -2567,3 +2567,415 @@ input[type="date"].psInput::-webkit-calendar-picker-indicator {
 }
 .confirmAdmin:disabled { opacity: .4; cursor: default; }
 .confirmAdmin:not(:disabled):hover { opacity: .85; }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   ✅ FILE SHARING STYLES — append to end of app.css
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ── ChatArea inner wrapper (needed for drag overlay positioning) ─────────── */
+.chatAreaInner {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  position: relative;
+  overflow: hidden;
+}
+
+/* ── Drag & drop overlay ─────────────────────────────────────────────────── */
+.dropOverlay {
+  position: absolute;
+  inset: 0;
+  z-index: 500;
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  border: 2.5px dashed var(--accent);
+  border-radius: 12px;
+  margin: 6px;
+  animation: dropOverlayIn .15s ease;
+}
+@keyframes dropOverlayIn {
+  from { opacity: 0; transform: scale(.97); }
+  to   { opacity: 1; transform: scale(1); }
+}
+.dropOverlayBox {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 32px 40px;
+  background: var(--card);
+  border-radius: 20px;
+  box-shadow: 0 8px 32px rgba(0,0,0,.15);
+}
+.dropOverlayIcon {
+  width: 72px;
+  height: 72px;
+  border-radius: 20px;
+  background: var(--accent-dim);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--accent);
+}
+.dropOverlayTitle {
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--text);
+}
+.dropOverlaySub {
+  font-size: 13px;
+  color: var(--muted);
+}
+
+/* ── Composer wrapper (contains staging card + composer bar) ─────────────── */
+.composerWrap {
+  display: flex;
+  flex-direction: column;
+  border-top: 1px solid var(--border);
+  background: color-mix(in srgb, var(--sidebar) 85%, transparent);
+  backdrop-filter: blur(10px);
+  flex-shrink: 0;
+}
+
+/* ── Override: remove border-top from .composer itself (now on .composerWrap) */
+.composer {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px 12px;
+  border-top: none;         /* border is on .composerWrap now */
+  background: transparent;
+  backdrop-filter: none;
+}
+
+/* ── Attach button ───────────────────────────────────────────────────────── */
+.composerAttach {
+  width: 38px;
+  height: 38px;
+  border-radius: 11px;
+  background: var(--surface);
+  border: 1.5px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  color: var(--muted);
+  cursor: pointer;
+  transition: color .15s, border-color .15s, background .15s, transform .1s;
+}
+.composerAttach:hover:not(:disabled) {
+  color: var(--accent);
+  border-color: var(--accent);
+  background: var(--accent-dim);
+  transform: scale(1.06);
+}
+.composerAttach:disabled { opacity: .4; cursor: not-allowed; }
+.composerAttachActive {
+  color: var(--accent);
+  border-color: var(--accent);
+  background: var(--accent-dim);
+}
+
+/* ── Spinner animation for upload send button ────────────────────────────── */
+.composerSpinner {
+  animation: spinnerRotate 0.9s linear infinite;
+}
+@keyframes spinnerRotate {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+.composerSendLoading {
+  opacity: 0.7 !important;
+  cursor: default;
+}
+
+/* ── File staging card ───────────────────────────────────────────────────── */
+.fileStagingCard {
+  margin: 10px 14px 4px;
+  background: var(--panel);
+  border: 1.5px solid var(--border);
+  border-radius: 14px;
+  padding: 12px 14px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  animation: stagingSlideIn .2s cubic-bezier(.34,1.56,.64,1);
+}
+@keyframes stagingSlideIn {
+  from { opacity: 0; transform: translateY(8px) scale(.97); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+.fileStagingUploading {
+  border-color: var(--accent);
+}
+.fileStagingRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.fileStagingMeta {
+  flex: 1;
+  min-width: 0;
+}
+.fileStagingName {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.fileStagingSize {
+  font-size: 12px;
+  color: var(--muted);
+  margin-top: 2px;
+}
+.fileStagingRemove {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--muted);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background .15s, color .15s;
+}
+.fileStagingRemove:hover { background: var(--danger); color: #fff; border-color: var(--danger); }
+.fileStagingErr {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12.5px;
+  color: var(--danger);
+  font-weight: 500;
+}
+
+/* ── Upload progress bar ─────────────────────────────────────────────────── */
+.fileProgressTrack {
+  position: relative;
+  height: 6px;
+  background: var(--border);
+  border-radius: 999px;
+  overflow: hidden;
+}
+.fileProgressFill {
+  position: absolute;
+  inset-block: 0;
+  left: 0;
+  background: linear-gradient(90deg, var(--accent), color-mix(in srgb, var(--accent) 70%, #fff));
+  border-radius: 999px;
+  transition: width .25s ease;
+  animation: progressShimmer 1.5s infinite linear;
+  background-size: 200% 100%;
+}
+@keyframes progressShimmer {
+  0%   { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+.fileProgressPct {
+  display: block;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--accent);
+  text-align: right;
+  margin-top: 3px;
+}
+
+/* ── File caption input (inside staging card) ────────────────────────────── */
+.fileCaptionInput {
+  width: 100%;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  padding: 7px 12px;
+  font-size: 13.5px;
+  outline: none;
+  transition: border-color .15s;
+  color: var(--text);
+}
+.fileCaptionInput:focus { border-color: color-mix(in srgb, var(--accent) 50%, transparent); }
+.fileCaptionInput::placeholder { color: var(--muted); }
+.fileCaptionInput:disabled { opacity: .6; }
+
+/* ── File icon badge (staging card) ─────────────────────────────────────── */
+.fileIconBadge {
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  border: 1.5px solid;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  gap: 1px;
+  position: relative;
+}
+.fileIconLabel {
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: -.02em;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   BUBBLE ATTACHMENT STYLES
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* bubble with attachment: tighter padding on top */
+.bubbleWithAttach { padding-top: 0 !important; overflow: hidden; }
+
+/* ── Image attachment ────────────────────────────────────────────────────── */
+.bubbleAttachImg {
+  margin: 0 -12px;
+  margin-top: 0;
+}
+.bubbleAttachImg:first-child { border-radius: 14px 14px 0 0; overflow: hidden; }
+.bubbleAttachImgOwn { }
+.bubbleImgLink {
+  display: block;
+  position: relative;
+  overflow: hidden;
+  cursor: zoom-in;
+}
+.bubbleImg {
+  display: block;
+  width: 100%;
+  max-width: 320px;
+  min-width: 120px;
+  max-height: 320px;
+  object-fit: cover;
+  border-radius: 0;
+  transition: opacity .2s;
+}
+.bubbleImg:hover { opacity: .92; }
+.bubbleImgOverlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0,0,0,.3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  opacity: 0;
+  transition: opacity .2s;
+}
+.bubbleImgLink:hover .bubbleImgOverlay { opacity: 1; }
+
+/* ── Video attachment ────────────────────────────────────────────────────── */
+.bubbleAttachVideo {
+  margin: 0 -12px;
+}
+.bubbleVideo {
+  display: block;
+  width: 100%;
+  max-width: 320px;
+  max-height: 280px;
+  background: #000;
+  border-radius: 0;
+}
+
+/* ── Caption below image/video ───────────────────────────────────────────── */
+.bubbleCaption {
+  font-size: 13.5px;
+  color: var(--text);
+  padding: 8px 12px 2px;
+  line-height: 1.4;
+  white-space: pre-wrap;
+}
+.bubbleCaptionFile {
+  padding: 6px 0 2px;
+}
+
+/* ── File attachment card ────────────────────────────────────────────────── */
+.bubbleAttachFile {
+  min-width: 220px;
+  max-width: 300px;
+}
+.bubbleFileCard {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 10px 10px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  border-radius: 10px;
+  text-align: left;
+  transition: background .15s;
+}
+.bubbleFileCard:hover {
+  background: rgba(0,0,0,.06);
+}
+.out .bubbleFileCard:hover {
+  background: rgba(255,255,255,.12);
+}
+.bubbleFileIcon {
+  width: 44px;
+  height: 44px;
+  border-radius: 11px;
+  border: 1.5px solid;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  gap: 1px;
+}
+.bubbleFileIconLabel {
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: -.02em;
+}
+.bubbleFileMeta {
+  flex: 1;
+  min-width: 0;
+}
+.bubbleFileName {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 160px;
+}
+.out .bubbleFileName { color: inherit; }
+.bubbleFileSize {
+  font-size: 11.5px;
+  color: var(--muted);
+  margin-top: 2px;
+}
+.out .bubbleFileSize { color: rgba(255,255,255,.6); }
+.bubbleFileDownloadBtn {
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--accent-dim);
+  color: var(--accent);
+  flex-shrink: 0;
+  transition: background .15s;
+}
+.out .bubbleFileDownloadBtn {
+  background: rgba(255,255,255,.2);
+  color: #fff;
+}
+.bubbleFileCard:hover .bubbleFileDownloadBtn {
+  background: var(--accent);
+  color: #fff;
+}
+.out .bubbleFileCard:hover .bubbleFileDownloadBtn {
+  background: rgba(255,255,255,.35);
+}

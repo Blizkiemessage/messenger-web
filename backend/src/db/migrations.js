@@ -64,7 +64,6 @@ function runMigrations() {
     CREATE INDEX IF NOT EXISTS idx_messages_chat ON messages(chat_id, created_at);
   `);
 
-  // Friends: accepted friendships (undirected) + pending requests (directed)
   db.exec(`
     CREATE TABLE IF NOT EXISTS friend_requests (
       from_user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -72,101 +71,53 @@ function runMigrations() {
       created_at   INTEGER NOT NULL,
       PRIMARY KEY (from_user_id, to_user_id)
     );
-
     CREATE INDEX IF NOT EXISTS idx_friend_requests_to ON friend_requests(to_user_id, created_at);
-
     CREATE TABLE IF NOT EXISTS friends (
       user_a_id  TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
       user_b_id  TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
       created_at INTEGER NOT NULL,
       PRIMARY KEY (user_a_id, user_b_id)
     );
-
     CREATE INDEX IF NOT EXISTS idx_friends_a ON friends(user_a_id);
     CREATE INDEX IF NOT EXISTS idx_friends_b ON friends(user_b_id);
   `);
 
-  // Add push_token column if it doesn't exist yet
-  try {
-    db.exec('ALTER TABLE users ADD COLUMN push_token TEXT');
-  } catch {
-    // column already exists — ignore
-  }
-
-  // Add last_read_at to chat_members for unread tracking
-  try {
-    db.exec('ALTER TABLE chat_members ADD COLUMN last_read_at INTEGER NOT NULL DEFAULT 0');
-  } catch {
-    // column already exists — ignore
-  }
-
-  // Add attachment columns to messages
-  for (const col of [
+  const alters = [
+    'ALTER TABLE users ADD COLUMN push_token TEXT',
+    'ALTER TABLE chat_members ADD COLUMN last_read_at INTEGER NOT NULL DEFAULT 0',
     'ALTER TABLE messages ADD COLUMN attachment_url TEXT',
     'ALTER TABLE messages ADD COLUMN attachment_type TEXT',
     'ALTER TABLE messages ADD COLUMN attachment_name TEXT',
-  ]) {
-    try { db.exec(col); } catch { /* already exists */ }
-  }
-
-  // Add liked_by for heart reactions
-  try {
-    db.exec("ALTER TABLE messages ADD COLUMN liked_by TEXT NOT NULL DEFAULT '[]'");
-  } catch { /* already exists */ }
-
-  // Add creator_id to group chats for member management
-  try {
-    db.exec('ALTER TABLE chats ADD COLUMN creator_id TEXT');
-  } catch { /* already exists */ }
-
-  // Add avatar_url to chats if it doesn't exist (for existing tables)
-  try {
-    db.exec('ALTER TABLE chats ADD COLUMN avatar_url TEXT');
-  } catch { /* already exists */ }
-
-  // Assign user 'pasha' as the creator for all legacy groups
-  try {
-    const pashaId = db.prepare("SELECT id FROM users WHERE LOWER(username) LIKE 'pasha%' LIMIT 1").get()?.id;
-    if (pashaId) {
-      const info = db.prepare("UPDATE chats SET creator_id = ? WHERE type = 'group' AND creator_id IS NULL").run([pashaId]);
-      if (info.changes > 0) {
-        console.log(`[DB] Assigned pasha as creator to ${info.changes} legacy groups.`);
-      }
-    }
-  } catch (err) {
-    console.error('[DB] Failed to assign default creator:', err.message);
-  }
-
-  // Add password_hash column for new username+password auth
-  try {
-    db.exec('ALTER TABLE users ADD COLUMN password_hash TEXT');
-  } catch { /* already exists */ }
-
-  // Add description column to chats for group descriptions
-  try {
-    db.exec('ALTER TABLE chats ADD COLUMN description TEXT');
-  } catch { /* already exists */ }
-
-  // Add profile fields: bio, birth_date, hide_bio, hide_birth_date
-  for (const col of [
+    "ALTER TABLE messages ADD COLUMN liked_by TEXT NOT NULL DEFAULT '[]'",
+    'ALTER TABLE chats ADD COLUMN creator_id TEXT',
+    'ALTER TABLE chats ADD COLUMN avatar_url TEXT',
+    'ALTER TABLE users ADD COLUMN password_hash TEXT',
+    'ALTER TABLE chats ADD COLUMN description TEXT',
     'ALTER TABLE users ADD COLUMN bio TEXT',
     'ALTER TABLE users ADD COLUMN birth_date TEXT',
     'ALTER TABLE users ADD COLUMN hide_bio INTEGER NOT NULL DEFAULT 0',
     'ALTER TABLE users ADD COLUMN hide_birth_date INTEGER NOT NULL DEFAULT 0',
     'ALTER TABLE users ADD COLUMN no_group_add INTEGER NOT NULL DEFAULT 0',
-  ]) {
-    try { db.exec(col); } catch { /* already exists */ }
+    'ALTER TABLE messages ADD COLUMN is_system INTEGER NOT NULL DEFAULT 0',
+    'ALTER TABLE chats ADD COLUMN is_closed INTEGER NOT NULL DEFAULT 0',
+    // ✅ NEW: file size in bytes for attachment messages
+    'ALTER TABLE messages ADD COLUMN attachment_size INTEGER',
+  ];
+
+  for (const sql of alters) {
+    try { db.exec(sql); } catch { /* column already exists */ }
   }
 
-  // Add is_system flag to messages (for leave/join notifications)
+  // Assign legacy group creator
   try {
-    db.exec('ALTER TABLE messages ADD COLUMN is_system INTEGER NOT NULL DEFAULT 0');
-  } catch { /* already exists */ }
-
-  // ✅ NEW: Add is_closed flag to chats (admin deleted/closed the group)
-  try {
-    db.exec('ALTER TABLE chats ADD COLUMN is_closed INTEGER NOT NULL DEFAULT 0');
-  } catch { /* already exists */ }
+    const pashaId = db.prepare("SELECT id FROM users WHERE LOWER(username) LIKE 'pasha%' LIMIT 1").get()?.id;
+    if (pashaId) {
+      const info = db.prepare("UPDATE chats SET creator_id = ? WHERE type = 'group' AND creator_id IS NULL").run([pashaId]);
+      if (info.changes > 0) console.log(`[DB] Assigned pasha as creator to ${info.changes} legacy groups.`);
+    }
+  } catch (err) {
+    console.error('[DB] Failed to assign default creator:', err.message);
+  }
 
   console.log('[DB] Migrations complete');
 }
