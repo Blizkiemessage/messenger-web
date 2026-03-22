@@ -1,9 +1,9 @@
 /**
  * api/upload.ts
- * File upload with real-time progress tracking via XMLHttpRequest.
+ * File upload with real-time progress tracking via axios onUploadProgress.
+ * Uses the shared axios client (handles auth token + base URL automatically).
  */
-import { getSession } from '../storage/session';
-import { API_BASE_URL } from '../config';
+import client from './client';
 
 export interface UploadResult {
   url: string;
@@ -18,51 +18,26 @@ export interface UploadResult {
  * @param onProgress  Callback called with 0–100 percentage during upload
  * @returns           Resolved UploadResult on success
  */
-export function uploadFile(
+export async function uploadFile(
   file: File,
   onProgress: (pct: number) => void,
 ): Promise<UploadResult> {
-  return new Promise((resolve, reject) => {
-    const session  = getSession();
-    const formData = new FormData();
-    formData.append('file', file);
+  const formData = new FormData();
+  formData.append('file', file);
 
-    const xhr = new XMLHttpRequest();
-
-    // Upload progress
-    xhr.upload.addEventListener('progress', (e) => {
-      if (e.lengthComputable) {
+  const response = await client.post<UploadResult>('/upload', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+    timeout: 120_000, // 2 min — enough for large files
+    onUploadProgress: (e) => {
+      if (e.total && e.total > 0) {
         onProgress(Math.round((e.loaded / e.total) * 100));
       }
-    });
-
-    // Success
-    xhr.addEventListener('load', () => {
-      if (xhr.status >= 200 && xhr.status < 300) {
-        try {
-          const data = JSON.parse(xhr.responseText) as UploadResult;
-          // Fallback: use File.size if backend didn't return size
-          resolve({ ...data, size: data.size ?? file.size });
-        } catch {
-          reject(new Error('Неверный ответ от сервера'));
-        }
-      } else {
-        try {
-          const err = JSON.parse(xhr.responseText);
-          reject(new Error(err.error || `Ошибка загрузки: ${xhr.status}`));
-        } catch {
-          reject(new Error(`Ошибка загрузки: ${xhr.status}`));
-        }
-      }
-    });
-
-    xhr.addEventListener('error', () => reject(new Error('Ошибка сети при загрузке файла')));
-    xhr.addEventListener('abort', () => reject(new Error('Загрузка отменена')));
-
-    xhr.open('POST', `${API_BASE_URL}/upload`);
-    if (session?.token) {
-      xhr.setRequestHeader('Authorization', `Bearer ${session.token}`);
-    }
-    xhr.send(formData);
+    },
   });
+
+  return {
+    ...response.data,
+    // Fallback: use File.size if backend didn't return size
+    size: response.data.size ?? file.size,
+  };
 }
