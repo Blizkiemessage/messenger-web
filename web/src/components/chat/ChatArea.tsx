@@ -1,8 +1,8 @@
 /**
  * ChatArea.tsx
- * ✅ Added: drag-and-drop file handling, onSendWithFile handler.
+ * ✅ Added: pin/unpin messages, pin navigation, long message auto-split.
  */
-import { useState, useCallback, useMemo, useRef } from 'react';
+import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import { useChatsStore, selectActiveChat } from '../../store/useChatsStore';
 import { useSessionStore } from '../../store/useSessionStore';
 import { useAppStore } from '../../store/useAppStore';
@@ -11,8 +11,27 @@ import { ChatHeader } from './ChatHeader';
 import { MessageList } from './MessageList';
 import { Composer } from './Composer';
 import { EmptyState } from './EmptyState';
+import { sendChatMessage, getPinnedMessages, pinMessage as apiPin, unpinMessage as apiUnpin } from '../../api/chats';
+import type { UploadResult } from '../../api/upload';
+import type { Message } from '../../types';
 
-import { sendChatMessage } from '../../api/chats';
+// ── Max chars per message — split at last word boundary ──────────────────────
+const MAX_MSG_CHARS = 4000;
+
+function splitMessage(text: string): string[] {
+  if (text.length <= MAX_MSG_CHARS) return [text];
+  const parts: string[] = [];
+  let remaining = text;
+  while (remaining.length > MAX_MSG_CHARS) {
+    // Find last space within the limit
+    let cutAt = remaining.lastIndexOf(' ', MAX_MSG_CHARS);
+    if (cutAt <= 0) cutAt = MAX_MSG_CHARS; // no space found — hard cut
+    parts.push(remaining.slice(0, cutAt));
+    remaining = remaining.slice(cutAt).trimStart();
+  }
+  if (remaining.length > 0) parts.push(remaining);
+  return parts;
+}
 
 export function ChatArea() {
   const me              = useSessionStore(s => s.me)!;
@@ -40,9 +59,7 @@ export function ChatArea() {
   const matchedIds = useMemo<string[]>(() => {
     const q = searchQuery.trim().toLowerCase();
     if (!q) return [];
-    return messages
-      .filter(m => !m.is_system && m.text?.toLowerCase().includes(q))
-      .map(m => m.id);
+    return messages.filter(m => !m.is_system && m.text?.toLowerCase().includes(q)).map(m => m.id);
   }, [messages, searchQuery]);
 
   const currentMatchId = matchedIds.length > 0 ? matchedIds[searchIdx] : null;
@@ -55,24 +72,77 @@ export function ChatArea() {
   const handleSearchPrev   = useCallback(() => setSearchIdx(i => (i - 1 + matchedIds.length) % matchedIds.length), [matchedIds.length]);
   const handleSearchClose  = useCallback(() => { setSearchOpen(false); setSearchQuery(''); setSearchIdx(0); }, []);
 
-  // ── Send text ─────────────────────────────────────────────────────────────
+  // ── Pinned messages ───────────────────────────────────────────────────────
+  const [pinnedMessages, setPinnedMessages] = useState<Message[]>([]);
+  const [pinnedOpen,     setPinnedOpen]     = useState(false);
+  const [pinnedIdx,      setPinnedIdx]      = useState(0);
+
+  // Load pinned messages when chat changes
+  useEffect(() => {
+    if (!activeChat) { setPinnedMessages([]); return; }
+    getPinnedMessages(activeChat.id).then(setPinnedMessages).catch(() => setPinnedMessages([]));
+  }, [activeChat?.id]); // eslint-disable-line
+
+  // Also update pinnedMessages from local messages list (after socket updates)
+  useEffect(() => {
+    const pinned = messages.filter(m => m.is_pinned);
+    if (pinned.length !== pinnedMessages.length) setPinnedMessages(pinned);
+  }, [messages]); // eslint-disable-line
+
+  const pinnedFocusId = pinnedOpen && pinnedMessages.length > 0
+    ? pinnedMessages[pinnedIdx]?.id ?? null
+    : null;
+
+  const handleTogglePinned = useCallback(() => {
+    setPinnedOpen(v => !v);
+    setPinnedIdx(0);
+  }, []);
+  const handlePinnedNext = useCallback(() =>
+    setPinnedIdx(i => (i + 1) % pinnedMessages.length), [pinnedMessages.length]);
+  const handlePinnedPrev = useCallback(() =>
+    setPinnedIdx(i => (i - 1 + pinnedMessages.length) % pinnedMessages.length), [pinnedMessages.length]);
+
+  const handlePinMessage = useCallback(async (msgId: string) => {
+    if (!activeChat) return;
+    try {
+      const updated = await apiPin(activeChat.id, msgId);
+      setPinnedMessages(prev => prev.some(m => m.id === msgId) ? prev : [...prev, updated]);
+      useChatsStore.getState().setMessages(
+        useChatsStore.getState().messages.map(m => m.id === msgId ? { ...m, is_pinned: true } : m)
+      );
+    } catch { /* upstream */ }
+  }, [activeChat]);
+
+  const handleUnpinMessage = useCallback(async (msgId: string) => {
+    if (!activeChat) return;
+    try {
+      await apiUnpin(activeChat.id, msgId);
+      setPinnedMessages(prev => prev.filter(m => m.id !== msgId));
+      useChatsStore.getState().setMessages(
+        useChatsStore.getState().messages.map(m => m.id === msgId ? { ...m, is_pinned: false } : m)
+      );
+    } catch { /* upstream */ }
+  }, [activeChat]);
+
+  // ── Send text (with auto-split) ───────────────────────────────────────────
   const handleSend = useCallback(async () => {
     const text = messageText.trim();
     if (!text) return;
     setMessageText('');
-    await sendMessage(text);
-  }, [messageText, sendMessage]);
+    const chatId = useChatsStore.getState().activeChatId;
+    if (!chatId) return;
+    const parts = splitMessage(text);
+    for (const part of parts) {
+      await sendChatMessage(chatId, { text: part });
+    }
+  }, [messageText]);
 
-  // ── Send file ─────────────────────────────────────────────────────────────
-  // ✅ Called by Composer after upload is complete — just sends the message
-  const handleSendAttachment = useCallback(async (
-    result: { url: string; type: string; name: string; size: number },
-    caption: string,
-  ) => {
+  // ── Send attachment ───────────────────────────────────────────────────────
+  const handleSendAttachment = useCallback(async (result: UploadResult, caption: string) => {
     const chatId = useChatsStore.getState().activeChatId;
     if (!chatId) return;
     await sendChatMessage(chatId, {
-      text:            caption.trim() || '',
+      text: caption.trim() || '',
       attachment_url:  result.url,
       attachment_type: result.type,
       attachment_name: result.name,
@@ -81,36 +151,24 @@ export function ChatArea() {
   }, []);
 
   // ── Drag & drop ───────────────────────────────────────────────────────────
-  const [dragOver, setDragOver]       = useState(false);
-  const [droppedFile, setDroppedFile] = useState<File | null>(null);
+  const [dragOver,     setDragOver]     = useState(false);
+  const [droppedFile,  setDroppedFile]  = useState<File | null>(null);
   const dragCounter = useRef(0);
 
   const handleDragEnter = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    dragCounter.current += 1;
+    e.preventDefault(); dragCounter.current++;
     if (e.dataTransfer.types.includes('Files')) setDragOver(true);
   }, []);
-
   const handleDragLeave = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    dragCounter.current -= 1;
+    e.preventDefault(); dragCounter.current--;
     if (dragCounter.current === 0) setDragOver(false);
   }, []);
-
-  const handleDragOver = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    e.dataTransfer.dropEffect = 'copy';
-  }, []);
-
-  const handleDrop = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    dragCounter.current = 0;
-    setDragOver(false);
+  const handleDragOver  = useCallback((e: React.DragEvent) => { e.preventDefault(); e.dataTransfer.dropEffect = 'copy'; }, []);
+  const handleDrop      = useCallback((e: React.DragEvent) => {
+    e.preventDefault(); dragCounter.current = 0; setDragOver(false);
     const file = e.dataTransfer.files?.[0];
     if (file) setDroppedFile(file);
   }, []);
-
-  const handleDroppedFileConsumed = useCallback(() => setDroppedFile(null), []);
 
   if (!activeChat) return <EmptyState />;
 
@@ -124,7 +182,6 @@ export function ChatArea() {
       onDragOver={handleDragOver}
       onDrop={handleDrop}
     >
-      {/* Drag & drop overlay */}
       {dragOver && (
         <div className="dropOverlay">
           <div className="dropOverlayBox">
@@ -157,7 +214,14 @@ export function ChatArea() {
         onSearchNext={handleSearchNext}
         onSearchPrev={handleSearchPrev}
         onSearchClose={handleSearchClose}
+        pinnedCount={pinnedMessages.length}
+        pinnedOpen={pinnedOpen}
+        pinnedIndex={pinnedIdx}
+        onTogglePinned={handleTogglePinned}
+        onPinnedNext={handlePinnedNext}
+        onPinnedPrev={handlePinnedPrev}
       />
+
       <MessageList
         messages={messages}
         chat={activeChat}
@@ -169,9 +233,12 @@ export function ChatArea() {
         onToggleSelect={toggleSelect}
         onClearSelection={clearSelection}
         onViewUser={setViewUserId}
+        onPinMessage={handlePinMessage}
+        onUnpinMessage={handleUnpinMessage}
         searchQuery={searchQuery.trim().toLowerCase()}
         matchedIds={matchedIds}
         currentMatchId={currentMatchId}
+        pinnedFocusId={pinnedFocusId}
       />
 
       {isGroupClosed ? (
@@ -189,7 +256,7 @@ export function ChatArea() {
           onSend={handleSend}
           onSendAttachment={handleSendAttachment}
           externalFile={droppedFile}
-          onExternalFileConsumed={handleDroppedFileConsumed}
+          onExternalFileConsumed={() => setDroppedFile(null)}
         />
       )}
     </div>

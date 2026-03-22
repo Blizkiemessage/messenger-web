@@ -1,11 +1,7 @@
 /**
  * useSocket
- *
- * Manages the Socket.io connection lifecycle and routes all incoming events
- * to the appropriate store actions.
- * Must be called once at the top of the component tree (App.tsx).
+ * ✅ Added: message-pinned / message-unpinned socket events.
  */
-
 import { useEffect } from 'react';
 import { type Chat, type Message } from '../types';
 import { connectSocket, disconnectSocket, getSocket } from '../socket/socketClient';
@@ -51,27 +47,46 @@ export function useSocket() {
       useChatsStore.getState().handleMessagesDeleted(chatId, messageIds);
     };
 
-    const onChatCreated = (chat: Chat) => useChatsStore.getState().upsertChat(chat);
-    const onChatUpdated = (chat: Chat) => useChatsStore.getState().upsertChat(chat);
-    const onChatRemoved = ({ chatId }: { chatId: string }) => useChatsStore.getState().removeChat(chatId);
+    const onChatCreated  = (chat: Chat) => useChatsStore.getState().upsertChat(chat);
+    const onChatUpdated  = (chat: Chat) => useChatsStore.getState().upsertChat(chat);
+    const onChatRemoved  = ({ chatId }: { chatId: string }) => useChatsStore.getState().removeChat(chatId);
     const onAccountDeleted = () => useSessionStore.getState().clearSession();
 
-    socket.on('new-message', onNewMessage);
-    socket.on('chat-read', onChatRead);
-    socket.on('messages-deleted', onMessagesDeleted);
-    socket.on('chat-created', onChatCreated);
-    socket.on('chat-updated', onChatUpdated);
-    socket.on('chat-removed', onChatRemoved);
-    socket.on('account-deleted', onAccountDeleted);
+    // ✅ NEW: pin/unpin events — update is_pinned flag on the message in the store
+    const onMessagePinned = ({ chatId, message }: { chatId: string; message: Message }) => {
+      const state = useChatsStore.getState();
+      if (state.activeChatId === chatId) {
+        state.setMessages(state.messages.map(m => m.id === message.id ? { ...m, is_pinned: true } : m));
+      }
+    };
+
+    const onMessageUnpinned = ({ chatId, messageId }: { chatId: string; messageId: string }) => {
+      const state = useChatsStore.getState();
+      if (state.activeChatId === chatId) {
+        state.setMessages(state.messages.map(m => m.id === messageId ? { ...m, is_pinned: false } : m));
+      }
+    };
+
+    socket.on('new-message',       onNewMessage);
+    socket.on('chat-read',         onChatRead);
+    socket.on('messages-deleted',  onMessagesDeleted);
+    socket.on('chat-created',      onChatCreated);
+    socket.on('chat-updated',      onChatUpdated);
+    socket.on('chat-removed',      onChatRemoved);
+    socket.on('account-deleted',   onAccountDeleted);
+    socket.on('message-pinned',    onMessagePinned);    // ✅
+    socket.on('message-unpinned',  onMessageUnpinned);  // ✅
 
     return () => {
-      socket.off('new-message', onNewMessage);
-      socket.off('chat-read', onChatRead);
-      socket.off('messages-deleted', onMessagesDeleted);
-      socket.off('chat-created', onChatCreated);
-      socket.off('chat-updated', onChatUpdated);
-      socket.off('chat-removed', onChatRemoved);
-      socket.off('account-deleted', onAccountDeleted);
+      socket.off('new-message',       onNewMessage);
+      socket.off('chat-read',         onChatRead);
+      socket.off('messages-deleted',  onMessagesDeleted);
+      socket.off('chat-created',      onChatCreated);
+      socket.off('chat-updated',      onChatUpdated);
+      socket.off('chat-removed',      onChatRemoved);
+      socket.off('account-deleted',   onAccountDeleted);
+      socket.off('message-pinned',    onMessagePinned);
+      socket.off('message-unpinned',  onMessageUnpinned);
       if (_markReadTimer) clearTimeout(_markReadTimer);
       disconnectSocket();
     };
