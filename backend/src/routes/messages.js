@@ -6,7 +6,7 @@
  *
  * Routes:
  *   GET    /chats/:chatId/messages              — paginated history
- *   POST   /chats/:chatId/messages              — send a message
+ *   POST   /chats/:chatId/messages              — send a message (blocked for closed groups)
  *   DELETE /chats/:chatId/messages              — bulk soft-delete own messages
  *   POST   /chats/:chatId/messages/:msgId/react — toggle like reaction
  */
@@ -30,8 +30,17 @@ router.get('/:chatId/messages', (req, res, next) => {
 });
 
 // POST /chats/:chatId/messages
+// ✅ Blocks sending messages to closed groups
 router.post('/:chatId/messages', (req, res, next) => {
   try {
+    const db = getDb();
+
+    // ✅ Check if the group is closed
+    const chat = db.prepare('SELECT is_closed FROM chats WHERE id = ?').get(req.params.chatId);
+    if (chat?.is_closed) {
+      return res.status(403).json({ error: 'Группа закрыта администратором. Отправка сообщений невозможна.' });
+    }
+
     const { text, attachment_url, attachment_type, attachment_name } = req.body;
     const hasText = text && typeof text === 'string' && text.trim();
     const hasAttachment = attachment_url && attachment_type;
@@ -42,7 +51,6 @@ router.post('/:chatId/messages', (req, res, next) => {
     const attachment = hasAttachment ? { attachment_url, attachment_type, attachment_name } : {};
     const msg = saveMessage(req.params.chatId, req.userId, hasText ? text.trim() : '', attachment);
 
-    const db = getDb();
     const members = db
       .prepare('SELECT u.id FROM chat_members cm JOIN users u ON u.id = cm.user_id WHERE cm.chat_id = ?')
       .all(req.params.chatId);

@@ -40,6 +40,8 @@ export type Chat = {
   unread_count?: number;
   partner_last_read_at?: number;
   creator_id?: string | null;
+  /** ✅ True when the admin has closed the group — no new messages allowed */
+  is_closed?: boolean;
 };
 
 export type AuthResponse = {

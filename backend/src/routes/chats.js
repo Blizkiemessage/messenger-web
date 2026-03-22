@@ -10,6 +10,8 @@ const {
   removeChatMember,
   updateChatMetadata,
   leaveGroup,
+  closeGroup,
+  transferAdmin,
   deleteDirectChat,
 } = require('../services/chatService');
 
@@ -34,7 +36,6 @@ router.post('/', (req, res, next) => {
     const { getDb } = require('../config/database');
     const db = getDb();
 
-    // Check if chat already exists before creating
     const existing = db.prepare(
       `SELECT c.id FROM chats c
        JOIN chat_members cm1 ON cm1.chat_id = c.id AND cm1.user_id = ?
@@ -45,7 +46,6 @@ router.post('/', (req, res, next) => {
     const isNew = !existing;
     const chat = getOrCreateDirectChat(req.userId, userId);
 
-    // Notify both users via socket only when a NEW chat was created
     if (isNew) {
       const io = req.app.get('io');
       if (io) {
@@ -73,7 +73,6 @@ router.post('/group', (req, res, next) => {
     }
     const chat = createGroupChat(name, req.userId, memberIds, description || null);
 
-    // Notify all members via socket so the chat appears in their list
     const io = req.app.get('io');
     if (io) {
       for (const member of chat.members) {
@@ -120,11 +119,9 @@ router.post('/:id/members', (req, res, next) => {
     const updatedChat = addChatMember(req.params.id, req.userId, userId);
     const io = req.app.get('io');
     if (io) {
-      // Notify existing members that the chat was updated
       for (const member of updatedChat.members) {
         io.to(`user:${member.id}`).emit('chat-updated', updatedChat);
       }
-      // Also notify the newly added user so chat appears in their list
       io.to(`user:${userId}`).emit('chat-created', updatedChat);
     }
     res.json(updatedChat);
@@ -139,17 +136,14 @@ router.delete('/:id/members/:userId', (req, res, next) => {
     const { updatedChat, sysMsg, remaining } = removeChatMember(req.params.id, req.userId, req.params.userId);
     const io = req.app.get('io');
     if (io) {
-      // Notify remaining members of updated member list
       for (const member of updatedChat.members) {
         io.to(`user:${member.id}`).emit('chat-updated', updatedChat);
       }
-      // Broadcast system message to remaining members
       if (sysMsg) {
         for (const uid of remaining) {
           io.to(`user:${uid}`).emit('new-message', sysMsg);
         }
       }
-      // Notify the removed user so they can remove the chat from their list
       io.to(`user:${req.params.userId}`).emit('chat-removed', { chatId: req.params.id });
     }
     res.json(updatedChat);
@@ -158,22 +152,65 @@ router.delete('/:id/members/:userId', (req, res, next) => {
   }
 });
 
-// POST /chats/:id/leave — leave a group (sends system message to remaining members)
+// POST /chats/:id/leave — leave a group
+// ✅ If requester is the admin → closes group instead of leaving
 router.post('/:id/leave', (req, res, next) => {
   try {
-    const { sysMsg, remaining } = leaveGroup(req.params.id, req.userId);
+    const { sysMsg, remaining, closed } = leaveGroup(req.params.id, req.userId);
     const io = req.app.get('io');
     if (io) {
-      // Notify the leaver: remove chat from their list
-      io.to(`user:${req.userId}`).emit('chat-removed', { chatId: req.params.id });
-      // Notify remaining: system message + chat update
-      if (sysMsg) {
+      if (closed) {
+        // Admin closed the group — broadcast updated chat to all members (including admin)
+        const updatedChat = getChatById(req.params.id, req.userId);
         for (const uid of remaining) {
-          io.to(`user:${uid}`).emit('new-message', sysMsg);
+          io.to(`user:${uid}`).emit('chat-updated', updatedChat);
+          if (sysMsg) io.to(`user:${uid}`).emit('new-message', sysMsg);
+        }
+      } else {
+        // Regular leave — remove chat for leaver, send system message to remaining
+        io.to(`user:${req.userId}`).emit('chat-removed', { chatId: req.params.id });
+        if (sysMsg) {
+          for (const uid of remaining) {
+            io.to(`user:${uid}`).emit('new-message', sysMsg);
+          }
         }
       }
     }
+    res.json({ ok: true, closed });
+  } catch (err) { next(err); }
+});
+
+// ✅ NEW: POST /chats/:id/close — admin explicitly closes the group
+router.post('/:id/close', (req, res, next) => {
+  try {
+    const { sysMsg, allMembers } = closeGroup(req.params.id, req.userId);
+    const io = req.app.get('io');
+    if (io) {
+      const updatedChat = getChatById(req.params.id, req.userId);
+      for (const uid of allMembers) {
+        io.to(`user:${uid}`).emit('chat-updated', updatedChat);
+        if (sysMsg) io.to(`user:${uid}`).emit('new-message', sysMsg);
+      }
+    }
     res.json({ ok: true });
+  } catch (err) { next(err); }
+});
+
+// ✅ NEW: POST /chats/:id/transfer-admin — transfer admin rights to another member
+router.post('/:id/transfer-admin', (req, res, next) => {
+  try {
+    const { newAdminId } = req.body;
+    if (!newAdminId) return res.status(400).json({ error: 'newAdminId is required' });
+
+    const { sysMsg, allMembers, updatedChat } = transferAdmin(req.params.id, req.userId, newAdminId);
+    const io = req.app.get('io');
+    if (io) {
+      for (const uid of allMembers) {
+        io.to(`user:${uid}`).emit('chat-updated', updatedChat);
+        if (sysMsg) io.to(`user:${uid}`).emit('new-message', sysMsg);
+      }
+    }
+    res.json(updatedChat);
   } catch (err) { next(err); }
 });
 
