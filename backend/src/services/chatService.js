@@ -52,7 +52,7 @@ function getChatById(chatId, userId) {
        WHERE cm.chat_id = ?`
     )
     .all(chatId)
-    .map(u => sanitizeUser(u));
+    .map(u => sanitizeUser(u, { viewerId: userId }));
 
   const lastMsg = db
     .prepare(
@@ -106,7 +106,7 @@ function getUserChats(userId) {
          WHERE cm.chat_id = ?`
       )
       .all(chat.id)
-      .map(u => sanitizeUser(u));
+      .map(u => sanitizeUser(u, { viewerId: userId }));
 
     const lastMsg = db
       .prepare(
