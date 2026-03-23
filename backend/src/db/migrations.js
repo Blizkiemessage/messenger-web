@@ -77,6 +77,9 @@ function runMigrations() {
     'ALTER TABLE messages ADD COLUMN attachment_size INTEGER',
     // ✅ NEW: pinned message per chat
     'ALTER TABLE messages ADD COLUMN is_pinned INTEGER NOT NULL DEFAULT 0',
+    // ✅ NEW: forwarded message attribution
+    'ALTER TABLE messages ADD COLUMN forwarded_from_user_id TEXT',
+    'ALTER TABLE messages ADD COLUMN forwarded_from_username TEXT',
   ];
 
   for (const sql of alters) {

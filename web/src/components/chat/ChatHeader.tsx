@@ -13,6 +13,7 @@ interface Props {
   selectedCount: number;
   onCancelSelection: () => void;
   onDeleteSelected: () => void;
+  onForwardSelected: () => void;   // ✅ new
   onOpenInfo: () => void;
   onViewUser: (id: string) => void;
   searchOpen: boolean;
@@ -35,7 +36,7 @@ interface Props {
 
 export function ChatHeader({
   chat, meId, hasSelection, selectedCount,
-  onCancelSelection, onDeleteSelected, onOpenInfo, onViewUser,
+  onCancelSelection, onDeleteSelected, onForwardSelected, onOpenInfo, onViewUser,
   searchOpen, searchQuery, searchTotal, searchCurrent,
   onToggleSearch, onSearchChange, onSearchNext, onSearchPrev, onSearchClose,
   pinnedCount, pinnedOpen, pinnedIndex, onTogglePinned, onPinnedNext, onPinnedPrev,
@@ -63,15 +64,24 @@ export function ChatHeader({
           <span className="selCount">{selectedCount}</span>
           <span className="selLabel">{selectedCount === 1 ? 'сообщение выбрано' : 'сообщения выбраны'}</span>
         </div>
-        <button className="selDeleteBtn" onClick={onDeleteSelected}>
-          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <polyline points="3 6 5 6 21 6"/>
-            <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
-            <path d="M10 11v6M14 11v6"/>
-            <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
-          </svg>
-          Удалить
-        </button>
+        <div className="selActions">
+          <button className="selForwardBtn" onClick={onForwardSelected} title="Переслать">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="15 17 20 12 15 7"/>
+              <path d="M4 18v-2a4 4 0 0 1 4-4h12"/>
+            </svg>
+            Переслать
+          </button>
+          <button className="selDeleteBtn" onClick={onDeleteSelected}>
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="3 6 5 6 21 6"/>
+              <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+              <path d="M10 11v6M14 11v6"/>
+              <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
+            </svg>
+            Удалить
+          </button>
+        </div>
       </div>
     );
   }

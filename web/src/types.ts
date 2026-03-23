@@ -30,7 +30,9 @@ export type Message = {
   attachment_size?: number | null;
   liked_by?: string[];
   is_system?: boolean;
-  is_pinned?: boolean;   // ✅ NEW
+  is_pinned?: boolean;
+  forwarded_from_user_id?: string | null;   // ✅ forwarding attribution
+  forwarded_from_username?: string | null;  // ✅ forwarding attribution
 };
 
 export type Chat = {

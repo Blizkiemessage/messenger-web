@@ -22,7 +22,8 @@ interface Props {
   onViewUser: (id: string) => void;
   onPinMessage: (msgId: string) => void;
   onUnpinMessage: (msgId: string) => void;
-  onDeleteSingle: (msgId: string) => void;  // ✅ new
+  onDeleteSingle: (msgId: string) => void;
+  onForwardSingle: (msgId: string) => void;  // ✅ new
   searchQuery: string;
   matchedIds: string[];
   currentMatchId: string | null;
@@ -30,12 +31,12 @@ interface Props {
 }
 
 const CTX_WIDTH  = 200;
-const CTX_HEIGHT = 115;
+const CTX_HEIGHT = 148;  // taller to fit "Переслать" button
 
 export function MessageList({
   messages, chat, meId, partnerReadAt, selectedIds, hasSelection,
   loadingMessages, onToggleSelect, onClearSelection, onViewUser,
-  onPinMessage, onUnpinMessage, onDeleteSingle,
+  onPinMessage, onUnpinMessage, onDeleteSingle, onForwardSingle,
   searchQuery, matchedIds, currentMatchId, pinnedFocusId,
 }: Props) {
   const bottomRef  = useRef<HTMLDivElement | null>(null);
@@ -129,6 +130,7 @@ export function MessageList({
               onContextMenu={() => onToggleSelect(m.id)}
               onClick={() => onToggleSelect(m.id)}
               onViewUser={onViewUser}
+              onForwardedSenderClick={onViewUser}
             />
           </div>
         );
@@ -145,6 +147,20 @@ export function MessageList({
             onClick={e => e.stopPropagation()}
             onContextMenu={e => e.preventDefault()}
           >
+            {/* ✅ Forward — always on top */}
+            {!ctxMenu.msg.is_system && (
+              <button
+                className="msgCtxItem msgCtxItemForward"
+                onClick={() => { onForwardSingle(ctxMenu.msg.id); setCtxMenu(null); }}
+              >
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="15 17 20 12 15 7"/>
+                  <path d="M4 18v-2a4 4 0 0 1 4-4h12"/>
+                </svg>
+                Переслать
+              </button>
+            )}
+
             {/* Pin / Unpin */}
             {ctxMenu.msg.is_pinned ? (
               <button

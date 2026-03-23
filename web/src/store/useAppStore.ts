@@ -19,6 +19,10 @@ interface AppState {
   chatActionBusy: boolean;
   deleteBusy: boolean;
 
+  // ✅ Forward state
+  forwardingIds: string[] | null;   // message IDs queued for forwarding (null = not in forward mode)
+  showForwardModal: boolean;
+
   toggleTheme: () => void;
   toggleProfile: () => void;
   setShowProfile: (v: boolean) => void;
@@ -31,6 +35,8 @@ interface AppState {
   setChatActionConfirm: (chat: Chat | null) => void;
   setChatActionBusy: (v: boolean) => void;
   setDeleteBusy: (v: boolean) => void;
+  setForwardingIds: (ids: string[] | null) => void;
+  setShowForwardModal: (v: boolean) => void;
 }
 
 const initialTheme = getStoredTheme();
@@ -48,6 +54,8 @@ export const useAppStore = create<AppState>((set) => ({
   chatActionConfirm: null,
   chatActionBusy: false,
   deleteBusy: false,
+  forwardingIds: null,
+  showForwardModal: false,
 
   toggleTheme: () => set(state => {
     const next: Theme = state.theme === 'dark' ? 'light' : 'dark';
@@ -66,4 +74,6 @@ export const useAppStore = create<AppState>((set) => ({
   setChatActionConfirm: (chatActionConfirm) => set({ chatActionConfirm }),
   setChatActionBusy: (chatActionBusy) => set({ chatActionBusy }),
   setDeleteBusy: (deleteBusy) => set({ deleteBusy }),
+  setForwardingIds: (forwardingIds) => set({ forwardingIds }),
+  setShowForwardModal: (showForwardModal) => set({ showForwardModal }),
 }));
