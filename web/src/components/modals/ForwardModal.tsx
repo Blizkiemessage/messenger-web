@@ -6,12 +6,11 @@
  */
 import { useState, useMemo, useCallback, useEffect } from 'react';
 import { useChatsStore } from '../../store/useChatsStore';
-import { useAppStore } from '../../store/useAppStore';
 import { useSearch } from '../../hooks/useSearch';
 import { forwardMessages as apiForward, createDirectChat } from '../../api/chats';
 import { Avatar } from '../ui/Avatar';
 import { chatTitle } from '../../utils/format';
-import type { Message, Chat, User } from '../../types';
+import type { Message, User } from '../../types';
 
 interface Props {
   messages: Message[];       // messages queued for forwarding
