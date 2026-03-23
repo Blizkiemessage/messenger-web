@@ -2,7 +2,11 @@
  * ConfirmModals
  *
  * Small confirmation dialogs and the chat context menu.
+<<<<<<< HEAD
  * ChatContextMenu now uses the shared ContextMenu UI component.
+=======
+ * ✅ ChatActionConfirmModal now shows admin-specific text when admin leaves a group.
+>>>>>>> devDK
  */
 import { type Chat } from '../../types';
 import { ContextMenu } from '../ui/ContextMenu';
@@ -41,19 +45,60 @@ export function DeleteConfirmModal({
 }
 
 // ── ChatActionConfirmModal ────────────────────────────────────────────────────
+<<<<<<< HEAD
 export function ChatActionConfirmModal({
   chat, onConfirm, onCancel, busy,
 }: { chat: Chat; onConfirm: () => void; onCancel: () => void; busy: boolean }) {
   const isGroup = chat.type === 'group';
+=======
+// ✅ meId added: if admin leaves a group, show "close group" wording instead of "leave"
+export function ChatActionConfirmModal({
+  chat, meId, onConfirm, onCancel, busy,
+}: { chat: Chat; meId: string; onConfirm: () => void; onCancel: () => void; busy: boolean }) {
+  const isGroup = chat.type === 'group';
+  const isAdmin = isGroup && chat.creator_id === meId;
+
+  const title = !isGroup
+    ? 'Удалить чат?'
+    : isAdmin
+      ? 'Закрыть группу?'
+      : 'Покинуть группу?';
+
+  const description = !isGroup
+    ? 'Чат будет удалён для обоих участников. Действие нельзя отменить.'
+    : isAdmin
+      ? `Вы — администратор группы «${chat.name || 'Группы'}». Покидая её, вы закроете группу для всех участников. Переписка сохранится, но отправка новых сообщений будет заблокирована.`
+      : `Вы покинете «${chat.name || 'Группу'}». Остальные участники увидят уведомление.`;
+
+  const confirmLabel = !isGroup ? 'Удалить' : isAdmin ? 'Закрыть группу' : 'Покинуть';
+
+>>>>>>> devDK
   return (
     <div className="modalOverlay" onClick={e => e.target === e.currentTarget && onCancel()}>
       <div className="confirmCard">
         <div className="confirmIcon">
           {isGroup ? (
             <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
+<<<<<<< HEAD
               <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
               <polyline points="16 17 21 12 16 7"/>
               <line x1="21" y1="12" x2="9" y2="12"/>
+=======
+              {isAdmin ? (
+                // Lock icon for admin closing
+                <>
+                  <rect x="3" y="11" width="18" height="11" rx="2"/>
+                  <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                </>
+              ) : (
+                // Leave icon for regular member
+                <>
+                  <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+                  <polyline points="16 17 21 12 16 7"/>
+                  <line x1="21" y1="12" x2="9" y2="12"/>
+                </>
+              )}
+>>>>>>> devDK
             </svg>
           ) : (
             <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
@@ -63,6 +108,7 @@ export function ChatActionConfirmModal({
             </svg>
           )}
         </div>
+<<<<<<< HEAD
         <div className="confirmTitle">{isGroup ? 'Покинуть группу?' : 'Удалить чат?'}</div>
         <div className="confirmText">
           {isGroup
@@ -73,6 +119,14 @@ export function ChatActionConfirmModal({
           <button className="confirmCancel" onClick={onCancel} disabled={busy}>Отмена</button>
           <button className="confirmDelete" onClick={onConfirm} disabled={busy}>
             {busy ? '…' : isGroup ? 'Покинуть' : 'Удалить'}
+=======
+        <div className="confirmTitle">{title}</div>
+        <div className="confirmText">{description}</div>
+        <div className="confirmBtns">
+          <button className="confirmCancel" onClick={onCancel} disabled={busy}>Отмена</button>
+          <button className="confirmDelete" onClick={onConfirm} disabled={busy}>
+            {busy ? '…' : confirmLabel}
+>>>>>>> devDK
           </button>
         </div>
       </div>

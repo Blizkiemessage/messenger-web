@@ -13,7 +13,11 @@
 
 const express = require('express');
 const { authMiddleware } = require('../middleware/auth');
+<<<<<<< HEAD
 const { getChatMessages, saveMessage, toggleReaction, deleteMessages } = require('../services/messageService');
+=======
+const { getChatMessages, saveMessage, toggleReaction, deleteMessages, pinMessage, unpinMessage, getPinnedMessages } = require('../services/messageService');
+>>>>>>> devDK
 const { getDb } = require('../config/database');
 
 const router = express.Router();
@@ -113,4 +117,41 @@ router.post('/:chatId/messages/:msgId/react', (req, res, next) => {
   } catch (err) { next(err); }
 });
 
+<<<<<<< HEAD
+=======
+// GET /chats/:chatId/messages/pinned
+router.get('/:chatId/messages/pinned', (req, res, next) => {
+  try { res.json(getPinnedMessages(req.params.chatId, req.userId)); }
+  catch (err) { next(err); }
+});
+
+// POST /chats/:chatId/messages/:msgId/pin
+router.post('/:chatId/messages/:msgId/pin', (req, res, next) => {
+  try {
+    const msg = pinMessage(req.params.chatId, req.params.msgId, req.userId);
+    const io = req.app.get('io');
+    if (io) {
+      const { getDb } = require('../config/database');
+      const members = getDb().prepare('SELECT user_id FROM chat_members WHERE chat_id = ?').all(req.params.chatId);
+      for (const m of members) io.to(`user:${m.user_id}`).emit('message-pinned', { chatId: req.params.chatId, message: msg });
+    }
+    res.json(msg);
+  } catch (err) { next(err); }
+});
+
+// DELETE /chats/:chatId/messages/:msgId/pin
+router.delete('/:chatId/messages/:msgId/pin', (req, res, next) => {
+  try {
+    unpinMessage(req.params.chatId, req.params.msgId, req.userId);
+    const io = req.app.get('io');
+    if (io) {
+      const { getDb } = require('../config/database');
+      const members = getDb().prepare('SELECT user_id FROM chat_members WHERE chat_id = ?').all(req.params.chatId);
+      for (const m of members) io.to(`user:${m.user_id}`).emit('message-unpinned', { chatId: req.params.chatId, messageId: req.params.msgId });
+    }
+    res.json({ ok: true });
+  } catch (err) { next(err); }
+});
+
+>>>>>>> devDK
 module.exports = router;

@@ -2,6 +2,7 @@ const { v4: uuidv4 } = require('uuid');
 const bcrypt = require('bcryptjs');
 const { getDb } = require('../config/database');
 const { sign } = require('../utils/jwt');
+<<<<<<< HEAD
 
 function sanitizeUser(u) {
   return {
@@ -14,6 +15,11 @@ function sanitizeUser(u) {
     has_password: !!u.password_hash,
   };
 }
+=======
+const { sanitizeUser: sanitizeUserFull } = require('./userService');
+
+// ✅ sanitizeUser imported from userService (includes hide_avatar, privacy fields)
+>>>>>>> devDK
 
 /**
  * Username-only login (creates account if not exists).
@@ -66,7 +72,11 @@ async function loginOrRegister(username, password) {
     .run([sessionId, user.id, now]);
 
   const token = sign({ sub: user.id, jti: sessionId });
+<<<<<<< HEAD
   return { token, user: sanitizeUser(user) };
+=======
+  return { token, user: sanitizeUserFull(user, { showPrivate: true }) };
+>>>>>>> devDK
 }
 
 /**
@@ -107,7 +117,11 @@ async function registerWithPassword(username, password) {
     .run([sessionId, userId, now]);
 
   const token = sign({ sub: userId, jti: sessionId });
+<<<<<<< HEAD
   return { token, user: sanitizeUser(user), isNew: true };
+=======
+  return { token, user: sanitizeUserFull(user, { showPrivate: true }), isNew: true };
+>>>>>>> devDK
 }
 
 /**
@@ -137,4 +151,8 @@ async function setUserPassword(userId, newPassword, currentPassword) {
   db.prepare('UPDATE users SET password_hash = ? WHERE id = ?').run([hash, userId]);
 }
 
+<<<<<<< HEAD
 module.exports = { loginOrRegister, sanitizeUser, registerWithPassword, setUserPassword };
+=======
+module.exports = { loginOrRegister, sanitizeUser: sanitizeUserFull, registerWithPassword, setUserPassword };
+>>>>>>> devDK

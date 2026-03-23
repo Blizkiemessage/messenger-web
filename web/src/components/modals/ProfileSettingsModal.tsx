@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 /**
  * ProfileSettingsModal
  *
@@ -9,6 +10,14 @@ import { type User } from '../../types';
 import { ProfileTab } from '../profile/ProfileTab';
 import { PasswordTab } from '../profile/PasswordTab';
 import { PrivacyTab } from '../profile/PrivacyTab';
+=======
+import { useState } from 'react';
+import { type User } from '../../types';
+import { ProfileTab }    from '../profile/ProfileTab';
+import { PasswordTab }   from '../profile/PasswordTab';
+import { PrivacyTab }    from '../profile/PrivacyTab';
+import { AppearanceTab } from '../profile/AppearanceTab';
+>>>>>>> devDK
 
 interface Props {
   me: User;
@@ -18,15 +27,25 @@ interface Props {
   onDeleteAccount: () => Promise<void>;
 }
 
+<<<<<<< HEAD
 export function ProfileSettingsModal({ me, token, onClose, onUpdate, onDeleteAccount }: Props) {
   const [tab, setTab] = useState<'profile' | 'password' | 'privacy'>('profile');
+=======
+type Tab = 'profile' | 'password' | 'privacy' | 'appearance';
+
+export function ProfileSettingsModal({ me, token, onClose, onUpdate, onDeleteAccount }: Props) {
+  const [tab, setTab] = useState<Tab>('profile');
+>>>>>>> devDK
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
   return (
     <div className="modalOverlay" onClick={e => e.target === e.currentTarget && onClose()}>
       <div className="psCard">
+<<<<<<< HEAD
         {/* Header */}
+=======
+>>>>>>> devDK
         <div className="psHeader">
           <div className="psTitle">Настройки профиля</div>
           <button className="modalClose" onClick={onClose}>
@@ -36,6 +55,7 @@ export function ProfileSettingsModal({ me, token, onClose, onUpdate, onDeleteAcc
           </button>
         </div>
 
+<<<<<<< HEAD
         {/* Tabs */}
         <div className="psTabs">
           <button className={`psTab${tab === 'profile'  ? ' active' : ''}`} onClick={() => setTab('profile')}>Профиль</button>
@@ -49,6 +69,20 @@ export function ProfileSettingsModal({ me, token, onClose, onUpdate, onDeleteAcc
         {tab === 'privacy'  && <PrivacyTab  me={me} onUpdate={onUpdate} />}
 
         {/* Delete account */}
+=======
+        <div className="psTabs">
+          <button className={`psTab${tab === 'profile'    ? ' active' : ''}`} onClick={() => setTab('profile')}>Профиль</button>
+          <button className={`psTab${tab === 'password'   ? ' active' : ''}`} onClick={() => setTab('password')}>Пароль</button>
+          <button className={`psTab${tab === 'privacy'    ? ' active' : ''}`} onClick={() => setTab('privacy')}>Конфиденциальность</button>
+          <button className={`psTab${tab === 'appearance' ? ' active' : ''}`} onClick={() => setTab('appearance')}>Внешний вид</button>
+        </div>
+
+        {tab === 'profile'    && <ProfileTab    me={me} token={token} onUpdate={onUpdate} />}
+        {tab === 'password'   && <PasswordTab   me={me} onUpdate={onUpdate} />}
+        {tab === 'privacy'    && <PrivacyTab    me={me} onUpdate={onUpdate} />}
+        {tab === 'appearance' && <AppearanceTab />}
+
+>>>>>>> devDK
         <div className="psDeleteSection">
           <button className="psDeleteBtn" onClick={() => setShowDeleteConfirm(true)}>
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -62,13 +96,21 @@ export function ProfileSettingsModal({ me, token, onClose, onUpdate, onDeleteAcc
         </div>
       </div>
 
+<<<<<<< HEAD
       {/* Delete confirmation dialog */}
+=======
+>>>>>>> devDK
       {showDeleteConfirm && (
         <div className="modalOverlay" style={{ zIndex: 10200 }}
           onClick={e => e.target === e.currentTarget && !deleting && setShowDeleteConfirm(false)}>
           <div className="confirmCard">
+<<<<<<< HEAD
             <div className="confirmIcon" style={{ color: 'var(--danger, #f87171)' }}>
               <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+=======
+            <div className="confirmIcon" style={{ color: 'var(--danger)' }}>
+              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
+>>>>>>> devDK
                 <circle cx="12" cy="12" r="10"/>
                 <line x1="12" y1="8" x2="12" y2="12"/>
                 <line x1="12" y1="16" x2="12.01" y2="16"/>
@@ -77,14 +119,22 @@ export function ProfileSettingsModal({ me, token, onClose, onUpdate, onDeleteAcc
             <div className="confirmTitle">Удалить аккаунт?</div>
             <div className="confirmText">
               Это действие необратимо. Все ваши личные чаты будут удалены, вы покинете все группы,
+<<<<<<< HEAD
               а ваш никнейм освободится. Восстановить аккаунт будет невозможно.
+=======
+              а ваш никнейм освободится.
+>>>>>>> devDK
             </div>
             <div className="confirmBtns">
               <button className="psDeleteCancelBtn" onClick={() => setShowDeleteConfirm(false)} disabled={deleting}>Отмена</button>
               <button className="psDeleteConfirmBtn" disabled={deleting} onClick={async () => {
                 setDeleting(true);
+<<<<<<< HEAD
                 try { await onDeleteAccount(); }
                 catch { setDeleting(false); }
+=======
+                try { await onDeleteAccount(); } catch { setDeleting(false); }
+>>>>>>> devDK
               }}>
                 {deleting ? '…' : 'Удалить навсегда'}
               </button>

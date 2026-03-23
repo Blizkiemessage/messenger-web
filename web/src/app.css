@@ -15,6 +15,10 @@
   --success-dim: rgba(63,185,80,0.12);
   --radius: 12px;
   --shadow: 0 4px 24px rgba(0,0,0,0.4);
+<<<<<<< HEAD
+=======
+  --card: #1c2333;
+>>>>>>> devDK
   color-scheme: dark;
 }
 :root[data-theme="light"] {
@@ -32,6 +36,10 @@
   --success: #16a34a;
   --success-dim: rgba(22,163,74,0.1);
   --shadow: 0 4px 24px rgba(0,0,0,0.12);
+<<<<<<< HEAD
+=======
+  --card: #ffffff;
+>>>>>>> devDK
   color-scheme: light;
 }
 
@@ -178,6 +186,39 @@ input { font: inherit; color: inherit; background: transparent; }
 }
 .authBtn:hover:not(:disabled) { opacity: .9; transform: translateY(-1px); }
 .authBtn:disabled { opacity: .45; cursor: not-allowed; }
+<<<<<<< HEAD
+=======
+.authSwitchRow {
+  text-align: center;
+  font-size: 13px;
+  color: var(--muted);
+  margin-top: -4px;
+}
+.authSwitchLink {
+  color: var(--accent);
+  font-weight: 600;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 13px;
+  padding: 0;
+  transition: opacity .15s;
+}
+.authSwitchLink:hover { opacity: .75; }
+.authFieldHint {
+  font-size: 12px;
+  color: var(--muted);
+  margin-top: -8px;
+  padding: 0 2px;
+}
+.authFieldHintError {
+  font-size: 12px;
+  color: var(--danger);
+  font-weight: 600;
+  margin-top: -8px;
+  padding: 0 2px;
+}
+>>>>>>> devDK
 
 /* ── Layout ────────────────────────────────────────────────────────── */
 .layout {
@@ -316,8 +357,21 @@ input { font: inherit; color: inherit; background: transparent; }
   text-align: left;
   transition: background .1s;
   min-width: 0;
+<<<<<<< HEAD
 }
 .meBtn:hover { background: var(--panel); }
+=======
+  width: 100%;
+}
+.meBtn:hover { background: var(--panel); }
+.meChevron {
+  color: var(--muted);
+  flex-shrink: 0;
+  margin-right: 4px;
+  transition: transform .2s;
+}
+.meChevronUp { transform: rotate(180deg); }
+>>>>>>> devDK
 .meAvatar {
   width: 36px; height: 36px;
   border-radius: 11px;
@@ -344,6 +398,7 @@ input { font: inherit; color: inherit; background: transparent; }
 /* Profile panel */
 .profilePanel {
   position: absolute;
+<<<<<<< HEAD
   bottom: 100%;
   left: 0; right: 0;
   background: var(--sidebar);
@@ -374,6 +429,83 @@ input { font: inherit; color: inherit; background: transparent; }
   border-top: 1px solid var(--border);
   margin: 2px 0;
 }
+=======
+  bottom: calc(100% + 6px);
+  left: 8px; right: 8px;
+  background: var(--sidebar);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  box-shadow: 0 8px 32px rgba(0,0,0,.35), 0 2px 8px rgba(0,0,0,.2);
+  animation: slideUp .18s ease;
+  z-index: 200;
+}
+
+/* User card at top of panel */
+.ppCard {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 10px 12px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 4px;
+}
+.ppCardAvatar { flex-shrink: 0; }
+.ppCardInfo { flex: 1; min-width: 0; }
+.ppCardName {
+  font-size: 14px; font-weight: 700;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.ppCardSub { font-size: 12px; color: var(--muted); margin-top: 1px; }
+
+/* Action rows */
+.ppActions { display: flex; flex-direction: column; gap: 1px; }
+.ppAction {
+  display: flex; align-items: center; gap: 10px;
+  padding: 9px 10px;
+  border-radius: 10px;
+  font-size: 13.5px; font-weight: 500;
+  color: var(--text);
+  text-align: left;
+  transition: background .12s;
+}
+.ppAction:hover { background: var(--panel); }
+.ppActionIcon {
+  width: 30px; height: 30px;
+  border-radius: 8px;
+  background: var(--panel);
+  display: grid; place-items: center;
+  flex-shrink: 0;
+  color: var(--muted);
+}
+.ppActionLabel { flex: 1; }
+.ppActionChevron { color: var(--muted); flex-shrink: 0; }
+
+.ppSeparator {
+  height: 1px;
+  background: var(--border);
+  margin: 4px 2px;
+}
+
+/* Logout button */
+.ppLogoutBtn {
+  display: flex; align-items: center; gap: 10px;
+  padding: 9px 10px;
+  border-radius: 10px;
+  font-size: 13.5px; font-weight: 500;
+  color: var(--danger);
+  text-align: left;
+  transition: background .12s;
+}
+.ppLogoutBtn:hover { background: var(--danger-dim); }
+
+/* ppSection kept for legacy compat */
+.ppSection { display: flex; flex-direction: column; gap: 8px; }
+.ppDivider { border: none; border-top: 1px solid var(--border); margin: 2px 0; }
+>>>>>>> devDK
 .ppInput {
   width: 100%;
   background: var(--panel);
@@ -603,12 +735,21 @@ input { font: inherit; color: inherit; background: transparent; }
 .modalOverlay {
   position: fixed;
   inset: 0;
+<<<<<<< HEAD
   background: rgba(0,0,0,.55);
+=======
+  /* ✅ No backdrop-filter — it creates a stacking context that traps
+     position:fixed children (giConfirmOverlay), making their bg transparent. */
+  background: rgba(0,0,0,.62);
+>>>>>>> devDK
   display: grid;
   place-items: center;
   z-index: 100;
   padding: 16px;
+<<<<<<< HEAD
   backdrop-filter: blur(4px);
+=======
+>>>>>>> devDK
   animation: fadeIn .15s ease;
 }
 @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
@@ -997,6 +1138,7 @@ input { font: inherit; color: inherit; background: transparent; }
 .confirmDelete:hover { opacity: .85; }
 .confirmDelete:disabled { opacity: .5; cursor: not-allowed; }
 
+<<<<<<< HEAD
 /* ── Profile panel (sidebar bottom) ────────────────────────────────── */
 .ppTopRow {
   display: flex;
@@ -1004,10 +1146,15 @@ input { font: inherit; color: inherit; background: transparent; }
   gap: 12px;
   margin-bottom: 12px;
 }
+=======
+/* ── Profile panel (sidebar bottom) — new design ────────────────────── */
+.ppTopRow { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
+>>>>>>> devDK
 .ppInfo { flex: 1; min-width: 0; }
 .ppName { font-size: 15px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .ppSub { font-size: 12px; color: var(--muted); margin-top: 2px; }
 .ppSettingsBtn {
+<<<<<<< HEAD
   display: flex;
   align-items: center;
   gap: 8px;
@@ -1020,6 +1167,13 @@ input { font: inherit; color: inherit; background: transparent; }
   font-weight: 600;
   border: 1px solid var(--accent-border);
   transition: background .15s;
+=======
+  display: flex; align-items: center; gap: 8px; width: 100%;
+  padding: 10px 12px; border-radius: 10px;
+  background: var(--accent-dim); color: var(--accent);
+  font-size: 13.5px; font-weight: 600;
+  border: 1px solid var(--accent-border); transition: background .15s;
+>>>>>>> devDK
 }
 .ppSettingsBtn:hover { background: rgba(47,129,247,.25); }
 
@@ -1073,13 +1227,21 @@ input { font: inherit; color: inherit; background: transparent; }
 .bubbleSenderName:hover { opacity: .75; }
 
 /* ── UserProfileModal (profile view card) ───────────────────────────── */
+<<<<<<< HEAD
 .profileViewCard {
   position: relative;
   width: min(380px, 100%);
+=======
+/* ── UserProfileModal (upCard) ───────────────────────────────────────── */
+.upCard {
+  position: relative;
+  width: min(360px, 100%);
+>>>>>>> devDK
   background: var(--sidebar);
   border: 1px solid var(--border);
   border-radius: 20px;
   overflow: hidden;
+<<<<<<< HEAD
   box-shadow: var(--shadow);
   animation: slideUp .2s ease;
 }
@@ -1154,26 +1316,120 @@ input { font: inherit; color: inherit; background: transparent; }
   transition: opacity .15s;
 }
 .pvChatBtn:hover { opacity: .88; }
+=======
+  box-shadow: 0 8px 32px rgba(0,0,0,.35);
+  animation: slideUp .2s ease;
+}
+.upCloseBtn {
+  position: absolute; top: 12px; right: 12px;
+  width: 30px; height: 30px; border-radius: 9px;
+  background: var(--panel); border: 1px solid var(--border);
+  color: var(--muted); display: grid; place-items: center;
+  z-index: 2; transition: background .15s, color .15s;
+}
+.upCloseBtn:hover { background: var(--border); color: var(--text); }
+.upLoading { padding: 48px; text-align: center; color: var(--muted); font-size: 14px; }
+
+/* Header — clean, no heavy gradient */
+.upHeader {
+  display: flex; flex-direction: column; align-items: center;
+  gap: 6px; padding: 32px 24px 20px;
+  border-bottom: 1px solid var(--border);
+}
+.upAvatarRing {
+  padding: 3px;
+  border-radius: 27px;
+  background: linear-gradient(135deg, var(--accent), color-mix(in srgb, var(--accent) 40%, var(--sidebar)));
+  margin-bottom: 2px;
+}
+.upAvatar {
+  width: 72px; height: 72px; border-radius: 22px; overflow: hidden;
+  background: var(--accent-dim); display: grid; place-items: center;
+}
+.upAvatarImg { width: 100%; height: 100%; object-fit: cover; display: block; }
+.upAvatarLetter { font-size: 28px; font-weight: 800; color: var(--accent); }
+.upName { font-size: 18px; font-weight: 700; text-align: center; }
+.upUsername { font-size: 13px; color: var(--muted); }
+
+/* Info rows — like ppAction style */
+.upInfoSection {
+  display: flex; flex-direction: column;
+  padding: 8px;
+  border-bottom: 1px solid var(--border);
+}
+.upInfoRow {
+  display: flex; align-items: flex-start; gap: 10px;
+  padding: 10px 10px;
+  border-radius: 10px;
+  transition: background .1s;
+}
+.upInfoRow:hover { background: var(--panel); }
+.upInfoIcon {
+  width: 32px; height: 32px; border-radius: 9px;
+  background: var(--panel); display: grid; place-items: center;
+  color: var(--muted); flex-shrink: 0; margin-top: 1px;
+}
+.upInfoContent { flex: 1; min-width: 0; }
+.upInfoLabel {
+  font-size: 10.5px; font-weight: 700; color: var(--muted);
+  text-transform: uppercase; letter-spacing: .05em; margin-bottom: 2px;
+}
+.upInfoValue {
+  font-size: 13.5px; line-height: 1.5;
+  word-break: break-word; overflow-wrap: anywhere; white-space: pre-wrap;
+}
+
+/* Footer */
+.upFooter { padding: 12px; }
+.upChatBtn {
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  width: 100%; padding: 11px; border-radius: 12px;
+  background: var(--accent); color: #fff;
+  font-size: 14px; font-weight: 600;
+  transition: opacity .15s;
+}
+.upChatBtn:hover { opacity: .88; }
+>>>>>>> devDK
 
 /* ── GroupInfoModal ──────────────────────────────────────────────────── */
 .groupInfoCard {
   position: relative;
   width: min(420px, 100%);
+<<<<<<< HEAD
   max-height: 80vh;
+=======
+  max-height: 85vh;
+>>>>>>> devDK
   background: var(--sidebar);
   border: 1px solid var(--border);
   border-radius: 20px;
   overflow-y: auto;
+<<<<<<< HEAD
   box-shadow: var(--shadow);
   animation: slideUp .2s ease;
 }
 .groupInfoCard::-webkit-scrollbar { width: 4px; }
 .groupInfoCard::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+=======
+  scroll-behavior: smooth;
+  box-shadow: var(--shadow);
+  animation: slideUp .2s ease;
+}
+.groupInfoCard::-webkit-scrollbar { width: 5px; }
+.groupInfoCard::-webkit-scrollbar-track { background: transparent; border-radius: 5px; }
+.groupInfoCard::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 5px;
+  transition: background .2s;
+}
+.groupInfoCard::-webkit-scrollbar-thumb:hover { background: var(--muted); }
+>>>>>>> devDK
 .giHeader {
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 6px;
+<<<<<<< HEAD
   padding: 36px 24px 16px;
   background: linear-gradient(180deg, var(--accent-dim) 0%, transparent 100%);
   border-bottom: 1px solid var(--border);
@@ -1189,6 +1445,19 @@ input { font: inherit; color: inherit; background: transparent; }
   place-items: center;
   font-size: 28px;
   font-weight: 800;
+=======
+  padding: 32px 24px 18px;
+  border-bottom: 1px solid var(--border);
+}
+.giAvatarFallback {
+  width: 72px; height: 72px; border-radius: 22px;
+  background: var(--accent-dim);
+  color: var(--accent);
+  display: grid; place-items: center;
+  font-size: 28px; font-weight: 800;
+  border: 2px solid var(--accent-border);
+  box-shadow: 0 4px 16px rgba(0,0,0,.15);
+>>>>>>> devDK
 }
 .giName { font-size: 18px; font-weight: 700; }
 .giMeta { font-size: 13px; color: var(--muted); }
@@ -1230,12 +1499,23 @@ input { font: inherit; color: inherit; background: transparent; }
   transition: border-color .15s;
 }
 .giEditInput:focus { border-color: var(--accent); }
+<<<<<<< HEAD
+=======
+.giEditTextareaWrap {
+  position: relative;
+  width: 100%;
+}
+>>>>>>> devDK
 .giEditTextarea {
   width: 100%;
   background: var(--panel);
   border: 1.5px solid var(--border);
   border-radius: 10px;
+<<<<<<< HEAD
   padding: 8px 12px;
+=======
+  padding: 8px 12px 24px;
+>>>>>>> devDK
   font-size: 13px;
   color: var(--text);
   outline: none;
@@ -1291,6 +1571,7 @@ input { font: inherit; color: inherit; background: transparent; }
 }
 .giAddMembersBtn:hover { opacity: .85; background: var(--accent-dim); }
 
+<<<<<<< HEAD
 .giDesc {
   margin: 12px 20px 0;
   padding: 10px 14px;
@@ -1301,6 +1582,47 @@ input { font: inherit; color: inherit; background: transparent; }
   color: var(--text);
   line-height: 1.5;
 }
+=======
+.giDescSection {
+  margin: 0 12px 4px;
+  padding: 10px 14px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.giDescLabel {
+  font-size: 10.5px;
+  font-weight: 700;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: .05em;
+}
+.giDesc {
+  font-size: 13.5px;
+  color: var(--text);
+  line-height: 1.55;
+  word-break: break-word;
+  white-space: pre-wrap;
+}
+.giDescToggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--accent);
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  align-self: flex-start;
+  transition: opacity .15s;
+}
+.giDescToggle:hover { opacity: .75; }
+>>>>>>> devDK
 .giMemberLabel {
   font-size: 11px;
   font-weight: 700;
@@ -1336,10 +1658,19 @@ input { font: inherit; color: inherit; background: transparent; }
 .giConfirmOverlay {
   position: fixed;
   inset: 0;
+<<<<<<< HEAD
   background: rgba(0,0,0,.55);
   display: grid;
   place-items: center;
   z-index: 10150;
+=======
+  background: rgba(0,0,0,.68);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  display: grid;
+  place-items: center;
+  z-index: 10500;
+>>>>>>> devDK
   animation: fadeIn .15s ease;
 }
 
@@ -1366,15 +1697,25 @@ input { font: inherit; color: inherit; background: transparent; }
 .psTitle { font-size: 18px; font-weight: 700; }
 .psTabs {
   display: flex;
+<<<<<<< HEAD
+=======
+  flex-wrap: wrap;
+>>>>>>> devDK
   gap: 4px;
   padding: 14px 24px 0;
   border-bottom: 1px solid var(--border);
   flex-shrink: 0;
 }
 .psTab {
+<<<<<<< HEAD
   padding: 8px 16px;
   border-radius: 10px 10px 0 0;
   font-size: 13.5px;
+=======
+  padding: 8px 12px;
+  border-radius: 10px 10px 0 0;
+  font-size: 13px;
+>>>>>>> devDK
   font-weight: 600;
   color: var(--muted);
   transition: color .15s, background .15s;
@@ -1704,3 +2045,1556 @@ input[type="date"].psInput::-webkit-calendar-picker-indicator {
 }
 .psDeleteConfirmBtn:hover:not(:disabled) { opacity: .85; }
 .psDeleteConfirmBtn:disabled { opacity: .5; }
+<<<<<<< HEAD
+=======
+
+/* ── Char counters (bio / group description) ─────────────────────────── */
+.giCharCounter,
+.psCharCounter {
+  position: absolute;
+  bottom: 8px;
+  right: 10px;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--muted);
+  pointer-events: none;
+  transition: color .15s;
+}
+.giCharCounterMax,
+.psCharCounterMax {
+  color: var(--danger, #f87171);
+  font-weight: 700;
+}
+
+/* psTextarea wrapper for counter positioning */
+.psTextareaWrap {
+  position: relative;
+}
+.psTextareaWrap .psTextarea {
+  padding-bottom: 26px;
+}
+.psTextareaWrap .psCharCounter {
+  bottom: 9px;
+  right: 12px;
+}
+
+/* ── AppearanceTab ───────────────────────────────────────────────────── */
+.apSection {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.apSectionTitle {
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: .05em;
+}
+.apSectionSub {
+  font-size: 13px;
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+/* Preview strip */
+.apPreview {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.apPreviewLabel {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: .05em;
+}
+.apPreviewRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.apPreviewBtn {
+  padding: 7px 18px;
+  border-radius: 9px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #fff;
+  border: none;
+  cursor: default;
+  transition: background .2s;
+}
+.apPreviewBadge {
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 700;
+  transition: all .2s;
+}
+.apPreviewInput {
+  padding: 6px 12px;
+  border-radius: 9px;
+  border: 1.5px solid;
+  font-size: 13px;
+  color: var(--muted);
+  background: var(--sidebar);
+  transition: all .2s;
+}
+
+/* Preset swatches */
+.apPresets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 4px 0;
+}
+.apPreset {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  display: grid;
+  place-items: center;
+  transition: transform .15s, border-color .15s;
+  position: relative;
+  flex-shrink: 0;
+}
+.apPreset:hover { transform: scale(1.12); }
+.apPreset.apPresetActive {
+  border-color: var(--text);
+  transform: scale(1.08);
+}
+.apPresetDot {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  display: block;
+  transition: transform .15s;
+}
+.apPresetCheck {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  color: #fff;
+  opacity: 0;
+  transition: opacity .15s;
+  filter: drop-shadow(0 1px 2px rgba(0,0,0,.4));
+}
+.apPreset.apPresetActive .apPresetCheck { opacity: 1; }
+
+/* Custom colour picker row */
+.apCustomRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.apColorPickerLabel {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  padding: 10px 14px;
+  background: var(--panel);
+  border: 1.5px solid var(--border);
+  border-radius: 12px;
+  transition: border-color .15s;
+  flex: 1;
+}
+.apColorPickerLabel:hover { border-color: var(--accent); }
+.apColorInput {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+}
+.apColorPickerLabel:has(.apColorInput:focus-within) { border-color: var(--accent); }
+/* Trigger native picker on label click */
+.apColorPickerLabel { position: relative; overflow: visible; }
+.apColorInput {
+  position: absolute;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  opacity: 0;
+  cursor: pointer;
+  border: none;
+  padding: 0;
+}
+.apColorSwatch {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  border: 2px solid var(--border);
+  flex-shrink: 0;
+  transition: background .15s;
+  pointer-events: none;
+}
+.apColorHex {
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--text);
+  font-family: monospace;
+  letter-spacing: .04em;
+  pointer-events: none;
+}
+.apColorArrow {
+  margin-left: auto;
+  color: var(--muted);
+  pointer-events: none;
+}
+
+/* Reset button */
+.apResetBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--muted);
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  padding: 8px 14px;
+  cursor: pointer;
+  transition: color .15s, border-color .15s, background .15s;
+  align-self: flex-start;
+}
+.apResetBtn:hover {
+  color: var(--text);
+  border-color: var(--accent);
+  background: var(--accent-dim);
+}
+.apActionsRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  justify-content: flex-end;
+  margin-top: 8px;
+}
+.apSaveBtn {
+  padding: 10px 24px;
+  border-radius: 11px;
+  font-size: 13.5px;
+  font-weight: 700;
+  color: #fff;
+  background: var(--accent);
+  border: none;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: opacity .15s, transform .1s;
+  box-shadow: 0 2px 10px color-mix(in srgb, var(--accent) 35%, transparent);
+}
+.apSaveBtn:disabled { opacity: .4; cursor: default; }
+.apSaveBtn:not(:disabled):hover { opacity: .88; transform: translateY(-1px); }
+.apSaveBtn:not(:disabled):active { transform: translateY(0); }
+.apSaveBtnOk { background: var(--success); box-shadow: 0 2px 10px color-mix(in srgb, var(--success) 35%, transparent); }
+
+/* ── Chat search bar ─────────────────────────────────────────────────── */
+.chSearchToggle {
+  width: 36px; height: 36px;
+  display: grid; place-items: center;
+  border-radius: 10px;
+  color: var(--muted);
+  flex-shrink: 0;
+  margin-right: 4px;
+  transition: background .15s, color .15s;
+}
+.chSearchToggle:hover,
+.chSearchToggle.active { background: var(--accent-dim); color: var(--accent); }
+
+.chSearchBar {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 14px 12px;
+  border-top: 1px solid var(--border);
+  background: var(--sidebar);
+  animation: slideDown .18s ease;
+}
+@keyframes slideDown {
+  from { opacity: 0; transform: translateY(-6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.chSearchInputWrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--panel);
+  border: 1.5px solid var(--border);
+  border-radius: 10px;
+  padding: 8px 12px;
+  transition: border-color .15s;
+}
+.chSearchInputWrap:focus-within { border-color: var(--accent); }
+.chSearchIcon { color: var(--muted); flex-shrink: 0; }
+.chSearchInput {
+  flex: 1;
+  background: none;
+  border: none;
+  outline: none;
+  font-size: 13.5px;
+  color: var(--text);
+}
+.chSearchInput::placeholder { color: var(--muted); }
+.chSearchCount {
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--muted);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.chSearchActions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  justify-content: flex-end;
+}
+.chSearchNav {
+  width: 30px; height: 30px;
+  display: grid; place-items: center;
+  border-radius: 8px;
+  color: var(--muted);
+  background: var(--panel);
+  border: 1px solid var(--border);
+  transition: background .12s, color .12s;
+}
+.chSearchNav:hover { background: var(--accent-dim); color: var(--accent); }
+.chSearchReset {
+  padding: 5px 12px;
+  border-radius: 8px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--muted);
+  background: var(--panel);
+  border: 1px solid var(--border);
+  transition: background .12s, color .12s;
+}
+.chSearchReset:hover { color: var(--text); background: var(--hover, var(--border)); }
+.chSearchClose {
+  width: 30px; height: 30px;
+  display: grid; place-items: center;
+  border-radius: 8px;
+  color: var(--muted);
+  transition: background .12s, color .12s;
+}
+.chSearchClose:hover { background: var(--panel); color: var(--text); }
+
+/* Search highlight in messages */
+.msgHighlight {
+  background: rgba(234,179,8,.35);
+  color: inherit;
+  border-radius: 3px;
+  padding: 0 1px;
+}
+.msgSearchFocus .bubble {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 14px;
+}
+
+/* Char counters */
+.giCharCounter, .psCharCounter {
+  position: absolute; bottom: 8px; right: 10px;
+  font-size: 11px; font-weight: 500; color: var(--muted);
+  pointer-events: none; transition: color .15s;
+}
+.giCharCounterMax, .psCharCounterMax { color: var(--danger); font-weight: 700; }
+.psTextareaWrap { position: relative; }
+.psTextareaWrap .psTextarea { padding-bottom: 26px; }
+.psTextareaWrap .psCharCounter { bottom: 9px; right: 12px; }
+.giEditTextareaWrap { position: relative; width: 100%; }
+
+/* ── giCard — GroupInfoModal overlay on upCard ───────────────────────── */
+.giCard {
+  width: min(420px, 100%);
+  max-height: 85vh;
+  overflow-y: auto;
+  scroll-behavior: smooth;
+}
+.giCard::-webkit-scrollbar { width: 5px; }
+.giCard::-webkit-scrollbar-track { background: transparent; }
+.giCard::-webkit-scrollbar-thumb { background: var(--border); border-radius: 5px; }
+.giCard::-webkit-scrollbar-thumb:hover { background: var(--muted); }
+
+.giMembersSection { padding-bottom: 8px; }
+.giDescToggle {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-size: 12px; font-weight: 600; color: var(--accent);
+  background: none; border: none; padding: 0;
+  cursor: pointer; margin-top: 4px;
+  transition: opacity .15s;
+}
+.giDescToggle:hover { opacity: .75; }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   ✅ NEW STYLES — Admin group management (append to end of app.css)
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ── Group closed banner (replaces Composer) ─────────────────────────────── */
+.groupClosedBanner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 14px 20px;
+  background: var(--surface);
+  border-top: 1px solid var(--border);
+  color: var(--muted);
+  font-size: 13.5px;
+  font-weight: 500;
+  flex-shrink: 0;
+}
+.groupClosedBanner svg {
+  flex-shrink: 0;
+  opacity: .7;
+}
+
+/* ── Closed badge in GroupInfoModal header ───────────────────────────────── */
+.giClosedBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--danger);
+  background: color-mix(in srgb, var(--danger) 12%, transparent);
+  border-radius: 6px;
+  padding: 2px 7px;
+  margin-left: 8px;
+  vertical-align: middle;
+}
+
+/* ── Danger zone — delete group button ───────────────────────────────────── */
+.giDangerZone {
+  padding: 12px 20px 16px;
+  border-top: 1px solid var(--border);
+  margin-top: 4px;
+}
+.giDeleteGroupBtn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 11px 14px;
+  background: color-mix(in srgb, var(--danger) 8%, transparent);
+  border: 1px solid color-mix(in srgb, var(--danger) 25%, transparent);
+  border-radius: 12px;
+  color: var(--danger);
+  font-size: 13.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background .15s, border-color .15s;
+}
+.giDeleteGroupBtn:hover {
+  background: color-mix(in srgb, var(--danger) 15%, transparent);
+  border-color: color-mix(in srgb, var(--danger) 40%, transparent);
+}
+
+/* ── Right-click context menu: admin action ──────────────────────────────── */
+.ctxItemAdmin {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 9px 14px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 13.5px;
+  font-weight: 500;
+  color: var(--accent);
+  text-align: left;
+  transition: background .12s;
+  border-radius: 8px;
+}
+.ctxItemAdmin:hover {
+  background: var(--accent-dim);
+}
+
+/* ── Delete group dialog ─────────────────────────────────────────────────── */
+.giDeleteDialog {
+  background: var(--card);
+  border-radius: 20px;
+  padding: 28px 24px 24px;
+  width: min(400px, 92vw);
+  position: relative;
+  box-shadow: 0 8px 40px rgba(0,0,0,.18);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+.giDeleteDialogClose {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--surface);
+  border: none;
+  color: var(--muted);
+  cursor: pointer;
+  transition: background .15s, color .15s;
+}
+.giDeleteDialogClose:hover { background: var(--border); color: var(--text); }
+
+.giDeleteDialogIcon {
+  width: 60px;
+  height: 60px;
+  border-radius: 18px;
+  background: color-mix(in srgb, var(--danger) 10%, transparent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--danger);
+  margin-bottom: 6px;
+}
+.giDeleteDialogTitle {
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--text);
+}
+.giDeleteDialogSubtitle {
+  font-size: 13px;
+  color: var(--muted);
+  margin-bottom: 8px;
+}
+
+/* Delete dialog option cards */
+.giDeleteOption {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  padding: 14px 16px;
+  border-radius: 14px;
+  border: 1.5px solid var(--border);
+  background: var(--surface);
+  cursor: pointer;
+  text-align: left;
+  transition: border-color .15s, background .15s;
+  margin-top: 6px;
+}
+.giDeleteOption:hover {
+  border-color: var(--accent);
+  background: var(--accent-dim);
+}
+.giDeleteOptionSafe:hover {
+  border-color: var(--accent);
+}
+.giDeleteOptionDanger:hover {
+  border-color: var(--danger);
+  background: color-mix(in srgb, var(--danger) 6%, transparent);
+}
+.giDeleteOptionIcon {
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.giDeleteOptionSafe .giDeleteOptionIcon {
+  background: var(--accent-dim);
+  color: var(--accent);
+}
+.giDeleteOptionDanger .giDeleteOptionIcon {
+  background: color-mix(in srgb, var(--danger) 10%, transparent);
+  color: var(--danger);
+}
+.giDeleteOptionText { flex: 1; }
+.giDeleteOptionTitle {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+}
+.giDeleteOptionDesc {
+  font-size: 12px;
+  color: var(--muted);
+  margin-top: 2px;
+  line-height: 1.4;
+}
+.giDeleteOptionSafe svg:last-child { color: var(--muted); }
+.giDeleteOptionDanger svg:last-child { color: var(--muted); }
+
+/* ── Transfer admin modal ─────────────────────────────────────────────────── */
+.giTransferModal {
+  background: var(--card);
+  border-radius: 20px;
+  padding: 28px 20px 22px;
+  width: min(380px, 92vw);
+  max-height: 70vh;
+  overflow-y: auto;
+  position: relative;
+  box-shadow: 0 8px 40px rgba(0,0,0,.18);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.giTransferTitle {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text);
+  padding-right: 28px;
+}
+.giTransferSubtitle {
+  font-size: 13px;
+  color: var(--muted);
+  margin-bottom: 8px;
+}
+.giTransferList {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 280px;
+  overflow-y: auto;
+  padding-right: 2px;
+}
+.giTransferEmpty {
+  font-size: 13px;
+  color: var(--muted);
+  text-align: center;
+  padding: 20px 0;
+}
+.giTransferItem {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: var(--surface);
+  border: 1.5px solid transparent;
+  cursor: pointer;
+  width: 100%;
+  text-align: left;
+  transition: border-color .15s, background .15s;
+}
+.giTransferItem:hover {
+  border-color: var(--border);
+  background: var(--hover);
+}
+.giTransferItemSelected {
+  border-color: var(--accent) !important;
+  background: var(--accent-dim) !important;
+}
+.giTransferItemInfo { flex: 1; }
+.giTransferItemName {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--text);
+}
+.giTransferItemSub {
+  font-size: 12px;
+  color: var(--muted);
+}
+.giTransferCheck {
+  width: 24px;
+  height: 24px;
+  border-radius: 7px;
+  background: var(--accent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  flex-shrink: 0;
+}
+.giTransferError {
+  font-size: 12.5px;
+  color: var(--danger);
+  font-weight: 500;
+  margin-top: 4px;
+}
+.giTransferBtns {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+  justify-content: flex-end;
+}
+
+/* giConfirmOverlay — defined above, deduped */
+
+/* ── confirmIconAdmin — star/admin colour variant ────────────────────────── */
+.confirmIconAdmin {
+  color: var(--accent);
+  background: var(--accent-dim);
+}
+.confirmAdmin {
+  padding: 9px 20px;
+  border-radius: 10px;
+  font-size: 13.5px;
+  font-weight: 700;
+  color: #fff;
+  background: var(--accent);
+  border: none;
+  cursor: pointer;
+  transition: opacity .15s;
+}
+.confirmAdmin:disabled { opacity: .4; cursor: default; }
+.confirmAdmin:not(:disabled):hover { opacity: .85; }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   ✅ FILE SHARING STYLES — append to end of app.css
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ── ChatArea inner wrapper (needed for drag overlay positioning) ─────────── */
+.chatAreaInner {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  position: relative;
+  overflow: hidden;
+}
+
+/* ── Drag & drop overlay ─────────────────────────────────────────────────── */
+.dropOverlay {
+  position: absolute;
+  inset: 0;
+  z-index: 500;
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  border: 2.5px dashed var(--accent);
+  border-radius: 12px;
+  margin: 6px;
+  animation: dropOverlayIn .15s ease;
+}
+@keyframes dropOverlayIn {
+  from { opacity: 0; transform: scale(.97); }
+  to   { opacity: 1; transform: scale(1); }
+}
+.dropOverlayBox {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 32px 40px;
+  background: var(--card);
+  border-radius: 20px;
+  box-shadow: 0 8px 32px rgba(0,0,0,.15);
+}
+.dropOverlayIcon {
+  width: 72px;
+  height: 72px;
+  border-radius: 20px;
+  background: var(--accent-dim);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--accent);
+}
+.dropOverlayTitle {
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--text);
+}
+.dropOverlaySub {
+  font-size: 13px;
+  color: var(--muted);
+}
+
+/* ── Composer wrapper (contains staging card + composer bar) ─────────────── */
+.composerWrap {
+  display: flex;
+  flex-direction: column;
+  border-top: 1px solid var(--border);
+  background: color-mix(in srgb, var(--sidebar) 85%, transparent);
+  backdrop-filter: blur(10px);
+  flex-shrink: 0;
+}
+
+/* ── Override: remove border-top from .composer itself (now on .composerWrap) */
+.composer {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px 12px;
+  border-top: none;         /* border is on .composerWrap now */
+  background: transparent;
+  backdrop-filter: none;
+}
+
+/* ── Attach button ───────────────────────────────────────────────────────── */
+.composerAttach {
+  width: 38px;
+  height: 38px;
+  border-radius: 11px;
+  background: var(--surface);
+  border: 1.5px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  color: var(--muted);
+  cursor: pointer;
+  transition: color .15s, border-color .15s, background .15s, transform .1s;
+}
+.composerAttach:hover:not(:disabled) {
+  color: var(--accent);
+  border-color: var(--accent);
+  background: var(--accent-dim);
+  transform: scale(1.06);
+}
+.composerAttach:disabled { opacity: .4; cursor: not-allowed; }
+.composerAttachActive {
+  color: var(--accent);
+  border-color: var(--accent);
+  background: var(--accent-dim);
+}
+
+/* ── Spinner animation for upload send button ────────────────────────────── */
+.composerSpinner {
+  animation: spinnerRotate 0.9s linear infinite;
+}
+@keyframes spinnerRotate {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+.composerSendLoading {
+  opacity: 0.7 !important;
+  cursor: default;
+}
+
+/* ── File staging card ───────────────────────────────────────────────────── */
+.fileStagingCard {
+  margin: 10px 14px 4px;
+  background: var(--panel);
+  border: 1.5px solid var(--border);
+  border-radius: 14px;
+  padding: 12px 14px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  animation: stagingSlideIn .2s cubic-bezier(.34,1.56,.64,1);
+}
+@keyframes stagingSlideIn {
+  from { opacity: 0; transform: translateY(8px) scale(.97); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+.fileStagingUploading {
+  border-color: var(--accent);
+}
+.fileStagingRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.fileStagingMeta {
+  flex: 1;
+  min-width: 0;
+}
+.fileStagingName {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.fileStagingSize {
+  font-size: 12px;
+  color: var(--muted);
+  margin-top: 2px;
+}
+.fileStagingRemove {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--muted);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background .15s, color .15s;
+}
+.fileStagingRemove:hover { background: var(--danger); color: #fff; border-color: var(--danger); }
+.fileStagingErr {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12.5px;
+  color: var(--danger);
+  font-weight: 500;
+}
+
+/* ── Upload progress bar ─────────────────────────────────────────────────── */
+.fileProgressTrack {
+  position: relative;
+  height: 6px;
+  background: var(--border);
+  border-radius: 999px;
+  overflow: hidden;
+}
+.fileProgressFill {
+  position: absolute;
+  inset-block: 0;
+  left: 0;
+  background: linear-gradient(90deg, var(--accent), color-mix(in srgb, var(--accent) 70%, #fff));
+  border-radius: 999px;
+  transition: width .25s ease;
+  animation: progressShimmer 1.5s infinite linear;
+  background-size: 200% 100%;
+}
+@keyframes progressShimmer {
+  0%   { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+.fileProgressPct {
+  display: block;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--accent);
+  text-align: right;
+  margin-top: 3px;
+}
+
+/* ── File caption input (inside staging card) ────────────────────────────── */
+.fileCaptionInput {
+  width: 100%;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  padding: 7px 12px;
+  font-size: 13.5px;
+  outline: none;
+  transition: border-color .15s;
+  color: var(--text);
+}
+.fileCaptionInput:focus { border-color: color-mix(in srgb, var(--accent) 50%, transparent); }
+.fileCaptionInput::placeholder { color: var(--muted); }
+.fileCaptionInput:disabled { opacity: .6; }
+
+/* ── File icon badge (staging card) ─────────────────────────────────────── */
+.fileIconBadge {
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  border: 1.5px solid;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  gap: 1px;
+  position: relative;
+}
+.fileIconLabel {
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: -.02em;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   BUBBLE ATTACHMENT STYLES
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* bubble with attachment: tighter padding on top */
+.bubbleWithAttach { padding-top: 0 !important; overflow: hidden; }
+
+/* ── Image attachment ────────────────────────────────────────────────────── */
+.bubbleAttachImg {
+  margin: 0 -12px;
+  margin-top: 0;
+}
+.bubbleAttachImg:first-child { border-radius: 14px 14px 0 0; overflow: hidden; }
+.bubbleAttachImgOwn { }
+.bubbleImgLink {
+  display: block;
+  position: relative;
+  overflow: hidden;
+  cursor: zoom-in;
+}
+.bubbleImg {
+  display: block;
+  width: 100%;
+  max-width: 320px;
+  min-width: 120px;
+  max-height: 320px;
+  object-fit: cover;
+  border-radius: 0;
+  transition: opacity .2s;
+}
+.bubbleImg:hover { opacity: .92; }
+.bubbleImgOverlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0,0,0,.3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  opacity: 0;
+  transition: opacity .2s;
+}
+.bubbleImgLink:hover .bubbleImgOverlay { opacity: 1; }
+
+/* ── Video attachment ────────────────────────────────────────────────────── */
+.bubbleAttachVideo {
+  margin: 0 -12px;
+}
+.bubbleVideo {
+  display: block;
+  width: 100%;
+  max-width: 320px;
+  max-height: 280px;
+  background: #000;
+  border-radius: 0;
+}
+
+/* ── Caption below image/video ───────────────────────────────────────────── */
+.bubbleCaption {
+  font-size: 13.5px;
+  color: var(--text);
+  padding: 8px 12px 2px;
+  line-height: 1.4;
+  white-space: pre-wrap;
+}
+.bubbleCaptionFile {
+  padding: 6px 0 2px;
+}
+
+/* ── File attachment card ────────────────────────────────────────────────── */
+.bubbleAttachFile {
+  min-width: 220px;
+  max-width: 300px;
+}
+.bubbleFileCard {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 10px 10px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  border-radius: 10px;
+  text-align: left;
+  transition: background .15s;
+}
+.bubbleFileCard:hover {
+  background: rgba(0,0,0,.06);
+}
+.out .bubbleFileCard:hover {
+  background: rgba(255,255,255,.12);
+}
+.bubbleFileIcon {
+  width: 44px;
+  height: 44px;
+  border-radius: 11px;
+  border: 1.5px solid;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  gap: 1px;
+}
+.bubbleFileIconLabel {
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: -.02em;
+}
+.bubbleFileMeta {
+  flex: 1;
+  min-width: 0;
+}
+.bubbleFileName {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 160px;
+}
+.out .bubbleFileName { color: inherit; }
+.bubbleFileSize {
+  font-size: 11.5px;
+  color: var(--muted);
+  margin-top: 2px;
+}
+.out .bubbleFileSize { color: rgba(255,255,255,.6); }
+.bubbleFileDownloadBtn {
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--accent-dim);
+  color: var(--accent);
+  flex-shrink: 0;
+  transition: background .15s;
+}
+.out .bubbleFileDownloadBtn {
+  background: rgba(255,255,255,.2);
+  color: #fff;
+}
+.bubbleFileCard:hover .bubbleFileDownloadBtn {
+  background: var(--accent);
+  color: #fff;
+}
+.out .bubbleFileCard:hover .bubbleFileDownloadBtn {
+  background: rgba(255,255,255,.35);
+}
+
+/* ── Video poster (click-to-play) ─────────────────────────────────────────── */
+/* ✅ Uses .bubbleVideoPosterBg (plain div) instead of nested <video>          */
+/* to avoid double HTTP request and Content-Disposition conflicts.             */
+.bubbleVideoPoster {
+  position: relative;
+  cursor: pointer;
+  border-radius: 12px;
+  overflow: hidden;
+  max-width: 320px;
+}
+.bubbleVideoPosterBg {
+  width: 100%;
+  min-height: 160px;
+  max-width: 320px;
+  background: linear-gradient(145deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+  display: flex;
+  align-items: flex-end;
+  padding: 12px 14px;
+}
+.bubbleVideoPosterName {
+  font-size: 12px;
+  color: rgba(255,255,255,.55);
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 220px;
+}
+.bubbleVideoPlayBtn {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.bubbleVideoPlayBtn > svg {
+  width: 56px;
+  height: 56px;
+  background: rgba(0,0,0,.5);
+  border-radius: 50%;
+  padding: 12px;
+  color: #fff;
+  backdrop-filter: blur(6px);
+  transition: transform .15s, background .15s;
+  filter: drop-shadow(0 2px 12px rgba(0,0,0,.5));
+}
+.bubbleVideoPoster:hover .bubbleVideoPlayBtn > svg {
+  transform: scale(1.1);
+  background: rgba(0,0,0,.72);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   ✅ FIXES: cancel upload, group avatar overlay, chat header real avatar
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* Cancel upload button (red square-stop icon) */
+.fileStagingCancel {
+  width: 28px; height: 28px; border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  background: color-mix(in srgb, var(--danger) 15%, transparent);
+  border: 1px solid color-mix(in srgb, var(--danger) 40%, transparent);
+  color: var(--danger); cursor: pointer; flex-shrink: 0;
+  transition: background .15s;
+}
+.fileStagingCancel:hover { background: var(--danger); color: #fff; }
+
+/* Chat header: wrapper for Avatar component */
+.chAvatarWrap {
+  width: 38px; height: 38px; flex-shrink: 0;
+  border-radius: 12px; overflow: hidden;
+}
+.chAvatarWrap.group { border-radius: 14px; }
+
+/* Group avatar overlay (camera icon on hover) */
+.giAvatarOverlay {
+  position: absolute; inset: 0;
+  background: rgba(0,0,0,.45);
+  display: flex; align-items: center; justify-content: center;
+  color: #fff; border-radius: inherit;
+  opacity: 0; transition: opacity .18s;
+}
+.upAvatar:hover .giAvatarOverlay { opacity: 1; }
+
+/* Spin animation for avatar upload spinner */
+@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   ✅ LATEST FIXES: cancel upload, group avatar overlay, chat header avatar
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* Cancel upload button (square-stop icon, red) */
+.fileStagingCancel {
+  width: 28px; height: 28px; border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  background: color-mix(in srgb, var(--danger) 15%, transparent);
+  border: 1px solid color-mix(in srgb, var(--danger) 40%, transparent);
+  color: var(--danger); cursor: pointer; flex-shrink: 0;
+  transition: background .15s, color .15s;
+}
+.fileStagingCancel:hover { background: var(--danger); color: #fff; }
+
+/* Chat header: wrapper lets Avatar component render in the header */
+.chAvatarWrap {
+  width: 38px; height: 38px;
+  flex-shrink: 0;
+  border-radius: 12px;
+  overflow: hidden;
+}
+.chAvatarWrap.group { border-radius: 14px; }
+
+/* Group avatar overlay — camera icon appears on hover (admin only) */
+.giAvatarOverlay {
+  position: absolute; inset: 0;
+  background: rgba(0,0,0,.48);
+  display: flex; align-items: center; justify-content: center;
+  color: #fff; border-radius: inherit;
+  opacity: 0; transition: opacity .18s;
+  cursor: pointer;
+}
+.upAvatar:hover .giAvatarOverlay { opacity: 1; }
+
+/* Spin animation reused for avatar upload spinner */
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   ✅ PIN & SIDEBAR AVATAR STYLES
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ── Sidebar ChatItem: photo avatar ─────────────────────────────────────── */
+.ciAvatarPhoto {
+  padding: 0;
+  background: transparent;
+  overflow: hidden;
+}
+.ciAvatarPhoto img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: inherit;
+  display: block;
+}
+
+/* ── Pin badge on message bubble ─────────────────────────────────────────── */
+.msgPinBadge {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #2f81f7, #5fa8ff);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 0 0 2.5px var(--card), 0 3px 10px rgba(47,129,247,.55);
+  z-index: 2;
+  animation: pinBadgePop .3s cubic-bezier(.34,1.56,.64,1);
+}
+@keyframes pinBadgePop {
+  from { transform: scale(0); opacity: 0; }
+  to   { transform: scale(1); opacity: 1; }
+}
+
+/* Pinned message bubble — subtle glow highlight */
+.bubble:has(.msgPinBadge) {
+  box-shadow: 0 0 0 1.5px color-mix(in srgb, var(--accent) 35%, transparent),
+              0 2px 12px color-mix(in srgb, var(--accent) 12%, transparent);
+}
+
+/* ── Pin count badge on header button ────────────────────────────────────── */
+.chPinCount {
+  position: absolute;
+  top: -3px;
+  right: -3px;
+  min-width: 14px;
+  height: 14px;
+  border-radius: 7px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 9px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 3px;
+  line-height: 1;
+}
+
+/* ── Pin navigation bar (below main header row) ──────────────────────────── */
+.chPinBar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 14px 8px;
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+  border-top: 1px solid color-mix(in srgb, var(--accent) 20%, transparent);
+  animation: searchBarSlide .18s ease;
+}
+.chPinBarIcon {
+  color: var(--accent);
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+}
+.chPinBarLabel {
+  flex: 1;
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--muted);
+}
+.chPinBarCount {
+  font-weight: 700;
+  color: var(--accent);
+}
+.chPinBarActions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+/* ── Message context menu (right-click) ──────────────────────────────────── */
+.msgCtxMenu {
+  position: fixed;
+  z-index: 9999;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 5px;
+  box-shadow: 0 8px 32px rgba(0,0,0,.22);
+  min-width: 190px;
+  max-width: 240px;
+  /* transform nudges handled via JS inline style */
+  animation: ctxMenuPop .12s cubic-bezier(.34,1.56,.64,1);
+}
+@keyframes ctxMenuPop {
+  from { opacity: 0; transform: scale(.92); }
+  to   { opacity: 1; transform: scale(1); }
+}
+.msgCtxItem {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  padding: 9px 12px;
+  border: none;
+  background: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 13.5px;
+  font-weight: 500;
+  color: var(--text);
+  text-align: left;
+  transition: background .12s;
+}
+.msgCtxItem:hover { background: var(--surface); }
+.msgCtxItem svg { flex-shrink: 0; color: var(--muted); }
+.msgCtxItemPin:hover { background: color-mix(in srgb, var(--accent) 10%, transparent); }
+.msgCtxItemPin:hover svg { color: var(--accent); }
+.msgCtxItemDanger { color: var(--danger); }
+.msgCtxItemDanger:hover { background: color-mix(in srgb, var(--danger) 10%, transparent); }
+.msgCtxItemDanger svg { color: var(--danger); }
+
+/* ── Bubble: make position relative so pin badge can anchor ─────────────── */
+.bubble { position: relative; }
+
+/* ── Message bubble text overflow fix ────────────────────────────────────── */
+.bubbleText {
+  white-space: pre-wrap;
+  line-height: 1.45;
+  word-break: break-word;     /* break ONLY when no spaces (URLs, etc.) */
+  overflow-wrap: break-word;
+  max-width: 100%;
+}
+
+/* ── Pin button when no messages pinned (dimmed) ─────────────────────────── */
+.chPinBtnEmpty {
+  opacity: 0.45;
+}
+.chPinBtnEmpty:hover {
+  opacity: 0.7;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   PROFILE SETTINGS: reset avatar + privacy hide photo
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ── Avatar reset button (ProfileTab) ───────────────────────────────────── */
+.psAvatarResetBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--danger);
+  background: color-mix(in srgb, var(--danger) 8%, transparent);
+  border: 1px solid color-mix(in srgb, var(--danger) 25%, transparent);
+  border-radius: 8px;
+  padding: 5px 12px;
+  cursor: pointer;
+  transition: background .15s, border-color .15s;
+  margin-top: 4px;
+}
+.psAvatarResetBtn:hover {
+  background: color-mix(in srgb, var(--danger) 15%, transparent);
+  border-color: color-mix(in srgb, var(--danger) 45%, transparent);
+}
+
+/* ── Privacy: hide avatar section ───────────────────────────────────────── */
+.psPrivacySection + .psPrivacySection {
+  margin-top: 20px;
+  padding-top: 20px;
+  border-top: 1px solid var(--border);
+}
+
+/* Avatar exceptions picker */
+.psExceptionsWrap {
+  margin-top: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  animation: fadeIn .2s ease;
+}
+.psExceptionsLabel {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: .05em;
+}
+.psExceptionsSearch {
+  width: 100%;
+  background: var(--panel);
+  border: 1.5px solid var(--border);
+  border-radius: 10px;
+  padding: 9px 12px;
+  font-size: 13.5px;
+  outline: none;
+  color: var(--text);
+  transition: border-color .15s;
+}
+.psExceptionsSearch:focus { border-color: color-mix(in srgb, var(--accent) 50%, transparent); }
+.psExceptionsSearch::placeholder { color: var(--muted); }
+
+.psExceptionsList {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  max-height: 180px;
+  overflow-y: auto;
+  padding: 2px;
+}
+.psExceptionsEmpty {
+  font-size: 13px;
+  color: var(--muted);
+  text-align: center;
+  padding: 12px 0;
+}
+.psExceptionItem {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  cursor: pointer;
+  border: 1.5px solid transparent;
+  background: var(--surface);
+  transition: border-color .12s, background .12s;
+  width: 100%;
+  text-align: left;
+}
+.psExceptionItem:hover { background: var(--hover, var(--panel)); }
+.psExceptionItem.selected {
+  border-color: var(--accent);
+  background: var(--accent-dim);
+}
+.psExceptionInfo { flex: 1; min-width: 0; }
+.psExceptionName {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.psExceptionSub {
+  font-size: 12px;
+  color: var(--muted);
+}
+.psExceptionCheck {
+  width: 20px;
+  height: 20px;
+  border-radius: 6px;
+  background: var(--accent);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.psExceptionTagsWrap {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  min-height: 28px;
+}
+.psExceptionTag {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px 4px 8px;
+  background: var(--accent-dim);
+  border: 1px solid var(--accent-border);
+  border-radius: 20px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--accent);
+}
+.psExceptionTagRemove {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: color-mix(in srgb, var(--accent) 25%, transparent);
+  border: none;
+  cursor: pointer;
+  color: var(--accent);
+  padding: 0;
+  transition: background .12s;
+  flex-shrink: 0;
+}
+.psExceptionTagRemove:hover { background: color-mix(in srgb, var(--accent) 45%, transparent); }
+>>>>>>> devDK
