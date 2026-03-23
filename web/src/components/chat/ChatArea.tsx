@@ -14,6 +14,7 @@ import { EmptyState } from './EmptyState';
 import { sendChatMessage, getPinnedMessages, pinMessage as apiPin, unpinMessage as apiUnpin } from '../../api/chats';
 import type { UploadResult } from '../../api/upload';
 import type { Message } from '../../types';
+import { ForwardModal } from '../modals/ForwardModal';
 
 // ── Max chars per message — split at last word boundary ──────────────────────
 const MAX_MSG_CHARS = 4000;
@@ -47,6 +48,12 @@ export function ChatArea() {
   const setShowDeleteConfirm = useAppStore(s => s.setShowDeleteConfirm);
   const setShowGroupInfo     = useAppStore(s => s.setShowGroupInfo);
   const setViewUserId        = useAppStore(s => s.setViewUserId);
+
+  // ── Forward state ─────────────────────────────────────────────────────────
+  const forwardingIds     = useAppStore(s => s.forwardingIds);
+  const showForwardModal  = useAppStore(s => s.showForwardModal);
+  const setForwardingIds  = useAppStore(s => s.setForwardingIds);
+  const setShowForwardModal = useAppStore(s => s.setShowForwardModal);
 
   const [messageText, setMessageText] = useState('');
   useMessages(); // keeps message loading side-effect
@@ -131,6 +138,28 @@ export function ChatArea() {
     setShowDeleteConfirm(true);
   }, [clearSelection, toggleSelect, setShowDeleteConfirm]);
 
+  // ✅ Forward selected messages — open modal
+  const handleForwardSelected = useCallback(() => {
+    const ids = Array.from(selectedIds);
+    if (ids.length === 0) return;
+    setForwardingIds(ids);
+    setShowForwardModal(true);
+    clearSelection();
+  }, [selectedIds, setForwardingIds, setShowForwardModal, clearSelection]);
+
+  // ✅ Forward single message from context menu
+  const handleForwardSingle = useCallback((msgId: string) => {
+    setForwardingIds([msgId]);
+    setShowForwardModal(true);
+    clearSelection();
+  }, [setForwardingIds, setShowForwardModal, clearSelection]);
+
+  // ✅ "Add more" — close the modal and re-enter selection mode so user picks more messages
+  const handleForwardAddMore = useCallback(() => {
+    setShowForwardModal(false);
+    // forwardingIds remain in store so user can see how many already queued
+  }, [setShowForwardModal]);
+
   // ── Send text (with auto-split) ───────────────────────────────────────────
   const handleSend = useCallback(async () => {
     const text = messageText.trim();
@@ -181,6 +210,14 @@ export function ChatArea() {
 
   const isGroupClosed = activeChat.type === 'group' && activeChat.is_closed === true;
 
+  // messages currently queued for forwarding
+  const forwardMessages = forwardingIds
+    ? messages.filter(m => forwardingIds.includes(m.id))
+    : [];
+
+  // If user hit "Add more" — show a sticky banner at the top of chat
+  const isAddingMore = forwardingIds !== null && !showForwardModal;
+
   return (
     <div
       className="chatAreaInner"
@@ -203,6 +240,44 @@ export function ChatArea() {
         </div>
       )}
 
+      {/* ✅ "Add more" banner — shown when user returned to chat to pick more messages */}
+      {isAddingMore && (
+        <div className="fwdAddMoreBanner">
+          <div className="fwdAddMoreLeft">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="15 17 20 12 15 7"/>
+              <path d="M4 18v-2a4 4 0 0 1 4-4h12"/>
+            </svg>
+            <span>Выбрано {forwardingIds?.length ?? 0} сообщ. — выберите ещё или нажмите «Готово»</span>
+          </div>
+          <div className="fwdAddMoreRight">
+            <button className="fwdAddMoreDone" onClick={() => {
+              // merge newly selected with already queued
+              const extra = Array.from(selectedIds).filter(id => !forwardingIds?.includes(id));
+              const merged = [...(forwardingIds ?? []), ...extra];
+              setForwardingIds(merged);
+              clearSelection();
+              setShowForwardModal(true);
+            }}>
+              Готово ({selectedIds.size > 0 ? `+${selectedIds.size}` : forwardingIds?.length ?? 0})
+            </button>
+            <button className="fwdAddMoreCancel" onClick={() => { setForwardingIds(null); clearSelection(); }}>
+              Отмена
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ✅ Forward modal */}
+      {showForwardModal && forwardMessages.length > 0 && (
+        <ForwardModal
+          messages={forwardMessages}
+          meId={me.id}
+          onClose={() => { setShowForwardModal(false); setForwardingIds(null); }}
+          onAddMore={handleForwardAddMore}
+        />
+      )}
+
       <ChatHeader
         chat={activeChat}
         meId={me.id}
@@ -210,6 +285,7 @@ export function ChatArea() {
         selectedCount={selectedIds.size}
         onCancelSelection={clearSelection}
         onDeleteSelected={() => setShowDeleteConfirm(true)}
+        onForwardSelected={handleForwardSelected}
         onOpenInfo={() => setShowGroupInfo(true)}
         onViewUser={setViewUserId}
         searchOpen={searchOpen}
@@ -243,6 +319,7 @@ export function ChatArea() {
         onPinMessage={handlePinMessage}
         onUnpinMessage={handleUnpinMessage}
         onDeleteSingle={handleDeleteSingle}
+        onForwardSingle={handleForwardSingle}
         searchQuery={searchQuery.trim().toLowerCase()}
         matchedIds={matchedIds}
         currentMatchId={currentMatchId}

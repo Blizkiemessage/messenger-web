@@ -3366,3 +3366,374 @@ input[type="date"].psInput::-webkit-calendar-picker-indicator {
   flex-shrink: 0;
 }
 .psExceptionTagRemove:hover { background: color-mix(in srgb, var(--accent) 45%, transparent); }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   FORWARD FEATURE STYLES
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ── Context menu: forward button ─────────────────────────────────────────── */
+.msgCtxItemForward { color: var(--text); }
+.msgCtxItemForward:hover {
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+  color: var(--accent);
+}
+.msgCtxItemForward:hover svg { color: var(--accent); }
+
+/* ── Selection bar: forward + delete side by side ─────────────────────────── */
+.selActions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+}
+.selForwardBtn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 13px;
+  border: none;
+  border-radius: 9px;
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+  color: var(--accent);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background .13s;
+}
+.selForwardBtn:hover { background: color-mix(in srgb, var(--accent) 26%, transparent); }
+.selForwardBtn svg { flex-shrink: 0; }
+
+/* ── Forwarded badge inside bubble ─────────────────────────────────────────── */
+.bubbleForwardedBadge {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11.5px;
+  color: var(--muted);
+  margin-bottom: 5px;
+  padding: 3px 0 5px;
+  border-bottom: 1px solid var(--border);
+}
+.bubbleForwardedBadge svg { flex-shrink: 0; color: var(--accent); opacity: .8; }
+.bubbleForwardedName {
+  background: none;
+  border: none;
+  padding: 0;
+  margin: 0;
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--accent);
+  cursor: pointer;
+  text-decoration: none;
+  transition: opacity .12s;
+}
+.bubbleForwardedName:hover { opacity: .75; }
+
+/* ── "Add more" sticky banner ─────────────────────────────────────────────── */
+.fwdAddMoreBanner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 9px 16px;
+  background: color-mix(in srgb, var(--accent) 12%, var(--card));
+  border-bottom: 1px solid color-mix(in srgb, var(--accent) 20%, transparent);
+  font-size: 13px;
+  flex-shrink: 0;
+  z-index: 10;
+}
+.fwdAddMoreLeft {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text);
+  font-weight: 500;
+}
+.fwdAddMoreLeft svg { color: var(--accent); flex-shrink: 0; }
+.fwdAddMoreRight {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+.fwdAddMoreDone {
+  padding: 5px 14px;
+  border: none;
+  border-radius: 8px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity .12s;
+}
+.fwdAddMoreDone:hover { opacity: .85; }
+.fwdAddMoreCancel {
+  padding: 5px 10px;
+  border: none;
+  border-radius: 8px;
+  background: none;
+  color: var(--muted);
+  font-size: 12.5px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background .12s;
+}
+.fwdAddMoreCancel:hover { background: var(--panel); color: var(--text); }
+
+/* ── ForwardModal card ─────────────────────────────────────────────────────── */
+.fwdModal {
+  width: 420px;
+  max-width: 96vw;
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+  overflow: hidden;
+}
+
+/* Preview trigger row */
+.fwdPreviewTrigger {
+  padding: 10px 16px 4px;
+  border-bottom: 1px solid var(--border);
+}
+.fwdPreviewToggleBtn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 8px 12px;
+  border: 1.5px solid color-mix(in srgb, var(--accent) 35%, transparent);
+  border-radius: 9px;
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+  color: var(--accent);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background .12s, border-color .12s;
+}
+.fwdPreviewToggleBtn:hover {
+  background: color-mix(in srgb, var(--accent) 16%, transparent);
+  border-color: var(--accent);
+}
+.fwdPreviewBadge {
+  margin-left: auto;
+  background: var(--accent);
+  color: #fff;
+  border-radius: 99px;
+  padding: 1px 8px;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+/* Scrollable body */
+.fwdBody {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px 0;
+}
+.fwdBody::-webkit-scrollbar { width: 4px; }
+.fwdBody::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+
+.fwdSectionLabel {
+  padding: 8px 16px 4px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  color: var(--muted);
+}
+
+/* Search row */
+.fwdSearchWrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 4px 12px 6px;
+  padding: 7px 12px;
+  background: var(--panel);
+  border: 1.5px solid var(--border);
+  border-radius: 9px;
+  transition: border-color .12s;
+}
+.fwdSearchWrap:focus-within { border-color: var(--accent); }
+.fwdSearchIcon { width: 14px; height: 14px; flex-shrink: 0; color: var(--muted); }
+.fwdSearchInput {
+  flex: 1;
+  border: none;
+  background: none;
+  font-size: 13px;
+  color: var(--text);
+  outline: none;
+}
+.fwdSearchInput::placeholder { color: var(--muted); }
+.fwdSearchSpin { font-size: 12px; color: var(--muted); padding: 0 4px; }
+
+/* List of chat/user items */
+.fwdList { display: flex; flex-direction: column; gap: 1px; padding: 2px 0; }
+.fwdItem {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 16px;
+  width: 100%;
+  border: none;
+  background: none;
+  cursor: pointer;
+  text-align: left;
+  transition: background .12s;
+  border-radius: 0;
+}
+.fwdItem:hover { background: var(--panel); }
+.fwdItemSelected { background: color-mix(in srgb, var(--accent) 10%, transparent); }
+.fwdItemSelected:hover { background: color-mix(in srgb, var(--accent) 16%, transparent); }
+
+.fwdItemCheck {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: 2px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: background .12s, border-color .12s;
+}
+.fwdItemSelected .fwdItemCheck {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+.fwdItemInfo { flex: 1; min-width: 0; }
+.fwdItemName {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.fwdItemSub { font-size: 12px; color: var(--muted); margin-top: 1px; }
+
+.fwdNoResults { padding: 10px 16px; font-size: 13px; color: var(--muted); }
+
+/* Error */
+.fwdError {
+  padding: 8px 16px;
+  font-size: 12.5px;
+  color: var(--danger);
+  background: color-mix(in srgb, var(--danger) 8%, transparent);
+}
+
+/* Footer */
+.fwdFooter {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 12px 16px;
+  border-top: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.fwdFooterRight { display: flex; align-items: center; gap: 8px; }
+
+.fwdBtnPrimary {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 8px 18px;
+  border: none;
+  border-radius: 9px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 13.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity .12s;
+}
+.fwdBtnPrimary:hover:not(:disabled) { opacity: .88; }
+.fwdBtnPrimary:disabled { opacity: .45; cursor: not-allowed; }
+
+.fwdBtnSecondary {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 7px 14px;
+  border: 1.5px solid var(--border);
+  border-radius: 9px;
+  background: none;
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background .12s, border-color .12s;
+}
+.fwdBtnSecondary:hover { background: var(--panel); border-color: var(--accent); }
+
+.fwdBtnGhost {
+  padding: 7px 14px;
+  border: none;
+  border-radius: 9px;
+  background: none;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background .12s;
+}
+.fwdBtnGhost:hover { background: var(--panel); color: var(--text); }
+
+/* ── Preview step ──────────────────────────────────────────────────────────── */
+.fwdPreviewList {
+  flex: 1;
+  overflow-y: auto;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.fwdPreviewList::-webkit-scrollbar { width: 4px; }
+.fwdPreviewList::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+.fwdPreviewEmpty { color: var(--muted); font-size: 13px; padding: 10px 4px; }
+
+.fwdPreviewItem {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 9px 12px;
+  background: var(--panel);
+  border-radius: 10px;
+  border: 1px solid var(--border);
+}
+.fwdPreviewItemInner { flex: 1; min-width: 0; }
+.fwdPreviewSender {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--accent);
+  margin-bottom: 3px;
+}
+.fwdPreviewText {
+  font-size: 13px;
+  color: var(--text);
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  word-break: break-word;
+}
+.fwdPreviewRemove {
+  flex-shrink: 0;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: none;
+  background: color-mix(in srgb, var(--danger) 12%, transparent);
+  color: var(--danger);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background .12s;
+  margin-top: 1px;
+}
+.fwdPreviewRemove:hover { background: color-mix(in srgb, var(--danger) 24%, transparent); }

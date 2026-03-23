@@ -18,7 +18,9 @@ function decryptMessage(msg) {
     attachment_name: msg.attachment_name || null, attachment_size: msg.attachment_size || null,
     liked_by: JSON.parse(msg.liked_by || '[]'),
     is_system: msg.is_system ? true : false,
-    is_pinned: msg.is_pinned ? true : false,  // ✅ NEW
+    is_pinned: msg.is_pinned ? true : false,
+    forwarded_from_user_id: msg.forwarded_from_user_id || null,
+    forwarded_from_username: msg.forwarded_from_username || null,
   };
 }
 
@@ -105,4 +107,49 @@ function getPinnedMessages(chatId, userId) {
   return rows.map(decryptMessage);
 }
 
-module.exports = { decryptMessage, saveMessage, getChatMessages, deleteMessages, toggleReaction, pinMessage, unpinMessage, getPinnedMessages };
+// ✅ NEW: forward messages to a chat
+function forwardMessages(targetChatId, senderId, messageIds) {
+  const db = getDb();
+  const member = db.prepare('SELECT 1 FROM chat_members WHERE chat_id = ? AND user_id = ?').get([targetChatId, senderId]);
+  if (!member) throw Object.assign(new Error('Forbidden'), { status: 403 });
+
+  const results = [];
+  for (const msgId of messageIds) {
+    const orig = db.prepare('SELECT * FROM messages WHERE id = ? AND deleted_at IS NULL').get(msgId);
+    if (!orig) continue;
+
+    // Get original sender info for attribution
+    const origSender = db.prepare('SELECT username, display_name FROM users WHERE id = ?').get(orig.sender_id);
+    const senderLabel = origSender?.username
+      ? `@${origSender.username}`
+      : (origSender?.display_name || 'Пользователь');
+
+    // If the original was itself forwarded, preserve the original attribution chain
+    const fwdUserId   = orig.forwarded_from_user_id || orig.sender_id;
+    const fwdUsername = orig.forwarded_from_username || senderLabel;
+
+    // Decrypt and re-encrypt into the new chat
+    const origDecrypted = decryptMessage(orig);
+    const { ciphertext, iv, authTag } = encrypt(origDecrypted.text || '');
+    const newId = uuidv4();
+    const now   = Date.now();
+
+    db.prepare(
+      `INSERT INTO messages
+         (id, chat_id, sender_id, ciphertext, iv, auth_tag, created_at,
+          attachment_url, attachment_type, attachment_name, attachment_size,
+          is_system, forwarded_from_user_id, forwarded_from_username)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?)`
+    ).run([
+      newId, targetChatId, senderId, ciphertext, iv, authTag, now,
+      orig.attachment_url || null, orig.attachment_type || null,
+      orig.attachment_name || null, orig.attachment_size || null,
+      fwdUserId, fwdUsername,
+    ]);
+
+    results.push(decryptMessage(db.prepare('SELECT * FROM messages WHERE id = ?').get(newId)));
+  }
+  return results;
+}
+
+module.exports = { decryptMessage, saveMessage, getChatMessages, deleteMessages, toggleReaction, pinMessage, unpinMessage, getPinnedMessages, forwardMessages };

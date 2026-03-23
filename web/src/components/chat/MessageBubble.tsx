@@ -210,13 +210,14 @@ interface Props {
   onContextMenu: () => void;
   onClick: (e: React.MouseEvent) => void;
   onViewUser: (id: string) => void;
+  onForwardedSenderClick?: (userId: string) => void;
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
 export function MessageBubble({
   message: m, isOwn, isRead, isSelected, isGroup, sender,
   showAvatar, showName, hasSelection, highlight, isSearchMatch,
-  onContextMenu, onClick, onViewUser,
+  onContextMenu, onClick, onViewUser, onForwardedSenderClick,
 }: Props) {
   const hasAttachment = !!m.attachment_url;
   const isImage = m.attachment_type === 'image';
@@ -276,6 +277,28 @@ export function MessageBubble({
                   onClick={e => { e.stopPropagation(); onViewUser(m.sender_id); }}>
             {sender?.display_name || sender?.username || 'Пользователь'}
           </button>
+        )}
+
+        {/* ✅ Forwarded-from badge */}
+        {m.forwarded_from_user_id && (
+          <div className="bubbleForwardedBadge">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="15 17 20 12 15 7"/>
+              <path d="M4 18v-2a4 4 0 0 1 4-4h12"/>
+            </svg>
+            <span>Переслано от </span>
+            <button
+              className="bubbleForwardedName"
+              onClick={e => {
+                e.stopPropagation();
+                if (onForwardedSenderClick && m.forwarded_from_user_id) {
+                  onForwardedSenderClick(m.forwarded_from_user_id);
+                }
+              }}
+            >
+              {m.forwarded_from_username || 'Пользователь'}
+            </button>
+          </div>
         )}
 
         {/* ── Attachments (all use resolved URL) ── */}

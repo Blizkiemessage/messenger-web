@@ -109,3 +109,9 @@ export async function pinMessage(chatId: string, messageId: string): Promise<imp
 export async function unpinMessage(chatId: string, messageId: string): Promise<void> {
   await client.delete(`/chats/${chatId}/messages/${messageId}/pin`);
 }
+
+// ✅ NEW: forward messages to a chat
+export async function forwardMessages(chatId: string, messageIds: string[]): Promise<import('../types').Message[]> {
+  const res = await client.post<import('../types').Message[]>(`/chats/${chatId}/messages/forward`, { messageIds });
+  return res.data;
+}
