@@ -6,7 +6,7 @@ import { useState, useCallback, useEffect } from 'react';
 import { type User } from '../../types';
 import { Toggle } from '../ui/Toggle';
 import { Avatar } from '../ui/Avatar';
-import { updateMe, searchUsers } from '../../api/users';
+import { updateMe, searchUsers, getUserById } from '../../api/users';
 
 interface Props {
   me: User;
@@ -24,13 +24,16 @@ export function PrivacyTab({ me, onUpdate }: Props) {
   const [searchRes,    setSearchRes]    = useState<User[]>([]);
   const [searching,    setSearching]    = useState(false);
 
-  // Parse stored exception IDs → load user objects on mount
+  // Parse stored exception IDs → load full user objects on mount
   useEffect(() => {
     const ids: string[] = JSON.parse(me.avatar_exceptions || '[]');
     if (ids.length === 0) return;
-    // We'll restore the stored users; for now store minimal objects
-    const stored = ids.map(id => ({ id }) as User);
-    setExceptions(stored);
+    // Fetch full user data for each stored ID so names/avatars show correctly
+    Promise.all(
+      ids.map(id =>
+        getUserById(id).catch(() => ({ id } as User))
+      )
+    ).then(users => setExceptions(users));
   }, []); // eslint-disable-line
 
   // Search users for exceptions
