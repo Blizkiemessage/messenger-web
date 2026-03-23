@@ -1,14 +1,8 @@
 /**
-<<<<<<< HEAD
- * ChatArea — no getState() during render, only proper hooks.
- */
-import { useState, useCallback } from 'react';
-=======
  * ChatArea.tsx
  * ✅ Added: pin/unpin messages, pin navigation, long message auto-split.
  */
 import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
->>>>>>> devDK
 import { useChatsStore, selectActiveChat } from '../../store/useChatsStore';
 import { useSessionStore } from '../../store/useSessionStore';
 import { useAppStore } from '../../store/useAppStore';
@@ -17,27 +11,6 @@ import { ChatHeader } from './ChatHeader';
 import { MessageList } from './MessageList';
 import { Composer } from './Composer';
 import { EmptyState } from './EmptyState';
-<<<<<<< HEAD
-
-export function ChatArea() {
-  const me = useSessionStore(s => s.me)!;
-  const activeChat = useChatsStore(selectActiveChat);
-  const messages = useChatsStore(s => s.messages);
-  const loadingMessages = useChatsStore(s => s.loadingMessages);
-  const selectedIds = useChatsStore(s => s.selectedIds);
-  const toggleSelect = useChatsStore(s => s.toggleSelect);
-  const clearSelection = useChatsStore(s => s.clearSelection);
-  const hasSelection = selectedIds.size > 0;
-  const partnerReadAt = activeChat?.partner_last_read_at ?? 0;
-
-  const setShowDeleteConfirm = useAppStore(s => s.setShowDeleteConfirm);
-  const setShowGroupInfo = useAppStore(s => s.setShowGroupInfo);
-  const setViewUserId = useAppStore(s => s.setViewUserId);
-
-  const [messageText, setMessageText] = useState('');
-  const { sendMessage } = useMessages();
-
-=======
 import { sendChatMessage, getPinnedMessages, pinMessage as apiPin, unpinMessage as apiUnpin } from '../../api/chats';
 import type { UploadResult } from '../../api/upload';
 import type { Message } from '../../types';
@@ -159,20 +132,10 @@ export function ChatArea() {
   }, [clearSelection, toggleSelect, setShowDeleteConfirm]);
 
   // ── Send text (with auto-split) ───────────────────────────────────────────
->>>>>>> devDK
   const handleSend = useCallback(async () => {
     const text = messageText.trim();
     if (!text) return;
     setMessageText('');
-<<<<<<< HEAD
-    await sendMessage(text);
-  }, [messageText, sendMessage]);
-
-  if (!activeChat) return <EmptyState />;
-
-  return (
-    <>
-=======
     const chatId = useChatsStore.getState().activeChatId;
     if (!chatId) return;
     const parts = splitMessage(text);
@@ -240,7 +203,6 @@ export function ChatArea() {
         </div>
       )}
 
->>>>>>> devDK
       <ChatHeader
         chat={activeChat}
         meId={me.id}
@@ -250,9 +212,6 @@ export function ChatArea() {
         onDeleteSelected={() => setShowDeleteConfirm(true)}
         onOpenInfo={() => setShowGroupInfo(true)}
         onViewUser={setViewUserId}
-<<<<<<< HEAD
-      />
-=======
         searchOpen={searchOpen}
         searchQuery={searchQuery}
         searchTotal={matchedIds.length}
@@ -270,7 +229,6 @@ export function ChatArea() {
         onPinnedPrev={handlePinnedPrev}
       />
 
->>>>>>> devDK
       <MessageList
         messages={messages}
         chat={activeChat}
@@ -282,15 +240,6 @@ export function ChatArea() {
         onToggleSelect={toggleSelect}
         onClearSelection={clearSelection}
         onViewUser={setViewUserId}
-<<<<<<< HEAD
-      />
-      <Composer
-        value={messageText}
-        onChange={setMessageText}
-        onSend={handleSend}
-      />
-    </>
-=======
         onPinMessage={handlePinMessage}
         onUnpinMessage={handleUnpinMessage}
         onDeleteSingle={handleDeleteSingle}
@@ -319,6 +268,5 @@ export function ChatArea() {
         />
       )}
     </div>
->>>>>>> devDK
   );
 }

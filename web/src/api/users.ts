@@ -15,11 +15,8 @@ export async function updateMe(payload: {
   hide_bio?: boolean;
   hide_birth_date?: boolean;
   no_group_add?: boolean;
-<<<<<<< HEAD
-=======
   hide_avatar?: boolean;
   avatar_exceptions?: string;
->>>>>>> devDK
 }): Promise<User> {
   const res = await client.patch<User>('/users/me', payload);
   return res.data;

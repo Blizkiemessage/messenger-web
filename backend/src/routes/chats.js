@@ -10,11 +10,8 @@ const {
   removeChatMember,
   updateChatMetadata,
   leaveGroup,
-<<<<<<< HEAD
-=======
   closeGroup,
   transferAdmin,
->>>>>>> devDK
   deleteDirectChat,
 } = require('../services/chatService');
 
@@ -39,10 +36,6 @@ router.post('/', (req, res, next) => {
     const { getDb } = require('../config/database');
     const db = getDb();
 
-<<<<<<< HEAD
-    // Check if chat already exists before creating
-=======
->>>>>>> devDK
     const existing = db.prepare(
       `SELECT c.id FROM chats c
        JOIN chat_members cm1 ON cm1.chat_id = c.id AND cm1.user_id = ?
@@ -53,10 +46,6 @@ router.post('/', (req, res, next) => {
     const isNew = !existing;
     const chat = getOrCreateDirectChat(req.userId, userId);
 
-<<<<<<< HEAD
-    // Notify both users via socket only when a NEW chat was created
-=======
->>>>>>> devDK
     if (isNew) {
       const io = req.app.get('io');
       if (io) {
@@ -84,10 +73,6 @@ router.post('/group', (req, res, next) => {
     }
     const chat = createGroupChat(name, req.userId, memberIds, description || null);
 
-<<<<<<< HEAD
-    // Notify all members via socket so the chat appears in their list
-=======
->>>>>>> devDK
     const io = req.app.get('io');
     if (io) {
       for (const member of chat.members) {
@@ -134,17 +119,9 @@ router.post('/:id/members', (req, res, next) => {
     const updatedChat = addChatMember(req.params.id, req.userId, userId);
     const io = req.app.get('io');
     if (io) {
-<<<<<<< HEAD
-      // Notify existing members that the chat was updated
       for (const member of updatedChat.members) {
         io.to(`user:${member.id}`).emit('chat-updated', updatedChat);
       }
-      // Also notify the newly added user so chat appears in their list
-=======
-      for (const member of updatedChat.members) {
-        io.to(`user:${member.id}`).emit('chat-updated', updatedChat);
-      }
->>>>>>> devDK
       io.to(`user:${userId}`).emit('chat-created', updatedChat);
     }
     res.json(updatedChat);
@@ -159,26 +136,14 @@ router.delete('/:id/members/:userId', (req, res, next) => {
     const { updatedChat, sysMsg, remaining } = removeChatMember(req.params.id, req.userId, req.params.userId);
     const io = req.app.get('io');
     if (io) {
-<<<<<<< HEAD
-      // Notify remaining members of updated member list
       for (const member of updatedChat.members) {
         io.to(`user:${member.id}`).emit('chat-updated', updatedChat);
       }
-      // Broadcast system message to remaining members
-=======
-      for (const member of updatedChat.members) {
-        io.to(`user:${member.id}`).emit('chat-updated', updatedChat);
-      }
->>>>>>> devDK
       if (sysMsg) {
         for (const uid of remaining) {
           io.to(`user:${uid}`).emit('new-message', sysMsg);
         }
       }
-<<<<<<< HEAD
-      // Notify the removed user so they can remove the chat from their list
-=======
->>>>>>> devDK
       io.to(`user:${req.params.userId}`).emit('chat-removed', { chatId: req.params.id });
     }
     res.json(updatedChat);
@@ -187,23 +152,6 @@ router.delete('/:id/members/:userId', (req, res, next) => {
   }
 });
 
-<<<<<<< HEAD
-// POST /chats/:id/leave — leave a group (sends system message to remaining members)
-router.post('/:id/leave', (req, res, next) => {
-  try {
-    const { sysMsg, remaining } = leaveGroup(req.params.id, req.userId);
-    const io = req.app.get('io');
-    if (io) {
-      // Notify the leaver: remove chat from their list
-      io.to(`user:${req.userId}`).emit('chat-removed', { chatId: req.params.id });
-      // Notify remaining: system message + chat update
-      if (sysMsg) {
-        for (const uid of remaining) {
-          io.to(`user:${uid}`).emit('new-message', sysMsg);
-        }
-      }
-    }
-=======
 // POST /chats/:id/leave — leave a group
 // ✅ If requester is the admin → closes group instead of leaving
 router.post('/:id/leave', (req, res, next) => {
@@ -244,13 +192,10 @@ router.post('/:id/close', (req, res, next) => {
         if (sysMsg) io.to(`user:${uid}`).emit('new-message', sysMsg);
       }
     }
->>>>>>> devDK
     res.json({ ok: true });
   } catch (err) { next(err); }
 });
 
-<<<<<<< HEAD
-=======
 // ✅ NEW: POST /chats/:id/transfer-admin — transfer admin rights to another member
 router.post('/:id/transfer-admin', (req, res, next) => {
   try {
@@ -269,7 +214,6 @@ router.post('/:id/transfer-admin', (req, res, next) => {
   } catch (err) { next(err); }
 });
 
->>>>>>> devDK
 // DELETE /chats/:id — delete direct chat (removes for both users)
 router.delete('/:id', (req, res, next) => {
   try {
@@ -301,8 +245,6 @@ router.patch('/:id', (req, res, next) => {
   } catch (err) { next(err); }
 });
 
-<<<<<<< HEAD
-=======
 // PATCH /chats/:id/avatar — update group avatar with system message
 router.patch('/:id/avatar', (req, res, next) => {
   try {
@@ -327,5 +269,4 @@ router.patch('/:id/avatar', (req, res, next) => {
   } catch (err) { next(err); }
 });
 
->>>>>>> devDK
 module.exports = router;

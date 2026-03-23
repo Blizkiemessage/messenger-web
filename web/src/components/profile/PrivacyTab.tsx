@@ -1,16 +1,4 @@
 /**
-<<<<<<< HEAD
- * PrivacyTab
- *
- * "Конфиденциальность" tab inside ProfileSettingsModal.
- * Currently: toggle to block group additions.
- */
-
-import { useState } from 'react';
-import { type User } from '../../types';
-import { Toggle } from '../ui/Toggle';
-import { updateMe } from '../../api/users';
-=======
  * PrivacyTab — Конфиденциальность
  * ✅ Added: hide_avatar toggle with exceptions picker.
  */
@@ -19,7 +7,6 @@ import { type User } from '../../types';
 import { Toggle } from '../ui/Toggle';
 import { Avatar } from '../ui/Avatar';
 import { updateMe, searchUsers, getUserById } from '../../api/users';
->>>>>>> devDK
 
 interface Props {
   me: User;
@@ -27,11 +14,6 @@ interface Props {
 }
 
 export function PrivacyTab({ me, onUpdate }: Props) {
-<<<<<<< HEAD
-  const [noGroupAdd, setNoGroupAdd] = useState(me.no_group_add ?? false);
-  const [busy, setBusy] = useState(false);
-  const [ok, setOk] = useState(false);
-=======
   // ── Group add privacy ──────────────────────────────────────────────────────
   const [noGroupAdd, setNoGroupAdd] = useState(me.no_group_add ?? false);
 
@@ -81,20 +63,15 @@ export function PrivacyTab({ me, onUpdate }: Props) {
   // ── Save ───────────────────────────────────────────────────────────────────
   const [busy, setBusy] = useState(false);
   const [ok,   setOk]   = useState(false);
->>>>>>> devDK
 
   async function onSave() {
     setBusy(true); setOk(false);
     try {
-<<<<<<< HEAD
-      const next = await updateMe({ no_group_add: noGroupAdd });
-=======
       const next = await updateMe({
         no_group_add:      noGroupAdd,
         hide_avatar:       hideAvatar,
         avatar_exceptions: JSON.stringify(exceptions.map(e => e.id)),
       });
->>>>>>> devDK
       onUpdate(next);
       setOk(true);
       setTimeout(() => setOk(false), 2500);
@@ -104,18 +81,11 @@ export function PrivacyTab({ me, onUpdate }: Props) {
 
   return (
     <div className="psBody">
-<<<<<<< HEAD
-      <div className="psPrivacySection">
-        <div className="psPrivacyTitle">Группы</div>
-        <div className="psPrivacyDesc">Управляйте тем, кто может добавлять вас в групповые чаты.</div>
-
-=======
 
       {/* ── Groups section ── */}
       <div className="psPrivacySection">
         <div className="psPrivacyTitle">Группы</div>
         <div className="psPrivacyDesc">Управляйте тем, кто может добавлять вас в групповые чаты.</div>
->>>>>>> devDK
         <label className="psPrivacyRow">
           <div className="psPrivacyRowText">
             <div className="psPrivacyRowLabel">Запретить добавление в группы</div>
@@ -125,8 +95,6 @@ export function PrivacyTab({ me, onUpdate }: Props) {
         </label>
       </div>
 
-<<<<<<< HEAD
-=======
       {/* ── Avatar privacy section ── */}
       <div className="psPrivacySection">
         <div className="psPrivacyTitle">Фото профиля</div>
@@ -224,7 +192,6 @@ export function PrivacyTab({ me, onUpdate }: Props) {
         )}
       </div>
 
->>>>>>> devDK
       {ok && <div className="psOk">✓ Настройки сохранены</div>}
       <button className="psSaveBtn" onClick={onSave} disabled={busy}>
         {busy ? '…' : 'Сохранить'}

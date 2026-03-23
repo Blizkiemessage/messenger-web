@@ -1,8 +1,3 @@
-<<<<<<< HEAD
-import { useEffect, useState } from 'react';
-import { type User } from '../../types';
-import { avatarLetter, formatBirthDate } from '../../utils/format';
-=======
 /**
  * UserProfileModal — redesigned to match the sidebar popup aesthetic.
  */
@@ -10,7 +5,6 @@ import { useEffect, useState } from 'react';
 import { type User } from '../../types';
 import { avatarLetter, formatBirthDate } from '../../utils/format';
 import { resolveUrl } from '../ui/Avatar';
->>>>>>> devDK
 import { getUserById } from '../../api/users';
 
 interface Props {
@@ -20,11 +14,7 @@ interface Props {
 }
 
 export function UserProfileModal({ userId, onClose, onStartChat }: Props) {
-<<<<<<< HEAD
-  const [user, setUser] = useState<User | null>(null);
-=======
   const [user,    setUser]    = useState<User | null>(null);
->>>>>>> devDK
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -37,48 +27,6 @@ export function UserProfileModal({ userId, onClose, onStartChat }: Props) {
 
   return (
     <div className="modalOverlay" onClick={e => e.target === e.currentTarget && onClose()}>
-<<<<<<< HEAD
-      <div className="profileViewCard">
-        <button className="pvCloseBtn" onClick={onClose}>
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-            <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
-          </svg>
-        </button>
-        {loading ? (
-          <div className="pvLoading">Загрузка…</div>
-        ) : !user ? (
-          <div className="pvLoading">Пользователь не найден</div>
-        ) : (
-          <>
-            <div className="pvHeader">
-              <div className="pvAvatarWrap">
-                {user.avatar_url
-                  ? <img src={user.avatar_url} alt="" className="pvAvatarImg" />
-                  : <div className="pvAvatarFallback">{avatarLetter(user.display_name || user.username || '')}</div>
-                }
-              </div>
-              <div className="pvName">{user.display_name || user.username}</div>
-              {user.username && <div className="pvUsername">@{user.username}</div>}
-            </div>
-            <div className="pvBody">
-              {user.bio && (
-                <div className="pvField">
-                  <div className="pvFieldLabel">О себе</div>
-                  <div className="pvFieldValue">{user.bio}</div>
-                </div>
-              )}
-              {user.birth_date && (
-                <div className="pvField">
-                  <div className="pvFieldLabel">Дата рождения</div>
-                  <div className="pvFieldValue">{formatBirthDate(user.birth_date)}</div>
-                </div>
-              )}
-              {!user.bio && !user.birth_date && <div className="pvEmpty">Профиль пуст</div>}
-            </div>
-            {onStartChat && (
-              <div className="pvFooter">
-                <button className="pvChatBtn" onClick={() => { onStartChat(user); onClose(); }}>
-=======
       <div className="upCard">
         {/* Close */}
         <button className="upCloseBtn" onClick={onClose}>
@@ -146,7 +94,6 @@ export function UserProfileModal({ userId, onClose, onStartChat }: Props) {
             {onStartChat && (
               <div className="upFooter">
                 <button className="upChatBtn" onClick={() => { onStartChat(user); onClose(); }}>
->>>>>>> devDK
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
                     <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
                   </svg>
