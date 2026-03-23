@@ -102,6 +102,19 @@ export function ChatHeader({
           </div>
         </button>
 
+        {/* ✅ Pin button — always visible, shows badge when messages are pinned */}
+        <button
+          className={`chSearchToggle${pinnedOpen ? ' active' : ''}${pinnedCount === 0 ? ' chPinBtnEmpty' : ''}`}
+          onClick={onTogglePinned}
+          title={pinnedCount > 0 ? `Закреплённые (${pinnedCount})` : 'Нет закреплённых'}
+          style={{ position: 'relative' }}
+        >
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" stroke="none">
+            <path d="M16 3a1 1 0 0 0-1 1v1H9V4a1 1 0 0 0-2 0v1a3 3 0 0 0-3 3v1l2 2v4H4a1 1 0 0 0 0 2h7v3a1 1 0 0 0 2 0v-3h7a1 1 0 0 0 0-2h-2v-4l2-2V8a3 3 0 0 0-3-3V4a1 1 0 0 0-1-1z"/>
+          </svg>
+          {pinnedCount > 0 && <span className="chPinCount">{pinnedCount}</span>}
+        </button>
+
         <button
           className={`chSearchToggle${searchOpen ? ' active' : ''}`}
           onClick={onToggleSearch}

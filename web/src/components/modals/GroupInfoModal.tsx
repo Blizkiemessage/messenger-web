@@ -13,6 +13,7 @@ import { avatarLetter } from '../../utils/format';
 import { Avatar } from '../ui/Avatar';
 import { ContextMenu } from '../ui/ContextMenu';
 import { AddGroupMembersModal } from './AddGroupMembersModal';
+import { Portal } from '../ui/Portal';
 import { useRef } from 'react';
 import client from '../../api/client';
 
@@ -371,6 +372,7 @@ export function GroupInfoModal({
       )}
 
       {/* ─── Remove member confirmation ──────────────────────────────── */}
+      <Portal>
       {removeConfirm && (
         <div className="giConfirmOverlay" onClick={e => e.target === e.currentTarget && !removeBusy && setRemoveConfirm(null)}>
           <div className="confirmCard">
@@ -393,8 +395,10 @@ export function GroupInfoModal({
           </div>
         </div>
       )}
+      </Portal>
 
       {/* ─── Make admin confirmation (from right-click) ──────────────── */}
+      <Portal>
       {makeAdminTarget && (
         <div className="giConfirmOverlay" onClick={e => e.target === e.currentTarget && !makeAdminBusy && setMakeAdminTarget(null)}>
           <div className="confirmCard">
@@ -416,8 +420,10 @@ export function GroupInfoModal({
           </div>
         </div>
       )}
+      </Portal>
 
       {/* ─── Delete group dialog ─────────────────────────────────────── */}
+      <Portal>
       {showDeleteDialog && (
         <div className="giConfirmOverlay" onClick={e => e.target === e.currentTarget && setShowDeleteDialog(false)}>
           <div className="giDeleteDialog">
@@ -481,8 +487,10 @@ export function GroupInfoModal({
           </div>
         </div>
       )}
+      </Portal>
 
       {/* ─── Close group confirmation ─────────────────────────────────── */}
+      <Portal>
       {showCloseConfirm && (
         <div className="giConfirmOverlay" onClick={e => e.target === e.currentTarget && !closeBusy && setShowCloseConfirm(false)}>
           <div className="confirmCard">
@@ -505,8 +513,10 @@ export function GroupInfoModal({
           </div>
         </div>
       )}
+      </Portal>
 
       {/* ─── Transfer admin modal ─────────────────────────────────────── */}
+      <Portal>
       {showTransferModal && (
         <div className="giConfirmOverlay" onClick={e => e.target === e.currentTarget && !transferBusy && setShowTransferModal(false)}>
           <div className="giTransferModal">
@@ -541,6 +551,7 @@ export function GroupInfoModal({
                         </svg>
                       </div>
                     )}
+      </Portal>
                   </button>
                 ))
               )}
