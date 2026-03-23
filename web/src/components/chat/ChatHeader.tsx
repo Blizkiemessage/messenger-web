@@ -1,7 +1,3 @@
-<<<<<<< HEAD
-import { type Chat } from '../../types';
-import { chatTitle, chatSubtitle, avatarLetter } from '../../utils/format';
-=======
 /**
  * ChatHeader — with message search panel.
  * ✅ Fixed: uses Avatar component to show real photos instead of just letters.
@@ -9,7 +5,6 @@ import { chatTitle, chatSubtitle, avatarLetter } from '../../utils/format';
 import { type Chat } from '../../types';
 import { chatTitle, chatSubtitle, avatarLetter } from '../../utils/format';
 import { Avatar, resolveUrl } from '../ui/Avatar';
->>>>>>> devDK
 
 interface Props {
   chat: Chat;
@@ -20,8 +15,6 @@ interface Props {
   onDeleteSelected: () => void;
   onOpenInfo: () => void;
   onViewUser: (id: string) => void;
-<<<<<<< HEAD
-=======
   searchOpen: boolean;
   searchQuery: string;
   searchTotal: number;
@@ -38,17 +31,11 @@ interface Props {
   onSearchNext: () => void;
   onSearchPrev: () => void;
   onSearchClose: () => void;
->>>>>>> devDK
 }
 
 export function ChatHeader({
   chat, meId, hasSelection, selectedCount,
   onCancelSelection, onDeleteSelected, onOpenInfo, onViewUser,
-<<<<<<< HEAD
-}: Props) {
-  const isGroup = chat.type === 'group';
-
-=======
   searchOpen, searchQuery, searchTotal, searchCurrent,
   onToggleSearch, onSearchChange, onSearchNext, onSearchPrev, onSearchClose,
   pinnedCount, pinnedOpen, pinnedIndex, onTogglePinned, onPinnedNext, onPinnedPrev,
@@ -64,7 +51,6 @@ export function ChatHeader({
     ? { id: chat.id, display_name: chat.name, avatar_url: chat.avatar_url ?? null }
     : partner ?? null;
 
->>>>>>> devDK
   if (hasSelection) {
     return (
       <div className="chatHeader">
@@ -91,28 +77,6 @@ export function ChatHeader({
   }
 
   return (
-<<<<<<< HEAD
-    <div className="chatHeader">
-      <button
-        className="chHeaderBtn"
-        onClick={() => {
-          if (isGroup) {
-            onOpenInfo();
-          } else {
-            const other = chat.members.find(m => m.id !== meId);
-            if (other) onViewUser(other.id);
-          }
-        }}
-      >
-        <div className={`chAvatar${isGroup ? ' group' : ''}`}>
-          {avatarLetter(chatTitle(chat, meId))}
-        </div>
-        <div>
-          <div className="chName">{chatTitle(chat, meId)}</div>
-          <div className="chSub">{chatSubtitle(chat, meId)}</div>
-        </div>
-      </button>
-=======
     <div className={`chatHeaderWrap${searchOpen ? ' searchOpen' : ''}`}>
       <div className="chatHeader">
         <button
@@ -239,7 +203,6 @@ export function ChatHeader({
           </div>
         </div>
       )}
->>>>>>> devDK
     </div>
   );
 }

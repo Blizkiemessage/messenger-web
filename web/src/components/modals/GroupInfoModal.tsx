@@ -1,10 +1,4 @@
 /**
-<<<<<<< HEAD
- * GroupInfoModal
- *
- * Group info panel: header + member list + edit (creator only).
- * Uses ContextMenu for member right-click and AddGroupMembersModal for adding.
-=======
  * GroupInfoModal — redesigned to match UserProfileModal style.
  *
  * ✅ New features:
@@ -12,7 +6,6 @@
  *   - Right-click on member → "Удалить участника" + "Сделать администратором"
  *   - Transfer admin modal with member picker
  *   - Close group confirmation dialog
->>>>>>> devDK
  */
 import { useState, useEffect } from 'react';
 import { type Chat, type User } from '../../types';
@@ -20,15 +13,12 @@ import { avatarLetter } from '../../utils/format';
 import { Avatar } from '../ui/Avatar';
 import { ContextMenu } from '../ui/ContextMenu';
 import { AddGroupMembersModal } from './AddGroupMembersModal';
-<<<<<<< HEAD
-=======
 import { Portal } from '../ui/Portal';
 import { useRef } from 'react';
 import client from '../../api/client';
 
 const DESC_MAX = 150;
 const DESC_PREVIEW_CHARS = 120;
->>>>>>> devDK
 
 interface Props {
   chat: Chat;
@@ -37,25 +27,6 @@ interface Props {
   meId: string;
   onUpdateChat: (name: string, description: string) => Promise<void>;
   onRemoveMember: (userId: string) => Promise<void>;
-<<<<<<< HEAD
-}
-
-export function GroupInfoModal({ chat, onClose, onViewUser, meId, onUpdateChat, onRemoveMember }: Props) {
-  const isCreator = chat.creator_id === meId;
-
-  const [editing, setEditing] = useState(false);
-  const [editName, setEditName] = useState(chat.name || '');
-  const [editDesc, setEditDesc] = useState(chat.description || '');
-  const [editBusy, setEditBusy] = useState(false);
-  const [editError, setEditError] = useState<string | null>(null);
-
-  const [showAddMembers, setShowAddMembers] = useState(false);
-  const [memberCtx, setMemberCtx] = useState<{ x: number; y: number; user: User } | null>(null);
-  const [removeConfirm, setRemoveConfirm] = useState<User | null>(null);
-  const [removeBusy, setRemoveBusy] = useState(false);
-
-  // Sync edit fields when chat data changes via socket
-=======
   onCloseGroup: () => Promise<void>;
   onTransferAdmin: (userId: string) => Promise<void>;
   onUpdateAvatar: (url: string) => Promise<void>;
@@ -104,15 +75,10 @@ export function GroupInfoModal({
   const [makeAdminTarget,  setMakeAdminTarget]  = useState<User | null>(null);
   const [makeAdminBusy,    setMakeAdminBusy]    = useState(false);
 
->>>>>>> devDK
   useEffect(() => {
     if (!editing) { setEditName(chat.name || ''); setEditDesc(chat.description || ''); }
   }, [chat.name, chat.description, editing]);
 
-<<<<<<< HEAD
-  // Auto-close remove confirm if user was already removed
-=======
->>>>>>> devDK
   useEffect(() => {
     if (removeConfirm && !chat.members.some(m => m.id === removeConfirm.id)) {
       setRemoveConfirm(null); setRemoveBusy(false);
@@ -127,8 +93,6 @@ export function GroupInfoModal({
     finally { setEditBusy(false); }
   }
 
-<<<<<<< HEAD
-=======
   async function handleAvatarChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file || avatarUploading) return;
@@ -145,7 +109,6 @@ export function GroupInfoModal({
     finally { setAvatarUploading(false); }
   }
 
->>>>>>> devDK
   async function handleRemoveConfirm() {
     if (!removeConfirm) return;
     setRemoveBusy(true);
@@ -154,14 +117,6 @@ export function GroupInfoModal({
     finally { setRemoveBusy(false); }
   }
 
-<<<<<<< HEAD
-  return (
-    <div className="modalOverlay" onClick={e => e.target === e.currentTarget && !removeConfirm && onClose()}>
-      <div className="groupInfoCard">
-        {/* Close */}
-        <button className="pvCloseBtn" onClick={onClose}>
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-=======
   async function handleCloseGroup() {
     setCloseBusy(true);
     try {
@@ -215,22 +170,11 @@ export function GroupInfoModal({
         {/* Close */}
         <button className="upCloseBtn" onClick={onClose}>
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
->>>>>>> devDK
             <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
           </svg>
         </button>
 
         {/* Header */}
-<<<<<<< HEAD
-        <div className="giHeader">
-          <div className="giAvatarFallback">{avatarLetter(chat.name || 'Г')}</div>
-          {editing ? (
-            <div className="giEditForm">
-              <input className="giEditInput" value={editName} onChange={e => setEditName(e.target.value)}
-                placeholder="Название группы" maxLength={64} autoFocus />
-              <textarea className="giEditTextarea" value={editDesc} onChange={e => setEditDesc(e.target.value)}
-                placeholder="Описание группы (необязательно)" rows={2} maxLength={256} />
-=======
         <div className="upHeader">
           <div className="upAvatarRing">
             <div className="upAvatar" style={{ position: 'relative', cursor: isCreator ? 'pointer' : 'default' }}
@@ -274,7 +218,6 @@ export function GroupInfoModal({
                   {editDesc.length}/{DESC_MAX}
                 </span>
               </div>
->>>>>>> devDK
               {editError && <div className="giEditError">{editError}</div>}
               <div className="giEditBtns">
                 <button className="giEditCancelBtn" onClick={() => { setEditing(false); setEditError(null); }}>Отмена</button>
@@ -286,27 +229,16 @@ export function GroupInfoModal({
           ) : (
             <>
               <div className="giNameRow">
-<<<<<<< HEAD
-                <div className="giName">{chat.name || 'Группа'}</div>
-                {isCreator && (
-                  <button className="giEditBtn" onClick={() => setEditing(true)} title="Редактировать">
-                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-=======
                 <div className="upName">{chat.name || 'Группа'}</div>
                 {isCreator && !isGroupClosed && (
                   <button className="giEditBtn" onClick={() => setEditing(true)} title="Редактировать">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
->>>>>>> devDK
                       <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
                       <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
                     </svg>
                   </button>
                 )}
               </div>
-<<<<<<< HEAD
-              <div className="giMeta">{chat.members.length} участников</div>
-              {chat.description && <div className="giDesc">{chat.description}</div>}
-=======
               <div className="upUsername">
                 {chat.members.length} участников
                 {isGroupClosed && (
@@ -318,56 +250,10 @@ export function GroupInfoModal({
                   </span>
                 )}
               </div>
->>>>>>> devDK
             </>
           )}
         </div>
 
-<<<<<<< HEAD
-        {/* Members section */}
-        <div className="giMemberLabel">Участники</div>
-        {isCreator && (
-          <button className="giAddMembersBtn" onClick={() => setShowAddMembers(true)}>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-              <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/>
-              <circle cx="9" cy="7" r="4"/>
-              <line x1="19" y1="8" x2="19" y2="14"/><line x1="22" y1="11" x2="16" y2="11"/>
-            </svg>
-            Добавить участников
-          </button>
-        )}
-
-        <div className="giMemberList">
-          {chat.members.map(m => (
-            <button key={m.id} className="giMemberItem"
-              onClick={() => { onViewUser(m.id); onClose(); }}
-              onContextMenu={e => {
-                if (!isCreator || m.id === meId || m.id === chat.creator_id) return;
-                e.preventDefault();
-                setMemberCtx({ x: e.clientX, y: e.clientY, user: m });
-              }}>
-              <Avatar user={m} size={38} radius={12} />
-              <div className="giMemberInfo">
-                <div className="giMemberName">{m.display_name || m.username}</div>
-                {m.username && <div className="giMemberSub">@{m.username}</div>}
-              </div>
-              <div className="giBadges">
-                {m.id === meId && <span className="giYouBadge">Вы</span>}
-                {m.id === chat.creator_id && <span className="giAdminBadge">Создатель</span>}
-              </div>
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Member context menu */}
-      {memberCtx && (
-        <ContextMenu x={memberCtx.x} y={memberCtx.y} onClose={() => setMemberCtx(null)} zIndex={10100}>
-          <button className="ctxItem ctxItemDanger" onClick={() => {
-            setMemberCtx(null);
-            setRemoveConfirm(memberCtx.user);
-          }}>
-=======
         {/* Description */}
         {!editing && desc && (
           <div className="upInfoSection">
@@ -480,30 +366,18 @@ export function GroupInfoModal({
             className="ctxItem ctxItemDanger"
             onClick={() => { setMemberCtx(null); setRemoveConfirm(memberCtx.user); }}
           >
->>>>>>> devDK
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
               <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/>
               <circle cx="9" cy="7" r="4"/><line x1="22" y1="11" x2="16" y2="11"/>
             </svg>
-<<<<<<< HEAD
-            Удалить {memberCtx.user.display_name || memberCtx.user.username}
-=======
             Удалить участника
->>>>>>> devDK
           </button>
         </ContextMenu>
       )}
 
-<<<<<<< HEAD
-      {/* Remove member confirmation */}
-      {removeConfirm && (
-        <div className="giConfirmOverlay"
-          onClick={e => e.target === e.currentTarget && !removeBusy && setRemoveConfirm(null)}>
-=======
       {/* ─── Remove member confirmation ──────────────────────────────── */}
       {removeConfirm && (
         <div className="giConfirmOverlay" onClick={e => e.target === e.currentTarget && !removeBusy && setRemoveConfirm(null)}>
->>>>>>> devDK
           <div className="confirmCard">
             <div className="confirmIcon">
               <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
@@ -514,10 +388,6 @@ export function GroupInfoModal({
             <div className="confirmTitle">Удалить участника?</div>
             <div className="confirmText">
               {removeConfirm.display_name || removeConfirm.username} будет удалён(а) из группы.
-<<<<<<< HEAD
-              Остальные участники увидят уведомление.
-=======
->>>>>>> devDK
             </div>
             <div className="confirmBtns">
               <button className="confirmCancel" onClick={() => setRemoveConfirm(null)} disabled={removeBusy}>Отмена</button>
@@ -529,13 +399,6 @@ export function GroupInfoModal({
         </div>
       )}
 
-<<<<<<< HEAD
-      {/* Add members modal */}
-      {showAddMembers && (
-        <AddGroupMembersModal chat={chat} meId={meId} onClose={() => setShowAddMembers(false)} />
-      )}
-    </div>
-=======
       {/* ─── Make admin confirmation (from right-click) ──────────────── */}
       {makeAdminTarget && (
         <div className="giConfirmOverlay" onClick={e => e.target === e.currentTarget && !makeAdminBusy && setMakeAdminTarget(null)}>
@@ -715,6 +578,5 @@ export function GroupInfoModal({
       )}
       </Portal>
     </>
->>>>>>> devDK
   );
 }

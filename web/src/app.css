@@ -15,10 +15,7 @@
   --success-dim: rgba(63,185,80,0.12);
   --radius: 12px;
   --shadow: 0 4px 24px rgba(0,0,0,0.4);
-<<<<<<< HEAD
-=======
   --card: #1c2333;
->>>>>>> devDK
   color-scheme: dark;
 }
 :root[data-theme="light"] {
@@ -36,10 +33,7 @@
   --success: #16a34a;
   --success-dim: rgba(22,163,74,0.1);
   --shadow: 0 4px 24px rgba(0,0,0,0.12);
-<<<<<<< HEAD
-=======
   --card: #ffffff;
->>>>>>> devDK
   color-scheme: light;
 }
 
@@ -186,8 +180,6 @@ input { font: inherit; color: inherit; background: transparent; }
 }
 .authBtn:hover:not(:disabled) { opacity: .9; transform: translateY(-1px); }
 .authBtn:disabled { opacity: .45; cursor: not-allowed; }
-<<<<<<< HEAD
-=======
 .authSwitchRow {
   text-align: center;
   font-size: 13px;
@@ -218,7 +210,6 @@ input { font: inherit; color: inherit; background: transparent; }
   margin-top: -8px;
   padding: 0 2px;
 }
->>>>>>> devDK
 
 /* ── Layout ────────────────────────────────────────────────────────── */
 .layout {
@@ -357,10 +348,6 @@ input { font: inherit; color: inherit; background: transparent; }
   text-align: left;
   transition: background .1s;
   min-width: 0;
-<<<<<<< HEAD
-}
-.meBtn:hover { background: var(--panel); }
-=======
   width: 100%;
 }
 .meBtn:hover { background: var(--panel); }
@@ -371,7 +358,6 @@ input { font: inherit; color: inherit; background: transparent; }
   transition: transform .2s;
 }
 .meChevronUp { transform: rotate(180deg); }
->>>>>>> devDK
 .meAvatar {
   width: 36px; height: 36px;
   border-radius: 11px;
@@ -398,38 +384,6 @@ input { font: inherit; color: inherit; background: transparent; }
 /* Profile panel */
 .profilePanel {
   position: absolute;
-<<<<<<< HEAD
-  bottom: 100%;
-  left: 0; right: 0;
-  background: var(--sidebar);
-  border-top: 1px solid var(--border);
-  padding: 16px;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  box-shadow: var(--shadow);
-  max-height: 70vh;
-  overflow-y: auto;
-}
-.ppSection {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-.ppTitle {
-  font-size: 11px;
-  font-weight: 700;
-  color: var(--muted);
-  text-transform: uppercase;
-  letter-spacing: .05em;
-  padding-top: 4px;
-}
-.ppDivider {
-  border: none;
-  border-top: 1px solid var(--border);
-  margin: 2px 0;
-}
-=======
   bottom: calc(100% + 6px);
   left: 8px; right: 8px;
   background: var(--sidebar);
@@ -505,7 +459,6 @@ input { font: inherit; color: inherit; background: transparent; }
 /* ppSection kept for legacy compat */
 .ppSection { display: flex; flex-direction: column; gap: 8px; }
 .ppDivider { border: none; border-top: 1px solid var(--border); margin: 2px 0; }
->>>>>>> devDK
 .ppInput {
   width: 100%;
   background: var(--panel);
@@ -735,21 +688,13 @@ input { font: inherit; color: inherit; background: transparent; }
 .modalOverlay {
   position: fixed;
   inset: 0;
-<<<<<<< HEAD
-  background: rgba(0,0,0,.55);
-=======
   /* ✅ No backdrop-filter — it creates a stacking context that traps
      position:fixed children (giConfirmOverlay), making their bg transparent. */
   background: rgba(0,0,0,.62);
->>>>>>> devDK
   display: grid;
   place-items: center;
   z-index: 100;
   padding: 16px;
-<<<<<<< HEAD
-  backdrop-filter: blur(4px);
-=======
->>>>>>> devDK
   animation: fadeIn .15s ease;
 }
 @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
@@ -1138,42 +1083,17 @@ input { font: inherit; color: inherit; background: transparent; }
 .confirmDelete:hover { opacity: .85; }
 .confirmDelete:disabled { opacity: .5; cursor: not-allowed; }
 
-<<<<<<< HEAD
-/* ── Profile panel (sidebar bottom) ────────────────────────────────── */
-.ppTopRow {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin-bottom: 12px;
-}
-=======
 /* ── Profile panel (sidebar bottom) — new design ────────────────────── */
 .ppTopRow { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
->>>>>>> devDK
 .ppInfo { flex: 1; min-width: 0; }
 .ppName { font-size: 15px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .ppSub { font-size: 12px; color: var(--muted); margin-top: 2px; }
 .ppSettingsBtn {
-<<<<<<< HEAD
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  width: 100%;
-  padding: 10px 12px;
-  border-radius: 10px;
-  background: var(--accent-dim);
-  color: var(--accent);
-  font-size: 13.5px;
-  font-weight: 600;
-  border: 1px solid var(--accent-border);
-  transition: background .15s;
-=======
   display: flex; align-items: center; gap: 8px; width: 100%;
   padding: 10px 12px; border-radius: 10px;
   background: var(--accent-dim); color: var(--accent);
   font-size: 13.5px; font-weight: 600;
   border: 1px solid var(--accent-border); transition: background .15s;
->>>>>>> devDK
 }
 .ppSettingsBtn:hover { background: rgba(47,129,247,.25); }
 
@@ -1227,96 +1147,14 @@ input { font: inherit; color: inherit; background: transparent; }
 .bubbleSenderName:hover { opacity: .75; }
 
 /* ── UserProfileModal (profile view card) ───────────────────────────── */
-<<<<<<< HEAD
-.profileViewCard {
-  position: relative;
-  width: min(380px, 100%);
-=======
 /* ── UserProfileModal (upCard) ───────────────────────────────────────── */
 .upCard {
   position: relative;
   width: min(360px, 100%);
->>>>>>> devDK
   background: var(--sidebar);
   border: 1px solid var(--border);
   border-radius: 20px;
   overflow: hidden;
-<<<<<<< HEAD
-  box-shadow: var(--shadow);
-  animation: slideUp .2s ease;
-}
-.pvCloseBtn {
-  position: absolute;
-  top: 14px;
-  right: 14px;
-  width: 32px;
-  height: 32px;
-  border-radius: 10px;
-  background: var(--panel);
-  color: var(--muted);
-  display: grid;
-  place-items: center;
-  z-index: 2;
-  transition: background .15s, color .15s;
-}
-.pvCloseBtn:hover { background: var(--border); color: var(--text); }
-.pvLoading { padding: 48px; text-align: center; color: var(--muted); font-size: 14px; }
-.pvHeader {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 8px;
-  padding: 36px 24px 20px;
-  background: linear-gradient(180deg, var(--accent-dim) 0%, transparent 100%);
-  border-bottom: 1px solid var(--border);
-}
-.pvAvatarWrap {
-  width: 80px;
-  height: 80px;
-  border-radius: 24px;
-  overflow: hidden;
-  box-shadow: 0 4px 16px rgba(0,0,0,.25);
-}
-.pvAvatarImg { width: 100%; height: 100%; object-fit: cover; display: block; }
-.pvAvatarFallback {
-  width: 100%;
-  height: 100%;
-  background: var(--accent-dim);
-  color: var(--accent);
-  display: grid;
-  place-items: center;
-  font-size: 32px;
-  font-weight: 800;
-}
-.pvName { font-size: 18px; font-weight: 700; text-align: center; }
-.pvUsername { font-size: 13px; color: var(--muted); }
-.pvBody { padding: 16px 24px; display: flex; flex-direction: column; gap: 12px; }
-.pvField {
-  background: var(--panel);
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  padding: 10px 14px;
-}
-.pvFieldLabel { font-size: 11px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; margin-bottom: 3px; }
-.pvFieldValue { font-size: 14px; line-height: 1.5; }
-.pvEmpty { text-align: center; color: var(--muted); font-size: 13px; padding: 8px 0; }
-.pvFooter { padding: 0 24px 20px; }
-.pvChatBtn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  width: 100%;
-  padding: 11px;
-  border-radius: 12px;
-  background: var(--accent);
-  color: #fff;
-  font-size: 14px;
-  font-weight: 600;
-  transition: opacity .15s;
-}
-.pvChatBtn:hover { opacity: .88; }
-=======
   box-shadow: 0 8px 32px rgba(0,0,0,.35);
   animation: slideUp .2s ease;
 }
@@ -1389,28 +1227,16 @@ input { font: inherit; color: inherit; background: transparent; }
   transition: opacity .15s;
 }
 .upChatBtn:hover { opacity: .88; }
->>>>>>> devDK
 
 /* ── GroupInfoModal ──────────────────────────────────────────────────── */
 .groupInfoCard {
   position: relative;
   width: min(420px, 100%);
-<<<<<<< HEAD
-  max-height: 80vh;
-=======
   max-height: 85vh;
->>>>>>> devDK
   background: var(--sidebar);
   border: 1px solid var(--border);
   border-radius: 20px;
   overflow-y: auto;
-<<<<<<< HEAD
-  box-shadow: var(--shadow);
-  animation: slideUp .2s ease;
-}
-.groupInfoCard::-webkit-scrollbar { width: 4px; }
-.groupInfoCard::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
-=======
   scroll-behavior: smooth;
   box-shadow: var(--shadow);
   animation: slideUp .2s ease;
@@ -1423,29 +1249,11 @@ input { font: inherit; color: inherit; background: transparent; }
   transition: background .2s;
 }
 .groupInfoCard::-webkit-scrollbar-thumb:hover { background: var(--muted); }
->>>>>>> devDK
 .giHeader {
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 6px;
-<<<<<<< HEAD
-  padding: 36px 24px 16px;
-  background: linear-gradient(180deg, var(--accent-dim) 0%, transparent 100%);
-  border-bottom: 1px solid var(--border);
-}
-.giAvatarFallback {
-  width: 72px;
-  height: 72px;
-  border-radius: 22px;
-  background: var(--accent-dim);
-  border: 2px solid var(--accent-border);
-  color: var(--accent);
-  display: grid;
-  place-items: center;
-  font-size: 28px;
-  font-weight: 800;
-=======
   padding: 32px 24px 18px;
   border-bottom: 1px solid var(--border);
 }
@@ -1457,7 +1265,6 @@ input { font: inherit; color: inherit; background: transparent; }
   font-size: 28px; font-weight: 800;
   border: 2px solid var(--accent-border);
   box-shadow: 0 4px 16px rgba(0,0,0,.15);
->>>>>>> devDK
 }
 .giName { font-size: 18px; font-weight: 700; }
 .giMeta { font-size: 13px; color: var(--muted); }
@@ -1499,23 +1306,16 @@ input { font: inherit; color: inherit; background: transparent; }
   transition: border-color .15s;
 }
 .giEditInput:focus { border-color: var(--accent); }
-<<<<<<< HEAD
-=======
 .giEditTextareaWrap {
   position: relative;
   width: 100%;
 }
->>>>>>> devDK
 .giEditTextarea {
   width: 100%;
   background: var(--panel);
   border: 1.5px solid var(--border);
   border-radius: 10px;
-<<<<<<< HEAD
-  padding: 8px 12px;
-=======
   padding: 8px 12px 24px;
->>>>>>> devDK
   font-size: 13px;
   color: var(--text);
   outline: none;
@@ -1571,18 +1371,6 @@ input { font: inherit; color: inherit; background: transparent; }
 }
 .giAddMembersBtn:hover { opacity: .85; background: var(--accent-dim); }
 
-<<<<<<< HEAD
-.giDesc {
-  margin: 12px 20px 0;
-  padding: 10px 14px;
-  background: var(--panel);
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  font-size: 13.5px;
-  color: var(--text);
-  line-height: 1.5;
-}
-=======
 .giDescSection {
   margin: 0 12px 4px;
   padding: 10px 14px;
@@ -1622,7 +1410,6 @@ input { font: inherit; color: inherit; background: transparent; }
   transition: opacity .15s;
 }
 .giDescToggle:hover { opacity: .75; }
->>>>>>> devDK
 .giMemberLabel {
   font-size: 11px;
   font-weight: 700;
@@ -1658,19 +1445,12 @@ input { font: inherit; color: inherit; background: transparent; }
 .giConfirmOverlay {
   position: fixed;
   inset: 0;
-<<<<<<< HEAD
-  background: rgba(0,0,0,.55);
-  display: grid;
-  place-items: center;
-  z-index: 10150;
-=======
   background: rgba(0,0,0,.68);
   backdrop-filter: blur(6px);
   -webkit-backdrop-filter: blur(6px);
   display: grid;
   place-items: center;
   z-index: 10500;
->>>>>>> devDK
   animation: fadeIn .15s ease;
 }
 
@@ -1697,25 +1477,16 @@ input { font: inherit; color: inherit; background: transparent; }
 .psTitle { font-size: 18px; font-weight: 700; }
 .psTabs {
   display: flex;
-<<<<<<< HEAD
-=======
   flex-wrap: wrap;
->>>>>>> devDK
   gap: 4px;
   padding: 14px 24px 0;
   border-bottom: 1px solid var(--border);
   flex-shrink: 0;
 }
 .psTab {
-<<<<<<< HEAD
-  padding: 8px 16px;
-  border-radius: 10px 10px 0 0;
-  font-size: 13.5px;
-=======
   padding: 8px 12px;
   border-radius: 10px 10px 0 0;
   font-size: 13px;
->>>>>>> devDK
   font-weight: 600;
   color: var(--muted);
   transition: color .15s, background .15s;
@@ -2045,8 +1816,6 @@ input[type="date"].psInput::-webkit-calendar-picker-indicator {
 }
 .psDeleteConfirmBtn:hover:not(:disabled) { opacity: .85; }
 .psDeleteConfirmBtn:disabled { opacity: .5; }
-<<<<<<< HEAD
-=======
 
 /* ── Char counters (bio / group description) ─────────────────────────── */
 .giCharCounter,
@@ -3597,4 +3366,3 @@ input[type="date"].psInput::-webkit-calendar-picker-indicator {
   flex-shrink: 0;
 }
 .psExceptionTagRemove:hover { background: color-mix(in srgb, var(--accent) 45%, transparent); }
->>>>>>> devDK

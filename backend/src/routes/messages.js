@@ -13,11 +13,7 @@
 
 const express = require('express');
 const { authMiddleware } = require('../middleware/auth');
-<<<<<<< HEAD
-const { getChatMessages, saveMessage, toggleReaction, deleteMessages } = require('../services/messageService');
-=======
 const { getChatMessages, saveMessage, toggleReaction, deleteMessages, pinMessage, unpinMessage, getPinnedMessages } = require('../services/messageService');
->>>>>>> devDK
 const { getDb } = require('../config/database');
 
 const router = express.Router();
@@ -117,8 +113,6 @@ router.post('/:chatId/messages/:msgId/react', (req, res, next) => {
   } catch (err) { next(err); }
 });
 
-<<<<<<< HEAD
-=======
 // GET /chats/:chatId/messages/pinned
 router.get('/:chatId/messages/pinned', (req, res, next) => {
   try { res.json(getPinnedMessages(req.params.chatId, req.userId)); }
@@ -153,5 +147,4 @@ router.delete('/:chatId/messages/:msgId/pin', (req, res, next) => {
   } catch (err) { next(err); }
 });
 
->>>>>>> devDK
 module.exports = router;

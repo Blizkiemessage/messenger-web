@@ -1,10 +1,3 @@
-<<<<<<< HEAD
-import { type Message, type User } from '../../types';
-import { formatTime } from '../../utils/format';
-import { Avatar } from '../ui/Avatar';
-import { MsgStatus } from '../ui/icons/MsgStatus';
-
-=======
 /**
  * MessageBubble.tsx
  * ✅ FIXED: resolveUrl applied to attachment URLs so /uploads/ paths resolve
@@ -202,7 +195,6 @@ function HighlightText({ text, term }: { text: string; term: string }) {
 }
 
 // ── Props ─────────────────────────────────────────────────────────────────────
->>>>>>> devDK
 interface Props {
   message: Message;
   isOwn: boolean;
@@ -213,25 +205,13 @@ interface Props {
   showAvatar: boolean;
   showName: boolean;
   hasSelection: boolean;
-<<<<<<< HEAD
-=======
   highlight?: string;
   isSearchMatch?: boolean;
->>>>>>> devDK
   onContextMenu: () => void;
   onClick: (e: React.MouseEvent) => void;
   onViewUser: (id: string) => void;
 }
 
-<<<<<<< HEAD
-export function MessageBubble({
-  message: m, isOwn, isRead, isSelected, isGroup, sender,
-  showAvatar, showName, hasSelection, onContextMenu, onClick, onViewUser,
-}: Props) {
-  return (
-    <div
-      className={`msg ${isOwn ? 'out' : 'in'}${isSelected ? ' selected' : ''}${isGroup && !isOwn ? ' inGroup' : ''}`}
-=======
 // ── Component ─────────────────────────────────────────────────────────────────
 export function MessageBubble({
   message: m, isOwn, isRead, isSelected, isGroup, sender,
@@ -258,19 +238,14 @@ export function MessageBubble({
         isGroup && !isOwn ? 'inGroup' : '',
         isSearchMatch ? 'msgSearchFocus' : '',
       ].filter(Boolean).join(' ')}
->>>>>>> devDK
       onContextMenu={e => { if (!isOwn) return; e.preventDefault(); onContextMenu(); }}
       onClick={e => { if (!isOwn || !hasSelection) return; e.stopPropagation(); onClick(e); }}
     >
       {isGroup && !isOwn && (
         <div className="msgAvatarSlot">
           {showAvatar ? (
-<<<<<<< HEAD
-            <button className="msgSenderAvatarBtn" onClick={e => { e.stopPropagation(); onViewUser(m.sender_id); }}>
-=======
             <button className="msgSenderAvatarBtn"
                     onClick={e => { e.stopPropagation(); onViewUser(m.sender_id); }}>
->>>>>>> devDK
               <Avatar user={sender} size={32} radius={10} />
             </button>
           ) : (
@@ -278,9 +253,6 @@ export function MessageBubble({
           )}
         </div>
       )}
-<<<<<<< HEAD
-      <div className="bubble">
-=======
 
       <div className={`bubble${hasAttachment ? ' bubbleWithAttach' : ''}`}>
         {/* ✅ Pin indicator — thumbtack icon */}
@@ -291,7 +263,6 @@ export function MessageBubble({
             </svg>
           </div>
         )}
->>>>>>> devDK
         {isSelected && (
           <div className="msgCheckmark">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
@@ -299,17 +270,6 @@ export function MessageBubble({
             </svg>
           </div>
         )}
-<<<<<<< HEAD
-        {showName && (
-          <button
-            className="bubbleSenderName"
-            onClick={e => { e.stopPropagation(); onViewUser(m.sender_id); }}
-          >
-            {sender?.display_name || sender?.username || 'Пользователь'}
-          </button>
-        )}
-        <div className="bubbleText">{m.text}</div>
-=======
 
         {showName && (
           <button className="bubbleSenderName"
@@ -352,7 +312,6 @@ export function MessageBubble({
           </div>
         )}
 
->>>>>>> devDK
         <div className="bubbleMeta">
           <span className="bubbleTime">{formatTime(m.created_at)}</span>
           {isOwn && <MsgStatus isRead={isRead} />}

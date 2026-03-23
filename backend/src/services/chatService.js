@@ -9,13 +9,9 @@
  *   - markChatAsRead        — update last_read_at for a user in a chat
  *   - addChatMember         — add a user to a group (creator only)
  *   - removeChatMember      — kick a user from a group (creator only)
-<<<<<<< HEAD
- *   - leaveGroup            — user voluntarily leaves a group
-=======
  *   - leaveGroup            — user voluntarily leaves a group (admin → closes group)
  *   - closeGroup            — admin explicitly closes group (from GroupInfoModal)
  *   - transferAdmin         — transfer admin rights to another member
->>>>>>> devDK
  *   - deleteDirectChat      — delete a direct chat for both users
  *   - updateChatMetadata    — rename / re-describe a group (creator only)
  *   - deleteAccount         — full account teardown with notifications
@@ -39,11 +35,7 @@ function getChatById(chatId, userId) {
 
   const chat = db
     .prepare(
-<<<<<<< HEAD
-      'SELECT id, type, name, description, avatar_url, created_at, creator_id FROM chats WHERE id = ?'
-=======
       'SELECT id, type, name, description, avatar_url, created_at, creator_id, is_closed FROM chats WHERE id = ?'
->>>>>>> devDK
     )
     .get(chatId);
   if (!chat) return null;
@@ -55,20 +47,12 @@ function getChatById(chatId, userId) {
 
   const members = db
     .prepare(
-<<<<<<< HEAD
-      `SELECT u.id, u.username, u.display_name, u.avatar_url, u.last_seen_at
-=======
       `SELECT u.id, u.username, u.display_name, u.avatar_url, u.last_seen_at, u.hide_avatar, u.avatar_exceptions
->>>>>>> devDK
        FROM chat_members cm JOIN users u ON u.id = cm.user_id
        WHERE cm.chat_id = ?`
     )
     .all(chatId)
-<<<<<<< HEAD
-    .map(u => sanitizeUser(u));
-=======
     .map(u => sanitizeUser(u, { viewerId: userId }));
->>>>>>> devDK
 
   const lastMsg = db
     .prepare(
@@ -91,10 +75,7 @@ function getChatById(chatId, userId) {
 
   return {
     ...chat,
-<<<<<<< HEAD
-=======
     is_closed: chat.is_closed === 1,
->>>>>>> devDK
     members,
     last_message: lastMsg ? decryptMessage(lastMsg) : null,
     unread_count: 0,
@@ -109,11 +90,7 @@ function getUserChats(userId) {
 
   const chats = db
     .prepare(
-<<<<<<< HEAD
-      `SELECT c.id, c.type, c.name, c.description, c.avatar_url, c.created_at, c.creator_id
-=======
       `SELECT c.id, c.type, c.name, c.description, c.avatar_url, c.created_at, c.creator_id, c.is_closed
->>>>>>> devDK
        FROM chats c
        JOIN chat_members cm ON cm.chat_id = c.id
        WHERE cm.user_id = ?
@@ -124,20 +101,12 @@ function getUserChats(userId) {
   return chats.map(chat => {
     const members = db
       .prepare(
-<<<<<<< HEAD
-        `SELECT u.id, u.username, u.display_name, u.avatar_url, u.last_seen_at
-=======
         `SELECT u.id, u.username, u.display_name, u.avatar_url, u.last_seen_at, u.hide_avatar, u.avatar_exceptions
->>>>>>> devDK
          FROM chat_members cm JOIN users u ON u.id = cm.user_id
          WHERE cm.chat_id = ?`
       )
       .all(chat.id)
-<<<<<<< HEAD
-      .map(u => sanitizeUser(u));
-=======
       .map(u => sanitizeUser(u, { viewerId: userId }));
->>>>>>> devDK
 
     const lastMsg = db
       .prepare(
@@ -174,10 +143,7 @@ function getUserChats(userId) {
 
     return {
       ...chat,
-<<<<<<< HEAD
-=======
       is_closed: chat.is_closed === 1,
->>>>>>> devDK
       members,
       last_message: lastMsg ? decryptMessage(lastMsg) : null,
       unread_count: unread_count || 0,
@@ -323,12 +289,6 @@ function removeChatMember(chatId, requesterId, targetUserId) {
   return { updatedChat, sysMsg, remaining };
 }
 
-<<<<<<< HEAD
-function leaveGroup(chatId, userId) {
-  const db = getDb();
-
-  const chat = db.prepare('SELECT id, type FROM chats WHERE id = ?').get(chatId);
-=======
 /**
  * leaveGroup — user voluntarily leaves a group.
  * ✅ If the user is the admin (creator), the group is CLOSED instead of leaving.
@@ -338,7 +298,6 @@ function leaveGroup(chatId, userId) {
   const db = getDb();
 
   const chat = db.prepare('SELECT id, type, creator_id FROM chats WHERE id = ?').get(chatId);
->>>>>>> devDK
   if (!chat || chat.type !== 'group') {
     throw Object.assign(new Error('Not a group'), { status: 400 });
   }
@@ -348,8 +307,6 @@ function leaveGroup(chatId, userId) {
     .get([chatId, userId]);
   if (!member) throw Object.assign(new Error('Not a member'), { status: 403 });
 
-<<<<<<< HEAD
-=======
   // ✅ Admin leaving → close the group instead
   if (chat.creator_id === userId) {
     db.prepare('UPDATE chats SET is_closed = 1 WHERE id = ?').run(chatId);
@@ -362,7 +319,6 @@ function leaveGroup(chatId, userId) {
   }
 
   // Regular member leaving
->>>>>>> devDK
   const user = db.prepare('SELECT display_name, username FROM users WHERE id = ?').get(userId);
   const userName = user?.display_name || user?.username || 'Пользователь';
 
@@ -377,9 +333,6 @@ function leaveGroup(chatId, userId) {
     sysMsg = saveMessage(chatId, userId, `${userName} покинул(а) чат`, {}, true);
   }
 
-<<<<<<< HEAD
-  return { sysMsg, remaining: remaining.map(r => r.user_id) };
-=======
   return { sysMsg, remaining: remaining.map(r => r.user_id), closed: false };
 }
 
@@ -450,7 +403,6 @@ function transferAdmin(chatId, requesterId, newAdminId) {
   // Return updated chat from the new admin's perspective
   const updatedChat = getChatById(chatId, newAdminId);
   return { sysMsg, allMembers, updatedChat };
->>>>>>> devDK
 }
 
 function deleteDirectChat(chatId, userId) {
@@ -507,11 +459,7 @@ function deleteAccount(userId) {
 
   const groupChats = db
     .prepare(
-<<<<<<< HEAD
-      `SELECT c.id FROM chats c
-=======
       `SELECT c.id, c.creator_id FROM chats c
->>>>>>> devDK
        JOIN chat_members cm ON cm.chat_id = c.id
        WHERE cm.user_id = ? AND c.type = 'group'`
     )
@@ -531,21 +479,13 @@ function deleteAccount(userId) {
 
   db.exec('BEGIN');
   try {
-<<<<<<< HEAD
-    for (const { id: chatId } of groupChats) {
-=======
     for (const { id: chatId, creator_id } of groupChats) {
->>>>>>> devDK
       const remaining = db
         .prepare('SELECT user_id FROM chat_members WHERE chat_id = ? AND user_id != ?')
         .all(chatId, userId)
         .map(r => r.user_id);
 
       if (remaining.length > 0) {
-<<<<<<< HEAD
-        const sysMsg = saveMessage(chatId, userId, `${userName} покинул(а) чат`, {}, true);
-        groupNotifications.push({ chatId, sysMsg, remainingUserIds: remaining });
-=======
         // If user is admin, close the group
         const msgText = creator_id === userId
           ? 'Администратор удалил(а) группу'
@@ -557,7 +497,6 @@ function deleteAccount(userId) {
 
         const sysMsg = saveMessage(chatId, userId, msgText, {}, true);
         groupNotifications.push({ chatId, sysMsg, remainingUserIds: remaining, closed: creator_id === userId });
->>>>>>> devDK
       }
 
       db.prepare('DELETE FROM chat_members WHERE chat_id = ? AND user_id = ?').run(chatId, userId);
@@ -593,11 +532,8 @@ module.exports = {
   addChatMember,
   removeChatMember,
   leaveGroup,
-<<<<<<< HEAD
-=======
   closeGroup,
   transferAdmin,
->>>>>>> devDK
   deleteDirectChat,
   updateChatMetadata,
   deleteAccount,

@@ -1,7 +1,3 @@
-<<<<<<< HEAD
-import { type Chat } from '../../types';
-import { chatTitle, avatarLetter, formatTime } from '../../utils/format';
-=======
 /**
  * ChatItem — sidebar chat list row.
  * ✅ Fixed: shows real avatar photo instead of letter-only placeholder.
@@ -9,7 +5,6 @@ import { chatTitle, avatarLetter, formatTime } from '../../utils/format';
 import { type Chat } from '../../types';
 import { chatTitle, avatarLetter, formatTime } from '../../utils/format';
 import { Avatar, resolveUrl } from '../ui/Avatar';
->>>>>>> devDK
 
 interface Props {
   chat: Chat;
@@ -21,8 +16,6 @@ interface Props {
 
 export function ChatItem({ chat, meId, isActive, onClick, onContextMenu }: Props) {
   const title = chatTitle(chat, meId);
-<<<<<<< HEAD
-=======
 
   // For direct chats — partner's user object; for groups — synthetic object with group avatar
   const avatarUser = chat.type === 'group'
@@ -31,18 +24,12 @@ export function ChatItem({ chat, meId, isActive, onClick, onContextMenu }: Props
 
   const hasPhoto = !!resolveUrl(avatarUser?.avatar_url);
 
->>>>>>> devDK
   return (
     <button
       className={`chatItem${isActive ? ' active' : ''}`}
       onClick={onClick}
       onContextMenu={onContextMenu}
     >
-<<<<<<< HEAD
-      <div className={`ciAvatar${chat.type === 'group' ? ' group' : ''}`}>
-        {avatarLetter(title)}
-      </div>
-=======
       {/* ✅ Real avatar with photo support */}
       <div className={`ciAvatar${chat.type === 'group' ? ' group' : ''}${hasPhoto ? ' ciAvatarPhoto' : ''}`}>
         {hasPhoto
@@ -51,7 +38,6 @@ export function ChatItem({ chat, meId, isActive, onClick, onContextMenu }: Props
         }
       </div>
 
->>>>>>> devDK
       <div className="ciBody">
         <div className="ciTop">
           <span className="ciName">{title}</span>

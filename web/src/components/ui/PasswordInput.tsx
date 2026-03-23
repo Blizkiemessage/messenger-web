@@ -9,10 +9,7 @@ export function PasswordInput({
   wrapClass = 'authInputWrap',
   eyeClass = 'authEye',
   onKeyDown,
-<<<<<<< HEAD
-=======
   onFocus,
->>>>>>> devDK
 }: {
   value: string;
   onChange: (v: string) => void;
@@ -21,10 +18,7 @@ export function PasswordInput({
   wrapClass?: string;
   eyeClass?: string;
   onKeyDown?: React.KeyboardEventHandler<HTMLInputElement>;
-<<<<<<< HEAD
-=======
   onFocus?: React.FocusEventHandler<HTMLInputElement>;
->>>>>>> devDK
 }) {
   const [show, setShow] = useState(false);
   return (
@@ -37,10 +31,7 @@ export function PasswordInput({
         placeholder={placeholder ?? 'Пароль'}
         autoComplete="current-password"
         onKeyDown={onKeyDown}
-<<<<<<< HEAD
-=======
         onFocus={onFocus}
->>>>>>> devDK
       />
       <button
         type="button"

@@ -1,16 +1,7 @@
 /**
  * useSocket
-<<<<<<< HEAD
- *
- * Manages the Socket.io connection lifecycle and routes all incoming events
- * to the appropriate store actions.
- * Must be called once at the top of the component tree (App.tsx).
- */
-
-=======
  * ✅ Added: message-pinned / message-unpinned socket events.
  */
->>>>>>> devDK
 import { useEffect } from 'react';
 import { type Chat, type Message } from '../types';
 import { connectSocket, disconnectSocket, getSocket } from '../socket/socketClient';
@@ -56,29 +47,6 @@ export function useSocket() {
       useChatsStore.getState().handleMessagesDeleted(chatId, messageIds);
     };
 
-<<<<<<< HEAD
-    const onChatCreated = (chat: Chat) => useChatsStore.getState().upsertChat(chat);
-    const onChatUpdated = (chat: Chat) => useChatsStore.getState().upsertChat(chat);
-    const onChatRemoved = ({ chatId }: { chatId: string }) => useChatsStore.getState().removeChat(chatId);
-    const onAccountDeleted = () => useSessionStore.getState().clearSession();
-
-    socket.on('new-message', onNewMessage);
-    socket.on('chat-read', onChatRead);
-    socket.on('messages-deleted', onMessagesDeleted);
-    socket.on('chat-created', onChatCreated);
-    socket.on('chat-updated', onChatUpdated);
-    socket.on('chat-removed', onChatRemoved);
-    socket.on('account-deleted', onAccountDeleted);
-
-    return () => {
-      socket.off('new-message', onNewMessage);
-      socket.off('chat-read', onChatRead);
-      socket.off('messages-deleted', onMessagesDeleted);
-      socket.off('chat-created', onChatCreated);
-      socket.off('chat-updated', onChatUpdated);
-      socket.off('chat-removed', onChatRemoved);
-      socket.off('account-deleted', onAccountDeleted);
-=======
     const onChatCreated  = (chat: Chat) => useChatsStore.getState().upsertChat(chat);
     const onChatUpdated  = (chat: Chat) => useChatsStore.getState().upsertChat(chat);
     const onChatRemoved  = ({ chatId }: { chatId: string }) => useChatsStore.getState().removeChat(chatId);
@@ -119,7 +87,6 @@ export function useSocket() {
       socket.off('account-deleted',   onAccountDeleted);
       socket.off('message-pinned',    onMessagePinned);
       socket.off('message-unpinned',  onMessageUnpinned);
->>>>>>> devDK
       if (_markReadTimer) clearTimeout(_markReadTimer);
       disconnectSocket();
     };

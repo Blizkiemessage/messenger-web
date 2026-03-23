@@ -31,18 +31,11 @@ router.get('/me', (req, res) => {
 // PATCH /users/me
 router.patch('/me', (req, res, next) => {
   try {
-<<<<<<< HEAD
-    const { username, display_name, avatar_url, bio, birth_date, hide_bio, hide_birth_date, no_group_add } = req.body;
-    const updated = updateUser(req.userId, {
-      username, display_name, avatar_url, bio,
-      birth_date, hide_bio, hide_birth_date, no_group_add,
-=======
     const { username, display_name, avatar_url, bio, birth_date, hide_bio, hide_birth_date, no_group_add, hide_avatar, avatar_exceptions } = req.body;
     const updated = updateUser(req.userId, {
       username, display_name, avatar_url, bio,
       birth_date, hide_bio, hide_birth_date, no_group_add,
       hide_avatar, avatar_exceptions,
->>>>>>> devDK
     });
     res.json(sanitizeUser(updated, { showPrivate: true }));
   } catch (err) {
@@ -104,11 +97,7 @@ router.get('/search', (req, res) => {
 router.get('/:id', (req, res) => {
   const user = getUserById(req.params.id);
   if (!user) return res.status(404).json({ error: 'User not found' });
-<<<<<<< HEAD
-  res.json(sanitizeUser(user));
-=======
   res.json(sanitizeUser(user, { viewerId: req.userId }));
->>>>>>> devDK
 });
 
 module.exports = router;
