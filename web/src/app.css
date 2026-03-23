@@ -3177,3 +3177,11 @@ input[type="date"].psInput::-webkit-calendar-picker-indicator {
   overflow-wrap: break-word;
   max-width: 100%;
 }
+
+/* ── Pin button when no messages pinned (dimmed) ─────────────────────────── */
+.chPinBtnEmpty {
+  opacity: 0.45;
+}
+.chPinBtnEmpty:hover {
+  opacity: 0.7;
+}
