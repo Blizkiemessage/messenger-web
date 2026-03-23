@@ -10,6 +10,8 @@ export type User = {
   hide_bio?: boolean;
   hide_birth_date?: boolean;
   no_group_add?: boolean;
+  hide_avatar?: boolean;           // ✅ hide avatar from others
+  avatar_exceptions?: string;      // ✅ JSON array of user IDs who can still see it
   created_at?: number;
   last_seen_at?: number | null;
   has_password?: boolean;
