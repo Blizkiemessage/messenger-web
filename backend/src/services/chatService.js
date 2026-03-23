@@ -47,7 +47,7 @@ function getChatById(chatId, userId) {
 
   const members = db
     .prepare(
-      `SELECT u.id, u.username, u.display_name, u.avatar_url, u.last_seen_at
+      `SELECT u.id, u.username, u.display_name, u.avatar_url, u.last_seen_at, u.hide_avatar, u.avatar_exceptions
        FROM chat_members cm JOIN users u ON u.id = cm.user_id
        WHERE cm.chat_id = ?`
     )
@@ -101,7 +101,7 @@ function getUserChats(userId) {
   return chats.map(chat => {
     const members = db
       .prepare(
-        `SELECT u.id, u.username, u.display_name, u.avatar_url, u.last_seen_at
+        `SELECT u.id, u.username, u.display_name, u.avatar_url, u.last_seen_at, u.hide_avatar, u.avatar_exceptions
          FROM chat_members cm JOIN users u ON u.id = cm.user_id
          WHERE cm.chat_id = ?`
       )
