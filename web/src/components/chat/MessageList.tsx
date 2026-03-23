@@ -1,7 +1,8 @@
 /**
  * MessageList
- * ✅ Context menu uses ReactDOM.createPortal via <Portal> — renders directly
- *    into document.body so it escapes overflow/transform stacking contexts.
+ * ✅ Context menu via Portal (escapes overflow stacking context).
+ * ✅ "Удалить" button wired to onDeleteSingle — selects + opens confirm modal.
+ * ✅ Explicit background colors as fallback for CSS var(--card).
  */
 import { useRef, useEffect, useState, useCallback } from 'react';
 import { type Message, type Chat } from '../../types';
@@ -21,6 +22,7 @@ interface Props {
   onViewUser: (id: string) => void;
   onPinMessage: (msgId: string) => void;
   onUnpinMessage: (msgId: string) => void;
+  onDeleteSingle: (msgId: string) => void;  // ✅ new
   searchQuery: string;
   matchedIds: string[];
   currentMatchId: string | null;
@@ -28,12 +30,12 @@ interface Props {
 }
 
 const CTX_WIDTH  = 200;
-const CTX_HEIGHT = 110;
+const CTX_HEIGHT = 115;
 
 export function MessageList({
   messages, chat, meId, partnerReadAt, selectedIds, hasSelection,
   loadingMessages, onToggleSelect, onClearSelection, onViewUser,
-  onPinMessage, onUnpinMessage,
+  onPinMessage, onUnpinMessage, onDeleteSingle,
   searchQuery, matchedIds, currentMatchId, pinnedFocusId,
 }: Props) {
   const bottomRef  = useRef<HTMLDivElement | null>(null);
@@ -46,11 +48,10 @@ export function MessageList({
   useEffect(() => {
     if (!ctxMenu) return;
     const close = () => setCtxMenu(null);
-    window.addEventListener('click',       close);
+    window.addEventListener('click', close);
     window.addEventListener('contextmenu', close);
-    window.addEventListener('keydown',     (e) => e.key === 'Escape' && close());
     return () => {
-      window.removeEventListener('click',       close);
+      window.removeEventListener('click', close);
       window.removeEventListener('contextmenu', close);
     };
   }, [ctxMenu]);
@@ -104,9 +105,7 @@ export function MessageList({
         const isPinnedFocus = m.id === pinnedFocusId;
 
         if (m.is_system) {
-          return (
-            <div key={m.id} className="msgSystem"><span>{m.text}</span></div>
-          );
+          return <div key={m.id} className="msgSystem"><span>{m.text}</span></div>;
         }
 
         return (
@@ -137,8 +136,7 @@ export function MessageList({
 
       <div ref={bottomRef} />
 
-      {/* ✅ Portal: renders context menu at document.body level,
-           escaping overflow-y:auto on .messages and overflow:hidden on .chatArea */}
+      {/* ✅ Portal: context menu renders at document.body level */}
       {ctxMenu && (
         <Portal>
           <div
@@ -147,6 +145,7 @@ export function MessageList({
             onClick={e => e.stopPropagation()}
             onContextMenu={e => e.preventDefault()}
           >
+            {/* Pin / Unpin */}
             {ctxMenu.msg.is_pinned ? (
               <button
                 className="msgCtxItem"
@@ -163,16 +162,18 @@ export function MessageList({
                 className="msgCtxItem msgCtxItemPin"
                 onClick={() => { onPinMessage(ctxMenu.msg.id); onClearSelection(); setCtxMenu(null); }}
               >
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" stroke="none">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" stroke="none">
                   <path d="M16 3a1 1 0 0 0-1 1v1H9V4a1 1 0 0 0-2 0v1a3 3 0 0 0-3 3v1l2 2v4H4a1 1 0 0 0 0 2h7v3a1 1 0 0 0 2 0v-3h7a1 1 0 0 0 0-2h-2v-4l2-2V8a3 3 0 0 0-3-3V4a1 1 0 0 0-1-1z"/>
                 </svg>
                 Закрепить
               </button>
             )}
+
+            {/* ✅ Delete — now wired to onDeleteSingle (selects + opens confirm modal) */}
             {ctxMenu.msg.sender_id === meId && (
               <button
                 className="msgCtxItem msgCtxItemDanger"
-                onClick={() => { onToggleSelect(ctxMenu.msg.id); setCtxMenu(null); }}
+                onClick={() => { onDeleteSingle(ctxMenu.msg.id); setCtxMenu(null); }}
               >
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <polyline points="3 6 5 6 21 6"/>
