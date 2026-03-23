@@ -15,6 +15,7 @@
   --success-dim: rgba(63,185,80,0.12);
   --radius: 12px;
   --shadow: 0 4px 24px rgba(0,0,0,0.4);
+  --card: #1c2333;
   color-scheme: dark;
 }
 :root[data-theme="light"] {
@@ -32,6 +33,7 @@
   --success: #16a34a;
   --success-dim: rgba(22,163,74,0.1);
   --shadow: 0 4px 24px rgba(0,0,0,0.12);
+  --card: #ffffff;
   color-scheme: light;
 }
 
@@ -1443,10 +1445,11 @@ input { font: inherit; color: inherit; background: transparent; }
 .giConfirmOverlay {
   position: fixed;
   inset: 0;
-  background: rgba(0,0,0,.62);
+  background: rgba(0,0,0,.68);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
   display: grid;
   place-items: center;
-  /* Must exceed modalOverlay (100) + its backdrop-filter stacking context */
   z-index: 10500;
   animation: fadeIn .15s ease;
 }

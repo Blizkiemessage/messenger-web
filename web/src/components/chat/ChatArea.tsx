@@ -124,6 +124,13 @@ export function ChatArea() {
     } catch { /* upstream */ }
   }, [activeChat]);
 
+  // ✅ Delete single message from context menu — selects it then opens confirm modal
+  const handleDeleteSingle = useCallback((msgId: string) => {
+    clearSelection();
+    toggleSelect(msgId);
+    setShowDeleteConfirm(true);
+  }, [clearSelection, toggleSelect, setShowDeleteConfirm]);
+
   // ── Send text (with auto-split) ───────────────────────────────────────────
   const handleSend = useCallback(async () => {
     const text = messageText.trim();
@@ -235,6 +242,7 @@ export function ChatArea() {
         onViewUser={setViewUserId}
         onPinMessage={handlePinMessage}
         onUnpinMessage={handleUnpinMessage}
+        onDeleteSingle={handleDeleteSingle}
         searchQuery={searchQuery.trim().toLowerCase()}
         matchedIds={matchedIds}
         currentMatchId={currentMatchId}
