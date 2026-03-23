@@ -163,6 +163,7 @@ export function GroupInfoModal({
   const transferCandidates = chat.members.filter(m => m.id !== meId && m.id !== chat.creator_id);
 
   return (
+    <>
     <div className="modalOverlay" onClick={e => e.target === e.currentTarget && !removeConfirm && !showDeleteDialog && onClose()}>
       <div className="upCard giCard">
 
@@ -342,6 +343,9 @@ export function GroupInfoModal({
         )}
       </div>
 
+    </div>
+
+      <Portal>
       {/* ─── Right-click context menu on member ─────────────────────── */}
       {memberCtx && (
         <ContextMenu x={memberCtx.x} y={memberCtx.y} onClose={() => setMemberCtx(null)} zIndex={10100}>
@@ -372,7 +376,6 @@ export function GroupInfoModal({
       )}
 
       {/* ─── Remove member confirmation ──────────────────────────────── */}
-      <Portal>
       {removeConfirm && (
         <div className="giConfirmOverlay" onClick={e => e.target === e.currentTarget && !removeBusy && setRemoveConfirm(null)}>
           <div className="confirmCard">
@@ -395,10 +398,8 @@ export function GroupInfoModal({
           </div>
         </div>
       )}
-      </Portal>
 
       {/* ─── Make admin confirmation (from right-click) ──────────────── */}
-      <Portal>
       {makeAdminTarget && (
         <div className="giConfirmOverlay" onClick={e => e.target === e.currentTarget && !makeAdminBusy && setMakeAdminTarget(null)}>
           <div className="confirmCard">
@@ -420,10 +421,8 @@ export function GroupInfoModal({
           </div>
         </div>
       )}
-      </Portal>
 
       {/* ─── Delete group dialog ─────────────────────────────────────── */}
-      <Portal>
       {showDeleteDialog && (
         <div className="giConfirmOverlay" onClick={e => e.target === e.currentTarget && setShowDeleteDialog(false)}>
           <div className="giDeleteDialog">
@@ -487,10 +486,8 @@ export function GroupInfoModal({
           </div>
         </div>
       )}
-      </Portal>
 
       {/* ─── Close group confirmation ─────────────────────────────────── */}
-      <Portal>
       {showCloseConfirm && (
         <div className="giConfirmOverlay" onClick={e => e.target === e.currentTarget && !closeBusy && setShowCloseConfirm(false)}>
           <div className="confirmCard">
@@ -513,10 +510,8 @@ export function GroupInfoModal({
           </div>
         </div>
       )}
-      </Portal>
 
       {/* ─── Transfer admin modal ─────────────────────────────────────── */}
-      <Portal>
       {showTransferModal && (
         <div className="giConfirmOverlay" onClick={e => e.target === e.currentTarget && !transferBusy && setShowTransferModal(false)}>
           <div className="giTransferModal">
@@ -551,7 +546,6 @@ export function GroupInfoModal({
                         </svg>
                       </div>
                     )}
-      </Portal>
                   </button>
                 ))
               )}
@@ -582,6 +576,7 @@ export function GroupInfoModal({
       {showAddMembers && (
         <AddGroupMembersModal chat={chat} meId={meId} onClose={() => setShowAddMembers(false)} />
       )}
-    </div>
+      </Portal>
+    </>
   );
 }
