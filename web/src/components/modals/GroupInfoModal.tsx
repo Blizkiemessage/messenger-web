@@ -13,8 +13,6 @@ import { avatarLetter } from '../../utils/format';
 import { Avatar } from '../ui/Avatar';
 import { ContextMenu } from '../ui/ContextMenu';
 import { AddGroupMembersModal } from './AddGroupMembersModal';
-import { useRef } from 'react';
-import client from '../../api/client';
 
 const DESC_MAX = 150;
 const DESC_PREVIEW_CHARS = 120;
@@ -28,13 +26,12 @@ interface Props {
   onRemoveMember: (userId: string) => Promise<void>;
   onCloseGroup: () => Promise<void>;
   onTransferAdmin: (userId: string) => Promise<void>;
-  onUpdateAvatar: (url: string) => Promise<void>;
 }
 
 export function GroupInfoModal({
   chat, onClose, onViewUser, meId,
   onUpdateChat, onRemoveMember,
-  onCloseGroup, onTransferAdmin, onUpdateAvatar,
+  onCloseGroup, onTransferAdmin,
 }: Props) {
   const isCreator = chat.creator_id === meId;
   const isGroupClosed = chat.is_closed === true;
@@ -47,8 +44,6 @@ export function GroupInfoModal({
   const [descExpanded, setDescExpanded] = useState(false);
 
   const [showAddMembers, setShowAddMembers] = useState(false);
-  const [avatarUploading, setAvatarUploading] = useState(false);
-  const avatarInputRef = useRef<HTMLInputElement>(null);
 
   // ── Member right-click context menu ──────────────────────────────────────
   const [memberCtx, setMemberCtx] = useState<{ x: number; y: number; user: User } | null>(null);
@@ -90,22 +85,6 @@ export function GroupInfoModal({
     try { await onUpdateChat(editName.trim(), editDesc.trim()); setEditing(false); }
     catch (e: any) { setEditError(e?.message ?? 'Ошибка'); }
     finally { setEditBusy(false); }
-  }
-
-  async function handleAvatarChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file || avatarUploading) return;
-    e.target.value = '';
-    setAvatarUploading(true);
-    try {
-      const fd = new FormData();
-      fd.append('file', file);
-      const res = await client.post<{ url: string }>('/upload', fd, {
-        headers: { 'Content-Type': undefined },
-      });
-      await onUpdateAvatar(res.data.url);
-    } catch { /* upstream */ }
-    finally { setAvatarUploading(false); }
   }
 
   async function handleRemoveConfirm() {
@@ -175,22 +154,9 @@ export function GroupInfoModal({
         {/* Header */}
         <div className="upHeader">
           <div className="upAvatarRing">
-            <div className="upAvatar" style={{ position: 'relative', cursor: isCreator ? 'pointer' : 'default' }}
-              onClick={() => isCreator && avatarInputRef.current?.click()}>
-              {chat.avatar_url
-                ? <img src={chat.avatar_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 'inherit' }} />
-                : <span className="upAvatarLetter">{avatarLetter(chat.name || 'Г')}</span>
-              }
-              {isCreator && (
-                <div className="giAvatarOverlay">
-                  {avatarUploading
-                    ? <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" style={{ animation: 'spin 1s linear infinite' }}><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
-                    : <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
-                  }
-                </div>
-              )}
+            <div className="upAvatar">
+              <span className="upAvatarLetter">{avatarLetter(chat.name || 'Г')}</span>
             </div>
-            {isCreator && <input ref={avatarInputRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={handleAvatarChange} />}
           </div>
 
           {editing ? (

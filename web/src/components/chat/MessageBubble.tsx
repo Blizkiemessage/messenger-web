@@ -255,11 +255,11 @@ export function MessageBubble({
       )}
 
       <div className={`bubble${hasAttachment ? ' bubbleWithAttach' : ''}`}>
-        {/* ✅ Pin indicator */}
+        {/* ✅ Pin indicator — thumbtack icon */}
         {m.is_pinned && !isSelected && (
           <div className="msgPinBadge" title="Закреплённое сообщение">
-            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-              <path d="M12 17v5"/><path d="M9 4l-3 3 4 1-4 4h8l-4-4 4-1-3-3z"/>
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor" stroke="none">
+              <path d="M16 3a1 1 0 0 0-1 1v1H9V4a1 1 0 0 0-2 0v1a3 3 0 0 0-3 3v1l2 2v4H4a1 1 0 0 0 0 2h7v3a1 1 0 0 0 2 0v-3h7a1 1 0 0 0 0-2h-2v-4l2-2V8a3 3 0 0 0-3-3V4a1 1 0 0 0-1-1z"/>
             </svg>
           </div>
         )}
