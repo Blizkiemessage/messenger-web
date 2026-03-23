@@ -70,6 +70,8 @@ function runMigrations() {
     'ALTER TABLE users ADD COLUMN hide_bio INTEGER NOT NULL DEFAULT 0',
     'ALTER TABLE users ADD COLUMN hide_birth_date INTEGER NOT NULL DEFAULT 0',
     'ALTER TABLE users ADD COLUMN no_group_add INTEGER NOT NULL DEFAULT 0',
+    'ALTER TABLE users ADD COLUMN hide_avatar INTEGER NOT NULL DEFAULT 0',
+    "ALTER TABLE users ADD COLUMN avatar_exceptions TEXT NOT NULL DEFAULT '[]'",
     'ALTER TABLE messages ADD COLUMN is_system INTEGER NOT NULL DEFAULT 0',
     'ALTER TABLE chats ADD COLUMN is_closed INTEGER NOT NULL DEFAULT 0',
     'ALTER TABLE messages ADD COLUMN attachment_size INTEGER',

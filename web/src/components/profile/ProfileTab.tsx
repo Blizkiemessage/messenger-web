@@ -1,11 +1,7 @@
 /**
  * ProfileTab
- * ✅ FIXED: Avatar upload uses axios client instead of raw fetch.
- *   - Axios client handles auth token automatically via interceptor
- *   - No trailing-slash URL issues (axios baseURL handles this correctly)
- *   - Better error messages from server responses
+ * ✅ Added: "Сброс фото" button to remove avatar and restore default letter.
  */
-
 import { useState, useRef } from 'react';
 import { type User } from '../../types';
 import { avatarLetter } from '../../utils/format';
@@ -31,7 +27,8 @@ export function ProfileTab({ me, onUpdate }: Props) {
   const [avatarPreview, setAvatarPreview] = useState<string | null>(
     resolveUrl(me.avatar_url) ?? null
   );
-  const [avatarFile, setAvatarFile] = useState<File | null>(null);
+  const [avatarFile,    setAvatarFile]    = useState<File | null>(null);
+  const [resetAvatar,   setResetAvatar]   = useState(false); // ✅ flag to clear avatar on save
   const [busy,  setBusy]  = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [ok,    setOk]    = useState(false);
@@ -41,29 +38,38 @@ export function ProfileTab({ me, onUpdate }: Props) {
     const f = e.target.files?.[0];
     if (!f) return;
     setAvatarFile(f);
+    setResetAvatar(false);
     const reader = new FileReader();
     reader.onload = ev => setAvatarPreview(ev.target?.result as string);
     reader.readAsDataURL(f);
   }
 
-  // ✅ Use axios client — auth token added automatically, no URL issues
+  // ✅ Reset avatar: clear preview and mark for deletion on save
+  function handleResetAvatar() {
+    setAvatarFile(null);
+    setAvatarPreview(null);
+    setResetAvatar(true);
+  }
+
+  const hasAvatar = !!avatarPreview;
+
   async function uploadAvatar(file: File): Promise<string> {
     const fd = new FormData();
     fd.append('file', file);
-    // axios sets Content-Type: multipart/form-data; boundary=... automatically
-    const res = await client.post<{ url: string; type: string; name: string; size: number }>(
-      '/upload',
-      fd,
-      { headers: { 'Content-Type': undefined }, timeout: 60_000 }
-    );
+    const res = await client.post<{ url: string }>('/upload', fd, {
+      headers: { 'Content-Type': undefined },
+      timeout: 60_000,
+    });
     return res.data.url;
   }
 
   async function onSave() {
     setError(null); setBusy(true); setOk(false);
     try {
-      let avatar_url = me.avatar_url ?? null;
-      if (avatarFile) avatar_url = await uploadAvatar(avatarFile);
+      let avatar_url: string | null = me.avatar_url ?? null;
+      if (resetAvatar)       avatar_url = null;
+      else if (avatarFile)   avatar_url = await uploadAvatar(avatarFile);
+
       const next = await updateMe({
         username:        username.trim().toLowerCase() || null,
         display_name:    displayName.trim() || '',
@@ -74,10 +80,11 @@ export function ProfileTab({ me, onUpdate }: Props) {
         hide_birth_date: hideBirth,
       });
       onUpdate(next);
+      setResetAvatar(false);
+      setAvatarFile(null);
       setOk(true);
       setTimeout(() => setOk(false), 2500);
     } catch (e: any) {
-      // Surface the actual server error if available
       setError(e?.message ?? 'Ошибка сохранения');
     } finally {
       setBusy(false);
@@ -88,7 +95,11 @@ export function ProfileTab({ me, onUpdate }: Props) {
     <div className="psBody">
       {/* Avatar */}
       <div className="psAvatarSection">
-        <div className="psAvatarWrap" onClick={() => fileRef.current?.click()} title="Изменить фото">
+        <div
+          className="psAvatarWrap"
+          onClick={() => fileRef.current?.click()}
+          title="Изменить фото"
+        >
           {avatarPreview
             ? <img src={avatarPreview} alt="" className="psAvatarImg" />
             : <div className="psAvatarFallback">{avatarLetter(displayName || username || '')}</div>
@@ -101,15 +112,38 @@ export function ProfileTab({ me, onUpdate }: Props) {
           </div>
         </div>
         <div className="psAvatarHint">Нажмите чтобы изменить фото</div>
-        <input ref={fileRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={handleAvatarPick} />
+
+        {/* ✅ Reset avatar button — only shown when avatar is set */}
+        {hasAvatar && (
+          <button className="psAvatarResetBtn" onClick={handleResetAvatar}>
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="3 6 5 6 21 6"/>
+              <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+              <path d="M10 11v6M14 11v6"/>
+            </svg>
+            Сбросить фото
+          </button>
+        )}
+
+        <input
+          ref={fileRef}
+          type="file"
+          accept="image/*"
+          style={{ display: 'none' }}
+          onChange={handleAvatarPick}
+        />
       </div>
 
       {/* Fields */}
       <div className="psField">
         <label className="psLabel">Имя</label>
-        <input className="psInput" value={displayName}
-               onChange={e => setDisplayName(e.target.value)}
-               placeholder="Как вас зовут" maxLength={64} />
+        <input
+          className="psInput"
+          value={displayName}
+          onChange={e => setDisplayName(e.target.value)}
+          placeholder="Как вас зовут"
+          maxLength={64}
+        />
       </div>
 
       <div className="psField">
@@ -144,7 +178,7 @@ export function ProfileTab({ me, onUpdate }: Props) {
         </div>
         <label className="psPrivacyLabel">
           <input type="checkbox" className="psCheckbox" checked={hideBio}
-                 onChange={e => setHideBio(e.target.checked)} />
+            onChange={e => setHideBio(e.target.checked)} />
           Скрыть от других пользователей
         </label>
       </div>
@@ -152,10 +186,10 @@ export function ProfileTab({ me, onUpdate }: Props) {
       <div className="psField">
         <label className="psLabel">Дата рождения</label>
         <input type="date" className="psInput" value={birthDate}
-               onChange={e => setBirthDate(e.target.value)} />
+          onChange={e => setBirthDate(e.target.value)} />
         <label className="psPrivacyLabel">
           <input type="checkbox" className="psCheckbox" checked={hideBirth}
-                 onChange={e => setHideBirth(e.target.checked)} />
+            onChange={e => setHideBirth(e.target.checked)} />
           Скрыть от других пользователей
         </label>
       </div>
