@@ -10,6 +10,11 @@ export type User = {
   hide_bio?: boolean;
   hide_birth_date?: boolean;
   no_group_add?: boolean;
+<<<<<<< HEAD
+=======
+  hide_avatar?: boolean;           // ✅ hide avatar from others
+  avatar_exceptions?: string;      // ✅ JSON array of user IDs who can still see it
+>>>>>>> devDK
   created_at?: number;
   last_seen_at?: number | null;
   has_password?: boolean;
@@ -25,8 +30,15 @@ export type Message = {
   attachment_url?: string | null;
   attachment_type?: string | null;
   attachment_name?: string | null;
+<<<<<<< HEAD
   liked_by?: string[];
   is_system?: boolean;
+=======
+  attachment_size?: number | null;
+  liked_by?: string[];
+  is_system?: boolean;
+  is_pinned?: boolean;   // ✅ NEW
+>>>>>>> devDK
 };
 
 export type Chat = {
@@ -34,12 +46,20 @@ export type Chat = {
   type: 'direct' | 'group';
   name?: string | null;
   description?: string | null;
+<<<<<<< HEAD
+=======
+  avatar_url?: string | null;
+>>>>>>> devDK
   created_at: number;
   members: User[];
   last_message?: Message | null;
   unread_count?: number;
   partner_last_read_at?: number;
   creator_id?: string | null;
+<<<<<<< HEAD
+=======
+  is_closed?: boolean;
+>>>>>>> devDK
 };
 
 export type AuthResponse = {

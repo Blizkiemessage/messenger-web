@@ -1,3 +1,11 @@
+<<<<<<< HEAD
+=======
+/**
+ * Avatar.tsx
+ * ✅ Fixed: shows letter fallback when image fails to load (instead of hiding it).
+ */
+import { useState } from 'react';
+>>>>>>> devDK
 import { type User } from '../../types';
 import { avatarLetter } from '../../utils/format';
 import { API_BASE_URL } from '../../config';
@@ -17,6 +25,7 @@ export function Avatar({
   size?: number;
   radius?: number;
 }) {
+<<<<<<< HEAD
   const src = resolveUrl(user?.avatar_url);
   if (src) {
     return (
@@ -40,10 +49,40 @@ export function Avatar({
   const name = user?.display_name || user?.username || '?';
   return (
     <div
+=======
+  const [imgFailed, setImgFailed] = useState(false);
+  const src = resolveUrl(user?.avatar_url);
+  const name = user?.display_name || user?.username || '?';
+
+  const letterStyle: React.CSSProperties = {
+    width: size,
+    height: size,
+    borderRadius: radius,
+    background: 'var(--accent-dim)',
+    color: 'var(--accent)',
+    display: 'grid',
+    placeItems: 'center',
+    fontWeight: 700,
+    fontSize: Math.round(size * 0.42),
+    flexShrink: 0,
+    userSelect: 'none',
+  };
+
+  // Show letter fallback if no URL or image failed to load
+  if (!src || imgFailed) {
+    return <div style={letterStyle}>{avatarLetter(name)}</div>;
+  }
+
+  return (
+    <img
+      src={src}
+      alt={name}
+>>>>>>> devDK
       style={{
         width: size,
         height: size,
         borderRadius: radius,
+<<<<<<< HEAD
         background: 'var(--accent-dim)',
         color: 'var(--accent)',
         display: 'grid',
@@ -55,5 +94,13 @@ export function Avatar({
     >
       {avatarLetter(name)}
     </div>
+=======
+        objectFit: 'cover',
+        flexShrink: 0,
+        display: 'block',
+      }}
+      onError={() => setImgFailed(true)}
+    />
+>>>>>>> devDK
   );
 }

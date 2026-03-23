@@ -1,5 +1,10 @@
 /**
  * App.tsx — proper Zustand v5 selectors, no getState() during render.
+<<<<<<< HEAD
+=======
+ * ✅ Updated: closeGroup, transferAdmin wired to GroupInfoModal
+ * ✅ Updated: admin leaving a group → closes group instead of removing chat
+>>>>>>> devDK
  */
 import { useEffect } from 'react';
 import './app.css';
@@ -24,7 +29,20 @@ import {
 } from './components/modals/ConfirmModals';
 
 import { deleteAccount as apiDeleteAccount } from './api/auth';
+<<<<<<< HEAD
 import { createDirectChat, leaveGroup as apiLeaveGroup, deleteDirectChat as apiDeleteDirectChat, removeGroupMember as apiRemoveGroupMember, updateGroupChat as apiUpdateGroupChat } from './api/chats';
+=======
+import {
+  createDirectChat,
+  leaveGroup as apiLeaveGroup,
+  deleteDirectChat as apiDeleteDirectChat,
+  removeGroupMember as apiRemoveGroupMember,
+  updateGroupChat as apiUpdateGroupChat,
+  closeGroup as apiCloseGroup,
+  transferAdminRights as apiTransferAdminRights,
+  updateGroupAvatar as apiUpdateGroupAvatar,
+} from './api/chats';
+>>>>>>> devDK
 
 export default function App() {
   // Session
@@ -85,13 +103,36 @@ export default function App() {
     clearSession();
   }
 
+<<<<<<< HEAD
+=======
+  /**
+   * ✅ Handle leave/delete chat action from sidebar context menu.
+   * If the current user is the admin of a group → group gets closed (not removed).
+   * The backend returns { closed: true } in that case, so we do NOT removeChat.
+   * The socket 'chat-updated' event will update the chat state automatically.
+   */
+>>>>>>> devDK
   async function onConfirmChatAction() {
     if (!chatActionConfirm) return;
     setChatActionBusy(true);
     try {
+<<<<<<< HEAD
       if (chatActionConfirm.type === 'group') await apiLeaveGroup(chatActionConfirm.id);
       else await apiDeleteDirectChat(chatActionConfirm.id);
       useChatsStore.getState().removeChat(chatActionConfirm.id);
+=======
+      if (chatActionConfirm.type === 'group') {
+        const result = await apiLeaveGroup(chatActionConfirm.id);
+        // If the group was closed (admin left), don't remove from list —
+        // the socket event 'chat-updated' will update is_closed on the chat.
+        if (!result.closed) {
+          useChatsStore.getState().removeChat(chatActionConfirm.id);
+        }
+      } else {
+        await apiDeleteDirectChat(chatActionConfirm.id);
+        useChatsStore.getState().removeChat(chatActionConfirm.id);
+      }
+>>>>>>> devDK
       setChatActionConfirm(null);
     } catch { /* ignore */ }
     finally { setChatActionBusy(false); }
@@ -148,6 +189,24 @@ export default function App() {
           onRemoveMember={async (userId) => {
             await apiRemoveGroupMember(activeChat.id, userId);
           }}
+<<<<<<< HEAD
+=======
+          // ✅ Close group — group stays in list but is_closed=true
+          onCloseGroup={async () => {
+            await apiCloseGroup(activeChat.id);
+            // Socket 'chat-updated' will update the store automatically
+          }}
+          // ✅ Update group avatar — sends system message to group
+          onUpdateAvatar={async (url) => {
+            const updated = await apiUpdateGroupAvatar(activeChat.id, url);
+            useChatsStore.getState().upsertChat(updated);
+          }}
+          // ✅ Transfer admin — new admin takes over, system message is sent
+          onTransferAdmin={async (userId) => {
+            const updated = await apiTransferAdminRights(activeChat.id, userId);
+            useChatsStore.getState().upsertChat(updated);
+          }}
+>>>>>>> devDK
         />
       )}
 
@@ -163,6 +222,10 @@ export default function App() {
       {chatActionConfirm && (
         <ChatActionConfirmModal
           chat={chatActionConfirm}
+<<<<<<< HEAD
+=======
+          meId={me.id}
+>>>>>>> devDK
           onConfirm={onConfirmChatAction}
           onCancel={() => setChatActionConfirm(null)}
           busy={chatActionBusy}
