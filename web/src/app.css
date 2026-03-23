@@ -686,12 +686,13 @@ input { font: inherit; color: inherit; background: transparent; }
 .modalOverlay {
   position: fixed;
   inset: 0;
-  background: rgba(0,0,0,.55);
+  /* ✅ No backdrop-filter — it creates a stacking context that traps
+     position:fixed children (giConfirmOverlay), making their bg transparent. */
+  background: rgba(0,0,0,.62);
   display: grid;
   place-items: center;
   z-index: 100;
   padding: 16px;
-  backdrop-filter: blur(4px);
   animation: fadeIn .15s ease;
 }
 @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
@@ -1442,10 +1443,11 @@ input { font: inherit; color: inherit; background: transparent; }
 .giConfirmOverlay {
   position: fixed;
   inset: 0;
-  background: rgba(0,0,0,.55);
+  background: rgba(0,0,0,.62);
   display: grid;
   place-items: center;
-  z-index: 10150;
+  /* Must exceed modalOverlay (100) + its backdrop-filter stacking context */
+  z-index: 10500;
   animation: fadeIn .15s ease;
 }
 
@@ -2465,16 +2467,7 @@ input[type="date"].psInput::-webkit-calendar-picker-indicator {
   justify-content: flex-end;
 }
 
-/* ── Shared overlay for nested modals ────────────────────────────────────── */
-.giConfirmOverlay {
-  position: fixed;
-  inset: 0;
-  background: rgba(0,0,0,.45);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 10200;
-}
+/* giConfirmOverlay — defined above, deduped */
 
 /* ── confirmIconAdmin — star/admin colour variant ────────────────────────── */
 .confirmIconAdmin {
@@ -3055,19 +3048,19 @@ input[type="date"].psInput::-webkit-calendar-picker-indicator {
 /* ── Pin badge on message bubble ─────────────────────────────────────────── */
 .msgPinBadge {
   position: absolute;
-  top: -5px;
-  right: -5px;
-  width: 18px;
-  height: 18px;
+  top: -6px;
+  right: -6px;
+  width: 20px;
+  height: 20px;
   border-radius: 50%;
-  background: var(--accent);
+  background: linear-gradient(135deg, #2f81f7, #5fa8ff);
   color: #fff;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 0 0 2px var(--card), 0 2px 8px rgba(47,129,247,.45);
+  box-shadow: 0 0 0 2.5px var(--card), 0 3px 10px rgba(47,129,247,.55);
   z-index: 2;
-  animation: pinBadgePop .25s cubic-bezier(.34,1.56,.64,1);
+  animation: pinBadgePop .3s cubic-bezier(.34,1.56,.64,1);
 }
 @keyframes pinBadgePop {
   from { transform: scale(0); opacity: 0; }
@@ -3139,8 +3132,10 @@ input[type="date"].psInput::-webkit-calendar-picker-indicator {
   border: 1px solid var(--border);
   border-radius: 12px;
   padding: 5px;
-  box-shadow: 0 8px 32px rgba(0,0,0,.18);
-  min-width: 180px;
+  box-shadow: 0 8px 32px rgba(0,0,0,.22);
+  min-width: 190px;
+  max-width: 240px;
+  /* transform nudges handled via JS inline style */
   animation: ctxMenuPop .12s cubic-bezier(.34,1.56,.64,1);
 }
 @keyframes ctxMenuPop {
