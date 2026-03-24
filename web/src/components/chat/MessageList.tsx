@@ -2,8 +2,7 @@
  * MessageList
  * ✅ Context menu via Portal (escapes overflow stacking context).
  * ✅ "Удалить" button wired to onDeleteSingle — selects + opens confirm modal.
- * ✅ "Переслать" as top button in context menu for all non-system messages.
- * ✅ In forward-add mode: context menu shows "Добавить в пересылку" / "Убрать из пересылки".
+ * ✅ Explicit background colors as fallback for CSS var(--card).
  */
 import { useRef, useEffect, useState, useCallback } from 'react';
 import { type Message, type Chat } from '../../types';
@@ -24,26 +23,20 @@ interface Props {
   onPinMessage: (msgId: string) => void;
   onUnpinMessage: (msgId: string) => void;
   onDeleteSingle: (msgId: string) => void;
-  // ✅ Forward
-  onForwardMessage: (msg: Message) => void;
-  forwardedIds: Set<string>;     // IDs already in the forward queue
-  isForwardAddMode: boolean;     // true when modal is closed but queue is live
+  onForwardSingle: (msgId: string) => void;  // ✅ new
   searchQuery: string;
   matchedIds: string[];
   currentMatchId: string | null;
   pinnedFocusId: string | null;
 }
 
-// Per-item height ≈ 37px (9px pad top + 9px pad bottom + ~19px line). 5px padding on card.
-// Max buttons: Forward + Pin/Unpin + Delete = 3 → ~121px + separator ≈ 130px
 const CTX_WIDTH  = 200;
-const CTX_HEIGHT = 165; // generous max for 3 items + padding
+const CTX_HEIGHT = 148;  // taller to fit "Переслать" button
 
 export function MessageList({
   messages, chat, meId, partnerReadAt, selectedIds, hasSelection,
   loadingMessages, onToggleSelect, onClearSelection, onViewUser,
-  onPinMessage, onUnpinMessage, onDeleteSingle,
-  onForwardMessage, forwardedIds, isForwardAddMode,
+  onPinMessage, onUnpinMessage, onDeleteSingle, onForwardSingle,
   searchQuery, matchedIds, currentMatchId, pinnedFocusId,
 }: Props) {
   const bottomRef  = useRef<HTMLDivElement | null>(null);
@@ -137,6 +130,7 @@ export function MessageList({
               onContextMenu={() => onToggleSelect(m.id)}
               onClick={() => onToggleSelect(m.id)}
               onViewUser={onViewUser}
+              onForwardedSenderClick={onViewUser}
             />
           </div>
         );
@@ -153,57 +147,27 @@ export function MessageList({
             onClick={e => e.stopPropagation()}
             onContextMenu={e => e.preventDefault()}
           >
-            {/* ── ✅ FORWARD — always first, shown for all non-system messages ── */}
-            {isForwardAddMode ? (
-              /* In add-more mode: toggle membership in queue */
-              forwardedIds.has(ctxMenu.msg.id) ? (
-                <button
-                  className="msgCtxItem msgCtxItemForwardRemove"
-                  onClick={() => { onForwardMessage(ctxMenu.msg); setCtxMenu(null); }}
-                >
-                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                       strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <line x1="18" y1="6" x2="6" y2="18"/>
-                    <line x1="6" y1="6" x2="18" y2="18"/>
-                  </svg>
-                  Убрать из пересылки
-                </button>
-              ) : (
-                <button
-                  className="msgCtxItem msgCtxItemForward"
-                  onClick={() => { onForwardMessage(ctxMenu.msg); setCtxMenu(null); }}
-                >
-                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                       strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <polyline points="15 10 20 15 15 20"/>
-                    <path d="M4 4v7a4 4 0 0 0 4 4h12"/>
-                  </svg>
-                  Добавить в пересылку
-                </button>
-              )
-            ) : (
-              /* Normal mode: start forwarding this message */
+            {/* ✅ Forward — always on top */}
+            {!ctxMenu.msg.is_system && (
               <button
                 className="msgCtxItem msgCtxItemForward"
-                onClick={() => { onForwardMessage(ctxMenu.msg); setCtxMenu(null); }}
+                onClick={() => { onForwardSingle(ctxMenu.msg.id); setCtxMenu(null); }}
               >
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                     strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <polyline points="15 10 20 15 15 20"/>
-                  <path d="M4 4v7a4 4 0 0 0 4 4h12"/>
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="15 17 20 12 15 7"/>
+                  <path d="M4 18v-2a4 4 0 0 1 4-4h12"/>
                 </svg>
                 Переслать
               </button>
             )}
 
-            {/* ── Pin / Unpin ── */}
+            {/* Pin / Unpin */}
             {ctxMenu.msg.is_pinned ? (
               <button
                 className="msgCtxItem"
                 onClick={() => { onUnpinMessage(ctxMenu.msg.id); onClearSelection(); setCtxMenu(null); }}
               >
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                     strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <line x1="2" y1="2" x2="22" y2="22"/>
                   <path d="M12 17v5M9 9H4l3-3 4 1M15 15l4-4-1-4 3-3v5"/>
                 </svg>
@@ -221,14 +185,13 @@ export function MessageList({
               </button>
             )}
 
-            {/* ── Delete (own messages only) ── */}
+            {/* ✅ Delete — now wired to onDeleteSingle (selects + opens confirm modal) */}
             {ctxMenu.msg.sender_id === meId && (
               <button
                 className="msgCtxItem msgCtxItemDanger"
                 onClick={() => { onDeleteSingle(ctxMenu.msg.id); setCtxMenu(null); }}
               >
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                     strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <polyline points="3 6 5 6 21 6"/>
                   <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
                   <path d="M10 11v6M14 11v6"/>
