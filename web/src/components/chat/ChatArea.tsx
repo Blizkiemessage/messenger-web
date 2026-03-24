@@ -129,15 +129,6 @@ export function ChatArea() {
     clearSelection();
   }, [selectedIds, setForwardingIds, setShowForwardModal, clearSelection]);
 
-  // ✅ Wrapper for MessageList: accepts Message object instead of just ID
-  const handleForwardMessage = useCallback((msg: Message) => {
-    handleForwardSingle(msg.id);
-  }, [handleForwardSingle]);
-
-  // ✅ Track if we're in "add mode" (modal closed but queue has items)
-  const isForwardAddMode = forwardingIds.length > 0 && !showForwardModal;
-  const forwardedIdsSet = useMemo(() => new Set(forwardingIds), [forwardingIds]);
-
   // ✅ Pin all selected messages
   const handlePinSelected = useCallback(async () => {
     if (!activeChat) return;
@@ -212,10 +203,6 @@ export function ChatArea() {
   // ✅ "Add more" — close the modal and pre-select already-queued messages so user just taps extras
   const handleForwardAddMore = useCallback(() => {
     setShowForwardModal(false);
-
-    // TypeScript guard: проверяем, что forwardingIds существует
-    if (!forwardingIds) return;
-
     // Pre-select already-queued messages so they're highlighted in the chat
     const store = useChatsStore.getState();
     store.clearSelection();
@@ -387,9 +374,7 @@ export function ChatArea() {
         onPinMessage={handlePinMessage}
         onUnpinMessage={handleUnpinMessage}
         onDeleteSingle={handleDeleteSingle}
-        onForwardMessage={handleForwardMessage}
-        forwardedIds={forwardedIdsSet}
-        isForwardAddMode={isForwardAddMode}
+        onForwardSingle={handleForwardSingle}
         searchQuery={searchQuery.trim().toLowerCase()}
         matchedIds={matchedIds}
         currentMatchId={currentMatchId}
