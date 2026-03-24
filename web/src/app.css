@@ -3737,3 +3737,21 @@ input[type="date"].psInput::-webkit-calendar-picker-indicator {
   margin-top: 1px;
 }
 .fwdPreviewRemove:hover { background: color-mix(in srgb, var(--danger) 24%, transparent); }
+
+/* ── Selection bar: pin button ──────────────────────────────────────────────── */
+.selPinBtn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 13px;
+  border: none;
+  border-radius: 9px;
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+  color: var(--accent);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background .13s;
+}
+.selPinBtn:hover { background: color-mix(in srgb, var(--accent) 26%, transparent); }
+.selPinBtn svg { flex-shrink: 0; }
