@@ -3755,3 +3755,173 @@ input[type="date"].psInput::-webkit-calendar-picker-indicator {
 }
 .selPinBtn:hover { background: color-mix(in srgb, var(--accent) 26%, transparent); }
 .selPinBtn svg { flex-shrink: 0; }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   VOICE MESSAGES
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* Mic button in composer */
+.composerMic {
+  flex-shrink: 0;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  border: none;
+  background: none;
+  color: var(--muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background .13s, color .13s;
+  touch-action: none;
+  user-select: none;
+}
+.composerMic:hover { background: var(--panel); color: var(--text); }
+.composerMicActive {
+  background: color-mix(in srgb, var(--danger) 15%, transparent);
+  color: var(--danger);
+  animation: micPulse 1s ease-in-out infinite;
+}
+@keyframes micPulse {
+  0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--danger) 30%, transparent); }
+  50%       { box-shadow: 0 0 0 6px color-mix(in srgb, var(--danger) 0%, transparent); }
+}
+
+/* Live recording bar inside composer */
+.voiceRecordingBar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+  min-width: 0;
+  padding: 0 4px;
+}
+.voiceRecDot {
+  width: 9px; height: 9px;
+  border-radius: 50%;
+  background: var(--danger);
+  flex-shrink: 0;
+  animation: recBlink .9s step-start infinite;
+}
+@keyframes recBlink { 0%,100% { opacity: 1; } 50% { opacity: 0; } }
+.voiceRecTimer {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--danger);
+  font-variant-numeric: tabular-nums;
+  flex-shrink: 0;
+  min-width: 36px;
+}
+.voiceRecWaveWrap {
+  flex: 1;
+  min-width: 0;
+  opacity: .85;
+}
+
+/* Preview bar (replaces composer row) */
+.voicePreviewBar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: var(--card);
+  border-top: 1px solid var(--border);
+}
+.voiceCancelBtn {
+  flex-shrink: 0;
+  width: 34px; height: 34px;
+  border-radius: 50%;
+  border: none;
+  background: color-mix(in srgb, var(--danger) 12%, transparent);
+  color: var(--danger);
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer;
+  transition: background .12s;
+}
+.voiceCancelBtn:hover { background: color-mix(in srgb, var(--danger) 22%, transparent); }
+.voicePreviewWave {
+  flex: 1;
+  min-width: 0;
+  opacity: .9;
+}
+.voicePreviewDur {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+  flex-shrink: 0;
+  font-variant-numeric: tabular-nums;
+  min-width: 32px;
+  text-align: right;
+}
+.voiceSendBtn {
+  flex-shrink: 0;
+  width: 38px; height: 38px;
+  border-radius: 50%;
+  border: none;
+  background: var(--accent);
+  color: #fff;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer;
+  transition: opacity .12s;
+}
+.voiceSendBtn:hover:not(:disabled) { opacity: .85; }
+.voiceSendBtn:disabled { opacity: .5; cursor: not-allowed; }
+
+/* Voice message bubble player */
+.voiceMsgPlayer {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 2px;
+  min-width: 180px;
+  max-width: 280px;
+}
+.voiceMsgPlay {
+  flex-shrink: 0;
+  width: 32px; height: 32px;
+  border-radius: 50%;
+  border: none;
+  background: var(--accent);
+  color: #fff;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer;
+  transition: opacity .12s;
+}
+.voiceMsgPlayerOwn .voiceMsgPlay {
+  background: rgba(255,255,255,.25);
+}
+.voiceMsgPlay:hover { opacity: .85; }
+.voiceMsgTrack {
+  flex: 1;
+  min-width: 0;
+}
+.voiceMsgTrackBg {
+  height: 4px;
+  border-radius: 2px;
+  background: color-mix(in srgb, var(--accent) 25%, transparent);
+  position: relative;
+  overflow: hidden;
+}
+.voiceMsgPlayerOwn .voiceMsgTrackBg {
+  background: rgba(255,255,255,.25);
+}
+.voiceMsgTrackFill {
+  height: 100%;
+  background: var(--accent);
+  border-radius: 2px;
+  transition: width .1s linear;
+}
+.voiceMsgPlayerOwn .voiceMsgTrackFill {
+  background: rgba(255,255,255,.8);
+}
+.voiceMsgTime {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--muted);
+  flex-shrink: 0;
+  font-variant-numeric: tabular-nums;
+  min-width: 30px;
+  text-align: right;
+}
+.voiceMsgPlayerOwn .voiceMsgTime { color: rgba(255,255,255,.7); }

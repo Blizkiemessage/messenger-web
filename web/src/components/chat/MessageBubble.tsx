@@ -194,6 +194,55 @@ function HighlightText({ text, term }: { text: string; term: string }) {
   );
 }
 
+// ── Audio player for voice messages ──────────────────────────────────────────
+function AudioPlayer({ url, isOwn }: { url: string; isOwn: boolean }) {
+  const audioRef  = useRef<HTMLAudioElement>(null);
+  const [playing, setPlaying]   = useState(false);
+  const [current, setCurrent]   = useState(0);
+  const [duration, setDuration] = useState(0);
+
+  const fmt = (s: number) => {
+    if (!isFinite(s)) return '0:00';
+    const m = Math.floor(s / 60), sec = Math.floor(s % 60);
+    return `${m}:${sec.toString().padStart(2, '0')}`;
+  };
+
+  const toggle = () => {
+    const a = audioRef.current;
+    if (!a) return;
+    if (playing) { a.pause(); setPlaying(false); }
+    else { a.play(); setPlaying(true); }
+  };
+
+  return (
+    <div className={`voiceMsgPlayer${isOwn ? ' voiceMsgPlayerOwn' : ''}`}>
+      <audio ref={audioRef} src={url} preload="metadata"
+        onTimeUpdate={e => setCurrent(e.currentTarget.currentTime)}
+        onLoadedMetadata={e => setDuration(e.currentTarget.duration)}
+        onEnded={() => setPlaying(false)} />
+      <button className="voiceMsgPlay" onClick={toggle}>
+        {playing ? (
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+            <rect x="5" y="4" width="4" height="16" rx="1"/>
+            <rect x="15" y="4" width="4" height="16" rx="1"/>
+          </svg>
+        ) : (
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M8 5v14l11-7z"/>
+          </svg>
+        )}
+      </button>
+      <div className="voiceMsgTrack">
+        <div className="voiceMsgTrackBg">
+          <div className="voiceMsgTrackFill"
+            style={{ width: duration > 0 ? `${(current / duration) * 100}%` : '0%' }} />
+        </div>
+      </div>
+      <span className="voiceMsgTime">{playing || current > 0 ? fmt(current) : fmt(duration)}</span>
+    </div>
+  );
+}
+
 // ── Props ─────────────────────────────────────────────────────────────────────
 interface Props {
   message: Message;
@@ -222,7 +271,8 @@ export function MessageBubble({
   const hasAttachment = !!m.attachment_url;
   const isImage = m.attachment_type === 'image';
   const isVideo = m.attachment_type === 'video';
-  const isFile  = hasAttachment && !isImage && !isVideo;
+  const isAudio = m.attachment_type === 'audio';
+  const isFile  = hasAttachment && !isImage && !isVideo && !isAudio;
 
   // ✅ KEY FIX: resolve /uploads/... URLs to absolute backend URLs.
   // Without this, Vercel's SPA rewrite catches the relative path and serves index.html.
@@ -302,6 +352,9 @@ export function MessageBubble({
         )}
 
         {/* ── Attachments (all use resolved URL) ── */}
+        {isAudio && (
+          <AudioPlayer url={attachmentUrl} isOwn={isOwn} />
+        )}
         {isImage && (
           <ImageAttachment
             url={attachmentUrl}

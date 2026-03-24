@@ -7,7 +7,7 @@ import client from './client';
 
 export interface UploadResult {
   url:  string;
-  type: 'image' | 'video' | 'file';
+  type: 'image' | 'video' | 'audio' | 'file';
   name: string;
   size: number;
 }

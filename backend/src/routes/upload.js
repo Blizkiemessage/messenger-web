@@ -13,6 +13,10 @@ const IMAGE_TYPES = [
   'image/jpeg','image/png','image/gif','image/webp',
   'image/heic','image/heif','image/bmp','image/tiff','image/svg+xml',
 ];
+const AUDIO_TYPES = [
+  'audio/webm', 'audio/ogg', 'audio/mp4', 'audio/mpeg',
+  'audio/wav', 'audio/aac', 'audio/flac', 'audio/x-m4a',
+];
 const VIDEO_TYPES = [
   'video/mp4','video/quicktime','video/x-msvideo',
   'video/webm','video/mov','video/mpeg','video/x-matroska',
@@ -49,6 +53,7 @@ router.post('/', upload.single('file'), async (req, res) => {
   const mime = req.file.mimetype;
   const type = IMAGE_TYPES.includes(mime) ? 'image'
              : VIDEO_TYPES.includes(mime) ? 'video'
+             : AUDIO_TYPES.includes(mime) ? 'audio'
              : 'file';
   const ext = path.extname(req.file.originalname) || '';
 
