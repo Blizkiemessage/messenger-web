@@ -1,11 +1,15 @@
 /**
- * Composer.tsx
- * Voice: hold mic → live waveform; drag up to lock → hands-free recording; send → preview
- * File upload with progress & cancel unchanged
+ * Composer.tsx  ✅
+ * - Waveform icon (instead of mic) that pulses with accent colour
+ * - Recording: clean timer + dots, NO canvas waveform
+ * - Preview: mini player with real waveform bars + play-before-send
+ * - Lock mode: drag-up to hands-free recording
  */
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { uploadFile } from '../../api/upload';
 import type { UploadResult } from '../../api/upload';
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
 
 function formatFileSize(bytes: number): string {
   if (!bytes) return '0 B';
@@ -15,9 +19,9 @@ function formatFileSize(bytes: number): string {
   return `${(bytes / (1024 * 1024 * 1024)).toFixed(2)} GB`;
 }
 
-function formatDuration(sec: number): string {
-  const m = Math.floor(sec / 60);
-  const s = Math.floor(sec % 60);
+function fmt(sec: number): string {
+  if (!isFinite(sec) || isNaN(sec)) return '0:00';
+  const m = Math.floor(sec / 60), s = Math.floor(sec % 60);
   return `${m}:${s.toString().padStart(2, '0')}`;
 }
 
@@ -50,35 +54,85 @@ function FileIconBadge({ name, size = 44 }: { name: string; size?: number }) {
   );
 }
 
-// Mini live waveform canvas (bars)
-function LiveWaveform({ data, height = 30 }: { data: number[]; height?: number }) {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-    const W = canvas.width, H = canvas.height;
-    ctx.clearRect(0, 0, W, H);
-    if (data.length === 0) return;
-    const barW = 3, gap = 2;
-    const bars = Math.floor(W / (barW + gap));
-    const step = Math.max(1, Math.floor(data.length / bars));
-    ctx.fillStyle = 'var(--accent)';
-    for (let i = 0; i < bars; i++) {
-      const slice = data.slice(i * step, i * step + step);
-      const avg = slice.length ? slice.reduce((a, b) => a + b, 0) / slice.length : 0;
-      const barH = Math.max(3, avg * H * 0.9);
-      const x = i * (barW + gap);
-      const y = (H - barH) / 2;
-      ctx.beginPath();
-      // @ts-ignore
-      ctx.roundRect?.(x, y, barW, barH, 1.5) ?? ctx.rect(x, y, barW, barH);
-      ctx.fill();
-    }
-  }, [data]);
-  return <canvas ref={canvasRef} width={260} height={height} style={{ width: '100%', height, display: 'block' }} />;
+// ── Waveform icon SVG (replaces mic icon) ─────────────────────────────────────
+function WaveformIcon({ size = 22 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor">
+      <rect x="1"  y="9"  width="2.5" height="6"  rx="1.2"/>
+      <rect x="5"  y="5"  width="2.5" height="14" rx="1.2"/>
+      <rect x="9"  y="2"  width="2.5" height="20" rx="1.2"/>
+      <rect x="13" y="5"  width="2.5" height="14" rx="1.2"/>
+      <rect x="17" y="7"  width="2.5" height="10" rx="1.2"/>
+      <rect x="21" y="9"  width="2.5" height="6"  rx="1.2"/>
+    </svg>
+  );
 }
+
+// ── Preview mini-player (inside composer before sending) ──────────────────────
+const PREVIEW_BARS = 40;
+
+function seededBars(wave: number[]): number[] {
+  if (wave.length === 0) return Array(PREVIEW_BARS).fill(0.35);
+  const out: number[] = [];
+  const step = Math.max(1, Math.floor(wave.length / PREVIEW_BARS));
+  for (let i = 0; i < PREVIEW_BARS; i++) {
+    const slice = wave.slice(i * step, i * step + step);
+    const avg = slice.length ? slice.reduce((a, b) => a + b, 0) / slice.length : 0;
+    out.push(Math.max(0.07, avg));
+  }
+  const max = Math.max(...out, 0.001);
+  return out.map(v => v / max);
+}
+
+function PreviewPlayer({ blob, duration }: { blob: Blob; duration: number }) {
+  const audioRef  = useRef<HTMLAudioElement>(null);
+  const urlRef    = useRef<string>('');
+  const [playing,  setPlaying]  = useState(false);
+  const [current,  setCurrent]  = useState(0);
+
+  useEffect(() => {
+    urlRef.current = URL.createObjectURL(blob);
+    if (audioRef.current) audioRef.current.src = urlRef.current;
+    return () => URL.revokeObjectURL(urlRef.current);
+  }, [blob]);
+
+  const toggle = () => {
+    const a = audioRef.current;
+    if (!a) return;
+    if (playing) { a.pause(); setPlaying(false); }
+    else { a.play().catch(() => {}); setPlaying(true); }
+  };
+
+  const progress = duration > 0 ? current / duration : 0;
+
+  return (
+    <div className="voicePreviewPlayer">
+      <audio ref={audioRef} preload="auto"
+        onTimeUpdate={e => setCurrent(e.currentTarget.currentTime)}
+        onEnded={() => { setPlaying(false); setCurrent(0); }} />
+      <button className="voicePreviewPlayBtn" onClick={toggle} title={playing ? 'Пауза' : 'Воспроизвести'}>
+        {playing ? (
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor">
+            <rect x="5" y="4" width="4" height="16" rx="1"/>
+            <rect x="15" y="4" width="4" height="16" rx="1"/>
+          </svg>
+        ) : (
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M8 5v14l11-7z"/>
+          </svg>
+        )}
+      </button>
+      <div className="voicePreviewTrackWrap">
+        <div className="voicePreviewTrackBg">
+          <div className="voicePreviewTrackFill" style={{ width: `${progress * 100}%` }} />
+        </div>
+      </div>
+      <span className="voicePreviewTime">{fmt(current)}/{fmt(duration)}</span>
+    </div>
+  );
+}
+
+// ── Props ─────────────────────────────────────────────────────────────────────
 
 interface Props {
   value: string;
@@ -91,8 +145,9 @@ interface Props {
 }
 
 type VoiceState = 'idle' | 'recording' | 'preview';
+const LOCK_THRESHOLD = 60;
 
-const LOCK_THRESHOLD = 60; // px upward drag to lock
+// ── Component ─────────────────────────────────────────────────────────────────
 
 export function Composer({ value, onChange, onSend, onSendAttachment, externalFile, onExternalFileConsumed, disabled }: Props) {
   // File staging
@@ -144,15 +199,14 @@ export function Composer({ value, onChange, onSend, onSendAttachment, externalFi
     }
   }, [staged, caption, uploading, onSendAttachment, clearStage]);
 
-  // Voice recording state
+  // Voice recording
   const [voiceState,   setVoiceState]   = useState<VoiceState>('idle');
-  const [locked,       setLocked]       = useState(false);  // hands-free lock mode
-  const [lockProgress, setLockProgress] = useState(0);      // 0-1, how far up dragged
+  const [locked,       setLocked]       = useState(false);
+  const [lockProgress, setLockProgress] = useState(0);
   const [recSeconds,   setRecSeconds]   = useState(0);
   const [liveWave,     setLiveWave]     = useState<number[]>([]);
-  const [previewWave,  setPreviewWave]  = useState<number[]>([]);
-  const [previewSecs,  setPreviewSecs]  = useState(0);
   const [voiceBlob,    setVoiceBlob]    = useState<Blob | null>(null);
+  const [previewSecs,  setPreviewSecs]  = useState(0);
   const [voiceSending, setVoiceSending] = useState(false);
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -166,6 +220,9 @@ export function Composer({ value, onChange, onSend, onSendAttachment, externalFi
   const recSecondsRef    = useRef(0);
   const micStartYRef     = useRef(0);
   const micLockedRef     = useRef(false);
+
+  // Animated mic icon: amplitude drives the icon's bars while recording
+  const [micAmp, setMicAmp] = useState(0);
 
   useEffect(() => () => { stopCleanup(); }, []); // eslint-disable-line
 
@@ -203,20 +260,20 @@ export function Composer({ value, onChange, onSend, onSendAttachment, externalFi
       mr.onstop = () => {
         const blob = new Blob(chunksRef.current, { type: mimeType });
         setVoiceBlob(blob);
-        setPreviewWave([...liveWaveRef.current]);
         setPreviewSecs(recSecondsRef.current);
         setVoiceState('preview');
         setLocked(false);
         setLockProgress(0);
         micLockedRef.current = false;
+        setMicAmp(0);
         stopCleanup();
       };
 
       mr.start(80);
       recSecondsRef.current = 0;
       setRecSeconds(0);
-      setLiveWave([]);
       liveWaveRef.current = [];
+      setLiveWave([]);
       setVoiceState('recording');
 
       timerRef.current = setInterval(() => {
@@ -231,6 +288,7 @@ export function Composer({ value, onChange, onSend, onSendAttachment, externalFi
         const amp = buf.reduce((a, b) => a + Math.abs(b - 128), 0) / buf.length / 128;
         liveWaveRef.current.push(amp);
         setLiveWave([...liveWaveRef.current]);
+        setMicAmp(amp);
         rafRef.current = requestAnimationFrame(draw);
       };
       rafRef.current = requestAnimationFrame(draw);
@@ -250,7 +308,6 @@ export function Composer({ value, onChange, onSend, onSendAttachment, externalFi
       if (timerRef.current) clearInterval(timerRef.current);
       cancelAnimationFrame(rafRef.current);
       if (mediaRecorderRef.current?.state !== 'inactive') {
-        // suppress onstop → don't go to preview
         mediaRecorderRef.current!.onstop = null;
         mediaRecorderRef.current!.stop();
       }
@@ -261,11 +318,11 @@ export function Composer({ value, onChange, onSend, onSendAttachment, externalFi
     setVoiceState('idle');
     setVoiceBlob(null);
     setLiveWave([]);
-    setPreviewWave([]);
     setRecSeconds(0);
     setPreviewSecs(0);
     setLocked(false);
     setLockProgress(0);
+    setMicAmp(0);
     micLockedRef.current = false;
     liveWaveRef.current = [];
   }, [voiceState]);
@@ -280,7 +337,7 @@ export function Composer({ value, onChange, onSend, onSendAttachment, externalFi
     cancelVoice();
   }, [voiceBlob, voiceSending, handleSendFile, cancelVoice]);
 
-  // Pointer events on mic: hold to record, drag up to lock
+  // Pointer hold + lock drag
   const micDelayRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const micHoldRef  = useRef(false);
 
@@ -297,9 +354,9 @@ export function Composer({ value, onChange, onSend, onSendAttachment, externalFi
 
   const onMicMove = useCallback((e: React.PointerEvent) => {
     if (voiceState !== 'recording' || micLockedRef.current) return;
-    const dy = micStartYRef.current - e.clientY; // positive = dragged up
-    const progress = Math.min(1, Math.max(0, dy / LOCK_THRESHOLD));
-    setLockProgress(progress);
+    const dy = micStartYRef.current - e.clientY;
+    const p = Math.min(1, Math.max(0, dy / LOCK_THRESHOLD));
+    setLockProgress(p);
     if (dy >= LOCK_THRESHOLD) {
       micLockedRef.current = true;
       setLocked(true);
@@ -310,24 +367,21 @@ export function Composer({ value, onChange, onSend, onSendAttachment, externalFi
   const onMicUp = useCallback(() => {
     micHoldRef.current = false;
     if (micDelayRef.current) { clearTimeout(micDelayRef.current); micDelayRef.current = null; }
-    // Only stop if NOT locked
     if (!micLockedRef.current) stopRecording();
-  }, [stopRecording]);
-
-  // Locked mode: clicking the stop/send area finalizes → preview
-  const onLockedStop = useCallback(() => {
-    stopRecording();
   }, [stopRecording]);
 
   const isFileMode = !!staged;
   const canSend    = isFileMode ? !uploading : (!!value.trim() && !disabled);
+
+  // Animated icon style driven by amplitude
+  const iconScale = voiceState === 'recording' ? 1 + micAmp * 0.25 : 1;
 
   return (
     <div className="composerWrap">
       <input ref={fileInputRef} type="file" accept="*/*" style={{ display: 'none' }}
         onChange={e => { const f = e.target.files?.[0]; if (f) stageFile(f); e.target.value = ''; }} />
 
-      {/* File staging */}
+      {/* File staging card */}
       {staged && (
         <div className={`fileStagingCard${uploading ? ' fileStagingUploading' : ''}`}>
           <div className="fileStagingRow">
@@ -337,7 +391,7 @@ export function Composer({ value, onChange, onSend, onSendAttachment, externalFi
               <div className="fileStagingSize">{formatFileSize(staged.size)}</div>
             </div>
             {uploading ? (
-              <button className="fileStagingCancel" onClick={handleCancelUpload} title="Отменить загрузку">
+              <button className="fileStagingCancel" onClick={handleCancelUpload} title="Отменить">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
                   <rect x="3" y="3" width="18" height="18" rx="3"/>
                   <line x1="9" y1="9" x2="15" y2="15"/><line x1="15" y1="9" x2="9" y2="15"/>
@@ -375,53 +429,60 @@ export function Composer({ value, onChange, onSend, onSendAttachment, externalFi
         </div>
       )}
 
-      {/* Voice preview bar */}
-      {voiceState === 'preview' && (
-        <div className="voicePreviewBar">
-          <button className="voiceCancelBtn" onClick={cancelVoice} title="Отмена">
-            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-              <polyline points="3 6 5 6 21 6"/>
-              <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
-              <path d="M10 11v6M14 11v6"/>
-              <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
-            </svg>
-          </button>
-          <div className="voicePreviewWave">
-            <LiveWaveform data={previewWave} height={36} />
+      {/* ── Voice PREVIEW card ── */}
+      {voiceState === 'preview' && voiceBlob && (
+        <div className="voicePreviewCard">
+          <div className="voicePreviewCardTop">
+            <span className="voicePreviewLabel">Голосовое сообщение</span>
+            <span className="voicePreviewDurLabel">{fmt(previewSecs)}</span>
           </div>
-          <span className="voicePreviewDur">{formatDuration(previewSecs)}</span>
-          <button className="voiceSendBtn" onClick={sendVoice} disabled={voiceSending} title="Отправить">
-            {voiceSending ? (
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" className="composerSpinner">
-                <path d="M21 12a9 9 0 1 1-6.219-8.56"/>
+          <PreviewPlayer blob={voiceBlob} duration={previewSecs} />
+          <div className="voicePreviewCardActions">
+            <button className="voicePreviewDeleteBtn" onClick={cancelVoice} title="Удалить">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="3 6 5 6 21 6"/>
+                <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+                <path d="M10 11v6M14 11v6"/>
+                <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
               </svg>
-            ) : (
-              <svg viewBox="0 0 24 24" fill="none" width="19" height="19">
-                <path d="M22 2L11 13" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
-                <path d="M22 2L15 22L11 13L2 9L22 2Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-              </svg>
-            )}
-          </button>
+              Удалить
+            </button>
+            <button className="voicePreviewSendBtn" onClick={sendVoice} disabled={voiceSending} title="Отправить">
+              {voiceSending ? (
+                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" className="composerSpinner">
+                  <path d="M21 12a9 9 0 1 1-6.219-8.56"/>
+                </svg>
+              ) : (
+                <>
+                  <svg viewBox="0 0 24 24" fill="none" width="16" height="16">
+                    <path d="M22 2L11 13" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+                    <path d="M22 2L15 22L11 13L2 9L22 2Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                  Отправить
+                </>
+              )}
+            </button>
+          </div>
         </div>
       )}
 
-      {/* Normal composer row */}
+      {/* ── Normal composer row ── */}
       {voiceState !== 'preview' && (
         <div className="composer">
           {voiceState === 'recording' ? (
+            /* Recording mode: minimal — trash | big timer + dot | mic-stop */
             <div className="voiceRecordingBar">
-              {/* Cancel trash icon */}
               <button className="voiceRecCancelBtn" onClick={cancelVoice} title="Отменить">
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <polyline points="3 6 5 6 21 6"/>
                   <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
                 </svg>
               </button>
-              <div className="voiceRecWaveWrap">
-                <LiveWaveform data={liveWave} height={30} />
+              <div className="voiceRecCenter">
+                <span className="voiceRecDot" />
+                <span className="voiceRecTimer">{fmt(recSeconds)}</span>
               </div>
-              <span className="voiceRecTimer">{formatDuration(recSeconds)}</span>
-              <span className="voiceRecDot" />
+              <span className="voiceRecHint">{locked ? '🔒 Зафиксировано' : 'Потяните вверх для фиксации'}</span>
             </div>
           ) : (
             <>
@@ -462,34 +523,29 @@ export function Composer({ value, onChange, onSend, onSendAttachment, externalFi
             </>
           )}
 
-          {/* Mic button with lock UI */}
+          {/* Waveform icon button (replaces mic) */}
           {!isFileMode && (
             <div className="composerMicWrap">
-              {/* Lock track — visible while recording (not locked yet) */}
+              {/* Lock track */}
               {voiceState === 'recording' && !locked && (
                 <div className="voiceLockTrack">
-                  <div className="voiceLockIcon" style={{ transform: `translateY(${-(lockProgress * 28)}px)`, opacity: 0.5 + lockProgress * 0.5 }}>
-                    {lockProgress >= 1 ? (
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
-                        <path d="M18 8h-1V6A5 5 0 0 0 7 6v2H6a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V10a2 2 0 0 0-2-2zm-6 9a2 2 0 1 1 0-4 2 2 0 0 1 0 4zm3.1-9H8.9V6a3.1 3.1 0 1 1 6.2 0v2z"/>
-                      </svg>
-                    ) : (
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-                        <rect x="3" y="11" width="18" height="11" rx="2"/>
-                        <path d="M7 11V7a5 5 0 0 1 9.9-1"/>
-                      </svg>
-                    )}
+                  <div className="voiceLockIcon" style={{
+                    transform: `translateY(${-(lockProgress * 28)}px)`,
+                    opacity: 0.45 + lockProgress * 0.55,
+                  }}>
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
+                      <rect x="3" y="11" width="18" height="11" rx="2"/>
+                      <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                    </svg>
                   </div>
-                  <svg className="voiceLockArrow" width="12" height="20" viewBox="0 0 12 20">
-                    <path d="M6 18 L6 2 M3 5 L6 2 L9 5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" fill="none" opacity="0.5"/>
+                  <svg className="voiceLockArrow" width="10" height="16" viewBox="0 0 10 16">
+                    <path d="M5 14 L5 2 M2 4 L5 1 L8 4" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" fill="none" opacity="0.45"/>
                   </svg>
                 </div>
               )}
-
-              {/* Locked badge above mic */}
               {voiceState === 'recording' && locked && (
-                <div className="voiceLockedBadge" onClick={onLockedStop} title="Нажмите для завершения">
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor">
+                <div className="voiceLockedBadge" onClick={stopRecording} title="Нажмите для завершения">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
                     <path d="M18 8h-1V6A5 5 0 0 0 7 6v2H6a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V10a2 2 0 0 0-2-2zm-6 9a2 2 0 1 1 0-4 2 2 0 0 1 0 4zm3.1-9H8.9V6a3.1 3.1 0 1 1 6.2 0v2z"/>
                   </svg>
                 </div>
@@ -497,28 +553,19 @@ export function Composer({ value, onChange, onSend, onSendAttachment, externalFi
 
               <button
                 className={`composerMic${voiceState === 'recording' ? (locked ? ' composerMicLocked' : ' composerMicActive') : ''}`}
+                style={{ transform: `scale(${iconScale})` }}
                 onPointerDown={onMicDown}
                 onPointerMove={onMicMove}
                 onPointerUp={onMicUp}
                 onPointerCancel={onMicUp}
-                title={
-                  voiceState === 'recording'
-                    ? locked ? 'Нажмите для остановки' : 'Отпустите или потяните вверх для фиксации'
-                    : 'Зажмите для записи'
-                }
+                title={voiceState === 'recording' ? (locked ? 'Нажмите для остановки' : 'Отпустите или потяните вверх') : 'Зажмите для записи'}
               >
                 {voiceState === 'recording' && locked ? (
-                  /* Locked: show stop icon, click stops */
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
                     <rect x="4" y="4" width="16" height="16" rx="3"/>
                   </svg>
                 ) : (
-                  <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
-                    <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
-                    <line x1="12" y1="19" x2="12" y2="23"/>
-                    <line x1="8" y1="23" x2="16" y2="23"/>
-                  </svg>
+                  <WaveformIcon size={20} />
                 )}
               </button>
             </div>

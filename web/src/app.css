@@ -3760,7 +3760,7 @@ input[type="date"].psInput::-webkit-calendar-picker-indicator {
    VOICE MESSAGES — redesigned
    ═══════════════════════════════════════════════════════════════════════════ */
 
-/* Mic wrapper — relative so lock track floats above */
+/* ── Mic wrapper ── */
 .composerMicWrap {
   position: relative;
   display: flex;
@@ -3768,26 +3768,23 @@ input[type="date"].psInput::-webkit-calendar-picker-indicator {
   flex-shrink: 0;
 }
 
-/* Mic button */
+/* ── Waveform icon button (replaces mic) ── */
 .composerMic {
-  width: 38px;
-  height: 38px;
+  width: 38px; height: 38px;
   border-radius: 50%;
   border: none;
   background: none;
-  color: var(--muted);
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  color: var(--accent);
+  display: flex; align-items: center; justify-content: center;
   cursor: pointer;
-  transition: background .13s, color .13s;
+  transition: background .13s, color .13s, transform .1s;
   touch-action: none;
   user-select: none;
   flex-shrink: 0;
 }
-.composerMic:hover { background: var(--panel); color: var(--text); }
+.composerMic:hover { background: color-mix(in srgb, var(--accent) 12%, transparent); }
 .composerMicActive {
-  background: color-mix(in srgb, var(--danger) 15%, transparent);
+  background: color-mix(in srgb, var(--danger) 14%, transparent);
   color: var(--danger);
   animation: micPulse 1.2s ease-in-out infinite;
 }
@@ -3797,11 +3794,11 @@ input[type="date"].psInput::-webkit-calendar-picker-indicator {
   animation: none;
 }
 @keyframes micPulse {
-  0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--danger) 30%, transparent); }
-  50%       { box-shadow: 0 0 0 7px color-mix(in srgb, var(--danger) 0%, transparent); }
+  0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--danger) 28%, transparent); }
+  50%       { box-shadow: 0 0 0 8px color-mix(in srgb, var(--danger) 0%, transparent); }
 }
 
-/* Lock track above mic */
+/* ── Lock track above mic ── */
 .voiceLockTrack {
   position: absolute;
   bottom: calc(100% + 6px);
@@ -3810,50 +3807,41 @@ input[type="date"].psInput::-webkit-calendar-picker-indicator {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 4px;
+  gap: 3px;
   pointer-events: none;
 }
 .voiceLockIcon {
-  width: 28px;
-  height: 28px;
+  width: 26px; height: 26px;
   border-radius: 50%;
   background: var(--card);
   border: 1.5px solid var(--border);
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  display: flex; align-items: center; justify-content: center;
   color: var(--accent);
-  transition: transform .1s, opacity .1s;
 }
 .voiceLockArrow { color: var(--muted); }
-
-/* Locked badge */
 .voiceLockedBadge {
   position: absolute;
   bottom: calc(100% + 6px);
   left: 50%;
   transform: translateX(-50%);
-  width: 28px;
-  height: 28px;
+  width: 26px; height: 26px;
   border-radius: 50%;
   background: var(--accent);
   color: #fff;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  display: flex; align-items: center; justify-content: center;
   cursor: pointer;
   animation: popIn .2s cubic-bezier(.34,1.56,.64,1);
   box-shadow: 0 2px 10px color-mix(in srgb, var(--accent) 40%, transparent);
 }
 
-/* Recording bar inside composer */
+/* ── Recording bar ── */
 .voiceRecordingBar {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
   flex: 1;
   min-width: 0;
-  padding: 0 2px;
+  padding: 0 4px;
 }
 .voiceRecCancelBtn {
   flex-shrink: 0;
@@ -3867,18 +3855,12 @@ input[type="date"].psInput::-webkit-calendar-picker-indicator {
   transition: color .12s;
 }
 .voiceRecCancelBtn:hover { color: var(--danger); }
-.voiceRecWaveWrap {
+.voiceRecCenter {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   flex: 1;
-  min-width: 0;
-}
-.voiceRecTimer {
-  font-size: 13px;
-  font-weight: 700;
-  color: var(--text);
-  font-variant-numeric: tabular-nums;
-  flex-shrink: 0;
-  min-width: 36px;
-  text-align: right;
+  justify-content: center;
 }
 .voiceRecDot {
   width: 8px; height: 8px;
@@ -3888,64 +3870,143 @@ input[type="date"].psInput::-webkit-calendar-picker-indicator {
   animation: recBlink .9s step-start infinite;
 }
 @keyframes recBlink { 0%,100% { opacity: 1; } 50% { opacity: 0; } }
+.voiceRecTimer {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: .02em;
+}
+.voiceRecHint {
+  font-size: 11px;
+  color: var(--muted);
+  flex-shrink: 0;
+  white-space: nowrap;
+}
 
-/* Preview bar */
-.voicePreviewBar {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 10px 14px;
+/* ── Voice preview card (before sending) ── */
+.voicePreviewCard {
   background: var(--card);
   border-top: 1px solid var(--border);
+  padding: 12px 14px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
 }
-.voiceCancelBtn {
-  flex-shrink: 0;
-  width: 34px; height: 34px;
-  border-radius: 50%;
-  border: none;
-  background: color-mix(in srgb, var(--danger) 12%, transparent);
-  color: var(--danger);
-  display: flex; align-items: center; justify-content: center;
-  cursor: pointer;
-  transition: background .12s;
+.voicePreviewCardTop {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
 }
-.voiceCancelBtn:hover { background: color-mix(in srgb, var(--danger) 22%, transparent); }
-.voicePreviewWave { flex: 1; min-width: 0; }
-.voicePreviewDur {
+.voicePreviewLabel {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--accent);
+  text-transform: uppercase;
+  letter-spacing: .05em;
+}
+.voicePreviewDurLabel {
   font-size: 12px;
   font-weight: 600;
   color: var(--muted);
-  flex-shrink: 0;
   font-variant-numeric: tabular-nums;
-  min-width: 34px;
-  text-align: right;
 }
-.voiceSendBtn {
+
+/* Preview mini player */
+.voicePreviewPlayer {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--panel);
+  border-radius: 12px;
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+}
+.voicePreviewPlayBtn {
   flex-shrink: 0;
-  width: 38px; height: 38px;
+  width: 30px; height: 30px;
   border-radius: 50%;
   border: none;
   background: var(--accent);
   color: #fff;
   display: flex; align-items: center; justify-content: center;
   cursor: pointer;
-  transition: opacity .12s;
+  transition: opacity .12s, transform .1s;
 }
-.voiceSendBtn:hover:not(:disabled) { opacity: .85; }
-.voiceSendBtn:disabled { opacity: .5; cursor: not-allowed; }
+.voicePreviewPlayBtn:hover { opacity: .85; transform: scale(1.06); }
+.voicePreviewTrackWrap {
+  flex: 1;
+  min-width: 0;
+}
+.voicePreviewTrackBg {
+  height: 4px;
+  border-radius: 2px;
+  background: color-mix(in srgb, var(--accent) 22%, transparent);
+  position: relative;
+  overflow: hidden;
+}
+.voicePreviewTrackFill {
+  height: 100%;
+  background: var(--accent);
+  border-radius: 2px;
+  transition: width .1s linear;
+}
+.voicePreviewTime {
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--muted);
+  flex-shrink: 0;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
 
-/* ── Voice message bubble player (Telegram-style) ─────────────────────────── */
+/* Preview action buttons */
+.voicePreviewCardActions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.voicePreviewDeleteBtn {
+  display: flex; align-items: center; gap: 6px;
+  padding: 7px 14px;
+  border-radius: 9px;
+  border: 1.5px solid color-mix(in srgb, var(--danger) 30%, transparent);
+  background: color-mix(in srgb, var(--danger) 8%, transparent);
+  color: var(--danger);
+  font-size: 13px; font-weight: 600;
+  cursor: pointer;
+  transition: background .12s, border-color .12s;
+}
+.voicePreviewDeleteBtn:hover { background: color-mix(in srgb, var(--danger) 16%, transparent); border-color: var(--danger); }
+.voicePreviewSendBtn {
+  display: flex; align-items: center; gap: 7px;
+  padding: 8px 20px;
+  border-radius: 9px;
+  border: none;
+  background: var(--accent);
+  color: #fff;
+  font-size: 13.5px; font-weight: 600;
+  cursor: pointer;
+  transition: opacity .12s;
+  flex: 1;
+  justify-content: center;
+}
+.voicePreviewSendBtn:hover:not(:disabled) { opacity: .88; }
+.voicePreviewSendBtn:disabled { opacity: .5; cursor: not-allowed; }
+
+/* ── Voice message bubble player (Telegram-style) ── */
 .voiceMsgPlayer {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 6px 4px 4px;
-  min-width: 210px;
-  max-width: 300px;
+  padding: 4px 2px 2px;
+  min-width: 200px;
+  max-width: 280px;
 }
 .voiceMsgPlay {
   flex-shrink: 0;
-  width: 38px; height: 38px;
+  width: 36px; height: 36px;
   border-radius: 50%;
   border: none;
   background: var(--accent);
@@ -3961,21 +4022,22 @@ input[type="date"].psInput::-webkit-calendar-picker-indicator {
   box-shadow: none;
 }
 
-/* Right side: bars + time */
 .voiceMsgRight {
   flex: 1;
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 5px;
+  gap: 4px;
+  justify-content: center;
 }
 
-/* Bar waveform */
+/* Bar waveform — clickable */
 .voiceMsgBars {
   display: flex;
   align-items: center;
   gap: 2px;
-  height: 32px;
+  height: 28px;
+  cursor: pointer;
 }
 .voiceMsgBar {
   flex: 1;
@@ -3984,23 +4046,16 @@ input[type="date"].psInput::-webkit-calendar-picker-indicator {
   height: calc(var(--bar-h, 0.3) * 100%);
   min-height: 3px;
   border-radius: 2px;
-  background: color-mix(in srgb, var(--accent) 35%, var(--border));
-  transition: background .15s;
+  background: color-mix(in srgb, var(--accent) 28%, var(--border));
+  transition: background .08s;
 }
-.voiceMsgBarPlayed {
-  background: var(--accent);
-}
-.voiceMsgPlayerOwn .voiceMsgBar {
-  background: rgba(255,255,255,.25);
-}
-.voiceMsgPlayerOwn .voiceMsgBarPlayed {
-  background: rgba(255,255,255,.85);
-}
+.voiceMsgBarPlayed { background: var(--accent); }
+.voiceMsgPlayerOwn .voiceMsgBar      { background: rgba(255,255,255,.22); }
+.voiceMsgPlayerOwn .voiceMsgBarPlayed { background: rgba(255,255,255,.85); }
 
-/* Time row */
+/* Time */
 .voiceMsgTimes {
   display: flex;
-  justify-content: space-between;
   align-items: center;
 }
 .voiceMsgTimeCurrent {
@@ -4009,13 +4064,4 @@ input[type="date"].psInput::-webkit-calendar-picker-indicator {
   color: var(--muted);
   font-variant-numeric: tabular-nums;
 }
-.voiceMsgTimeTotal {
-  font-size: 11px;
-  color: var(--muted);
-  opacity: .6;
-  font-variant-numeric: tabular-nums;
-}
-.voiceMsgPlayerOwn .voiceMsgTimeCurrent,
-.voiceMsgPlayerOwn .voiceMsgTimeTotal {
-  color: rgba(255,255,255,.65);
-}
+.voiceMsgPlayerOwn .voiceMsgTimeCurrent { color: rgba(255,255,255,.6); }

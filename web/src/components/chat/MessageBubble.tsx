@@ -195,34 +195,33 @@ function HighlightText({ text, term }: { text: string; term: string }) {
 }
 
 // ── Audio player for voice messages ──────────────────────────────────────────
-const BARS = 40;
+const BARS = 44;
 
 function seededBars(seed: string): number[] {
-  // Fallback deterministic waveform if decode fails
   let h = 0;
   for (let i = 0; i < seed.length; i++) h = (Math.imul(31, h) + seed.charCodeAt(i)) | 0;
   return Array.from({ length: BARS }, (_, i) => {
-    const v = Math.sin(h * (i + 1) * 0.37 + i) * 0.5 + 0.5;
-    return 0.15 + v * 0.85;
+    const v = Math.abs(Math.sin(h * (i + 1) * 0.37 + i * 0.61) * 0.5 + 0.5);
+    return 0.12 + v * 0.88;
   });
 }
 
 function AudioPlayer({ url, isOwn, msgId }: { url: string; isOwn: boolean; msgId: string }) {
   const audioRef   = useRef<HTMLAudioElement>(null);
+  const barsRef    = useRef<HTMLDivElement>(null);
   const [playing,  setPlaying]  = useState(false);
   const [current,  setCurrent]  = useState(0);
   const [duration, setDuration] = useState(0);
   const [bars,     setBars]     = useState<number[]>(() => seededBars(msgId));
 
-  // Decode audio for real waveform once
   useEffect(() => {
     if (!url) return;
     let cancelled = false;
     (async () => {
       try {
-        const res  = await fetch(url);
-        const buf  = await res.arrayBuffer();
-        const ctx  = new AudioContext();
+        const res     = await fetch(url);
+        const buf     = await res.arrayBuffer();
+        const ctx     = new AudioContext();
         const decoded = await ctx.decodeAudioData(buf);
         ctx.close();
         if (cancelled) return;
@@ -235,13 +234,13 @@ function AudioPlayer({ url, isOwn, msgId }: { url: string; isOwn: boolean; msgId
           out.push(sum / block);
         }
         const max = Math.max(...out, 0.001);
-        setBars(out.map(v => Math.max(0.08, v / max)));
-      } catch { /* keep seeded fallback */ }
+        setBars(out.map(v => Math.max(0.07, v / max)));
+      } catch { /* seeded fallback */ }
     })();
     return () => { cancelled = true; };
   }, [url]);
 
-  const fmt = (s: number) => {
+  const fmtT = (s: number) => {
     if (!isFinite(s) || isNaN(s)) return '0:00';
     const m = Math.floor(s / 60), sec = Math.floor(s % 60);
     return `${m}:${sec.toString().padStart(2, '0')}`;
@@ -256,6 +255,16 @@ function AudioPlayer({ url, isOwn, msgId }: { url: string; isOwn: boolean; msgId
 
   const progress = duration > 0 ? current / duration : 0;
 
+  const handleScrub = (e: React.MouseEvent) => {
+    const a = audioRef.current;
+    const el = barsRef.current;
+    if (!a || !el || !duration) return;
+    const rect = el.getBoundingClientRect();
+    const p = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+    a.currentTime = p * duration;
+    setCurrent(p * duration);
+  };
+
   return (
     <div className={`voiceMsgPlayer${isOwn ? ' voiceMsgPlayerOwn' : ''}`}>
       <audio ref={audioRef} src={url} preload="metadata"
@@ -265,36 +274,38 @@ function AudioPlayer({ url, isOwn, msgId }: { url: string; isOwn: boolean; msgId
 
       <button className="voiceMsgPlay" onClick={toggle} aria-label={playing ? 'Пауза' : 'Воспроизвести'}>
         {playing ? (
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor">
             <rect x="5" y="4" width="4" height="16" rx="1"/>
             <rect x="15" y="4" width="4" height="16" rx="1"/>
           </svg>
         ) : (
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
             <path d="M8 5v14l11-7z"/>
           </svg>
         )}
       </button>
 
       <div className="voiceMsgRight">
-        {/* Waveform bars */}
-        <div className="voiceMsgBars">
+        <div className="voiceMsgBars" ref={barsRef} onClick={handleScrub} role="slider" aria-label="Прогресс">
           {bars.map((h, i) => {
-            const played = i / BARS <= progress;
+            const barProgress = i / BARS;
+            const played = barProgress < progress;
+            const isHead = !played && barProgress < progress + 1 / BARS;
             return (
               <div
                 key={i}
-                className={`voiceMsgBar${played ? ' voiceMsgBarPlayed' : ''}`}
+                className={`voiceMsgBar${played || isHead ? ' voiceMsgBarPlayed' : ''}`}
                 style={{ '--bar-h': h } as React.CSSProperties}
               />
             );
           })}
         </div>
-
-        {/* Time row */}
         <div className="voiceMsgTimes">
-          <span className="voiceMsgTimeCurrent">{playing || current > 0 ? fmt(current) : fmt(duration)}</span>
-          {playing || current > 0 ? <span className="voiceMsgTimeTotal">{fmt(duration)}</span> : null}
+          <span className="voiceMsgTimeCurrent">
+            {playing || current > 0
+              ? `${fmtT(current)} / ${fmtT(duration)}`
+              : fmtT(duration)}
+          </span>
         </div>
       </div>
     </div>
