@@ -13,7 +13,8 @@ interface Props {
   selectedCount: number;
   onCancelSelection: () => void;
   onDeleteSelected: () => void;
-  onForwardSelected: () => void;   // ✅ new
+  onForwardSelected: () => void;
+  onPinSelected: () => void;   // ✅ new
   onOpenInfo: () => void;
   onViewUser: (id: string) => void;
   searchOpen: boolean;
@@ -36,7 +37,7 @@ interface Props {
 
 export function ChatHeader({
   chat, meId, hasSelection, selectedCount,
-  onCancelSelection, onDeleteSelected, onForwardSelected, onOpenInfo, onViewUser,
+  onCancelSelection, onDeleteSelected, onForwardSelected, onPinSelected, onOpenInfo, onViewUser,
   searchOpen, searchQuery, searchTotal, searchCurrent,
   onToggleSearch, onSearchChange, onSearchNext, onSearchPrev, onSearchClose,
   pinnedCount, pinnedOpen, pinnedIndex, onTogglePinned, onPinnedNext, onPinnedPrev,
@@ -71,6 +72,12 @@ export function ChatHeader({
               <path d="M4 18v-2a4 4 0 0 1 4-4h12"/>
             </svg>
             Переслать
+          </button>
+          <button className="selPinBtn" onClick={onPinSelected} title="Закрепить">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" stroke="none">
+              <path d="M16 3a1 1 0 0 0-1 1v1H9V4a1 1 0 0 0-2 0v1a3 3 0 0 0-3 3v1l2 2v4H4a1 1 0 0 0 0 2h7v3a1 1 0 0 0 2 0v-3h7a1 1 0 0 0 0-2h-2v-4l2-2V8a3 3 0 0 0-3-3V4a1 1 0 0 0-1-1z"/>
+            </svg>
+            Закрепить
           </button>
           <button className="selDeleteBtn" onClick={onDeleteSelected}>
             <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">

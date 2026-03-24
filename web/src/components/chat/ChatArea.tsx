@@ -109,16 +109,58 @@ export function ChatArea() {
   const handlePinnedPrev = useCallback(() =>
     setPinnedIdx(i => (i - 1 + pinnedMessages.length) % pinnedMessages.length), [pinnedMessages.length]);
 
+  // ✅ Forward selected messages — open modal
+  const handleForwardSelected = useCallback(() => {
+    const ids = Array.from(selectedIds);
+    if (ids.length === 0) return;
+    setForwardingIds(ids);
+    setShowForwardModal(true);
+    clearSelection();
+  }, [selectedIds, setForwardingIds, setShowForwardModal, clearSelection]);
+
+  // ✅ Forward from context menu — if there's a multi-selection, forward all selected;
+  //    otherwise just the right-clicked message
+  const handleForwardSingle = useCallback((msgId: string) => {
+    const ids = selectedIds.size > 1
+      ? Array.from(selectedIds)
+      : [msgId];
+    setForwardingIds(ids);
+    setShowForwardModal(true);
+    clearSelection();
+  }, [selectedIds, setForwardingIds, setShowForwardModal, clearSelection]);
+
+  // ✅ Pin all selected messages
+  const handlePinSelected = useCallback(async () => {
+    if (!activeChat) return;
+    const ids = Array.from(selectedIds);
+    for (const msgId of ids) {
+      try {
+        const updated = await apiPin(activeChat.id, msgId);
+        setPinnedMessages(prev => prev.some(m => m.id === msgId) ? prev : [...prev, updated]);
+        useChatsStore.getState().setMessages(
+          useChatsStore.getState().messages.map(m => m.id === msgId ? { ...m, is_pinned: true } : m)
+        );
+      } catch { /* upstream */ }
+    }
+    clearSelection();
+  }, [activeChat, selectedIds, clearSelection]);
+
+  // ✅ Pin from context menu — if multi-selection exists, pin all selected;
+  //    otherwise just the right-clicked message
   const handlePinMessage = useCallback(async (msgId: string) => {
     if (!activeChat) return;
-    try {
-      const updated = await apiPin(activeChat.id, msgId);
-      setPinnedMessages(prev => prev.some(m => m.id === msgId) ? prev : [...prev, updated]);
-      useChatsStore.getState().setMessages(
-        useChatsStore.getState().messages.map(m => m.id === msgId ? { ...m, is_pinned: true } : m)
-      );
-    } catch { /* upstream */ }
-  }, [activeChat]);
+    const ids = selectedIds.size > 1 ? Array.from(selectedIds) : [msgId];
+    for (const id of ids) {
+      try {
+        const updated = await apiPin(activeChat.id, id);
+        setPinnedMessages(prev => prev.some(m => m.id === id) ? prev : [...prev, updated]);
+        useChatsStore.getState().setMessages(
+          useChatsStore.getState().messages.map(m => m.id === id ? { ...m, is_pinned: true } : m)
+        );
+      } catch { /* upstream */ }
+    }
+    clearSelection();
+  }, [activeChat, selectedIds, clearSelection]);
 
   const handleUnpinMessage = useCallback(async (msgId: string) => {
     if (!activeChat) return;
@@ -137,22 +179,6 @@ export function ChatArea() {
     toggleSelect(msgId);
     setShowDeleteConfirm(true);
   }, [clearSelection, toggleSelect, setShowDeleteConfirm]);
-
-  // ✅ Forward selected messages — open modal
-  const handleForwardSelected = useCallback(() => {
-    const ids = Array.from(selectedIds);
-    if (ids.length === 0) return;
-    setForwardingIds(ids);
-    setShowForwardModal(true);
-    clearSelection();
-  }, [selectedIds, setForwardingIds, setShowForwardModal, clearSelection]);
-
-  // ✅ Forward single message from context menu
-  const handleForwardSingle = useCallback((msgId: string) => {
-    setForwardingIds([msgId]);
-    setShowForwardModal(true);
-    clearSelection();
-  }, [setForwardingIds, setShowForwardModal, clearSelection]);
 
   // ✅ "Add more" — close the modal and pre-select already-queued messages so user just taps extras
   const handleForwardAddMore = useCallback(() => {
@@ -288,6 +314,7 @@ export function ChatArea() {
         onCancelSelection={clearSelection}
         onDeleteSelected={() => setShowDeleteConfirm(true)}
         onForwardSelected={handleForwardSelected}
+        onPinSelected={handlePinSelected}
         onOpenInfo={() => setShowGroupInfo(true)}
         onViewUser={setViewUserId}
         searchOpen={searchOpen}
