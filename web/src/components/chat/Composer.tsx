@@ -69,20 +69,6 @@ function WaveformIcon({ size = 22 }: { size?: number }) {
 }
 
 // ── Preview mini-player (inside composer before sending) ──────────────────────
-const PREVIEW_BARS = 40;
-
-function seededBars(wave: number[]): number[] {
-  if (wave.length === 0) return Array(PREVIEW_BARS).fill(0.35);
-  const out: number[] = [];
-  const step = Math.max(1, Math.floor(wave.length / PREVIEW_BARS));
-  for (let i = 0; i < PREVIEW_BARS; i++) {
-    const slice = wave.slice(i * step, i * step + step);
-    const avg = slice.length ? slice.reduce((a, b) => a + b, 0) / slice.length : 0;
-    out.push(Math.max(0.07, avg));
-  }
-  const max = Math.max(...out, 0.001);
-  return out.map(v => v / max);
-}
 
 function PreviewPlayer({ blob, duration }: { blob: Blob; duration: number }) {
   const audioRef  = useRef<HTMLAudioElement>(null);
@@ -163,252 +149,237 @@ export function Composer({ value, onChange, onSend, onSendAttachment, externalFi
   const cancelRef       = useRef<(() => void) | null>(null);
 
   useEffect(() => {
-    if (externalFile) { stageFile(externalFile); onExternalFileConsumed?.(); }
-  }, [externalFile]); // eslint-disable-line
-
-  function stageFile(file: File) {
-    setStaged(file); setCaption(''); setProgress(0); setUploadErr(null);
-    setTimeout(() => captionInputRef.current?.focus(), 80);
-  }
-
-  const clearStage = useCallback(() => {
-    setStaged(null); setCaption(''); setProgress(0); setUploadErr(null);
-    setTimeout(() => textInputRef.current?.focus(), 60);
-  }, []);
-
-  const handleCancelUpload = useCallback(() => {
-    cancelRef.current?.(); cancelRef.current = null;
-    setUploading(false); clearStage();
-  }, [clearStage]);
-
-  const handleSendFile = useCallback(async (fileOverride?: File, captionOverride?: string) => {
-    const f = fileOverride ?? staged;
-    const c = captionOverride !== undefined ? captionOverride : caption;
-    if (!f || uploading) return;
-    setUploading(true); setProgress(0); setUploadErr(null);
-    const task = uploadFile(f, pct => setProgress(pct));
-    cancelRef.current = task.cancel;
-    try {
-      const result = await task.promise;
-      await onSendAttachment(result, c);
-      clearStage();
-    } catch (e: any) {
-      if (e?.message !== 'Загрузка отменена') { setUploadErr(e?.message ?? 'Ошибка загрузки'); setProgress(0); }
-    } finally {
-      setUploading(false); cancelRef.current = null;
+    if (externalFile) {
+      setStaged(externalFile);
+      setCaption('');
+      setProgress(0);
+      setUploading(false);
+      setUploadErr(null);
+      onExternalFileConsumed?.();
+      setTimeout(() => captionInputRef.current?.focus(), 120);
     }
-  }, [staged, caption, uploading, onSendAttachment, clearStage]);
+  }, [externalFile, onExternalFileConsumed]);
 
-  // Voice recording
+  useEffect(() => {
+    if (staged) {
+      const isImg = /\.(jpg|jpeg|png|gif|webp|svg|heic|bmp|tiff)$/i.test(staged.name);
+      if (isImg) {
+        const url = URL.createObjectURL(staged);
+        const img = new Image();
+        img.onload = () => URL.revokeObjectURL(url);
+        img.src = url;
+      }
+    }
+  }, [staged]);
+
+  const clearStage = () => {
+    setStaged(null); setCaption(''); setProgress(0); setUploading(false); setUploadErr(null);
+    if (cancelRef.current) { cancelRef.current(); cancelRef.current = null; }
+    textInputRef.current?.focus();
+  };
+
+  const handleSendFile = async () => {
+    if (!staged || uploading) return;
+    setUploading(true); setUploadErr(null); setProgress(0);
+    try {
+      const res = await uploadFile(staged, p => { setProgress(Math.round(p * 100)); }, (c) => { cancelRef.current = c; });
+      await onSendAttachment(res, caption);
+      clearStage();
+    } catch (err: any) {
+      setUploadErr(err.message || 'Ошибка загрузки');
+      setUploading(false);
+    }
+  };
+
   const [voiceState,   setVoiceState]   = useState<VoiceState>('idle');
+  const [voiceBlob,    setVoiceBlob]    = useState<Blob | null>(null);
+  const [recSeconds,   setRecSeconds]   = useState(0);
+  const [previewSecs,  setPreviewSecs]  = useState(0);
   const [locked,       setLocked]       = useState(false);
   const [lockProgress, setLockProgress] = useState(0);
-  const [recSeconds,   setRecSeconds]   = useState(0);
-  const [liveWave,     setLiveWave]     = useState<number[]>([]);
-  const [voiceBlob,    setVoiceBlob]    = useState<Blob | null>(null);
-  const [previewSecs,  setPreviewSecs]  = useState(0);
+  const [iconScale,    setIconScale]    = useState(1);
   const [voiceSending, setVoiceSending] = useState(false);
 
-  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
-  const audioCtxRef      = useRef<AudioContext | null>(null);
-  const analyserRef      = useRef<AnalyserNode | null>(null);
-  const streamRef        = useRef<MediaStream | null>(null);
-  const chunksRef        = useRef<Blob[]>([]);
-  const rafRef           = useRef<number>(0);
-  const timerRef         = useRef<ReturnType<typeof setInterval> | null>(null);
-  const liveWaveRef      = useRef<number[]>([]);
-  const recSecondsRef    = useRef(0);
-  const micStartYRef     = useRef(0);
-  const micLockedRef     = useRef(false);
-
-  // Animated mic icon: amplitude drives the icon's bars while recording
-  const [micAmp, setMicAmp] = useState(0);
-
-  useEffect(() => () => { stopCleanup(); }, []); // eslint-disable-line
-
-  function stopCleanup() {
-    cancelAnimationFrame(rafRef.current);
-    if (timerRef.current) clearInterval(timerRef.current);
-    streamRef.current?.getTracks().forEach(t => t.stop());
-    audioCtxRef.current?.close().catch(() => {});
-    audioCtxRef.current = null;
-    analyserRef.current = null;
-  }
+  const mediaRecRef  = useRef<MediaRecorder | null>(null);
+  const chunksRef    = useRef<Blob[]>([]);
+  const timerIdRef   = useRef<number | null>(null);
+  const startYRef    = useRef<number | null>(null);
+  const analyserRef  = useRef<AnalyserNode | null>(null);
+  const animIdRef    = useRef<number | null>(null);
 
   const startRecording = useCallback(async () => {
-    if (voiceState !== 'idle' || staged) return;
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      streamRef.current = stream;
+      const mr = new MediaRecorder(stream, { mimeType: 'audio/webm;codecs=opus' });
 
-      const audioCtx = new AudioContext();
-      audioCtxRef.current = audioCtx;
-      const analyser = audioCtx.createAnalyser();
-      analyser.fftSize = 128;
+      const ctx = new AudioContext();
+      const source = ctx.createMediaStreamSource(stream);
+      const analyser = ctx.createAnalyser();
+      analyser.fftSize = 512;
+      source.connect(analyser);
       analyserRef.current = analyser;
-      audioCtx.createMediaStreamSource(stream).connect(analyser);
 
-      const mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
-        ? 'audio/webm;codecs=opus'
-        : MediaRecorder.isTypeSupported('audio/webm') ? 'audio/webm' : 'audio/ogg';
-
-      const mr = new MediaRecorder(stream, { mimeType });
-      mediaRecorderRef.current = mr;
       chunksRef.current = [];
-
       mr.ondataavailable = e => { if (e.data.size > 0) chunksRef.current.push(e.data); };
-      mr.onstop = () => {
-        const blob = new Blob(chunksRef.current, { type: mimeType });
-        setVoiceBlob(blob);
-        setPreviewSecs(recSecondsRef.current);
-        setVoiceState('preview');
-        setLocked(false);
-        setLockProgress(0);
-        micLockedRef.current = false;
-        setMicAmp(0);
-        stopCleanup();
-      };
-
-      mr.start(80);
-      recSecondsRef.current = 0;
-      setRecSeconds(0);
-      liveWaveRef.current = [];
-      setLiveWave([]);
+      mr.start();
+      mediaRecRef.current = mr;
       setVoiceState('recording');
+      setRecSeconds(0);
 
-      timerRef.current = setInterval(() => {
-        recSecondsRef.current += 1;
-        setRecSeconds(recSecondsRef.current);
+      timerIdRef.current = window.setInterval(() => {
+        setRecSeconds(s => s + 1);
       }, 1000);
 
-      const draw = () => {
-        if (!analyserRef.current) return;
-        const buf = new Uint8Array(analyserRef.current.frequencyBinCount);
-        analyserRef.current.getByteTimeDomainData(buf);
-        const amp = buf.reduce((a, b) => a + Math.abs(b - 128), 0) / buf.length / 128;
-        liveWaveRef.current.push(amp);
-        setLiveWave([...liveWaveRef.current]);
-        setMicAmp(amp);
-        rafRef.current = requestAnimationFrame(draw);
-      };
-      rafRef.current = requestAnimationFrame(draw);
-    } catch { /* mic denied */ }
-  }, [voiceState, staged]);
+    } catch (err) {
+      console.error('voice rec error:', err);
+    }
+  }, []);
 
   const stopRecording = useCallback(() => {
-    if (voiceState !== 'recording') return;
-    if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
-    cancelAnimationFrame(rafRef.current);
-    mediaRecorderRef.current?.stop();
-    streamRef.current?.getTracks().forEach(t => t.stop());
-  }, [voiceState]);
+    const mr = mediaRecRef.current;
+    if (!mr || mr.state === 'inactive') return;
+
+    mr.stop();
+    mr.stream.getTracks().forEach(t => t.stop());
+
+    mr.onstop = () => {
+      const blob = new Blob(chunksRef.current, { type: 'audio/webm;codecs=opus' });
+      setVoiceBlob(blob);
+
+      const url = URL.createObjectURL(blob);
+      const audio = new Audio(url);
+      audio.onloadedmetadata = () => {
+        setPreviewSecs(audio.duration);
+        URL.revokeObjectURL(url);
+      };
+
+      setVoiceState('preview');
+      setLocked(false);
+      if (timerIdRef.current) { clearInterval(timerIdRef.current); timerIdRef.current = null; }
+      if (animIdRef.current) { cancelAnimationFrame(animIdRef.current); animIdRef.current = null; }
+
+      analyserRef.current = null;
+      mediaRecRef.current = null;
+    };
+  }, []);
 
   const cancelVoice = useCallback(() => {
-    if (voiceState === 'recording') {
-      if (timerRef.current) clearInterval(timerRef.current);
-      cancelAnimationFrame(rafRef.current);
-      if (mediaRecorderRef.current?.state !== 'inactive') {
-        mediaRecorderRef.current!.onstop = null;
-        mediaRecorderRef.current!.stop();
-      }
-      streamRef.current?.getTracks().forEach(t => t.stop());
-      audioCtxRef.current?.close().catch(() => {});
-      audioCtxRef.current = null;
+    const mr = mediaRecRef.current;
+    if (mr && mr.state !== 'inactive') {
+      mr.stop();
+      mr.stream.getTracks().forEach(t => t.stop());
     }
+    if (timerIdRef.current) { clearInterval(timerIdRef.current); timerIdRef.current = null; }
+    if (animIdRef.current) { cancelAnimationFrame(animIdRef.current); animIdRef.current = null; }
+
+    mediaRecRef.current = null;
+    analyserRef.current = null;
+    chunksRef.current = [];
+
     setVoiceState('idle');
     setVoiceBlob(null);
-    setLiveWave([]);
     setRecSeconds(0);
-    setPreviewSecs(0);
     setLocked(false);
     setLockProgress(0);
-    setMicAmp(0);
-    micLockedRef.current = false;
-    liveWaveRef.current = [];
-  }, [voiceState]);
+    setIconScale(1);
+  }, []);
 
-  const sendVoice = useCallback(async () => {
+  const sendVoice = async () => {
     if (!voiceBlob || voiceSending) return;
     setVoiceSending(true);
-    const ext = voiceBlob.type.includes('ogg') ? 'ogg' : 'webm';
-    const file = new File([voiceBlob], `voice_${Date.now()}.${ext}`, { type: voiceBlob.type });
-    await handleSendFile(file, '');
-    setVoiceSending(false);
-    cancelVoice();
-  }, [voiceBlob, voiceSending, handleSendFile, cancelVoice]);
-
-  // Pointer hold + lock drag
-  const micDelayRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const micHoldRef  = useRef(false);
-
-  const onMicDown = useCallback((e: React.PointerEvent) => {
-    e.preventDefault();
-    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
-    micHoldRef.current = true;
-    micStartYRef.current = e.clientY;
-    micLockedRef.current = false;
-    micDelayRef.current = setTimeout(() => {
-      if (micHoldRef.current) startRecording();
-    }, 100);
-  }, [startRecording]);
-
-  const onMicMove = useCallback((e: React.PointerEvent) => {
-    if (voiceState !== 'recording' || micLockedRef.current) return;
-    const dy = micStartYRef.current - e.clientY;
-    const p = Math.min(1, Math.max(0, dy / LOCK_THRESHOLD));
-    setLockProgress(p);
-    if (dy >= LOCK_THRESHOLD) {
-      micLockedRef.current = true;
-      setLocked(true);
-      setLockProgress(1);
+    try {
+      const file = new File([voiceBlob], `voice_${Date.now()}.webm`, { type: voiceBlob.type });
+      const res = await uploadFile(file);
+      await onSendAttachment(res, '');
+      setVoiceState('idle');
+      setVoiceBlob(null);
+      setPreviewSecs(0);
+    } catch (err: any) {
+      console.error('voice send error:', err);
+    } finally {
+      setVoiceSending(false);
     }
-  }, [voiceState]);
+  };
 
-  const onMicUp = useCallback(() => {
-    micHoldRef.current = false;
-    if (micDelayRef.current) { clearTimeout(micDelayRef.current); micDelayRef.current = null; }
-    if (!micLockedRef.current) stopRecording();
-  }, [stopRecording]);
+  const onMicDown = (e: React.PointerEvent) => {
+    if (voiceState === 'recording' && locked) {
+      stopRecording();
+      return;
+    }
+    if (voiceState === 'idle') {
+      e.currentTarget.setPointerCapture(e.pointerId);
+      startYRef.current = e.clientY;
+      setIconScale(0.92);
+      startRecording();
+    }
+  };
 
-  const isFileMode = !!staged;
-  const canSend    = isFileMode ? !uploading : (!!value.trim() && !disabled);
+  const onMicMove = (e: React.PointerEvent) => {
+    if (voiceState !== 'recording' || locked || startYRef.current === null) return;
+    const dy = startYRef.current - e.clientY;
+    const p = Math.max(0, Math.min(1, dy / LOCK_THRESHOLD));
+    setLockProgress(p);
+    if (p >= 1) {
+      setLocked(true);
+      setLockProgress(0);
+      setIconScale(1);
+    }
+  };
 
-  // Animated icon style driven by amplitude
-  const iconScale = voiceState === 'recording' ? 1 + micAmp * 0.25 : 1;
+  const onMicUp = (e: React.PointerEvent) => {
+    if (voiceState !== 'recording') return;
+    if (locked) return;
+    e.currentTarget.releasePointerCapture(e.pointerId);
+    setIconScale(1);
+    setLockProgress(0);
+    stopRecording();
+  };
+
+  const isFileMode = Boolean(staged);
+  const canSend = (uploading || (isFileMode && !uploading)) ? !uploading : Boolean(value.trim());
+
+  useEffect(() => {
+    return () => {
+      if (timerIdRef.current) clearInterval(timerIdRef.current);
+      if (animIdRef.current) cancelAnimationFrame(animIdRef.current);
+      if (mediaRecRef.current && mediaRecRef.current.state !== 'inactive') {
+        mediaRecRef.current.stop();
+        mediaRecRef.current.stream.getTracks().forEach(t => t.stop());
+      }
+    };
+  }, []);
 
   return (
-    <div className="composerWrap">
-      <input ref={fileInputRef} type="file" accept="*/*" style={{ display: 'none' }}
-        onChange={e => { const f = e.target.files?.[0]; if (f) stageFile(f); e.target.value = ''; }} />
+    <div className="composerWrapper">
+      <input ref={fileInputRef} type="file" hidden onChange={e => {
+        const f = e.target.files?.[0];
+        if (f) {
+          setStaged(f); setCaption(''); setProgress(0); setUploading(false); setUploadErr(null);
+          setTimeout(() => captionInputRef.current?.focus(), 120);
+        }
+        e.target.value = '';
+      }} />
 
-      {/* File staging card */}
+      {/* ── File staging card ── */}
       {staged && (
-        <div className={`fileStagingCard${uploading ? ' fileStagingUploading' : ''}`}>
-          <div className="fileStagingRow">
-            <FileIconBadge name={staged.name} size={48} />
-            <div className="fileStagingMeta">
-              <div className="fileStagingName" title={staged.name}>{staged.name}</div>
-              <div className="fileStagingSize">{formatFileSize(staged.size)}</div>
+        <div className="fileStagingCard">
+          <div className="fileStagingTop">
+            <FileIconBadge name={staged.name} />
+            <div className="fileStagingInfo">
+              <p className="fileStagingName">{staged.name}</p>
+              <p className="fileStagingSize">{formatFileSize(staged.size)}</p>
             </div>
-            {uploading ? (
-              <button className="fileStagingCancel" onClick={handleCancelUpload} title="Отменить">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-                  <rect x="3" y="3" width="18" height="18" rx="3"/>
-                  <line x1="9" y1="9" x2="15" y2="15"/><line x1="15" y1="9" x2="9" y2="15"/>
-                </svg>
-              </button>
-            ) : (
-              <button className="fileStagingRemove" onClick={clearStage} title="Убрать файл">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+            {!uploading && (
+              <button className="fileStagingClose" onClick={clearStage} title="Отменить">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
                   <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
                 </svg>
               </button>
             )}
           </div>
           {uploading && (
-            <div className="fileProgressTrack">
-              <div className="fileProgressFill" style={{ width: `${progress}%` }} />
-              <span className="fileProgressPct">{progress}%</span>
+            <div className="fileStagingProgress">
+              <div className="fileStagingProgressBar" style={{ width: `${progress}%` }} />
             </div>
           )}
           {uploadErr && (
