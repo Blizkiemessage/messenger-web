@@ -3195,8 +3195,8 @@ input[type="date"].psInput::-webkit-calendar-picker-indicator {
 .msgCtxItemDanger:hover { background: color-mix(in srgb, var(--danger) 10%, transparent); }
 .msgCtxItemDanger svg { color: var(--danger); }
 
-/* ── Bubble: make position relative so pin badge can anchor ─────────────── */
-.bubble { position: relative; }
+/* ── Bubble: position relative + overflow visible so badges render outside ── */
+.bubble { position: relative; overflow: visible; }
 
 /* ── Message bubble text overflow fix ────────────────────────────────────── */
 .bubbleText {
@@ -3757,12 +3757,19 @@ input[type="date"].psInput::-webkit-calendar-picker-indicator {
 .selPinBtn svg { flex-shrink: 0; }
 
 /* ═══════════════════════════════════════════════════════════════════════════
-   VOICE MESSAGES
+   VOICE MESSAGES — redesigned
    ═══════════════════════════════════════════════════════════════════════════ */
 
-/* Mic button in composer */
-.composerMic {
+/* Mic wrapper — relative so lock track floats above */
+.composerMicWrap {
+  position: relative;
+  display: flex;
+  align-items: center;
   flex-shrink: 0;
+}
+
+/* Mic button */
+.composerMic {
   width: 38px;
   height: 38px;
   border-radius: 50%;
@@ -3776,55 +3783,118 @@ input[type="date"].psInput::-webkit-calendar-picker-indicator {
   transition: background .13s, color .13s;
   touch-action: none;
   user-select: none;
+  flex-shrink: 0;
 }
 .composerMic:hover { background: var(--panel); color: var(--text); }
 .composerMicActive {
   background: color-mix(in srgb, var(--danger) 15%, transparent);
   color: var(--danger);
-  animation: micPulse 1s ease-in-out infinite;
+  animation: micPulse 1.2s ease-in-out infinite;
+}
+.composerMicLocked {
+  background: var(--accent);
+  color: #fff;
+  animation: none;
 }
 @keyframes micPulse {
   0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--danger) 30%, transparent); }
-  50%       { box-shadow: 0 0 0 6px color-mix(in srgb, var(--danger) 0%, transparent); }
+  50%       { box-shadow: 0 0 0 7px color-mix(in srgb, var(--danger) 0%, transparent); }
 }
 
-/* Live recording bar inside composer */
+/* Lock track above mic */
+.voiceLockTrack {
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  pointer-events: none;
+}
+.voiceLockIcon {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--card);
+  border: 1.5px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--accent);
+  transition: transform .1s, opacity .1s;
+}
+.voiceLockArrow { color: var(--muted); }
+
+/* Locked badge */
+.voiceLockedBadge {
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 50%;
+  transform: translateX(-50%);
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  animation: popIn .2s cubic-bezier(.34,1.56,.64,1);
+  box-shadow: 0 2px 10px color-mix(in srgb, var(--accent) 40%, transparent);
+}
+
+/* Recording bar inside composer */
 .voiceRecordingBar {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   flex: 1;
   min-width: 0;
-  padding: 0 4px;
+  padding: 0 2px;
+}
+.voiceRecCancelBtn {
+  flex-shrink: 0;
+  width: 30px; height: 30px;
+  border-radius: 50%;
+  border: none;
+  background: none;
+  color: var(--muted);
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer;
+  transition: color .12s;
+}
+.voiceRecCancelBtn:hover { color: var(--danger); }
+.voiceRecWaveWrap {
+  flex: 1;
+  min-width: 0;
+}
+.voiceRecTimer {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+  flex-shrink: 0;
+  min-width: 36px;
+  text-align: right;
 }
 .voiceRecDot {
-  width: 9px; height: 9px;
+  width: 8px; height: 8px;
   border-radius: 50%;
   background: var(--danger);
   flex-shrink: 0;
   animation: recBlink .9s step-start infinite;
 }
 @keyframes recBlink { 0%,100% { opacity: 1; } 50% { opacity: 0; } }
-.voiceRecTimer {
-  font-size: 13px;
-  font-weight: 700;
-  color: var(--danger);
-  font-variant-numeric: tabular-nums;
-  flex-shrink: 0;
-  min-width: 36px;
-}
-.voiceRecWaveWrap {
-  flex: 1;
-  min-width: 0;
-  opacity: .85;
-}
 
-/* Preview bar (replaces composer row) */
+/* Preview bar */
 .voicePreviewBar {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 8px 12px;
+  gap: 10px;
+  padding: 10px 14px;
   background: var(--card);
   border-top: 1px solid var(--border);
 }
@@ -3840,18 +3910,14 @@ input[type="date"].psInput::-webkit-calendar-picker-indicator {
   transition: background .12s;
 }
 .voiceCancelBtn:hover { background: color-mix(in srgb, var(--danger) 22%, transparent); }
-.voicePreviewWave {
-  flex: 1;
-  min-width: 0;
-  opacity: .9;
-}
+.voicePreviewWave { flex: 1; min-width: 0; }
 .voicePreviewDur {
   font-size: 12px;
   font-weight: 600;
   color: var(--muted);
   flex-shrink: 0;
   font-variant-numeric: tabular-nums;
-  min-width: 32px;
+  min-width: 34px;
   text-align: right;
 }
 .voiceSendBtn {
@@ -3868,60 +3934,88 @@ input[type="date"].psInput::-webkit-calendar-picker-indicator {
 .voiceSendBtn:hover:not(:disabled) { opacity: .85; }
 .voiceSendBtn:disabled { opacity: .5; cursor: not-allowed; }
 
-/* Voice message bubble player */
+/* ── Voice message bubble player (Telegram-style) ─────────────────────────── */
 .voiceMsgPlayer {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 4px 2px;
-  min-width: 180px;
-  max-width: 280px;
+  gap: 10px;
+  padding: 6px 4px 4px;
+  min-width: 210px;
+  max-width: 300px;
 }
 .voiceMsgPlay {
   flex-shrink: 0;
-  width: 32px; height: 32px;
+  width: 38px; height: 38px;
   border-radius: 50%;
   border: none;
   background: var(--accent);
   color: #fff;
   display: flex; align-items: center; justify-content: center;
   cursor: pointer;
-  transition: opacity .12s;
+  transition: opacity .12s, transform .1s;
+  box-shadow: 0 2px 8px color-mix(in srgb, var(--accent) 35%, transparent);
 }
+.voiceMsgPlay:hover { opacity: .88; transform: scale(1.06); }
 .voiceMsgPlayerOwn .voiceMsgPlay {
-  background: rgba(255,255,255,.25);
+  background: rgba(255,255,255,.22);
+  box-shadow: none;
 }
-.voiceMsgPlay:hover { opacity: .85; }
-.voiceMsgTrack {
+
+/* Right side: bars + time */
+.voiceMsgRight {
   flex: 1;
   min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
 }
-.voiceMsgTrackBg {
-  height: 4px;
+
+/* Bar waveform */
+.voiceMsgBars {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  height: 32px;
+}
+.voiceMsgBar {
+  flex: 1;
+  min-width: 2px;
+  max-width: 4px;
+  height: calc(var(--bar-h, 0.3) * 100%);
+  min-height: 3px;
   border-radius: 2px;
-  background: color-mix(in srgb, var(--accent) 25%, transparent);
-  position: relative;
-  overflow: hidden;
+  background: color-mix(in srgb, var(--accent) 35%, var(--border));
+  transition: background .15s;
 }
-.voiceMsgPlayerOwn .voiceMsgTrackBg {
+.voiceMsgBarPlayed {
+  background: var(--accent);
+}
+.voiceMsgPlayerOwn .voiceMsgBar {
   background: rgba(255,255,255,.25);
 }
-.voiceMsgTrackFill {
-  height: 100%;
-  background: var(--accent);
-  border-radius: 2px;
-  transition: width .1s linear;
+.voiceMsgPlayerOwn .voiceMsgBarPlayed {
+  background: rgba(255,255,255,.85);
 }
-.voiceMsgPlayerOwn .voiceMsgTrackFill {
-  background: rgba(255,255,255,.8);
+
+/* Time row */
+.voiceMsgTimes {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
 }
-.voiceMsgTime {
+.voiceMsgTimeCurrent {
   font-size: 11px;
   font-weight: 600;
   color: var(--muted);
-  flex-shrink: 0;
   font-variant-numeric: tabular-nums;
-  min-width: 30px;
-  text-align: right;
 }
-.voiceMsgPlayerOwn .voiceMsgTime { color: rgba(255,255,255,.7); }
+.voiceMsgTimeTotal {
+  font-size: 11px;
+  color: var(--muted);
+  opacity: .6;
+  font-variant-numeric: tabular-nums;
+}
+.voiceMsgPlayerOwn .voiceMsgTimeCurrent,
+.voiceMsgPlayerOwn .voiceMsgTimeTotal {
+  color: rgba(255,255,255,.65);
+}

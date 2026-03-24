@@ -1,6 +1,6 @@
 /**
  * Composer.tsx
- * Voice messages: hold mic -> live waveform + timer -> release -> preview -> send/cancel
+ * Voice: hold mic → live waveform; drag up to lock → hands-free recording; send → preview
  * File upload with progress & cancel unchanged
  */
 import { useState, useRef, useEffect, useCallback } from 'react';
@@ -50,27 +50,25 @@ function FileIconBadge({ name, size = 44 }: { name: string; size?: number }) {
   );
 }
 
-// Live waveform canvas
-function Waveform({ data, color = 'var(--accent)', height = 36 }: { data: number[]; color?: string; height?: number }) {
+// Mini live waveform canvas (bars)
+function LiveWaveform({ data, height = 30 }: { data: number[]; height?: number }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
-    const W = canvas.width;
-    const H = canvas.height;
+    const W = canvas.width, H = canvas.height;
     ctx.clearRect(0, 0, W, H);
     if (data.length === 0) return;
     const barW = 3, gap = 2;
     const bars = Math.floor(W / (barW + gap));
     const step = Math.max(1, Math.floor(data.length / bars));
-    ctx.fillStyle = color;
+    ctx.fillStyle = 'var(--accent)';
     for (let i = 0; i < bars; i++) {
       const slice = data.slice(i * step, i * step + step);
       const avg = slice.length ? slice.reduce((a, b) => a + b, 0) / slice.length : 0;
-      const barH = Math.max(3, avg * H);
+      const barH = Math.max(3, avg * H * 0.9);
       const x = i * (barW + gap);
       const y = (H - barH) / 2;
       ctx.beginPath();
@@ -78,12 +76,8 @@ function Waveform({ data, color = 'var(--accent)', height = 36 }: { data: number
       ctx.roundRect?.(x, y, barW, barH, 1.5) ?? ctx.rect(x, y, barW, barH);
       ctx.fill();
     }
-  }, [data, color, height]);
-
-  return (
-    <canvas ref={canvasRef} width={260} height={height}
-      style={{ width: '100%', height, display: 'block' }} />
-  );
+  }, [data]);
+  return <canvas ref={canvasRef} width={260} height={height} style={{ width: '100%', height, display: 'block' }} />;
 }
 
 interface Props {
@@ -97,6 +91,8 @@ interface Props {
 }
 
 type VoiceState = 'idle' | 'recording' | 'preview';
+
+const LOCK_THRESHOLD = 60; // px upward drag to lock
 
 export function Composer({ value, onChange, onSend, onSendAttachment, externalFile, onExternalFileConsumed, disabled }: Props) {
   // File staging
@@ -126,10 +122,8 @@ export function Composer({ value, onChange, onSend, onSendAttachment, externalFi
   }, []);
 
   const handleCancelUpload = useCallback(() => {
-    cancelRef.current?.();
-    cancelRef.current = null;
-    setUploading(false);
-    clearStage();
+    cancelRef.current?.(); cancelRef.current = null;
+    setUploading(false); clearStage();
   }, [clearStage]);
 
   const handleSendFile = useCallback(async (fileOverride?: File, captionOverride?: string) => {
@@ -144,18 +138,16 @@ export function Composer({ value, onChange, onSend, onSendAttachment, externalFi
       await onSendAttachment(result, c);
       clearStage();
     } catch (e: any) {
-      if (e?.message !== 'Загрузка отменена') {
-        setUploadErr(e?.message ?? 'Ошибка загрузки');
-        setProgress(0);
-      }
+      if (e?.message !== 'Загрузка отменена') { setUploadErr(e?.message ?? 'Ошибка загрузки'); setProgress(0); }
     } finally {
-      setUploading(false);
-      cancelRef.current = null;
+      setUploading(false); cancelRef.current = null;
     }
   }, [staged, caption, uploading, onSendAttachment, clearStage]);
 
-  // Voice recording
+  // Voice recording state
   const [voiceState,   setVoiceState]   = useState<VoiceState>('idle');
+  const [locked,       setLocked]       = useState(false);  // hands-free lock mode
+  const [lockProgress, setLockProgress] = useState(0);      // 0-1, how far up dragged
   const [recSeconds,   setRecSeconds]   = useState(0);
   const [liveWave,     setLiveWave]     = useState<number[]>([]);
   const [previewWave,  setPreviewWave]  = useState<number[]>([]);
@@ -172,6 +164,8 @@ export function Composer({ value, onChange, onSend, onSendAttachment, externalFi
   const timerRef         = useRef<ReturnType<typeof setInterval> | null>(null);
   const liveWaveRef      = useRef<number[]>([]);
   const recSecondsRef    = useRef(0);
+  const micStartYRef     = useRef(0);
+  const micLockedRef     = useRef(false);
 
   useEffect(() => () => { stopCleanup(); }, []); // eslint-disable-line
 
@@ -179,7 +173,7 @@ export function Composer({ value, onChange, onSend, onSendAttachment, externalFi
     cancelAnimationFrame(rafRef.current);
     if (timerRef.current) clearInterval(timerRef.current);
     streamRef.current?.getTracks().forEach(t => t.stop());
-    audioCtxRef.current?.close();
+    audioCtxRef.current?.close().catch(() => {});
     audioCtxRef.current = null;
     analyserRef.current = null;
   }
@@ -212,6 +206,9 @@ export function Composer({ value, onChange, onSend, onSendAttachment, externalFi
         setPreviewWave([...liveWaveRef.current]);
         setPreviewSecs(recSecondsRef.current);
         setVoiceState('preview');
+        setLocked(false);
+        setLockProgress(0);
+        micLockedRef.current = false;
         stopCleanup();
       };
 
@@ -237,7 +234,6 @@ export function Composer({ value, onChange, onSend, onSendAttachment, externalFi
         rafRef.current = requestAnimationFrame(draw);
       };
       rafRef.current = requestAnimationFrame(draw);
-
     } catch { /* mic denied */ }
   }, [voiceState, staged]);
 
@@ -253,7 +249,11 @@ export function Composer({ value, onChange, onSend, onSendAttachment, externalFi
     if (voiceState === 'recording') {
       if (timerRef.current) clearInterval(timerRef.current);
       cancelAnimationFrame(rafRef.current);
-      if (mediaRecorderRef.current?.state !== 'inactive') mediaRecorderRef.current?.stop();
+      if (mediaRecorderRef.current?.state !== 'inactive') {
+        // suppress onstop → don't go to preview
+        mediaRecorderRef.current!.onstop = null;
+        mediaRecorderRef.current!.stop();
+      }
       streamRef.current?.getTracks().forEach(t => t.stop());
       audioCtxRef.current?.close().catch(() => {});
       audioCtxRef.current = null;
@@ -264,6 +264,9 @@ export function Composer({ value, onChange, onSend, onSendAttachment, externalFi
     setPreviewWave([]);
     setRecSeconds(0);
     setPreviewSecs(0);
+    setLocked(false);
+    setLockProgress(0);
+    micLockedRef.current = false;
     liveWaveRef.current = [];
   }, [voiceState]);
 
@@ -277,22 +280,42 @@ export function Composer({ value, onChange, onSend, onSendAttachment, externalFi
     cancelVoice();
   }, [voiceBlob, voiceSending, handleSendFile, cancelVoice]);
 
-  // Pointer hold on mic button
-  const micHoldRef  = useRef(false);
+  // Pointer events on mic: hold to record, drag up to lock
   const micDelayRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const micHoldRef  = useRef(false);
 
   const onMicDown = useCallback((e: React.PointerEvent) => {
     e.preventDefault();
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
     micHoldRef.current = true;
+    micStartYRef.current = e.clientY;
+    micLockedRef.current = false;
     micDelayRef.current = setTimeout(() => {
       if (micHoldRef.current) startRecording();
-    }, 120);
+    }, 100);
   }, [startRecording]);
+
+  const onMicMove = useCallback((e: React.PointerEvent) => {
+    if (voiceState !== 'recording' || micLockedRef.current) return;
+    const dy = micStartYRef.current - e.clientY; // positive = dragged up
+    const progress = Math.min(1, Math.max(0, dy / LOCK_THRESHOLD));
+    setLockProgress(progress);
+    if (dy >= LOCK_THRESHOLD) {
+      micLockedRef.current = true;
+      setLocked(true);
+      setLockProgress(1);
+    }
+  }, [voiceState]);
 
   const onMicUp = useCallback(() => {
     micHoldRef.current = false;
     if (micDelayRef.current) { clearTimeout(micDelayRef.current); micDelayRef.current = null; }
+    // Only stop if NOT locked
+    if (!micLockedRef.current) stopRecording();
+  }, [stopRecording]);
+
+  // Locked mode: clicking the stop/send area finalizes → preview
+  const onLockedStop = useCallback(() => {
     stopRecording();
   }, [stopRecording]);
 
@@ -352,16 +375,19 @@ export function Composer({ value, onChange, onSend, onSendAttachment, externalFi
         </div>
       )}
 
-      {/* Voice preview (replaces composer row) */}
+      {/* Voice preview bar */}
       {voiceState === 'preview' && (
         <div className="voicePreviewBar">
           <button className="voiceCancelBtn" onClick={cancelVoice} title="Отмена">
             <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-              <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+              <polyline points="3 6 5 6 21 6"/>
+              <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+              <path d="M10 11v6M14 11v6"/>
+              <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
             </svg>
           </button>
           <div className="voicePreviewWave">
-            <Waveform data={previewWave} height={36} />
+            <LiveWaveform data={previewWave} height={36} />
           </div>
           <span className="voicePreviewDur">{formatDuration(previewSecs)}</span>
           <button className="voiceSendBtn" onClick={sendVoice} disabled={voiceSending} title="Отправить">
@@ -383,13 +409,19 @@ export function Composer({ value, onChange, onSend, onSendAttachment, externalFi
       {voiceState !== 'preview' && (
         <div className="composer">
           {voiceState === 'recording' ? (
-            /* Recording overlay inside composer bar */
             <div className="voiceRecordingBar">
-              <span className="voiceRecDot" />
-              <span className="voiceRecTimer">{formatDuration(recSeconds)}</span>
+              {/* Cancel trash icon */}
+              <button className="voiceRecCancelBtn" onClick={cancelVoice} title="Отменить">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="3 6 5 6 21 6"/>
+                  <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+                </svg>
+              </button>
               <div className="voiceRecWaveWrap">
-                <Waveform data={liveWave} height={30} />
+                <LiveWaveform data={liveWave} height={30} />
               </div>
+              <span className="voiceRecTimer">{formatDuration(recSeconds)}</span>
+              <span className="voiceRecDot" />
             </div>
           ) : (
             <>
@@ -430,28 +462,66 @@ export function Composer({ value, onChange, onSend, onSendAttachment, externalFi
             </>
           )}
 
-          {/* Mic button — always present right of send/recording bar */}
+          {/* Mic button with lock UI */}
           {!isFileMode && (
-            <button
-              className={`composerMic${voiceState === 'recording' ? ' composerMicActive' : ''}`}
-              onPointerDown={onMicDown}
-              onPointerUp={onMicUp}
-              onPointerCancel={onMicUp}
-              title={voiceState === 'recording' ? 'Отпустите чтобы остановить' : 'Зажмите для записи'}
-            >
-              {voiceState === 'recording' ? (
-                <svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor">
-                  <rect x="4" y="4" width="16" height="16" rx="3"/>
-                </svg>
-              ) : (
-                <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
-                  <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
-                  <line x1="12" y1="19" x2="12" y2="23"/>
-                  <line x1="8" y1="23" x2="16" y2="23"/>
-                </svg>
+            <div className="composerMicWrap">
+              {/* Lock track — visible while recording (not locked yet) */}
+              {voiceState === 'recording' && !locked && (
+                <div className="voiceLockTrack">
+                  <div className="voiceLockIcon" style={{ transform: `translateY(${-(lockProgress * 28)}px)`, opacity: 0.5 + lockProgress * 0.5 }}>
+                    {lockProgress >= 1 ? (
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M18 8h-1V6A5 5 0 0 0 7 6v2H6a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V10a2 2 0 0 0-2-2zm-6 9a2 2 0 1 1 0-4 2 2 0 0 1 0 4zm3.1-9H8.9V6a3.1 3.1 0 1 1 6.2 0v2z"/>
+                      </svg>
+                    ) : (
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                        <rect x="3" y="11" width="18" height="11" rx="2"/>
+                        <path d="M7 11V7a5 5 0 0 1 9.9-1"/>
+                      </svg>
+                    )}
+                  </div>
+                  <svg className="voiceLockArrow" width="12" height="20" viewBox="0 0 12 20">
+                    <path d="M6 18 L6 2 M3 5 L6 2 L9 5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" fill="none" opacity="0.5"/>
+                  </svg>
+                </div>
               )}
-            </button>
+
+              {/* Locked badge above mic */}
+              {voiceState === 'recording' && locked && (
+                <div className="voiceLockedBadge" onClick={onLockedStop} title="Нажмите для завершения">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M18 8h-1V6A5 5 0 0 0 7 6v2H6a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V10a2 2 0 0 0-2-2zm-6 9a2 2 0 1 1 0-4 2 2 0 0 1 0 4zm3.1-9H8.9V6a3.1 3.1 0 1 1 6.2 0v2z"/>
+                  </svg>
+                </div>
+              )}
+
+              <button
+                className={`composerMic${voiceState === 'recording' ? (locked ? ' composerMicLocked' : ' composerMicActive') : ''}`}
+                onPointerDown={onMicDown}
+                onPointerMove={onMicMove}
+                onPointerUp={onMicUp}
+                onPointerCancel={onMicUp}
+                title={
+                  voiceState === 'recording'
+                    ? locked ? 'Нажмите для остановки' : 'Отпустите или потяните вверх для фиксации'
+                    : 'Зажмите для записи'
+                }
+              >
+                {voiceState === 'recording' && locked ? (
+                  /* Locked: show stop icon, click stops */
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                    <rect x="4" y="4" width="16" height="16" rx="3"/>
+                  </svg>
+                ) : (
+                  <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
+                    <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+                    <line x1="12" y1="19" x2="12" y2="23"/>
+                    <line x1="8" y1="23" x2="16" y2="23"/>
+                  </svg>
+                )}
+              </button>
+            </div>
           )}
         </div>
       )}
