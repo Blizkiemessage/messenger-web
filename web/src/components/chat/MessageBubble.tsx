@@ -239,8 +239,8 @@ export function MessageBubble({
         isGroup && !isOwn ? 'inGroup' : '',
         isSearchMatch ? 'msgSearchFocus' : '',
       ].filter(Boolean).join(' ')}
-      onContextMenu={e => { if (!isOwn) return; e.preventDefault(); onContextMenu(); }}
-      onClick={e => { if (!isOwn || !hasSelection) return; e.stopPropagation(); onClick(e); }}
+      onContextMenu={e => { if (m.is_system) return; e.preventDefault(); onContextMenu(); }}
+      onClick={e => { if (!hasSelection) return; e.stopPropagation(); onClick(e); }}
     >
       {isGroup && !isOwn && (
         <div className="msgAvatarSlot">
