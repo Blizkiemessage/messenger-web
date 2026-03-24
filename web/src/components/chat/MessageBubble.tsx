@@ -195,14 +195,54 @@ function HighlightText({ text, term }: { text: string; term: string }) {
 }
 
 // ── Audio player for voice messages ──────────────────────────────────────────
-function AudioPlayer({ url, isOwn }: { url: string; isOwn: boolean }) {
-  const audioRef  = useRef<HTMLAudioElement>(null);
-  const [playing, setPlaying]   = useState(false);
-  const [current, setCurrent]   = useState(0);
+const BARS = 40;
+
+function seededBars(seed: string): number[] {
+  // Fallback deterministic waveform if decode fails
+  let h = 0;
+  for (let i = 0; i < seed.length; i++) h = (Math.imul(31, h) + seed.charCodeAt(i)) | 0;
+  return Array.from({ length: BARS }, (_, i) => {
+    const v = Math.sin(h * (i + 1) * 0.37 + i) * 0.5 + 0.5;
+    return 0.15 + v * 0.85;
+  });
+}
+
+function AudioPlayer({ url, isOwn, msgId }: { url: string; isOwn: boolean; msgId: string }) {
+  const audioRef   = useRef<HTMLAudioElement>(null);
+  const [playing,  setPlaying]  = useState(false);
+  const [current,  setCurrent]  = useState(0);
   const [duration, setDuration] = useState(0);
+  const [bars,     setBars]     = useState<number[]>(() => seededBars(msgId));
+
+  // Decode audio for real waveform once
+  useEffect(() => {
+    if (!url) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const res  = await fetch(url);
+        const buf  = await res.arrayBuffer();
+        const ctx  = new AudioContext();
+        const decoded = await ctx.decodeAudioData(buf);
+        ctx.close();
+        if (cancelled) return;
+        const raw   = decoded.getChannelData(0);
+        const block = Math.max(1, Math.floor(raw.length / BARS));
+        const out: number[] = [];
+        for (let i = 0; i < BARS; i++) {
+          let sum = 0;
+          for (let j = 0; j < block; j++) sum += Math.abs(raw[i * block + j] || 0);
+          out.push(sum / block);
+        }
+        const max = Math.max(...out, 0.001);
+        setBars(out.map(v => Math.max(0.08, v / max)));
+      } catch { /* keep seeded fallback */ }
+    })();
+    return () => { cancelled = true; };
+  }, [url]);
 
   const fmt = (s: number) => {
-    if (!isFinite(s)) return '0:00';
+    if (!isFinite(s) || isNaN(s)) return '0:00';
     const m = Math.floor(s / 60), sec = Math.floor(s % 60);
     return `${m}:${sec.toString().padStart(2, '0')}`;
   };
@@ -211,34 +251,52 @@ function AudioPlayer({ url, isOwn }: { url: string; isOwn: boolean }) {
     const a = audioRef.current;
     if (!a) return;
     if (playing) { a.pause(); setPlaying(false); }
-    else { a.play(); setPlaying(true); }
+    else { a.play().catch(() => {}); setPlaying(true); }
   };
+
+  const progress = duration > 0 ? current / duration : 0;
 
   return (
     <div className={`voiceMsgPlayer${isOwn ? ' voiceMsgPlayerOwn' : ''}`}>
       <audio ref={audioRef} src={url} preload="metadata"
         onTimeUpdate={e => setCurrent(e.currentTarget.currentTime)}
         onLoadedMetadata={e => setDuration(e.currentTarget.duration)}
-        onEnded={() => setPlaying(false)} />
-      <button className="voiceMsgPlay" onClick={toggle}>
+        onEnded={() => { setPlaying(false); setCurrent(0); }} />
+
+      <button className="voiceMsgPlay" onClick={toggle} aria-label={playing ? 'Пауза' : 'Воспроизвести'}>
         {playing ? (
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
             <rect x="5" y="4" width="4" height="16" rx="1"/>
             <rect x="15" y="4" width="4" height="16" rx="1"/>
           </svg>
         ) : (
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor">
             <path d="M8 5v14l11-7z"/>
           </svg>
         )}
       </button>
-      <div className="voiceMsgTrack">
-        <div className="voiceMsgTrackBg">
-          <div className="voiceMsgTrackFill"
-            style={{ width: duration > 0 ? `${(current / duration) * 100}%` : '0%' }} />
+
+      <div className="voiceMsgRight">
+        {/* Waveform bars */}
+        <div className="voiceMsgBars">
+          {bars.map((h, i) => {
+            const played = i / BARS <= progress;
+            return (
+              <div
+                key={i}
+                className={`voiceMsgBar${played ? ' voiceMsgBarPlayed' : ''}`}
+                style={{ '--bar-h': h } as React.CSSProperties}
+              />
+            );
+          })}
+        </div>
+
+        {/* Time row */}
+        <div className="voiceMsgTimes">
+          <span className="voiceMsgTimeCurrent">{playing || current > 0 ? fmt(current) : fmt(duration)}</span>
+          {playing || current > 0 ? <span className="voiceMsgTimeTotal">{fmt(duration)}</span> : null}
         </div>
       </div>
-      <span className="voiceMsgTime">{playing || current > 0 ? fmt(current) : fmt(duration)}</span>
     </div>
   );
 }
@@ -353,7 +411,7 @@ export function MessageBubble({
 
         {/* ── Attachments (all use resolved URL) ── */}
         {isAudio && (
-          <AudioPlayer url={attachmentUrl} isOwn={isOwn} />
+          <AudioPlayer url={attachmentUrl} isOwn={isOwn} msgId={m.id} />
         )}
         {isImage && (
           <ImageAttachment
