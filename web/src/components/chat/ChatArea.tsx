@@ -212,6 +212,10 @@ export function ChatArea() {
   // ✅ "Add more" — close the modal and pre-select already-queued messages so user just taps extras
   const handleForwardAddMore = useCallback(() => {
     setShowForwardModal(false);
+
+    // TypeScript guard: проверяем, что forwardingIds существует
+    if (!forwardingIds) return;
+
     // Pre-select already-queued messages so they're highlighted in the chat
     const store = useChatsStore.getState();
     store.clearSelection();
