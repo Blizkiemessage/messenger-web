@@ -3,7 +3,7 @@
  * ✅ FIXED: resolveUrl applied to attachment URLs so /uploads/ paths resolve
  *           to the backend (Railway) instead of the frontend (Vercel).
  */
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { type Message, type User } from '../../types';
 import { formatTime } from '../../utils/format';
 import { Avatar, resolveUrl } from '../ui/Avatar';
@@ -179,6 +179,34 @@ function VideoAttachment({
   );
 }
 
+// ── Forwarded badge ───────────────────────────────────────────────────────────
+function ForwardedBadge({
+  fromUserId, fromUsername, onViewUser,
+}: { fromUserId: string | null; fromUsername: string | null; onViewUser: (id: string) => void }) {
+  const name = fromUsername || 'Пользователь';
+  return (
+    <div className="fwdBadge">
+      {/* Forward arrow icon */}
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+           strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+        <polyline points="15 10 20 15 15 20"/>
+        <path d="M4 4v7a4 4 0 0 0 4 4h12"/>
+      </svg>
+      <span className="fwdBadgeLabel">Переслано от</span>
+      {fromUserId ? (
+        <button
+          className="fwdBadgeUsername"
+          onClick={e => { e.stopPropagation(); onViewUser(fromUserId); }}
+        >
+          @{name}
+        </button>
+      ) : (
+        <span className="fwdBadgeUsername fwdBadgeUsernameStatic">@{name}</span>
+      )}
+    </div>
+  );
+}
+
 // ── Highlight ─────────────────────────────────────────────────────────────────
 function HighlightText({ text, term }: { text: string; term: string }) {
   if (!term || !text) return <>{text}</>;
@@ -191,55 +219,6 @@ function HighlightText({ text, term }: { text: string; term: string }) {
           : part
       )}
     </>
-  );
-}
-
-// ── Audio player for voice messages ──────────────────────────────────────────
-function AudioPlayer({ url, isOwn }: { url: string; isOwn: boolean }) {
-  const audioRef  = useRef<HTMLAudioElement>(null);
-  const [playing, setPlaying]   = useState(false);
-  const [current, setCurrent]   = useState(0);
-  const [duration, setDuration] = useState(0);
-
-  const fmt = (s: number) => {
-    if (!isFinite(s)) return '0:00';
-    const m = Math.floor(s / 60), sec = Math.floor(s % 60);
-    return `${m}:${sec.toString().padStart(2, '0')}`;
-  };
-
-  const toggle = () => {
-    const a = audioRef.current;
-    if (!a) return;
-    if (playing) { a.pause(); setPlaying(false); }
-    else { a.play(); setPlaying(true); }
-  };
-
-  return (
-    <div className={`voiceMsgPlayer${isOwn ? ' voiceMsgPlayerOwn' : ''}`}>
-      <audio ref={audioRef} src={url} preload="metadata"
-        onTimeUpdate={e => setCurrent(e.currentTarget.currentTime)}
-        onLoadedMetadata={e => setDuration(e.currentTarget.duration)}
-        onEnded={() => setPlaying(false)} />
-      <button className="voiceMsgPlay" onClick={toggle}>
-        {playing ? (
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-            <rect x="5" y="4" width="4" height="16" rx="1"/>
-            <rect x="15" y="4" width="4" height="16" rx="1"/>
-          </svg>
-        ) : (
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-            <path d="M8 5v14l11-7z"/>
-          </svg>
-        )}
-      </button>
-      <div className="voiceMsgTrack">
-        <div className="voiceMsgTrackBg">
-          <div className="voiceMsgTrackFill"
-            style={{ width: duration > 0 ? `${(current / duration) * 100}%` : '0%' }} />
-        </div>
-      </div>
-      <span className="voiceMsgTime">{playing || current > 0 ? fmt(current) : fmt(duration)}</span>
-    </div>
   );
 }
 
@@ -259,20 +238,18 @@ interface Props {
   onContextMenu: () => void;
   onClick: (e: React.MouseEvent) => void;
   onViewUser: (id: string) => void;
-  onForwardedSenderClick?: (userId: string) => void;
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
 export function MessageBubble({
   message: m, isOwn, isRead, isSelected, isGroup, sender,
   showAvatar, showName, hasSelection, highlight, isSearchMatch,
-  onContextMenu, onClick, onViewUser, onForwardedSenderClick,
+  onContextMenu, onClick, onViewUser,
 }: Props) {
   const hasAttachment = !!m.attachment_url;
   const isImage = m.attachment_type === 'image';
   const isVideo = m.attachment_type === 'video';
-  const isAudio = m.attachment_type === 'audio';
-  const isFile  = hasAttachment && !isImage && !isVideo && !isAudio;
+  const isFile  = hasAttachment && !isImage && !isVideo;
 
   // ✅ KEY FIX: resolve /uploads/... URLs to absolute backend URLs.
   // Without this, Vercel's SPA rewrite catches the relative path and serves index.html.
@@ -289,8 +266,8 @@ export function MessageBubble({
         isGroup && !isOwn ? 'inGroup' : '',
         isSearchMatch ? 'msgSearchFocus' : '',
       ].filter(Boolean).join(' ')}
-      onContextMenu={e => { if (m.is_system) return; e.preventDefault(); onContextMenu(); }}
-      onClick={e => { if (!hasSelection) return; e.stopPropagation(); onClick(e); }}
+      onContextMenu={e => { if (!isOwn) return; e.preventDefault(); onContextMenu(); }}
+      onClick={e => { if (!isOwn || !hasSelection) return; e.stopPropagation(); onClick(e); }}
     >
       {isGroup && !isOwn && (
         <div className="msgAvatarSlot">
@@ -329,32 +306,16 @@ export function MessageBubble({
           </button>
         )}
 
-        {/* ✅ Forwarded-from badge */}
+        {/* ✅ Forwarded badge */}
         {m.forwarded_from_user_id && (
-          <div className="bubbleForwardedBadge">
-            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round">
-              <polyline points="15 17 20 12 15 7"/>
-              <path d="M4 18v-2a4 4 0 0 1 4-4h12"/>
-            </svg>
-            <span>Переслано от </span>
-            <button
-              className="bubbleForwardedName"
-              onClick={e => {
-                e.stopPropagation();
-                if (onForwardedSenderClick && m.forwarded_from_user_id) {
-                  onForwardedSenderClick(m.forwarded_from_user_id);
-                }
-              }}
-            >
-              {m.forwarded_from_username || 'Пользователь'}
-            </button>
-          </div>
+          <ForwardedBadge
+            fromUserId={m.forwarded_from_user_id}
+            fromUsername={m.forwarded_from_username || null}
+            onViewUser={onViewUser}
+          />
         )}
 
         {/* ── Attachments (all use resolved URL) ── */}
-        {isAudio && (
-          <AudioPlayer url={attachmentUrl} isOwn={isOwn} />
-        )}
         {isImage && (
           <ImageAttachment
             url={attachmentUrl}
