@@ -3,7 +3,7 @@
  * ✅ FIXED: resolveUrl applied to attachment URLs so /uploads/ paths resolve
  *           to the backend (Railway) instead of the frontend (Vercel).
  */
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { type Message, type User } from '../../types';
 import { formatTime } from '../../utils/format';
 import { Avatar, resolveUrl } from '../ui/Avatar';
