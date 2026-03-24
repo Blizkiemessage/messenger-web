@@ -154,11 +154,14 @@ export function ChatArea() {
     clearSelection();
   }, [setForwardingIds, setShowForwardModal, clearSelection]);
 
-  // ✅ "Add more" — close the modal and re-enter selection mode so user picks more messages
+  // ✅ "Add more" — close the modal and pre-select already-queued messages so user just taps extras
   const handleForwardAddMore = useCallback(() => {
     setShowForwardModal(false);
-    // forwardingIds remain in store so user can see how many already queued
-  }, [setShowForwardModal]);
+    // Pre-select already-queued messages so they're highlighted in the chat
+    const store = useChatsStore.getState();
+    store.clearSelection();
+    (forwardingIds ?? []).forEach(id => store.toggleSelect(id));
+  }, [setShowForwardModal, forwardingIds]);
 
   // ── Send text (with auto-split) ───────────────────────────────────────────
   const handleSend = useCallback(async () => {
@@ -252,14 +255,13 @@ export function ChatArea() {
           </div>
           <div className="fwdAddMoreRight">
             <button className="fwdAddMoreDone" onClick={() => {
-              // merge newly selected with already queued
-              const extra = Array.from(selectedIds).filter(id => !forwardingIds?.includes(id));
-              const merged = [...(forwardingIds ?? []), ...extra];
-              setForwardingIds(merged);
+              // selectedIds now includes pre-selected (queued) + any newly tapped ones
+              const merged = Array.from(selectedIds);
+              setForwardingIds(merged.length > 0 ? merged : forwardingIds);
               clearSelection();
               setShowForwardModal(true);
             }}>
-              Готово ({selectedIds.size > 0 ? `+${selectedIds.size}` : forwardingIds?.length ?? 0})
+              Готово ({selectedIds.size})
             </button>
             <button className="fwdAddMoreCancel" onClick={() => { setForwardingIds(null); clearSelection(); }}>
               Отмена
