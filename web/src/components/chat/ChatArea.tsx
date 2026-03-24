@@ -145,6 +145,22 @@ export function ChatArea() {
     clearSelection();
   }, [activeChat, selectedIds, clearSelection]);
 
+  // ✅ Unpin all selected messages
+  const handleUnpinSelected = useCallback(async () => {
+    if (!activeChat) return;
+    const ids = Array.from(selectedIds);
+    for (const msgId of ids) {
+      try {
+        await apiUnpin(activeChat.id, msgId);
+        setPinnedMessages(prev => prev.filter(m => m.id !== msgId));
+        useChatsStore.getState().setMessages(
+          useChatsStore.getState().messages.map(m => m.id === msgId ? { ...m, is_pinned: false } : m)
+        );
+      } catch { /* upstream */ }
+    }
+    clearSelection();
+  }, [activeChat, selectedIds, clearSelection]);
+
   // ✅ Pin from context menu — if multi-selection exists, pin all selected;
   //    otherwise just the right-clicked message
   const handlePinMessage = useCallback(async (msgId: string) => {
@@ -164,14 +180,18 @@ export function ChatArea() {
 
   const handleUnpinMessage = useCallback(async (msgId: string) => {
     if (!activeChat) return;
-    try {
-      await apiUnpin(activeChat.id, msgId);
-      setPinnedMessages(prev => prev.filter(m => m.id !== msgId));
-      useChatsStore.getState().setMessages(
-        useChatsStore.getState().messages.map(m => m.id === msgId ? { ...m, is_pinned: false } : m)
-      );
-    } catch { /* upstream */ }
-  }, [activeChat]);
+    const ids = selectedIds.size > 1 ? Array.from(selectedIds) : [msgId];
+    for (const id of ids) {
+      try {
+        await apiUnpin(activeChat.id, id);
+        setPinnedMessages(prev => prev.filter(m => m.id !== id));
+        useChatsStore.getState().setMessages(
+          useChatsStore.getState().messages.map(m => m.id === id ? { ...m, is_pinned: false } : m)
+        );
+      } catch { /* upstream */ }
+    }
+    clearSelection();
+  }, [activeChat, selectedIds, clearSelection]);
 
   // ✅ Delete single message from context menu — selects it then opens confirm modal
   const handleDeleteSingle = useCallback((msgId: string) => {
@@ -238,6 +258,10 @@ export function ChatArea() {
   if (!activeChat) return <EmptyState />;
 
   const isGroupClosed = activeChat.type === 'group' && activeChat.is_closed === true;
+
+  // true when every selected message is already pinned → show "Открепить" instead of "Закрепить"
+  const allSelectedPinned = selectedIds.size > 0 &&
+    Array.from(selectedIds).every(id => messages.find(m => m.id === id)?.is_pinned);
 
   // messages currently queued for forwarding
   const forwardMessages = forwardingIds
@@ -315,6 +339,8 @@ export function ChatArea() {
         onDeleteSelected={() => setShowDeleteConfirm(true)}
         onForwardSelected={handleForwardSelected}
         onPinSelected={handlePinSelected}
+        onUnpinSelected={handleUnpinSelected}
+        allSelectedPinned={allSelectedPinned}
         onOpenInfo={() => setShowGroupInfo(true)}
         onViewUser={setViewUserId}
         searchOpen={searchOpen}

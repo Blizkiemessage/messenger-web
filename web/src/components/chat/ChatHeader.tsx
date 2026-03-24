@@ -14,7 +14,9 @@ interface Props {
   onCancelSelection: () => void;
   onDeleteSelected: () => void;
   onForwardSelected: () => void;
-  onPinSelected: () => void;   // ✅ new
+  onPinSelected: () => void;
+  onUnpinSelected: () => void;   // ✅ new
+  allSelectedPinned: boolean;    // ✅ new
   onOpenInfo: () => void;
   onViewUser: (id: string) => void;
   searchOpen: boolean;
@@ -37,7 +39,8 @@ interface Props {
 
 export function ChatHeader({
   chat, meId, hasSelection, selectedCount,
-  onCancelSelection, onDeleteSelected, onForwardSelected, onPinSelected, onOpenInfo, onViewUser,
+  onCancelSelection, onDeleteSelected, onForwardSelected, onPinSelected, onUnpinSelected,
+  allSelectedPinned, onOpenInfo, onViewUser,
   searchOpen, searchQuery, searchTotal, searchCurrent,
   onToggleSearch, onSearchChange, onSearchNext, onSearchPrev, onSearchClose,
   pinnedCount, pinnedOpen, pinnedIndex, onTogglePinned, onPinnedNext, onPinnedPrev,
@@ -73,12 +76,22 @@ export function ChatHeader({
             </svg>
             Переслать
           </button>
-          <button className="selPinBtn" onClick={onPinSelected} title="Закрепить">
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" stroke="none">
-              <path d="M16 3a1 1 0 0 0-1 1v1H9V4a1 1 0 0 0-2 0v1a3 3 0 0 0-3 3v1l2 2v4H4a1 1 0 0 0 0 2h7v3a1 1 0 0 0 2 0v-3h7a1 1 0 0 0 0-2h-2v-4l2-2V8a3 3 0 0 0-3-3V4a1 1 0 0 0-1-1z"/>
-            </svg>
-            Закрепить
-          </button>
+          {allSelectedPinned ? (
+            <button className="selPinBtn" onClick={onUnpinSelected} title="Открепить">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="2" y1="2" x2="22" y2="22"/>
+                <path d="M12 17v5M9 9H4l3-3 4 1M15 15l4-4-1-4 3-3v5"/>
+              </svg>
+              Открепить
+            </button>
+          ) : (
+            <button className="selPinBtn" onClick={onPinSelected} title="Закрепить">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" stroke="none">
+                <path d="M16 3a1 1 0 0 0-1 1v1H9V4a1 1 0 0 0-2 0v1a3 3 0 0 0-3 3v1l2 2v4H4a1 1 0 0 0 0 2h7v3a1 1 0 0 0 2 0v-3h7a1 1 0 0 0 0-2h-2v-4l2-2V8a3 3 0 0 0-3-3V4a1 1 0 0 0-1-1z"/>
+              </svg>
+              Закрепить
+            </button>
+          )}
           <button className="selDeleteBtn" onClick={onDeleteSelected}>
             <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <polyline points="3 6 5 6 21 6"/>
