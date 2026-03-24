@@ -3,7 +3,7 @@
  * ✅ FIXED: resolveUrl applied to attachment URLs so /uploads/ paths resolve
  *           to the backend (Railway) instead of the frontend (Vercel).
  */
-import { useState, useRef } from 'react';
+import { useState } from 'react';
 import { type Message, type User } from '../../types';
 import { formatTime } from '../../utils/format';
 import { Avatar, resolveUrl } from '../ui/Avatar';
@@ -238,13 +238,14 @@ interface Props {
   onContextMenu: () => void;
   onClick: (e: React.MouseEvent) => void;
   onViewUser: (id: string) => void;
+  onForwardedSenderClick?: (id: string) => void;
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
 export function MessageBubble({
   message: m, isOwn, isRead, isSelected, isGroup, sender,
   showAvatar, showName, hasSelection, highlight, isSearchMatch,
-  onContextMenu, onClick, onViewUser,
+  onContextMenu, onClick, onViewUser, onForwardedSenderClick,
 }: Props) {
   const hasAttachment = !!m.attachment_url;
   const isImage = m.attachment_type === 'image';
@@ -311,7 +312,7 @@ export function MessageBubble({
           <ForwardedBadge
             fromUserId={m.forwarded_from_user_id}
             fromUsername={m.forwarded_from_username || null}
-            onViewUser={onViewUser}
+            onViewUser={onForwardedSenderClick ?? onViewUser}
           />
         )}
 
