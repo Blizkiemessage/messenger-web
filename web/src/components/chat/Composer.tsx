@@ -69,8 +69,6 @@ function WaveformIcon({ size = 22 }: { size?: number }) {
 }
 
 // ── Preview mini-player (inside composer before sending) ──────────────────────
-const PREVIEW_BARS = 40;
-
 function PreviewPlayer({ blob, duration }: { blob: Blob; duration: number }) {
   const audioRef  = useRef<HTMLAudioElement>(null);
   const urlRef    = useRef<string>('');
