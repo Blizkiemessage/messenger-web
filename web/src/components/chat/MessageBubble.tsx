@@ -195,65 +195,41 @@ function HighlightText({ text, term }: { text: string; term: string }) {
 }
 
 // ── Audio player for voice messages ──────────────────────────────────────────
-const BARS = 44;
-
-function seededBars(seed: string): number[] {
-  let h = 0;
-  for (let i = 0; i < seed.length; i++) h = (Math.imul(31, h) + seed.charCodeAt(i)) | 0;
-  return Array.from({ length: BARS }, (_, i) => {
-    const v = Math.abs(Math.sin(h * (i + 1) * 0.37 + i * 0.61) * 0.5 + 0.5);
-    return 0.12 + v * 0.88;
-  });
-}
-
-function AudioPlayer({ url, isOwn, msgId }: { url: string; isOwn: boolean; msgId: string }) {
+function AudioPlayer({
+  url, isOwn, isRead, sendTime,
+}: { url: string; isOwn: boolean; isRead: boolean; sendTime: number }) {
   const audioRef    = useRef<HTMLAudioElement>(null);
-  const barsRef     = useRef<HTMLDivElement>(null);
+  const trackRef    = useRef<HTMLDivElement>(null);
   const draggingRef = useRef(false);
 
   const [playing,  setPlaying]  = useState(false);
   const [current,  setCurrent]  = useState(0);
   const [duration, setDuration] = useState(0);
-  const [bars,     setBars]     = useState<number[]>(() => seededBars(msgId));
 
-  // Decode real waveform + capture duration from decoded audio
+  // Decode duration via Web Audio for accuracy (HTMLAudio can return Infinity for webm)
   useEffect(() => {
     if (!url) return;
     let cancelled = false;
     (async () => {
       try {
-        const res     = await fetch(url);
-        const buf     = await res.arrayBuffer();
-        const actx    = new AudioContext();
-        const decoded = await actx.decodeAudioData(buf.slice(0));
-        if (!cancelled) {
-          // Duration from decoded audio is always accurate
-          setDuration(d => (d > 0 ? d : decoded.duration));
-          const raw   = decoded.getChannelData(0);
-          const block = Math.max(1, Math.floor(raw.length / BARS));
-          const out: number[] = [];
-          for (let i = 0; i < BARS; i++) {
-            let sum = 0;
-            for (let j = 0; j < block; j++) sum += Math.abs(raw[i * block + j] || 0);
-            out.push(sum / block);
-          }
-          const max = Math.max(...out, 0.001);
-          setBars(out.map(v => Math.max(0.07, v / max)));
-        }
+        const res  = await fetch(url);
+        const buf  = await res.arrayBuffer();
+        const actx = new AudioContext();
+        const dec  = await actx.decodeAudioData(buf);
         actx.close();
-      } catch { /* seeded fallback */ }
+        if (!cancelled && dec.duration > 0) setDuration(dec.duration);
+      } catch { /* fallback to onLoadedMetadata */ }
     })();
     return () => { cancelled = true; };
   }, [url]);
 
-  // Also capture duration from HTMLAudioElement as a fallback
-  const handleMetadata = (e: React.SyntheticEvent<HTMLAudioElement>) => {
+  const handleMeta = (e: React.SyntheticEvent<HTMLAudioElement>) => {
     const d = e.currentTarget.duration;
-    if (isFinite(d) && d > 0) setDuration(d);
+    if (isFinite(d) && d > 0) setDuration(prev => prev > 0 ? prev : d);
   };
 
   const fmtT = (s: number) => {
-    if (!isFinite(s) || isNaN(s) || s <= 0) return '0:00';
+    if (!isFinite(s) || isNaN(s) || s < 0) return '0:00';
     const m = Math.floor(s / 60), sec = Math.floor(s % 60);
     return `${m}:${sec.toString().padStart(2, '0')}`;
   };
@@ -265,12 +241,12 @@ function AudioPlayer({ url, isOwn, msgId }: { url: string; isOwn: boolean; msgId
     else { a.play().catch(() => {}); setPlaying(true); }
   };
 
-  const progress = duration > 0 ? current / duration : 0;
+  const progress = duration > 0 ? Math.min(1, current / duration) : 0;
 
-  // Scrub helpers
-  const scrubTo = (clientX: number) => {
+  // Scrub
+  const scrubFromClientX = (clientX: number) => {
     const a = audioRef.current;
-    const el = barsRef.current;
+    const el = trackRef.current;
     if (!a || !el || !duration) return;
     const rect = el.getBoundingClientRect();
     const p = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
@@ -278,30 +254,31 @@ function AudioPlayer({ url, isOwn, msgId }: { url: string; isOwn: boolean; msgId
     setCurrent(p * duration);
   };
 
-  const handlePointerDown = (e: React.PointerEvent) => {
+  const onPointerDown = (e: React.PointerEvent) => {
     draggingRef.current = true;
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
-    scrubTo(e.clientX);
+    scrubFromClientX(e.clientX);
   };
-  const handlePointerMove = (e: React.PointerEvent) => {
-    if (!draggingRef.current) return;
-    scrubTo(e.clientX);
+  const onPointerMove = (e: React.PointerEvent) => {
+    if (draggingRef.current) scrubFromClientX(e.clientX);
   };
-  const handlePointerUp = () => { draggingRef.current = false; };
+  const onPointerUp = () => { draggingRef.current = false; };
+
+  const timeLabel = current > 0 || playing
+    ? `${fmtT(current)}/${fmtT(duration)}`
+    : fmtT(duration);
 
   return (
     <div className={`voiceMsgPlayer${isOwn ? ' voiceMsgPlayerOwn' : ''}`}>
       <audio
-        ref={audioRef}
-        src={url}
-        preload="auto"
+        ref={audioRef} src={url} preload="auto"
         onTimeUpdate={e => setCurrent(e.currentTarget.currentTime)}
-        onLoadedMetadata={handleMetadata}
-        onDurationChange={handleMetadata}
-        onCanPlayThrough={handleMetadata}
+        onLoadedMetadata={handleMeta}
+        onDurationChange={handleMeta}
         onEnded={() => { setPlaying(false); setCurrent(0); }}
       />
 
+      {/* Play / Pause button */}
       <button className="voiceMsgPlay" onClick={toggle} aria-label={playing ? 'Пауза' : 'Воспроизвести'}>
         {playing ? (
           <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor">
@@ -309,52 +286,46 @@ function AudioPlayer({ url, isOwn, msgId }: { url: string; isOwn: boolean; msgId
             <rect x="15" y="4" width="4" height="16" rx="1"/>
           </svg>
         ) : (
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" style={{ marginLeft: 2 }}>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" style={{ marginLeft: 1 }}>
             <path d="M8 5v14l11-7z"/>
           </svg>
         )}
       </button>
 
+      {/* Right side: track + bottom row */}
       <div className="voiceMsgRight">
-        {/* Waveform — drag or click to scrub */}
+        {/* Progress track with draggable thumb */}
         <div
-          className="voiceMsgBars"
-          ref={barsRef}
-          onPointerDown={handlePointerDown}
-          onPointerMove={handlePointerMove}
-          onPointerUp={handlePointerUp}
-          onPointerCancel={handlePointerUp}
+          className="voiceMsgTrackWrap"
+          ref={trackRef}
+          onPointerDown={onPointerDown}
+          onPointerMove={onPointerMove}
+          onPointerUp={onPointerUp}
+          onPointerCancel={onPointerUp}
           role="slider"
-          aria-label="Прогресс воспроизведения"
-          aria-valuemin={0}
-          aria-valuemax={100}
+          aria-valuemin={0} aria-valuemax={100}
           aria-valuenow={Math.round(progress * 100)}
+          aria-label="Перемотка"
         >
-          {bars.map((h, i) => {
-            const barProg  = (i + 0.5) / BARS;
-            const played   = barProg <= progress;
-            return (
-              <div
-                key={i}
-                className={`voiceMsgBar${played ? ' voiceMsgBarPlayed' : ''}`}
-                style={{ '--bar-h': h } as React.CSSProperties}
-              />
-            );
-          })}
+          <div className="voiceMsgTrackBg">
+            <div className="voiceMsgTrackFill" style={{ width: `${progress * 100}%` }} />
+            <div className="voiceMsgTrackThumb" style={{ left: `${progress * 100}%` }} />
+          </div>
         </div>
-        {/* Time */}
-        <div className="voiceMsgTimes">
-          <span className="voiceMsgTimeCurrent">
-            {current > 0 ? fmtT(current) : fmtT(duration)}
-          </span>
-          {duration > 0 && current > 0 && (
-            <span className="voiceMsgTimeTotal">{fmtT(duration)}</span>
-          )}
+
+        {/* Bottom row: time left, send-time + status right */}
+        <div className="voiceMsgMeta">
+          <span className="voiceMsgTime">{timeLabel}</span>
+          <div className="voiceMsgSendMeta">
+            <span className="voiceMsgSendTime">{formatTime(sendTime)}</span>
+            {isOwn && <MsgStatus isRead={isRead} />}
+          </div>
         </div>
       </div>
     </div>
   );
 }
+
 
 // ── Props ─────────────────────────────────────────────────────────────────────
 interface Props {
@@ -466,7 +437,7 @@ export function MessageBubble({
 
         {/* ── Attachments (all use resolved URL) ── */}
         {isAudio && (
-          <AudioPlayer url={attachmentUrl} isOwn={isOwn} msgId={m.id} />
+          <AudioPlayer url={attachmentUrl} isOwn={isOwn} isRead={isRead} sendTime={m.created_at} />
         )}
         {isImage && (
           <ImageAttachment
@@ -501,10 +472,12 @@ export function MessageBubble({
           </div>
         )}
 
-        <div className="bubbleMeta">
-          <span className="bubbleTime">{formatTime(m.created_at)}</span>
-          {isOwn && <MsgStatus isRead={isRead} />}
-        </div>
+        {!isAudio && (
+          <div className="bubbleMeta">
+            <span className="bubbleTime">{formatTime(m.created_at)}</span>
+            {isOwn && <MsgStatus isRead={isRead} />}
+          </div>
+        )}
       </div>
     </div>
   );

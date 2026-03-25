@@ -4000,9 +4000,9 @@ input[type="date"].psInput::-webkit-calendar-picker-indicator {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 6px 4px;
-  min-width: 210px;
-  max-width: 290px;
+  padding: 4px 2px 2px;
+  min-width: 220px;
+  max-width: 300px;
   box-sizing: border-box;
 }
 .voiceMsgPlay {
@@ -4019,65 +4019,74 @@ input[type="date"].psInput::-webkit-calendar-picker-indicator {
   align-self: center;
 }
 .voiceMsgPlay:hover { opacity: .88; transform: scale(1.06); }
-.voiceMsgPlayerOwn .voiceMsgPlay {
-  background: rgba(255,255,255,.22);
-  box-shadow: none;
-}
+.voiceMsgPlayerOwn .voiceMsgPlay { background: rgba(255,255,255,.22); box-shadow: none; }
 
 .voiceMsgRight {
   flex: 1;
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 3px;
+  gap: 5px;
   justify-content: center;
 }
 
-/* Bar waveform — drag to scrub */
-.voiceMsgBars {
-  display: flex;
-  align-items: flex-end;
-  gap: 2px;
-  height: 28px;
-  cursor: pointer;
+/* Progress track */
+.voiceMsgTrackWrap {
   touch-action: none;
   user-select: none;
+  cursor: pointer;
+  padding: 6px 0;
 }
-.voiceMsgBar {
-  flex: 1;
-  min-width: 2px;
-  max-width: 4px;
-  height: calc(var(--bar-h, 0.3) * 100%);
-  min-height: 3px;
+.voiceMsgTrackBg {
+  position: relative;
+  height: 3px;
   border-radius: 2px;
-  background: color-mix(in srgb, var(--accent) 28%, var(--border));
-  transition: background .06s, height .08s;
-  will-change: background;
+  background: color-mix(in srgb, var(--accent) 22%, var(--border));
 }
-.voiceMsgBarPlayed {
+.voiceMsgTrackFill {
+  position: absolute;
+  left: 0; top: 0;
+  height: 100%;
+  border-radius: 2px;
   background: var(--accent);
+  transition: width .08s linear;
 }
-.voiceMsgPlayerOwn .voiceMsgBar       { background: rgba(255,255,255,.22); }
-.voiceMsgPlayerOwn .voiceMsgBarPlayed { background: rgba(255,255,255,.88); }
+.voiceMsgTrackThumb {
+  position: absolute;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 12px; height: 12px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 1px 4px rgba(0,0,0,.3);
+  transition: left .08s linear;
+  pointer-events: none;
+}
+.voiceMsgPlayerOwn .voiceMsgTrackBg  { background: rgba(255,255,255,.22); }
+.voiceMsgPlayerOwn .voiceMsgTrackFill { background: rgba(255,255,255,.85); }
+.voiceMsgPlayerOwn .voiceMsgTrackThumb { background: #fff; }
 
-/* Time */
-.voiceMsgTimes {
+/* Bottom meta row */
+.voiceMsgMeta {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 4px;
 }
-.voiceMsgTimeCurrent {
+.voiceMsgTime {
   font-size: 11px;
   font-weight: 600;
   color: var(--muted);
   font-variant-numeric: tabular-nums;
 }
-.voiceMsgTimeTotal {
+.voiceMsgSendMeta {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+.voiceMsgSendTime {
   font-size: 11px;
   color: var(--muted);
-  opacity: .55;
   font-variant-numeric: tabular-nums;
 }
-.voiceMsgPlayerOwn .voiceMsgTimeCurrent,
-.voiceMsgPlayerOwn .voiceMsgTimeTotal { color: rgba(255,255,255,.6); }
+.voiceMsgPlayerOwn .voiceMsgTime,
+.voiceMsgPlayerOwn .voiceMsgSendTime { color: rgba(255,255,255,.6); }
