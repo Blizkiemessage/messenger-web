@@ -207,13 +207,16 @@ function seededBars(seed: string): number[] {
 }
 
 function AudioPlayer({ url, isOwn, msgId }: { url: string; isOwn: boolean; msgId: string }) {
-  const audioRef   = useRef<HTMLAudioElement>(null);
-  const barsRef    = useRef<HTMLDivElement>(null);
+  const audioRef    = useRef<HTMLAudioElement>(null);
+  const barsRef     = useRef<HTMLDivElement>(null);
+  const draggingRef = useRef(false);
+
   const [playing,  setPlaying]  = useState(false);
   const [current,  setCurrent]  = useState(0);
   const [duration, setDuration] = useState(0);
   const [bars,     setBars]     = useState<number[]>(() => seededBars(msgId));
 
+  // Decode real waveform + capture duration from decoded audio
   useEffect(() => {
     if (!url) return;
     let cancelled = false;
@@ -221,27 +224,36 @@ function AudioPlayer({ url, isOwn, msgId }: { url: string; isOwn: boolean; msgId
       try {
         const res     = await fetch(url);
         const buf     = await res.arrayBuffer();
-        const ctx     = new AudioContext();
-        const decoded = await ctx.decodeAudioData(buf);
-        ctx.close();
-        if (cancelled) return;
-        const raw   = decoded.getChannelData(0);
-        const block = Math.max(1, Math.floor(raw.length / BARS));
-        const out: number[] = [];
-        for (let i = 0; i < BARS; i++) {
-          let sum = 0;
-          for (let j = 0; j < block; j++) sum += Math.abs(raw[i * block + j] || 0);
-          out.push(sum / block);
+        const actx    = new AudioContext();
+        const decoded = await actx.decodeAudioData(buf.slice(0));
+        if (!cancelled) {
+          // Duration from decoded audio is always accurate
+          setDuration(d => (d > 0 ? d : decoded.duration));
+          const raw   = decoded.getChannelData(0);
+          const block = Math.max(1, Math.floor(raw.length / BARS));
+          const out: number[] = [];
+          for (let i = 0; i < BARS; i++) {
+            let sum = 0;
+            for (let j = 0; j < block; j++) sum += Math.abs(raw[i * block + j] || 0);
+            out.push(sum / block);
+          }
+          const max = Math.max(...out, 0.001);
+          setBars(out.map(v => Math.max(0.07, v / max)));
         }
-        const max = Math.max(...out, 0.001);
-        setBars(out.map(v => Math.max(0.07, v / max)));
+        actx.close();
       } catch { /* seeded fallback */ }
     })();
     return () => { cancelled = true; };
   }, [url]);
 
+  // Also capture duration from HTMLAudioElement as a fallback
+  const handleMetadata = (e: React.SyntheticEvent<HTMLAudioElement>) => {
+    const d = e.currentTarget.duration;
+    if (isFinite(d) && d > 0) setDuration(d);
+  };
+
   const fmtT = (s: number) => {
-    if (!isFinite(s) || isNaN(s)) return '0:00';
+    if (!isFinite(s) || isNaN(s) || s <= 0) return '0:00';
     const m = Math.floor(s / 60), sec = Math.floor(s % 60);
     return `${m}:${sec.toString().padStart(2, '0')}`;
   };
@@ -255,22 +267,40 @@ function AudioPlayer({ url, isOwn, msgId }: { url: string; isOwn: boolean; msgId
 
   const progress = duration > 0 ? current / duration : 0;
 
-  const handleScrub = (e: React.MouseEvent) => {
+  // Scrub helpers
+  const scrubTo = (clientX: number) => {
     const a = audioRef.current;
     const el = barsRef.current;
     if (!a || !el || !duration) return;
     const rect = el.getBoundingClientRect();
-    const p = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+    const p = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
     a.currentTime = p * duration;
     setCurrent(p * duration);
   };
 
+  const handlePointerDown = (e: React.PointerEvent) => {
+    draggingRef.current = true;
+    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+    scrubTo(e.clientX);
+  };
+  const handlePointerMove = (e: React.PointerEvent) => {
+    if (!draggingRef.current) return;
+    scrubTo(e.clientX);
+  };
+  const handlePointerUp = () => { draggingRef.current = false; };
+
   return (
     <div className={`voiceMsgPlayer${isOwn ? ' voiceMsgPlayerOwn' : ''}`}>
-      <audio ref={audioRef} src={url} preload="metadata"
+      <audio
+        ref={audioRef}
+        src={url}
+        preload="auto"
         onTimeUpdate={e => setCurrent(e.currentTarget.currentTime)}
-        onLoadedMetadata={e => setDuration(e.currentTarget.duration)}
-        onEnded={() => { setPlaying(false); setCurrent(0); }} />
+        onLoadedMetadata={handleMetadata}
+        onDurationChange={handleMetadata}
+        onCanPlayThrough={handleMetadata}
+        onEnded={() => { setPlaying(false); setCurrent(0); }}
+      />
 
       <button className="voiceMsgPlay" onClick={toggle} aria-label={playing ? 'Пауза' : 'Воспроизвести'}>
         {playing ? (
@@ -279,33 +309,47 @@ function AudioPlayer({ url, isOwn, msgId }: { url: string; isOwn: boolean; msgId
             <rect x="15" y="4" width="4" height="16" rx="1"/>
           </svg>
         ) : (
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" style={{ marginLeft: 2 }}>
             <path d="M8 5v14l11-7z"/>
           </svg>
         )}
       </button>
 
       <div className="voiceMsgRight">
-        <div className="voiceMsgBars" ref={barsRef} onClick={handleScrub} role="slider" aria-label="Прогресс">
+        {/* Waveform — drag or click to scrub */}
+        <div
+          className="voiceMsgBars"
+          ref={barsRef}
+          onPointerDown={handlePointerDown}
+          onPointerMove={handlePointerMove}
+          onPointerUp={handlePointerUp}
+          onPointerCancel={handlePointerUp}
+          role="slider"
+          aria-label="Прогресс воспроизведения"
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-valuenow={Math.round(progress * 100)}
+        >
           {bars.map((h, i) => {
-            const barProgress = i / BARS;
-            const played = barProgress < progress;
-            const isHead = !played && barProgress < progress + 1 / BARS;
+            const barProg  = (i + 0.5) / BARS;
+            const played   = barProg <= progress;
             return (
               <div
                 key={i}
-                className={`voiceMsgBar${played || isHead ? ' voiceMsgBarPlayed' : ''}`}
+                className={`voiceMsgBar${played ? ' voiceMsgBarPlayed' : ''}`}
                 style={{ '--bar-h': h } as React.CSSProperties}
               />
             );
           })}
         </div>
+        {/* Time */}
         <div className="voiceMsgTimes">
           <span className="voiceMsgTimeCurrent">
-            {playing || current > 0
-              ? `${fmtT(current)} / ${fmtT(duration)}`
-              : fmtT(duration)}
+            {current > 0 ? fmtT(current) : fmtT(duration)}
           </span>
+          {duration > 0 && current > 0 && (
+            <span className="voiceMsgTimeTotal">{fmtT(duration)}</span>
+          )}
         </div>
       </div>
     </div>
