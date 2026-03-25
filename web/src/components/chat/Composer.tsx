@@ -71,19 +71,6 @@ function WaveformIcon({ size = 22 }: { size?: number }) {
 // ── Preview mini-player (inside composer before sending) ──────────────────────
 const PREVIEW_BARS = 40;
 
-function seededBars(wave: number[]): number[] {
-  if (wave.length === 0) return Array(PREVIEW_BARS).fill(0.35);
-  const out: number[] = [];
-  const step = Math.max(1, Math.floor(wave.length / PREVIEW_BARS));
-  for (let i = 0; i < PREVIEW_BARS; i++) {
-    const slice = wave.slice(i * step, i * step + step);
-    const avg = slice.length ? slice.reduce((a, b) => a + b, 0) / slice.length : 0;
-    out.push(Math.max(0.07, avg));
-  }
-  const max = Math.max(...out, 0.001);
-  return out.map(v => v / max);
-}
-
 function PreviewPlayer({ blob, duration }: { blob: Blob; duration: number }) {
   const audioRef  = useRef<HTMLAudioElement>(null);
   const urlRef    = useRef<string>('');
@@ -204,7 +191,7 @@ export function Composer({ value, onChange, onSend, onSendAttachment, externalFi
   const [locked,       setLocked]       = useState(false);
   const [lockProgress, setLockProgress] = useState(0);
   const [recSeconds,   setRecSeconds]   = useState(0);
-  const [liveWave,     setLiveWave]     = useState<number[]>([]);
+  const [, setLiveWave]     = useState<number[]>([]);
   const [voiceBlob,    setVoiceBlob]    = useState<Blob | null>(null);
   const [previewSecs,  setPreviewSecs]  = useState(0);
   const [voiceSending, setVoiceSending] = useState(false);
