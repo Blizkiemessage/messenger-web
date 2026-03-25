@@ -3995,14 +3995,15 @@ input[type="date"].psInput::-webkit-calendar-picker-indicator {
 .voicePreviewSendBtn:hover:not(:disabled) { opacity: .88; }
 .voicePreviewSendBtn:disabled { opacity: .5; cursor: not-allowed; }
 
-/* ── Voice message bubble player (Telegram-style) ── */
+/* ── Voice message bubble player ── */
 .voiceMsgPlayer {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 4px 2px 2px;
-  min-width: 200px;
-  max-width: 280px;
+  padding: 6px 4px;
+  min-width: 210px;
+  max-width: 290px;
+  box-sizing: border-box;
 }
 .voiceMsgPlay {
   flex-shrink: 0;
@@ -4015,6 +4016,7 @@ input[type="date"].psInput::-webkit-calendar-picker-indicator {
   cursor: pointer;
   transition: opacity .12s, transform .1s;
   box-shadow: 0 2px 8px color-mix(in srgb, var(--accent) 35%, transparent);
+  align-self: center;
 }
 .voiceMsgPlay:hover { opacity: .88; transform: scale(1.06); }
 .voiceMsgPlayerOwn .voiceMsgPlay {
@@ -4027,17 +4029,19 @@ input[type="date"].psInput::-webkit-calendar-picker-indicator {
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 3px;
   justify-content: center;
 }
 
-/* Bar waveform — clickable */
+/* Bar waveform — drag to scrub */
 .voiceMsgBars {
   display: flex;
-  align-items: center;
+  align-items: flex-end;
   gap: 2px;
   height: 28px;
   cursor: pointer;
+  touch-action: none;
+  user-select: none;
 }
 .voiceMsgBar {
   flex: 1;
@@ -4047,16 +4051,21 @@ input[type="date"].psInput::-webkit-calendar-picker-indicator {
   min-height: 3px;
   border-radius: 2px;
   background: color-mix(in srgb, var(--accent) 28%, var(--border));
-  transition: background .08s;
+  transition: background .06s, height .08s;
+  will-change: background;
 }
-.voiceMsgBarPlayed { background: var(--accent); }
-.voiceMsgPlayerOwn .voiceMsgBar      { background: rgba(255,255,255,.22); }
-.voiceMsgPlayerOwn .voiceMsgBarPlayed { background: rgba(255,255,255,.85); }
+.voiceMsgBarPlayed {
+  background: var(--accent);
+}
+.voiceMsgPlayerOwn .voiceMsgBar       { background: rgba(255,255,255,.22); }
+.voiceMsgPlayerOwn .voiceMsgBarPlayed { background: rgba(255,255,255,.88); }
 
 /* Time */
 .voiceMsgTimes {
   display: flex;
   align-items: center;
+  justify-content: space-between;
+  gap: 4px;
 }
 .voiceMsgTimeCurrent {
   font-size: 11px;
@@ -4064,4 +4073,11 @@ input[type="date"].psInput::-webkit-calendar-picker-indicator {
   color: var(--muted);
   font-variant-numeric: tabular-nums;
 }
-.voiceMsgPlayerOwn .voiceMsgTimeCurrent { color: rgba(255,255,255,.6); }
+.voiceMsgTimeTotal {
+  font-size: 11px;
+  color: var(--muted);
+  opacity: .55;
+  font-variant-numeric: tabular-nums;
+}
+.voiceMsgPlayerOwn .voiceMsgTimeCurrent,
+.voiceMsgPlayerOwn .voiceMsgTimeTotal { color: rgba(255,255,255,.6); }
