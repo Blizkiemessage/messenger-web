@@ -575,6 +575,7 @@ input { font: inherit; color: inherit; background: transparent; }
 .msg.in .bubble { background: var(--panel); border-radius: 4px 16px 16px 16px; }
 .msg.out .bubble { background: var(--accent-dim); border: 1px solid var(--accent-border); border-radius: 16px 4px 16px 16px; }
 .bubbleText { white-space: pre-wrap; line-height: 1.45; }
+.bubble:has(.voiceMsgPlayer) { padding: 6px 8px; }
 /* bubbleTime moved to .bubbleMeta section below */
 
 /* Composer */
@@ -4004,6 +4005,10 @@ input[type="date"].psInput::-webkit-calendar-picker-indicator {
   min-width: 220px;
   max-width: 300px;
   box-sizing: border-box;
+}
+.bubble:has(.voiceMsgPlayer) {
+  padding-top: 6px;
+  padding-bottom: 6px;
 }
 .voiceMsgPlay {
   flex-shrink: 0;
