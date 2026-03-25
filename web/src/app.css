@@ -4000,7 +4000,7 @@ input[type="date"].psInput::-webkit-calendar-picker-indicator {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 4px 2px 2px;
+  padding: 6px 2px 6px;
   min-width: 220px;
   max-width: 300px;
   box-sizing: border-box;
