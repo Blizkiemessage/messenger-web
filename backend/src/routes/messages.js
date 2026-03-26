@@ -14,7 +14,7 @@
 const express = require('express');
 const { authMiddleware } = require('../middleware/auth');
 const { getChatMessages, saveMessage, toggleReaction, deleteMessages, pinMessage, unpinMessage, getPinnedMessages, forwardMessages } = require('../services/messageService');
-const { getChatMemberIds } = require('../config/database');
+const { getDb } = require('../config/database');
 
 const router = express.Router();
 router.use(authMiddleware);
@@ -32,21 +32,25 @@ router.get('/:chatId/messages', (req, res, next) => {
 // POST /chats/:chatId/messages
 router.post('/:chatId/messages', (req, res, next) => {
   try {
-    const { text, attachment_url, attachment_type, attachment_name, attachment_size } = req.body;
+    const { text, attachment_url, attachment_type, attachment_name } = req.body;
     const hasText = text && typeof text === 'string' && text.trim();
     const hasAttachment = attachment_url && attachment_type;
     if (!hasText && !hasAttachment) {
       return res.status(400).json({ error: 'text or attachment is required' });
     }
 
-    const attachment = hasAttachment ? { attachment_url, attachment_type, attachment_name, attachment_size } : {};
+    const attachment = hasAttachment ? { attachment_url, attachment_type, attachment_name } : {};
     const msg = saveMessage(req.params.chatId, req.userId, hasText ? text.trim() : '', attachment);
+
+    const db = getDb();
+    const members = db
+      .prepare('SELECT u.id FROM chat_members cm JOIN users u ON u.id = cm.user_id WHERE cm.chat_id = ?')
+      .all(req.params.chatId);
 
     const io = req.app.get('io');
     if (io) {
-      const memberIds = getChatMemberIds(req.params.chatId);
-      for (const userId of memberIds) {
-        io.to(`user:${userId}`).emit('new-message', msg);
+      for (const member of members) {
+        io.to(`user:${member.id}`).emit('new-message', msg);
       }
     }
 
@@ -66,9 +70,12 @@ router.delete('/:chatId/messages', (req, res, next) => {
 
     const io = req.app.get('io');
     if (io) {
-      const memberIds = getChatMemberIds(req.params.chatId);
-      for (const userId of memberIds) {
-        io.to(`user:${userId}`).emit('messages-deleted', {
+      const db = getDb();
+      const members = db
+        .prepare('SELECT u.id FROM chat_members cm JOIN users u ON u.id = cm.user_id WHERE cm.chat_id = ?')
+        .all(req.params.chatId);
+      for (const member of members) {
+        io.to(`user:${member.id}`).emit('messages-deleted', {
           chatId: req.params.chatId,
           messageIds: deleted,
         });
@@ -83,13 +90,22 @@ router.delete('/:chatId/messages', (req, res, next) => {
 router.post('/:chatId/messages/:msgId/react', (req, res, next) => {
   try {
     const { chatId, msgId } = req.params;
+    const db = getDb();
+
+    const member = db
+      .prepare('SELECT 1 FROM chat_members WHERE chat_id = ? AND user_id = ?')
+      .get([chatId, req.userId]);
+    if (!member) return res.status(403).json({ error: 'Forbidden' });
+
     const likedBy = toggleReaction(msgId, req.userId);
 
     const io = req.app.get('io');
     if (io) {
-      const memberIds = getChatMemberIds(chatId);
-      for (const userId of memberIds) {
-        io.to(`user:${userId}`).emit('message-reaction', { messageId: msgId, chatId, liked_by: likedBy });
+      const members = db
+        .prepare('SELECT user_id FROM chat_members WHERE chat_id = ?')
+        .all(chatId);
+      for (const m of members) {
+        io.to(`user:${m.user_id}`).emit('message-reaction', { messageId: msgId, chatId, liked_by: likedBy });
       }
     }
 
@@ -114,10 +130,13 @@ router.post('/:chatId/messages/forward', (req, res, next) => {
 
     const io = req.app.get('io');
     if (io) {
-      const memberIds = getChatMemberIds(req.params.chatId);
+      const db = getDb();
+      const members = db
+        .prepare('SELECT user_id FROM chat_members WHERE chat_id = ?')
+        .all(req.params.chatId);
       for (const msg of messages) {
-        for (const userId of memberIds) {
-          io.to(`user:${userId}`).emit('new-message', msg);
+        for (const m of members) {
+          io.to(`user:${m.user_id}`).emit('new-message', msg);
         }
       }
     }
@@ -131,8 +150,9 @@ router.post('/:chatId/messages/:msgId/pin', (req, res, next) => {
     const msg = pinMessage(req.params.chatId, req.params.msgId, req.userId);
     const io = req.app.get('io');
     if (io) {
-      const memberIds = getChatMemberIds(req.params.chatId);
-      for (const userId of memberIds) io.to(`user:${userId}`).emit('message-pinned', { chatId: req.params.chatId, message: msg });
+      const { getDb } = require('../config/database');
+      const members = getDb().prepare('SELECT user_id FROM chat_members WHERE chat_id = ?').all(req.params.chatId);
+      for (const m of members) io.to(`user:${m.user_id}`).emit('message-pinned', { chatId: req.params.chatId, message: msg });
     }
     res.json(msg);
   } catch (err) { next(err); }
@@ -144,8 +164,9 @@ router.delete('/:chatId/messages/:msgId/pin', (req, res, next) => {
     unpinMessage(req.params.chatId, req.params.msgId, req.userId);
     const io = req.app.get('io');
     if (io) {
-      const memberIds = getChatMemberIds(req.params.chatId);
-      for (const userId of memberIds) io.to(`user:${userId}`).emit('message-unpinned', { chatId: req.params.chatId, messageId: req.params.msgId });
+      const { getDb } = require('../config/database');
+      const members = getDb().prepare('SELECT user_id FROM chat_members WHERE chat_id = ?').all(req.params.chatId);
+      for (const m of members) io.to(`user:${m.user_id}`).emit('message-unpinned', { chatId: req.params.chatId, messageId: req.params.msgId });
     }
     res.json({ ok: true });
   } catch (err) { next(err); }
