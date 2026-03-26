@@ -3,8 +3,6 @@ const http = require('http');
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
-const compression = require('compression');
-const path = require('path');
 
 const { runMigrations } = require('./db/migrations');
 const { initSocket } = require('./socket/socketServer');
@@ -17,16 +15,15 @@ const messagesRoutes = require('./routes/messages');
 const uploadRoutes = require('./routes/upload');
 const adminRoutes = require('./routes/admin');
 const friendsRoutes = require('./routes/friends');
+const path = require('path');
 
 const app = express();
 const server = http.createServer(app);
 
 // ─── Middleware ────────────────────────────────────────────────────────────
-app.use(compression()); // Gzip compression for JSON responses
-
 app.set('trust proxy', 1);
 app.use(helmet({
-  contentSecurityPolicy: false,
+  contentSecurityPolicy: false, // Prevent helmet from blocking our inline admin scripts/styles
 }));
 app.use(cors({
   origin: (origin, cb) => {
@@ -67,11 +64,7 @@ app.use('/chats', messagesRoutes);
 app.use('/admin/api', adminRoutes);
 app.use('/friends', friendsRoutes);
 
-app.use('/uploads', express.static(path.join(__dirname, '../uploads'), {
-  maxAge: '7d',
-  etag: true,
-  lastModified: true,
-}));
+app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 app.use('/admin', express.static(path.join(__dirname, '../public/admin')));
 app.use('/upload', uploadRoutes);
 
