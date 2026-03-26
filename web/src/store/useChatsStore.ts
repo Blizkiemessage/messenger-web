@@ -14,6 +14,7 @@
  */
 
 import { create } from 'zustand';
+import { useShallow } from 'zustand/shallow';
 import { type Chat, type Message } from '../types';
 import { getChats } from '../api/chats';
 
@@ -214,7 +215,30 @@ export const useChatsStore = create<ChatsState>((set) => ({
   },
 }));
 
-// ── Selectors (helpers for components) ────────────────────────────────────────
+// ── Selectors with shallow comparison (optimized) ───────────────────────────
+
+/** Hook: use filtered chats with shallow comparison to prevent unnecessary re-renders */
+export const useFilteredChats = () => useChatsStore(
+  useShallow((s: ChatsState) => {
+    if (s.chatFilter === 'groups') return s.chats.filter(c => c.type === 'group');
+    if (s.chatFilter === 'direct') return s.chats.filter(c => c.type === 'direct');
+    return s.chats;
+  })
+);
+
+/** Hook: get contacts from direct chats */
+export const useContacts = (meId: string) => useChatsStore(
+  useShallow((s: ChatsState) => {
+    const seen = new Set<string>();
+    const list = [];
+    for (const c of s.chats) {
+      if (c.type !== 'direct') continue;
+      const other = c.members.find(m => m.id !== meId);
+      if (other && !seen.has(other.id)) { seen.add(other.id); list.push(other); }
+    }
+    return list;
+  })
+);
 
 /** Derived: the currently active Chat object. */
 export const selectActiveChat = (s: ChatsState): Chat | null =>

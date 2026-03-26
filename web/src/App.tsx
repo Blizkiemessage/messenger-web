@@ -2,8 +2,9 @@
  * App.tsx — proper Zustand v5 selectors, no getState() during render.
  * ✅ Updated: closeGroup, transferAdmin wired to GroupInfoModal
  * ✅ Updated: admin leaving a group → closes group instead of removing chat
+ * ✅ Optimized: Grouped selectors, lazy loading modals
  */
-import { useEffect } from 'react';
+import { useEffect, lazy, Suspense } from 'react';
 import './app.css';
 
 import { useSessionStore } from './store/useSessionStore';
@@ -15,15 +16,15 @@ import { useMessages } from './hooks/useMessages';
 import { AuthScreen } from './components/auth/AuthScreen';
 import { Sidebar } from './components/sidebar/Sidebar';
 import { ChatArea } from './components/chat/ChatArea';
-import { UserProfileModal } from './components/modals/UserProfileModal';
-import { GroupInfoModal } from './components/modals/GroupInfoModal';
-import { ProfileSettingsModal } from './components/modals/ProfileSettingsModal';
-import { CreateGroupModal } from './components/modals/CreateGroupModal';
-import {
-  DeleteConfirmModal,
-  ChatActionConfirmModal,
-  ChatContextMenu,
-} from './components/modals/ConfirmModals';
+
+// Lazy load modals for better initial bundle size
+const UserProfileModal = lazy(() => import('./components/modals/UserProfileModal'));
+const GroupInfoModal = lazy(() => import('./components/modals/GroupInfoModal'));
+const ProfileSettingsModal = lazy(() => import('./components/modals/ProfileSettingsModal'));
+const CreateGroupModal = lazy(() => import('./components/modals/CreateGroupModal'));
+const DeleteConfirmModal = lazy(() => import('./components/modals/ConfirmModals').then(m => ({ default: m.DeleteConfirmModal })));
+const ChatActionConfirmModal = lazy(() => import('./components/modals/ConfirmModals').then(m => ({ default: m.ChatActionConfirmModal })));
+const ChatContextMenu = lazy(() => import('./components/modals/ConfirmModals').then(m => ({ default: m.ChatContextMenu })));
 
 import { deleteAccount as apiDeleteAccount } from './api/auth';
 import {
@@ -45,25 +46,40 @@ export default function App() {
   const clearSession = useSessionStore(s => s.clearSession);
   const updateMe = useSessionStore(s => s.updateMe);
 
-  // App store — individual selectors
-  const theme = useAppStore(s => s.theme);
-  const toggleTheme = useAppStore(s => s.toggleTheme);
-  const showProfileSettings = useAppStore(s => s.showProfileSettings);
-  const setShowProfileSettings = useAppStore(s => s.setShowProfileSettings);
-  const showCreateGroup = useAppStore(s => s.showCreateGroup);
-  const setShowCreateGroup = useAppStore(s => s.setShowCreateGroup);
-  const showGroupInfo = useAppStore(s => s.showGroupInfo);
-  const setShowGroupInfo = useAppStore(s => s.setShowGroupInfo);
-  const showDeleteConfirm = useAppStore(s => s.showDeleteConfirm);
-  const setShowDeleteConfirm = useAppStore(s => s.setShowDeleteConfirm);
-  const viewUserId = useAppStore(s => s.viewUserId);
-  const setViewUserId = useAppStore(s => s.setViewUserId);
-  const chatCtxMenu = useAppStore(s => s.chatCtxMenu);
-  const setChatCtxMenu = useAppStore(s => s.setChatCtxMenu);
-  const chatActionConfirm = useAppStore(s => s.chatActionConfirm);
-  const setChatActionConfirm = useAppStore(s => s.setChatActionConfirm);
-  const chatActionBusy = useAppStore(s => s.chatActionBusy);
-  const setChatActionBusy = useAppStore(s => s.setChatActionBusy);
+  // App store — grouped selectors for modals (reduce re-renders)
+  const { theme, toggleTheme } = useAppStore(s => ({ theme: s.theme, toggleTheme: s.toggleTheme }));
+  const { showProfileSettings, setShowProfileSettings } = useAppStore(s => ({ 
+    showProfileSettings: s.showProfileSettings, 
+    setShowProfileSettings: s.setShowProfileSettings 
+  }));
+  const { showCreateGroup, setShowCreateGroup } = useAppStore(s => ({ 
+    showCreateGroup: s.showCreateGroup, 
+    setShowCreateGroup: s.setShowCreateGroup 
+  }));
+  const { showGroupInfo, setShowGroupInfo } = useAppStore(s => ({ 
+    showGroupInfo: s.showGroupInfo, 
+    setShowGroupInfo: s.setShowGroupInfo 
+  }));
+  const { showDeleteConfirm, setShowDeleteConfirm } = useAppStore(s => ({ 
+    showDeleteConfirm: s.showDeleteConfirm, 
+    setShowDeleteConfirm: s.setShowDeleteConfirm 
+  }));
+  const { viewUserId, setViewUserId } = useAppStore(s => ({ 
+    viewUserId: s.viewUserId, 
+    setViewUserId: s.setViewUserId 
+  }));
+  const { chatCtxMenu, setChatCtxMenu } = useAppStore(s => ({ 
+    chatCtxMenu: s.chatCtxMenu, 
+    setChatCtxMenu: s.setChatCtxMenu 
+  }));
+  const { chatActionConfirm, setChatActionConfirm } = useAppStore(s => ({ 
+    chatActionConfirm: s.chatActionConfirm, 
+    setChatActionConfirm: s.setChatActionConfirm 
+  }));
+  const { chatActionBusy, setChatActionBusy } = useAppStore(s => ({ 
+    chatActionBusy: s.chatActionBusy, 
+    setChatActionBusy: s.setChatActionBusy 
+  }));
   const deleteBusy = useAppStore(s => s.deleteBusy);
 
   // Chats store
@@ -125,89 +141,99 @@ export default function App() {
   return (
     <>
       {showCreateGroup && (
-        <CreateGroupModal onClose={() => setShowCreateGroup(false)} />
+        <Suspense fallback={null}>
+          <CreateGroupModal onClose={() => setShowCreateGroup(false)} />
+        </Suspense>
       )}
 
       {showDeleteConfirm && (
-        <DeleteConfirmModal
-          count={selectedIds.size}
-          onConfirm={deleteSelected}
-          onCancel={() => setShowDeleteConfirm(false)}
-          busy={deleteBusy}
-        />
+        <Suspense fallback={null}>
+          <DeleteConfirmModal
+            count={selectedIds.size}
+            onConfirm={deleteSelected}
+            onCancel={() => setShowDeleteConfirm(false)}
+            busy={deleteBusy}
+          />
+        </Suspense>
       )}
 
       {showProfileSettings && (
-        <ProfileSettingsModal
-          me={me}
-          token={token}
-          onClose={() => setShowProfileSettings(false)}
-          onUpdate={updateMe}
-          onDeleteAccount={onDeleteAccount}
-        />
+        <Suspense fallback={null}>
+          <ProfileSettingsModal
+            me={me}
+            token={token}
+            onClose={() => setShowProfileSettings(false)}
+            onUpdate={updateMe}
+            onDeleteAccount={onDeleteAccount}
+          />
+        </Suspense>
       )}
 
       {viewUserId && (
-        <UserProfileModal
-          userId={viewUserId}
-          onClose={() => setViewUserId(null)}
-          onStartChat={viewUserId !== me.id ? async (u) => {
-            const chat = await createDirectChat(u.id);
-            useChatsStore.getState().upsertChat(chat);
-            useChatsStore.getState().setActiveChatId(chat.id);
-            setViewUserId(null);
-          } : undefined}
-        />
+        <Suspense fallback={null}>
+          <UserProfileModal
+            userId={viewUserId}
+            onClose={() => setViewUserId(null)}
+            onStartChat={viewUserId !== me.id ? async (u) => {
+              const chat = await createDirectChat(u.id);
+              useChatsStore.getState().upsertChat(chat);
+              useChatsStore.getState().setActiveChatId(chat.id);
+              setViewUserId(null);
+            } : undefined}
+          />
+        </Suspense>
       )}
 
       {showGroupInfo && activeChat && (
-        <GroupInfoModal
-          chat={activeChat}
-          onClose={() => setShowGroupInfo(false)}
-          onViewUser={id => { setShowGroupInfo(false); setViewUserId(id); }}
-          meId={me.id}
-          onUpdateChat={async (name, description) => {
-            const updated = await apiUpdateGroupChat(activeChat.id, { name, description });
-            useChatsStore.getState().upsertChat(updated);
-          }}
-          onRemoveMember={async (userId) => {
-            await apiRemoveGroupMember(activeChat.id, userId);
-          }}
-          // ✅ Close group — group stays in list but is_closed=true
-          onCloseGroup={async () => {
-            await apiCloseGroup(activeChat.id);
-            // Socket 'chat-updated' will update the store automatically
-          }}
-          // ✅ Update group avatar — sends system message to group
-          onUpdateAvatar={async (url) => {
-            const updated = await apiUpdateGroupAvatar(activeChat.id, url);
-            useChatsStore.getState().upsertChat(updated);
-          }}
-          // ✅ Transfer admin — new admin takes over, system message is sent
-          onTransferAdmin={async (userId) => {
-            const updated = await apiTransferAdminRights(activeChat.id, userId);
-            useChatsStore.getState().upsertChat(updated);
-          }}
-        />
+        <Suspense fallback={null}>
+          <GroupInfoModal
+            chat={activeChat}
+            onClose={() => setShowGroupInfo(false)}
+            onViewUser={id => { setShowGroupInfo(false); setViewUserId(id); }}
+            meId={me.id}
+            onUpdateChat={async (name, description) => {
+              const updated = await apiUpdateGroupChat(activeChat.id, { name, description });
+              useChatsStore.getState().upsertChat(updated);
+            }}
+            onRemoveMember={async (userId) => {
+              await apiRemoveGroupMember(activeChat.id, userId);
+            }}
+            onCloseGroup={async () => {
+              await apiCloseGroup(activeChat.id);
+            }}
+            onUpdateAvatar={async (url) => {
+              const updated = await apiUpdateGroupAvatar(activeChat.id, url);
+              useChatsStore.getState().upsertChat(updated);
+            }}
+            onTransferAdmin={async (userId) => {
+              const updated = await apiTransferAdminRights(activeChat.id, userId);
+              useChatsStore.getState().upsertChat(updated);
+            }}
+          />
+        </Suspense>
       )}
 
       {chatCtxMenu && (
-        <ChatContextMenu
-          x={chatCtxMenu.x} y={chatCtxMenu.y} chat={chatCtxMenu.chat}
-          onClose={() => setChatCtxMenu(null)}
-          onDelete={() => setChatActionConfirm(chatCtxMenu.chat)}
-          onLeave={() => setChatActionConfirm(chatCtxMenu.chat)}
-        />
+        <Suspense fallback={null}>
+          <ChatContextMenu
+            x={chatCtxMenu.x} y={chatCtxMenu.y} chat={chatCtxMenu.chat}
+            onClose={() => setChatCtxMenu(null)}
+            onDelete={() => setChatActionConfirm(chatCtxMenu.chat)}
+            onLeave={() => setChatActionConfirm(chatCtxMenu.chat)}
+          />
+        </Suspense>
       )}
 
       {chatActionConfirm && (
-        <ChatActionConfirmModal
-          chat={chatActionConfirm}
-          meId={me.id}
-          onConfirm={onConfirmChatAction}
-          onCancel={() => setChatActionConfirm(null)}
-          busy={chatActionBusy}
-        />
+        <Suspense fallback={null}>
+          <ChatActionConfirmModal
+            chat={chatActionConfirm}
+            meId={me.id}
+            onConfirm={onConfirmChatAction}
+            onCancel={() => setChatActionConfirm(null)}
+            busy={chatActionBusy}
+          />
+        </Suspense>
       )}
 
       <div className={`layout${hasSelection ? ' selecting' : ''}`}>
