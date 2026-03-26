@@ -1,0 +1,13 @@
+meta:
+  environment: nodejs
+  toolVersion: "20"
+
+build:
+  dockerfile: false
+  buildDir: .
+  buildCommand: npm install --production
+
+run:
+  persistenceMount: /data
+  runCommand: node src/index.js
+  containerPort: 3000
