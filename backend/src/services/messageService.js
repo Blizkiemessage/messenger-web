@@ -3,7 +3,7 @@
  * ✅ Added: pinMessage, unpinMessage, getPinnedMessages
  */
 const { v4: uuidv4 } = require('uuid');
-const { getDb } = require('../config/database');
+const { getDb, checkMembership } = require('../config/database');
 const { encrypt, decrypt } = require('../crypto/aes');
 
 function decryptMessage(msg) {
@@ -26,8 +26,7 @@ function decryptMessage(msg) {
 
 function getChatMessages(chatId, userId, { limit = 50, before = null } = {}) {
   const db = getDb();
-  const member = db.prepare('SELECT 1 FROM chat_members WHERE chat_id = ? AND user_id = ?').get([chatId, userId]);
-  if (!member) throw Object.assign(new Error('Forbidden'), { status: 403 });
+  if (!checkMembership(chatId, userId)) throw Object.assign(new Error('Forbidden'), { status: 403 });
   const rows = before
     ? db.prepare(`SELECT * FROM messages WHERE chat_id = ? AND deleted_at IS NULL AND created_at < ? ORDER BY created_at DESC LIMIT ?`).all([chatId, before, limit])
     : db.prepare(`SELECT * FROM messages WHERE chat_id = ? AND deleted_at IS NULL ORDER BY created_at DESC LIMIT ?`).all([chatId, limit]);
@@ -36,9 +35,8 @@ function getChatMessages(chatId, userId, { limit = 50, before = null } = {}) {
 
 function saveMessage(chatId, senderId, text, attachment = {}, isSystem = false) {
   const db = getDb();
-  if (!isSystem) {
-    const member = db.prepare('SELECT 1 FROM chat_members WHERE chat_id = ? AND user_id = ?').get([chatId, senderId]);
-    if (!member) throw Object.assign(new Error('Forbidden'), { status: 403 });
+  if (!isSystem && !checkMembership(chatId, senderId)) {
+    throw Object.assign(new Error('Forbidden'), { status: 403 });
   }
   const { ciphertext, iv, authTag } = encrypt(text || '');
   const msgId = uuidv4();
@@ -55,14 +53,15 @@ function saveMessage(chatId, senderId, text, attachment = {}, isSystem = false) 
 
 function deleteMessages(chatId, senderId, messageIds) {
   const db = getDb();
-  const member = db.prepare('SELECT 1 FROM chat_members WHERE chat_id = ? AND user_id = ?').get([chatId, senderId]);
-  if (!member) throw Object.assign(new Error('Forbidden'), { status: 403 });
+  if (!checkMembership(chatId, senderId)) throw Object.assign(new Error('Forbidden'), { status: 403 });
   const now = Date.now();
   const deleted = [];
+  const selectStmt = db.prepare('SELECT id, sender_id FROM messages WHERE id = ? AND chat_id = ?');
+  const updateStmt = db.prepare('UPDATE messages SET deleted_at = ? WHERE id = ?');
   for (const msgId of messageIds) {
-    const msg = db.prepare('SELECT id, sender_id FROM messages WHERE id = ? AND chat_id = ?').get([msgId, chatId]);
+    const msg = selectStmt.get([msgId, chatId]);
     if (!msg || msg.sender_id !== senderId) continue;
-    db.prepare('UPDATE messages SET deleted_at = ? WHERE id = ?').run([now, msgId]);
+    updateStmt.run([now, msgId]);
     deleted.push(msgId);
   }
   return deleted;
@@ -81,8 +80,7 @@ function toggleReaction(msgId, userId) {
 // ✅ NEW: pin a message
 function pinMessage(chatId, messageId, requesterId) {
   const db = getDb();
-  const member = db.prepare('SELECT 1 FROM chat_members WHERE chat_id = ? AND user_id = ?').get([chatId, requesterId]);
-  if (!member) throw Object.assign(new Error('Forbidden'), { status: 403 });
+  if (!checkMembership(chatId, requesterId)) throw Object.assign(new Error('Forbidden'), { status: 403 });
   const msg = db.prepare('SELECT id, chat_id FROM messages WHERE id = ? AND chat_id = ? AND deleted_at IS NULL').get([messageId, chatId]);
   if (!msg) throw Object.assign(new Error('Message not found'), { status: 404 });
   db.prepare('UPDATE messages SET is_pinned = 1 WHERE id = ?').run(messageId);
@@ -92,8 +90,7 @@ function pinMessage(chatId, messageId, requesterId) {
 // ✅ NEW: unpin a message
 function unpinMessage(chatId, messageId, requesterId) {
   const db = getDb();
-  const member = db.prepare('SELECT 1 FROM chat_members WHERE chat_id = ? AND user_id = ?').get([chatId, requesterId]);
-  if (!member) throw Object.assign(new Error('Forbidden'), { status: 403 });
+  if (!checkMembership(chatId, requesterId)) throw Object.assign(new Error('Forbidden'), { status: 403 });
   db.prepare('UPDATE messages SET is_pinned = 0 WHERE id = ? AND chat_id = ?').run([messageId, chatId]);
   return { ok: true, messageId };
 }
@@ -101,8 +98,7 @@ function unpinMessage(chatId, messageId, requesterId) {
 // ✅ NEW: get all pinned messages for a chat
 function getPinnedMessages(chatId, userId) {
   const db = getDb();
-  const member = db.prepare('SELECT 1 FROM chat_members WHERE chat_id = ? AND user_id = ?').get([chatId, userId]);
-  if (!member) throw Object.assign(new Error('Forbidden'), { status: 403 });
+  if (!checkMembership(chatId, userId)) throw Object.assign(new Error('Forbidden'), { status: 403 });
   const rows = db.prepare('SELECT * FROM messages WHERE chat_id = ? AND is_pinned = 1 AND deleted_at IS NULL ORDER BY created_at ASC').all(chatId);
   return rows.map(decryptMessage);
 }
@@ -110,16 +106,25 @@ function getPinnedMessages(chatId, userId) {
 // ✅ NEW: forward messages to a chat
 function forwardMessages(targetChatId, senderId, messageIds) {
   const db = getDb();
-  const member = db.prepare('SELECT 1 FROM chat_members WHERE chat_id = ? AND user_id = ?').get([targetChatId, senderId]);
-  if (!member) throw Object.assign(new Error('Forbidden'), { status: 403 });
+  if (!checkMembership(targetChatId, senderId)) throw Object.assign(new Error('Forbidden'), { status: 403 });
 
   const results = [];
+  const selectOrig = db.prepare('SELECT * FROM messages WHERE id = ? AND deleted_at IS NULL');
+  const selectSender = db.prepare('SELECT username, display_name FROM users WHERE id = ?');
+  const insertMsg = db.prepare(
+    `INSERT INTO messages
+       (id, chat_id, sender_id, ciphertext, iv, auth_tag, created_at,
+        attachment_url, attachment_type, attachment_name, attachment_size,
+        is_system, forwarded_from_user_id, forwarded_from_username)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?)`
+  );
+  const selectNew = db.prepare('SELECT * FROM messages WHERE id = ?');
   for (const msgId of messageIds) {
-    const orig = db.prepare('SELECT * FROM messages WHERE id = ? AND deleted_at IS NULL').get(msgId);
+    const orig = selectOrig.get(msgId);
     if (!orig) continue;
 
     // Get original sender info for attribution
-    const origSender = db.prepare('SELECT username, display_name FROM users WHERE id = ?').get(orig.sender_id);
+    const origSender = selectSender.get(orig.sender_id);
     const senderLabel = origSender?.username
       ? `@${origSender.username}`
       : (origSender?.display_name || 'Пользователь');
@@ -134,20 +139,14 @@ function forwardMessages(targetChatId, senderId, messageIds) {
     const newId = uuidv4();
     const now   = Date.now();
 
-    db.prepare(
-      `INSERT INTO messages
-         (id, chat_id, sender_id, ciphertext, iv, auth_tag, created_at,
-          attachment_url, attachment_type, attachment_name, attachment_size,
-          is_system, forwarded_from_user_id, forwarded_from_username)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?)`
-    ).run([
+    insertMsg.run([
       newId, targetChatId, senderId, ciphertext, iv, authTag, now,
       orig.attachment_url || null, orig.attachment_type || null,
       orig.attachment_name || null, orig.attachment_size || null,
       fwdUserId, fwdUsername,
     ]);
 
-    results.push(decryptMessage(db.prepare('SELECT * FROM messages WHERE id = ?').get(newId)));
+    results.push(decryptMessage(selectNew.get(newId)));
   }
   return results;
 }
