@@ -6,6 +6,7 @@ import { useState } from 'react';
 import { type User } from '../../types';
 import { type Theme } from '../../utils/theme';
 import { ThemeIcon } from '../ui/icons/ThemeIcon';
+import { LogoIcon } from '../ui/icons/LogoIcon';
 import { LoginForm } from './LoginForm';
 import { RegisterForm } from './RegisterForm';
 
@@ -26,8 +27,8 @@ export function AuthScreen({ theme, onThemeToggle, onAuthenticated }: Props) {
         <ThemeIcon theme={theme} />
       </button>
       <div className="authCard">
-        <div className="authLogo">B</div>
-        <div className="authTitle">Blizkie</div>
+        <div className="authLogo"><LogoIcon /></div>
+        <div className="authTitle">Добро пожаловать!</div>
 
         <div className="authTabs">
           <button className={`authTab${tab === 'login'    ? ' active' : ''}`} onClick={() => setTab('login')}>Войти</button>
