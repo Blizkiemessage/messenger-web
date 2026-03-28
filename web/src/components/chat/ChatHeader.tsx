@@ -5,6 +5,7 @@
 import { type Chat } from '../../types';
 import { chatTitle, chatSubtitle, avatarLetter } from '../../utils/format';
 import { Avatar, resolveUrl } from '../ui/Avatar';
+import { useChatsStore } from '../../store/useChatsStore';
 
 interface Props {
   chat: Chat;
@@ -45,6 +46,7 @@ export function ChatHeader({
   onToggleSearch, onSearchChange, onSearchNext, onSearchPrev, onSearchClose,
   pinnedCount, pinnedOpen, pinnedIndex, onTogglePinned, onPinnedNext, onPinnedPrev,
 }: Props) {
+  const setActiveChatId = useChatsStore(s => s.setActiveChatId);
   const isGroup = chat.type === 'group';
 
   // For direct chats — the other person's user object
@@ -109,6 +111,11 @@ export function ChatHeader({
   return (
     <div className={`chatHeaderWrap${searchOpen ? ' searchOpen' : ''}`}>
       <div className="chatHeader">
+        <button className="mobileBackBtn" onClick={() => setActiveChatId(null)} title="Назад">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="15 18 9 12 15 6"/>
+          </svg>
+        </button>
         <button
           className="chHeaderBtn"
           onClick={() => {
