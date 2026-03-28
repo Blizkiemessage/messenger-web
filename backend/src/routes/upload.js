@@ -5,6 +5,7 @@ const fs      = require('fs');
 const { v4: uuidv4 } = require('uuid');
 const { S3Client, PutObjectCommand } = require('@aws-sdk/client-s3');
 const { authMiddleware } = require('../middleware/auth');
+const sharp = require('sharp');
 
 const router = express.Router();
 router.use(authMiddleware);
@@ -22,6 +23,26 @@ const VIDEO_TYPES = [
   'video/webm','video/mov','video/mpeg','video/x-matroska',
 ];
 const MAX_SIZE = 100 * 1024 * 1024;
+
+// GIF (may be animated) and SVG (already tiny text) pass through unchanged.
+// All other image types are converted to WebP at quality 82, max 2560px on any side.
+async function compressImage(buffer, mime) {
+  if (mime === 'image/gif' || mime === 'image/svg+xml') {
+    const ext = mime === 'image/gif' ? '.gif' : '.svg';
+    return { buffer, mime, ext };
+  }
+  const compressed = await sharp(buffer)
+    .rotate()                        // auto-orient from EXIF (fixes sideways phone photos)
+    .resize({
+      width:              2560,
+      height:             2560,
+      fit:                'inside',  // preserve aspect ratio, no crop, no padding
+      withoutEnlargement: true,      // never upscale small images
+    })
+    .webp({ quality: 82 })
+    .toBuffer();
+  return { buffer: compressed, mime: 'image/webp', ext: '.webp' };
+}
 
 const useS3 = !!(
   process.env.S3_ACCESS_KEY_ID &&
@@ -50,18 +71,32 @@ const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: MAX
 router.post('/', upload.single('file'), async (req, res) => {
   if (!req.file) return res.status(400).json({ error: 'No file provided' });
 
-  const mime = req.file.mimetype;
+  let mime = req.file.mimetype;
   const type = IMAGE_TYPES.includes(mime) ? 'image'
              : VIDEO_TYPES.includes(mime) ? 'video'
              : AUDIO_TYPES.includes(mime) ? 'audio'
              : 'file';
-  const ext = path.extname(req.file.originalname) || '';
+  let ext = path.extname(req.file.originalname) || '';
 
   // ✅ FIX CYRILLIC: multer decodes filenames as latin1. Re-encode to get UTF-8.
   const originalName = Buffer.from(req.file.originalname, 'latin1').toString('utf8');
 
+  // ── Image compression ──────────────────────────────────────────────────────
+  if (type === 'image') {
+    try {
+      const result = await compressImage(req.file.buffer, mime);
+      req.file.buffer = result.buffer;
+      mime             = result.mime;
+      ext              = result.ext;
+    } catch (err) {
+      console.error('[Upload] Compression error:', err.message);
+      return res.status(500).json({ error: 'Image processing failed: ' + err.message });
+    }
+  }
+  // ──────────────────────────────────────────────────────────────────────────
+
   const filename = `${uuidv4()}${ext}`;
-  const size = req.file.size;
+  const size = req.file.buffer.length;
 
   if (useS3) {
     try {
