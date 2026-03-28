@@ -210,7 +210,7 @@ export default function App() {
         />
       )}
 
-      <div className={`layout${hasSelection ? ' selecting' : ''}`}>
+      <div className={`layout${hasSelection ? ' selecting' : ''}${activeChat ? ' chatOpen' : ''}`}>
         <Sidebar />
         <main className="chatArea">
           <ChatArea />
