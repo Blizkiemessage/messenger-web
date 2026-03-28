@@ -85,17 +85,24 @@ input { font: inherit; color: inherit; background: transparent; }
   box-shadow: var(--shadow);
 }
 .authLogo {
-  width: 52px; height: 52px;
-  border-radius: 16px;
-  background: var(--accent-dim);
-  border: 1px solid var(--accent-border);
-  display: grid; place-items: center;
-  font-size: 24px; font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   color: var(--accent);
   align-self: center;
-  margin-bottom: 2px;
+  margin-bottom: 4px;
 }
-.authTitle { font-size: 22px; font-weight: 700; text-align: center; }
+.authLogo svg {
+  filter:
+    drop-shadow(0 0 6px color-mix(in srgb, var(--accent) 45%, transparent))
+    drop-shadow(0 0 2px color-mix(in srgb, var(--accent) 75%, transparent));
+}
+.authTitle {
+  font-size: 20px;
+  font-weight: 700;
+  text-align: center;
+  letter-spacing: 0.06em;
+}
 .authTabs {
   display: flex;
   background: var(--panel);
