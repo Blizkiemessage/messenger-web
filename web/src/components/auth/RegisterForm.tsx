@@ -158,11 +158,13 @@ export function RegisterForm({ onAuthenticated, onSwitchTab }: Props) {
       {step === 'otp' && (
         <Portal>
           <div className="modalOverlay">
-            <div className="modalCard" style={{ width: 'min(400px, 90vw)', padding: '28px' }}>
-              <div className="modalTitle" style={{ marginBottom: 8 }}>Подтверждение email</div>
-              <p style={{ fontSize: 14, color: 'var(--muted)', marginBottom: 20, lineHeight: 1.5 }}>
-                На вашу почту <strong>{pendingEmail}</strong> выслан разовый код подтверждения
-              </p>
+            <div className="confirmCard" style={{ width: 'min(400px, 100%)', display: 'flex', flexDirection: 'column', gap: '14px' }}>
+              <div>
+                <div style={{ fontSize: 18, fontWeight: 700, marginBottom: 8 }}>Подтверждение email</div>
+                <p style={{ fontSize: 14, color: 'var(--muted)', lineHeight: 1.5, margin: 0 }}>
+                  На вашу почту <strong>{pendingEmail}</strong> выслан разовый код подтверждения
+                </p>
+              </div>
 
               <div className="authLabel">Код из письма</div>
               <input
@@ -178,14 +180,13 @@ export function RegisterForm({ onAuthenticated, onSwitchTab }: Props) {
 
               <button
                 className="authBtn"
-                style={{ marginTop: 8 }}
                 disabled={otp.length !== 6 || otpBusy}
                 onClick={onVerify}
               >
                 {otpBusy ? '…' : 'Подтвердить'}
               </button>
 
-              <div className="authSwitchRow" style={{ marginTop: 8 }}>
+              <div className="authSwitchRow">
                 <button
                   className="authSwitchLink"
                   onClick={() => { setStep('form'); setOtp(''); setOtpError(null); }}
