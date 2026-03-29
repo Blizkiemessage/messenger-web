@@ -1,12 +1,14 @@
 /**
  * ProfileTab
  * ✅ Added: "Сброс фото" button to remove avatar and restore default letter.
+ * ✅ Added: Email section with change/link flow (OTP) and hide toggle.
  */
-import { useState, useRef } from 'react';
+import { useState, useRef, useCallback } from 'react';
 import { type User } from '../../types';
 import { avatarLetter } from '../../utils/format';
 import { resolveUrl } from '../ui/Avatar';
-import { updateMe } from '../../api/users';
+import { updateMe, requestEmailChange, verifyEmailChange } from '../../api/users';
+import { Portal } from '../ui/Portal';
 import client from '../../api/client';
 
 const BIO_MAX = 150;
@@ -24,15 +26,27 @@ export function ProfileTab({ me, onUpdate }: Props) {
   const [birthDate,   setBirthDate]   = useState(me.birth_date  ?? '');
   const [hideBio,     setHideBio]     = useState(me.hide_bio          ?? false);
   const [hideBirth,   setHideBirth]   = useState(me.hide_birth_date   ?? false);
+  const [hideEmail,   setHideEmail]   = useState(me.hide_email        ?? false);
   const [avatarPreview, setAvatarPreview] = useState<string | null>(
     resolveUrl(me.avatar_url) ?? null
   );
   const [avatarFile,    setAvatarFile]    = useState<File | null>(null);
-  const [resetAvatar,   setResetAvatar]   = useState(false); // ✅ flag to clear avatar on save
+  const [resetAvatar,   setResetAvatar]   = useState(false);
   const [busy,  setBusy]  = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [ok,    setOk]    = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
+
+  // Email change state
+  const [emailStep,    setEmailStep]    = useState<'idle' | 'input' | 'otp'>('idle');
+  const [newEmail,     setNewEmail]     = useState('');
+  const [emailOtp,     setEmailOtp]     = useState('');
+  const [emailBusy,    setEmailBusy]    = useState(false);
+  const [emailError,   setEmailError]   = useState<string | null>(null);
+  const [pendingEmail, setPendingEmail] = useState('');
+
+  // Displayed email — updated locally after successful change
+  const [currentEmail, setCurrentEmail] = useState(me.email ?? null);
 
   function handleAvatarPick(e: React.ChangeEvent<HTMLInputElement>) {
     const f = e.target.files?.[0];
@@ -44,7 +58,6 @@ export function ProfileTab({ me, onUpdate }: Props) {
     reader.readAsDataURL(f);
   }
 
-  // ✅ Reset avatar: clear preview and mark for deletion on save
   function handleResetAvatar() {
     setAvatarFile(null);
     setAvatarPreview(null);
@@ -76,6 +89,7 @@ export function ProfileTab({ me, onUpdate }: Props) {
         avatar_url,
         bio:             bio.trim() || null,
         birth_date:      birthDate || null,
+        hide_email:      hideEmail,
         hide_bio:        hideBio,
         hide_birth_date: hideBirth,
       });
@@ -89,6 +103,51 @@ export function ProfileTab({ me, onUpdate }: Props) {
     } finally {
       setBusy(false);
     }
+  }
+
+  const onRequestEmailChange = useCallback(async () => {
+    const trimmed = newEmail.trim();
+    if (!trimmed || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)) {
+      setEmailError('Введите корректный email');
+      return;
+    }
+    setEmailError(null);
+    setEmailBusy(true);
+    try {
+      const res = await requestEmailChange(trimmed);
+      setPendingEmail(res.email);
+      setEmailStep('otp');
+    } catch (e: any) {
+      setEmailError(e?.message ?? 'Ошибка отправки кода');
+    } finally {
+      setEmailBusy(false);
+    }
+  }, [newEmail]);
+
+  const onVerifyEmailChange = useCallback(async () => {
+    if (emailOtp.length !== 6) return;
+    setEmailError(null);
+    setEmailBusy(true);
+    try {
+      const updatedUser = await verifyEmailChange(pendingEmail, emailOtp);
+      onUpdate(updatedUser);
+      setCurrentEmail(updatedUser.email ?? null);
+      setEmailStep('idle');
+      setNewEmail('');
+      setEmailOtp('');
+    } catch (e: any) {
+      setEmailError(e?.message ?? 'Неверный код');
+      setEmailOtp('');
+    } finally {
+      setEmailBusy(false);
+    }
+  }, [emailOtp, pendingEmail, onUpdate]);
+
+  function closeEmailModal() {
+    setEmailStep('idle');
+    setNewEmail('');
+    setEmailOtp('');
+    setEmailError(null);
   }
 
   return (
@@ -113,12 +172,11 @@ export function ProfileTab({ me, onUpdate }: Props) {
         </div>
         <div className="psAvatarHint">Нажмите чтобы изменить фото</div>
 
-        {/* ✅ Reset avatar button — only shown when avatar is set */}
         {hasAvatar && (
           <button className="psAvatarResetBtn" onClick={handleResetAvatar}>
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <polyline points="3 6 5 6 21 6"/>
-              <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+              <path d="M19 6l-1 14a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2L5 6"/>
               <path d="M10 11v6M14 11v6"/>
             </svg>
             Сбросить фото
@@ -161,6 +219,39 @@ export function ProfileTab({ me, onUpdate }: Props) {
         </div>
       </div>
 
+      {/* Email */}
+      <div className="psField">
+        <label className="psLabel">Почта</label>
+        {currentEmail ? (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span className="psInput" style={{ flex: 1, color: 'var(--text)', cursor: 'default', userSelect: 'text' }}>
+              {currentEmail}
+            </span>
+            <span style={{ fontSize: 12, color: 'var(--accent)', fontWeight: 600, whiteSpace: 'nowrap' }}>
+              ✓ Подтверждена
+            </span>
+          </div>
+        ) : (
+          <div className="psInput" style={{ color: 'var(--muted)', cursor: 'default' }}>
+            Не привязана
+          </div>
+        )}
+        <button
+          className="psAvatarResetBtn"
+          style={{ alignSelf: 'flex-start', marginTop: 4 }}
+          onClick={() => { setEmailStep('input'); setEmailError(null); setNewEmail(''); }}
+        >
+          {currentEmail ? 'Сменить почту' : 'Привязать почту'}
+        </button>
+        {currentEmail && (
+          <label className="psPrivacyLabel">
+            <input type="checkbox" className="psCheckbox" checked={hideEmail}
+              onChange={e => setHideEmail(e.target.checked)} />
+            Скрыть от других пользователей
+          </label>
+        )}
+      </div>
+
       <div className="psField">
         <label className="psLabel">О себе</label>
         <div className="psTextareaWrap">
@@ -199,6 +290,84 @@ export function ProfileTab({ me, onUpdate }: Props) {
       <button className="psSaveBtn" onClick={onSave} disabled={busy}>
         {busy ? '…' : 'Сохранить изменения'}
       </button>
+
+      {/* Email input modal */}
+      {emailStep === 'input' && (
+        <Portal>
+          <div className="modalOverlay">
+            <div className="confirmCard" style={{ width: 'min(400px, 100%)', display: 'flex', flexDirection: 'column', gap: '14px' }}>
+              <div>
+                <div style={{ fontSize: 18, fontWeight: 700, marginBottom: 8 }}>
+                  {currentEmail ? 'Сменить почту' : 'Привязать почту'}
+                </div>
+                <p style={{ fontSize: 14, color: 'var(--muted)', margin: 0, lineHeight: 1.5 }}>
+                  Введите новый email — на него придёт код подтверждения
+                </p>
+              </div>
+              <div className="authLabel">Новый email</div>
+              <input
+                className="authInput"
+                type="email"
+                value={newEmail}
+                onChange={e => setNewEmail(e.target.value)}
+                placeholder="you@example.com"
+                autoFocus
+                onKeyDown={e => { if (e.key === 'Enter') onRequestEmailChange(); }}
+              />
+              {emailError && <div className="authError">{emailError}</div>}
+              <button
+                className="authBtn"
+                disabled={!newEmail.trim() || emailBusy}
+                onClick={onRequestEmailChange}
+              >
+                {emailBusy ? '…' : 'Отправить код'}
+              </button>
+              <div className="authSwitchRow">
+                <button className="authSwitchLink" onClick={closeEmailModal}>Отмена</button>
+              </div>
+            </div>
+          </div>
+        </Portal>
+      )}
+
+      {/* OTP verification modal */}
+      {emailStep === 'otp' && (
+        <Portal>
+          <div className="modalOverlay">
+            <div className="confirmCard" style={{ width: 'min(400px, 100%)', display: 'flex', flexDirection: 'column', gap: '14px' }}>
+              <div>
+                <div style={{ fontSize: 18, fontWeight: 700, marginBottom: 8 }}>Подтверждение email</div>
+                <p style={{ fontSize: 14, color: 'var(--muted)', margin: 0, lineHeight: 1.5 }}>
+                  На вашу почту <strong>{pendingEmail}</strong> выслан разовый код подтверждения
+                </p>
+              </div>
+              <div className="authLabel">Код из письма</div>
+              <input
+                className="authInput"
+                value={emailOtp}
+                onChange={e => setEmailOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                placeholder="000000"
+                inputMode="numeric"
+                autoFocus
+                onKeyDown={e => { if (e.key === 'Enter' && emailOtp.length === 6) onVerifyEmailChange(); }}
+              />
+              {emailError && <div className="authError">{emailError}</div>}
+              <button
+                className="authBtn"
+                disabled={emailOtp.length !== 6 || emailBusy}
+                onClick={onVerifyEmailChange}
+              >
+                {emailBusy ? '…' : 'Подтвердить'}
+              </button>
+              <div className="authSwitchRow">
+                <button className="authSwitchLink" onClick={() => { setEmailStep('input'); setEmailOtp(''); setEmailError(null); }}>
+                  Изменить email
+                </button>
+              </div>
+            </div>
+          </div>
+        </Portal>
+      )}
     </div>
   );
 }
