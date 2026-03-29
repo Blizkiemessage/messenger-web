@@ -235,6 +235,83 @@ async function verifyEmailAndCreateAccount(email, otp) {
   return { token, user: sanitizeUserFull(user, { showPrivate: true }), isNew: true };
 }
 
+/**
+ * Step 1 of email change for an existing user.
+ * Sends OTP to the new email address.
+ */
+async function initiateEmailChange(userId, newEmail) {
+  const db = getDb();
+  const cleanEmail = newEmail.trim().toLowerCase();
+
+  if (!cleanEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail)) {
+    throw Object.assign(new Error('Введите корректный email'), { status: 400 });
+  }
+
+  const existing = db.prepare('SELECT id FROM users WHERE email = ? AND id != ?').get([cleanEmail, userId]);
+  if (existing) {
+    throw Object.assign(new Error('Этот email уже используется'), { status: 409 });
+  }
+
+  // Invalidate prior pending email-change OTPs for this user+email
+  db.prepare('UPDATE otps SET used = 1 WHERE target = ? AND used = 0').run(cleanEmail);
+
+  const otp = generateOtp();
+  const codeHash = await bcrypt.hash(otp, 10);
+  const now = Date.now();
+  const otpId = uuidv4();
+  const meta = JSON.stringify({ userId, type: 'email_change' });
+
+  db.prepare(
+    `INSERT INTO otps (id, target, code_hash, expires_at, used, created_at, meta)
+     VALUES (?, ?, ?, ?, 0, ?, ?)`
+  ).run([otpId, cleanEmail, codeHash, now + 10 * 60 * 1000, now, meta]);
+
+  await sendOtpEmail(cleanEmail, otp);
+
+  return { email: cleanEmail };
+}
+
+/**
+ * Step 2 of email change: verify OTP and update user's email.
+ */
+async function verifyEmailChange(userId, email, otp) {
+  const db = getDb();
+  const cleanEmail = email.trim().toLowerCase();
+
+  const row = db.prepare(
+    `SELECT * FROM otps
+     WHERE target = ? AND used = 0 AND expires_at > ? AND meta IS NOT NULL
+     ORDER BY created_at DESC LIMIT 1`
+  ).get([cleanEmail, Date.now()]);
+
+  if (!row) {
+    throw Object.assign(new Error('Код недействителен или истёк'), { status: 400 });
+  }
+
+  const parsed = JSON.parse(row.meta);
+  if (parsed.type !== 'email_change' || parsed.userId !== userId) {
+    throw Object.assign(new Error('Код недействителен'), { status: 400 });
+  }
+
+  const valid = await bcrypt.compare(otp, row.code_hash);
+  if (!valid) {
+    throw Object.assign(new Error('Неверный код'), { status: 400 });
+  }
+
+  db.prepare('UPDATE otps SET used = 1 WHERE id = ?').run(row.id);
+
+  // Final uniqueness check
+  const taken = db.prepare('SELECT id FROM users WHERE email = ? AND id != ?').get([cleanEmail, userId]);
+  if (taken) {
+    throw Object.assign(new Error('Этот email уже используется'), { status: 409 });
+  }
+
+  db.prepare('UPDATE users SET email = ? WHERE id = ?').run([cleanEmail, userId]);
+
+  const user = db.prepare('SELECT * FROM users WHERE id = ?').get(userId);
+  return sanitizeUserFull(user, { showPrivate: true });
+}
+
 module.exports = {
   loginOrRegister,
   sanitizeUser: sanitizeUserFull,
@@ -242,4 +319,6 @@ module.exports = {
   setUserPassword,
   initiateRegistration,
   verifyEmailAndCreateAccount,
+  initiateEmailChange,
+  verifyEmailChange,
 };
