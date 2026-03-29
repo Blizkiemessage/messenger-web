@@ -3,31 +3,42 @@ const bcrypt = require('bcryptjs');
 const { getDb } = require('../config/database');
 const { sign } = require('../utils/jwt');
 const { sanitizeUser: sanitizeUserFull } = require('./userService');
+const { generateOtp } = require('../utils/otp');
+const { sendOtpEmail } = require('../config/email');
 
 // ✅ sanitizeUser imported from userService (includes hide_avatar, privacy fields)
 
 /**
- * Username-only login (creates account if not exists).
- * If password is provided, verifies it against stored hash.
+ * Login by username or email + optional password.
+ * If login contains '@' — looks up by email, otherwise by username.
  */
-async function loginOrRegister(username, password) {
+async function loginOrRegister(login, password) {
   const db = getDb();
-  const clean = username.trim().toLowerCase();
-
-  if (!/^[a-z0-9_]{3,32}$/.test(clean)) {
-    throw Object.assign(
-      new Error('Username: 3–32 символа, только латиница, цифры и _'),
-      { status: 400 }
-    );
-  }
+  const clean = login.trim().toLowerCase();
 
   const now = Date.now();
-  let user = db.prepare('SELECT * FROM users WHERE username = ?').get(clean);
+  let user;
+
+  if (clean.includes('@')) {
+    user = db.prepare('SELECT * FROM users WHERE email = ?').get(clean);
+    if (!user) {
+      throw Object.assign(new Error('Пользователь с таким email не найден'), { status: 404 });
+    }
+  } else {
+    if (!/^[a-z0-9_]{3,32}$/.test(clean)) {
+      throw Object.assign(
+        new Error('Username: 3–32 символа, только латиница, цифры и _'),
+        { status: 400 }
+      );
+    }
+    user = db.prepare('SELECT * FROM users WHERE username = ?').get(clean);
+  }
+
+  if (!user) {
+    throw Object.assign(new Error('Пользователь не найден'), { status: 404 });
+  }
 
   if (password) {
-    if (!user) {
-      throw Object.assign(new Error('Пользователь не найден'), { status: 404 });
-    }
     if (!user.password_hash) {
       throw Object.assign(
         new Error('У этого аккаунта нет пароля. Войдите просто по username.'),
@@ -38,19 +49,9 @@ async function loginOrRegister(username, password) {
     if (!valid) {
       throw Object.assign(new Error('Неверный пароль'), { status: 401 });
     }
-    db.prepare('UPDATE users SET last_seen_at = ? WHERE id = ?').run([now, user.id]);
-  } else {
-    if (!user) {
-      const userId = uuidv4();
-      db.prepare(
-        `INSERT INTO users (id, username, display_name, created_at, last_seen_at)
-         VALUES (?, ?, ?, ?, ?)`
-      ).run([userId, clean, clean, now, now]);
-      user = db.prepare('SELECT * FROM users WHERE id = ?').get(userId);
-    } else {
-      db.prepare('UPDATE users SET last_seen_at = ? WHERE id = ?').run([now, user.id]);
-    }
   }
+
+  db.prepare('UPDATE users SET last_seen_at = ? WHERE id = ?').run([now, user.id]);
 
   const sessionId = uuidv4();
   db.prepare('INSERT INTO sessions (id, user_id, created_at, revoked) VALUES (?, ?, ?, 0)')
@@ -128,4 +129,117 @@ async function setUserPassword(userId, newPassword, currentPassword) {
   db.prepare('UPDATE users SET password_hash = ? WHERE id = ?').run([hash, userId]);
 }
 
-module.exports = { loginOrRegister, sanitizeUser: sanitizeUserFull, registerWithPassword, setUserPassword };
+/**
+ * Step 1 of email-verified registration.
+ * Validates input, sends OTP to email, stores pending record in otps table.
+ * Returns { email } on success.
+ */
+async function initiateRegistration(username, email, password) {
+  const db = getDb();
+  const cleanUser = username.trim().toLowerCase();
+  const cleanEmail = email.trim().toLowerCase();
+
+  if (!/^[a-z0-9_]{3,32}$/.test(cleanUser)) {
+    throw Object.assign(
+      new Error('Username: 3–32 символа, только латиница, цифры и _'),
+      { status: 400 }
+    );
+  }
+  if (!cleanEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail)) {
+    throw Object.assign(new Error('Введите корректный email'), { status: 400 });
+  }
+  if (!password || password.length < 6) {
+    throw Object.assign(new Error('Пароль: минимум 6 символов'), { status: 400 });
+  }
+
+  const existingUser = db.prepare('SELECT id FROM users WHERE username = ?').get(cleanUser);
+  if (existingUser) {
+    throw Object.assign(new Error('Этот username уже занят'), { status: 409 });
+  }
+  const existingEmail = db.prepare('SELECT id FROM users WHERE email = ?').get(cleanEmail);
+  if (existingEmail) {
+    throw Object.assign(new Error('Этот email уже используется'), { status: 409 });
+  }
+
+  // Invalidate any prior pending OTPs for this email
+  db.prepare('UPDATE otps SET used = 1 WHERE target = ? AND used = 0').run(cleanEmail);
+
+  const otp = generateOtp();
+  const codeHash = await bcrypt.hash(otp, 10);
+  const now = Date.now();
+  const passwordHash = await bcrypt.hash(password, 10);
+  const otpId = uuidv4();
+  const meta = JSON.stringify({ username: cleanUser, password_hash: passwordHash });
+
+  db.prepare(
+    `INSERT INTO otps (id, target, code_hash, expires_at, used, created_at, meta)
+     VALUES (?, ?, ?, ?, 0, ?, ?)`
+  ).run([otpId, cleanEmail, codeHash, now + 10 * 60 * 1000, now, meta]);
+
+  await sendOtpEmail(cleanEmail, otp);
+
+  return { email: cleanEmail };
+}
+
+/**
+ * Step 2 of email-verified registration.
+ * Verifies OTP, creates the user account, returns { token, user }.
+ */
+async function verifyEmailAndCreateAccount(email, otp) {
+  const db = getDb();
+  const cleanEmail = email.trim().toLowerCase();
+
+  const row = db.prepare(
+    `SELECT * FROM otps
+     WHERE target = ? AND used = 0 AND expires_at > ? AND meta IS NOT NULL
+     ORDER BY created_at DESC LIMIT 1`
+  ).get(cleanEmail, Date.now());
+
+  if (!row) {
+    throw Object.assign(new Error('Код недействителен или истёк'), { status: 400 });
+  }
+
+  const valid = await bcrypt.compare(otp, row.code_hash);
+  if (!valid) {
+    throw Object.assign(new Error('Неверный код'), { status: 400 });
+  }
+
+  // Mark OTP used immediately to prevent replay
+  db.prepare('UPDATE otps SET used = 1 WHERE id = ?').run(row.id);
+
+  const { username, password_hash } = JSON.parse(row.meta);
+  const now = Date.now();
+
+  // Race condition guard
+  const takenUser = db.prepare('SELECT id FROM users WHERE username = ?').get(username);
+  if (takenUser) {
+    throw Object.assign(new Error('Этот username уже занят'), { status: 409 });
+  }
+  const takenEmail = db.prepare('SELECT id FROM users WHERE email = ?').get(cleanEmail);
+  if (takenEmail) {
+    throw Object.assign(new Error('Этот email уже используется'), { status: 409 });
+  }
+
+  const userId = uuidv4();
+  db.prepare(
+    `INSERT INTO users (id, username, display_name, email, password_hash, created_at, last_seen_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?)`
+  ).run([userId, username, username, cleanEmail, password_hash, now, now]);
+
+  const user = db.prepare('SELECT * FROM users WHERE id = ?').get(userId);
+  const sessionId = uuidv4();
+  db.prepare('INSERT INTO sessions (id, user_id, created_at, revoked) VALUES (?, ?, ?, 0)')
+    .run([sessionId, userId, now]);
+
+  const token = sign({ sub: userId, jti: sessionId });
+  return { token, user: sanitizeUserFull(user, { showPrivate: true }), isNew: true };
+}
+
+module.exports = {
+  loginOrRegister,
+  sanitizeUser: sanitizeUserFull,
+  registerWithPassword,
+  setUserPassword,
+  initiateRegistration,
+  verifyEmailAndCreateAccount,
+};
