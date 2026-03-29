@@ -5,18 +5,21 @@
  * Business logic lives in userService.
  *
  * Routes:
- *   GET    /users/me              — own profile (with private fields)
- *   PATCH  /users/me              — update own profile
- *   DELETE /users/me              — permanently delete own account
- *   GET    /users/check-username  — availability check
- *   GET    /users/search          — search by username / display_name
- *   GET    /users/:id             — public profile of another user
+ *   GET    /users/me                     — own profile (with private fields)
+ *   PATCH  /users/me                     — update own profile
+ *   DELETE /users/me                     — permanently delete own account
+ *   POST   /users/me/request-email-change — send OTP to new email
+ *   POST   /users/me/verify-email-change  — verify OTP and update email
+ *   GET    /users/check-username         — availability check
+ *   GET    /users/search                 — search by username / display_name
+ *   GET    /users/:id                    — public profile of another user
  */
 
 const express = require('express');
 const { authMiddleware } = require('../middleware/auth');
 const { getUserById, updateUser, searchUsers, sanitizeUser } = require('../services/userService');
 const { deleteAccount } = require('../services/chatService');
+const { initiateEmailChange, verifyEmailChange } = require('../services/authService');
 
 const router = express.Router();
 router.use(authMiddleware);
@@ -31,10 +34,14 @@ router.get('/me', (req, res) => {
 // PATCH /users/me
 router.patch('/me', (req, res, next) => {
   try {
-    const { username, display_name, avatar_url, bio, birth_date, hide_bio, hide_birth_date, no_group_add, hide_avatar, avatar_exceptions } = req.body;
+    const {
+      username, display_name, avatar_url, bio, birth_date,
+      hide_email, hide_bio, hide_birth_date, no_group_add,
+      hide_avatar, avatar_exceptions,
+    } = req.body;
     const updated = updateUser(req.userId, {
       username, display_name, avatar_url, bio,
-      birth_date, hide_bio, hide_birth_date, no_group_add,
+      birth_date, hide_email, hide_bio, hide_birth_date, no_group_add,
       hide_avatar, avatar_exceptions,
     });
     res.json(sanitizeUser(updated, { showPrivate: true }));
@@ -53,13 +60,11 @@ router.delete('/me', (req, res, next) => {
 
     const io = req.app.get('io');
     if (io) {
-      // Notify remaining group members via system message
       for (const { chatId, sysMsg, remainingUserIds } of groupNotifications) {
         for (const uid of remainingUserIds) {
           io.to(`user:${uid}`).emit('new-message', sysMsg);
         }
       }
-      // Notify direct chat partners: remove chat from their list
       for (const chatId of deletedDirectChatIds) {
         for (const uid of directChatMembersMap[chatId] || []) {
           if (uid !== req.userId) {
@@ -67,11 +72,37 @@ router.delete('/me', (req, res, next) => {
           }
         }
       }
-      // Force-disconnect the deleted user on all their tabs
       io.to(`user:${req.userId}`).emit('account-deleted');
     }
 
     res.json({ ok: true });
+  } catch (err) { next(err); }
+});
+
+// POST /users/me/request-email-change — step 1: send OTP to new email
+router.post('/me/request-email-change', async (req, res, next) => {
+  try {
+    const { email } = req.body;
+    if (!email || typeof email !== 'string') {
+      return res.status(400).json({ error: 'Email обязателен' });
+    }
+    const result = await initiateEmailChange(req.userId, email.trim());
+    res.json(result);
+  } catch (err) { next(err); }
+});
+
+// POST /users/me/verify-email-change — step 2: verify OTP and update email
+router.post('/me/verify-email-change', async (req, res, next) => {
+  try {
+    const { email, otp } = req.body;
+    if (!email || typeof email !== 'string') {
+      return res.status(400).json({ error: 'Email обязателен' });
+    }
+    if (!otp || typeof otp !== 'string' || !/^\d{6}$/.test(otp.trim())) {
+      return res.status(400).json({ error: 'Код должен состоять из 6 цифр' });
+    }
+    const user = await verifyEmailChange(req.userId, email.trim(), otp.trim());
+    res.json(user);
   } catch (err) { next(err); }
 });
 

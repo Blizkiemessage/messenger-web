@@ -7,6 +7,7 @@ export type User = {
   avatar_url?: string | null;
   bio?: string | null;
   birth_date?: string | null;
+  hide_email?: boolean;
   hide_bio?: boolean;
   hide_birth_date?: boolean;
   no_group_add?: boolean;
