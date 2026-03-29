@@ -227,7 +227,7 @@ export function ProfileTab({ me, onUpdate }: Props) {
             <span className="psInput" style={{ flex: 1, color: 'var(--text)', cursor: 'default', userSelect: 'text' }}>
               {currentEmail}
             </span>
-            <span style={{ fontSize: 12, color: 'var(--accent)', fontWeight: 600, whiteSpace: 'nowrap' }}>
+            <span style={{ fontSize: 12, color: '#22c55e', fontWeight: 600, whiteSpace: 'nowrap' }}>
               ✓ Подтверждена
             </span>
           </div>
@@ -237,8 +237,7 @@ export function ProfileTab({ me, onUpdate }: Props) {
           </div>
         )}
         <button
-          className="psAvatarResetBtn"
-          style={{ alignSelf: 'flex-start', marginTop: 4 }}
+          style={{ alignSelf: 'flex-start', marginTop: 2, background: 'none', border: 'none', padding: 0, fontSize: 13, color: 'var(--accent)', cursor: 'pointer', fontWeight: 500 }}
           onClick={() => { setEmailStep('input'); setEmailError(null); setNewEmail(''); }}
         >
           {currentEmail ? 'Сменить почту' : 'Привязать почту'}
