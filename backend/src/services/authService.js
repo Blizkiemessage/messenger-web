@@ -193,7 +193,7 @@ async function verifyEmailAndCreateAccount(email, otp) {
     `SELECT * FROM otps
      WHERE target = ? AND used = 0 AND expires_at > ? AND meta IS NOT NULL
      ORDER BY created_at DESC LIMIT 1`
-  ).get(cleanEmail, Date.now());
+  ).get([cleanEmail, Date.now()]);
 
   if (!row) {
     throw Object.assign(new Error('Код недействителен или истёк'), { status: 400 });
