@@ -209,6 +209,11 @@ export const useChatsStore = create<ChatsState>((set) => ({
         activeChatId: state.activeChatId ?? (list.length ? list[0].id : null),
       }));
     } catch (e: any) {
+      // Auth errors are transient (race on startup) — don't surface them to the user
+      if (e?.status === 401 || e?.status === 403) {
+        set({ loadingChats: false });
+        return;
+      }
       set({ dataError: e?.message ?? 'Не удалось загрузить чаты', loadingChats: false });
     }
   },

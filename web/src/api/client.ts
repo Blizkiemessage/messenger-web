@@ -28,14 +28,7 @@ client.interceptors.response.use(
       err?.response?.data?.message ||
       err?.message ||
       'Request failed';
-    const error = Object.assign(new Error(message), { status });
-    // Force logout on auth errors so they never surface as visible UI text
-    if (status === 401 || status === 403) {
-      import('../store/useSessionStore').then(({ useSessionStore }) => {
-        useSessionStore.getState().clearSession();
-      });
-    }
-    return Promise.reject(error);
+    return Promise.reject(Object.assign(new Error(message), { status }));
   },
 );
 
