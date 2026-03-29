@@ -1,21 +1,25 @@
 import client from './client';
 import { type AuthResponse } from '../types';
 
-/** Username-only login (creates account if not exists) */
-export async function authLogin(username: string): Promise<AuthResponse> {
-  const res = await client.post<AuthResponse>('/auth/login', { username });
+/** Login with username or email + password */
+export async function authLoginPassword(login: string, password: string): Promise<AuthResponse> {
+  const res = await client.post<AuthResponse>('/auth/login', { login, password });
   return res.data;
 }
 
-/** Login with username + password */
-export async function authLoginPassword(username: string, password: string): Promise<AuthResponse> {
-  const res = await client.post<AuthResponse>('/auth/login', { username, password });
+/** Step 1: initiate email-verified registration. Returns { email } on success. */
+export async function authRegister(
+  username: string,
+  email: string,
+  password: string,
+): Promise<{ email: string }> {
+  const res = await client.post<{ email: string }>('/auth/register', { username, email, password });
   return res.data;
 }
 
-/** Register a new account with username + password */
-export async function authRegister(username: string, password: string): Promise<AuthResponse> {
-  const res = await client.post<AuthResponse>('/auth/register', { username, password });
+/** Step 2: verify OTP and complete registration. Returns full AuthResponse. */
+export async function authVerifyEmail(email: string, otp: string): Promise<AuthResponse> {
+  const res = await client.post<AuthResponse>('/auth/verify-email', { email, otp });
   return res.data;
 }
 

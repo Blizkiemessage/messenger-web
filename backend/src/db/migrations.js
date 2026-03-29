@@ -80,6 +80,8 @@ function runMigrations() {
     // ✅ NEW: forwarded message attribution
     'ALTER TABLE messages ADD COLUMN forwarded_from_user_id TEXT',
     'ALTER TABLE messages ADD COLUMN forwarded_from_username TEXT',
+    // ✅ NEW: pending registration data for email OTP verification
+    'ALTER TABLE otps ADD COLUMN meta TEXT',
   ];
 
   for (const sql of alters) {
