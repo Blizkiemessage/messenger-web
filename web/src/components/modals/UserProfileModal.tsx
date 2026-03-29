@@ -56,8 +56,22 @@ export function UserProfileModal({ userId, onClose, onStartChat }: Props) {
             </div>
 
             {/* Info rows */}
-            {(user.bio || user.birth_date) && (
+            {(user.email || user.bio || user.birth_date) && (
               <div className="upInfoSection">
+                {user.email && (
+                  <div className="upInfoRow">
+                    <span className="upInfoIcon">
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                        <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
+                        <polyline points="22,6 12,13 2,6"/>
+                      </svg>
+                    </span>
+                    <div className="upInfoContent">
+                      <div className="upInfoLabel">Почта</div>
+                      <div className="upInfoValue">{user.email}</div>
+                    </div>
+                  </div>
+                )}
                 {user.bio && (
                   <div className="upInfoRow">
                     <span className="upInfoIcon">

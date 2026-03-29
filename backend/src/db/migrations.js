@@ -82,6 +82,8 @@ function runMigrations() {
     'ALTER TABLE messages ADD COLUMN forwarded_from_username TEXT',
     // ✅ NEW: pending registration data for email OTP verification
     'ALTER TABLE otps ADD COLUMN meta TEXT',
+    // ✅ NEW: email privacy toggle
+    'ALTER TABLE users ADD COLUMN hide_email INTEGER NOT NULL DEFAULT 0',
   ];
 
   for (const sql of alters) {
