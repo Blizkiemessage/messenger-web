@@ -22,12 +22,20 @@ client.interceptors.request.use((config) => {
 client.interceptors.response.use(
   (r) => r,
   (err) => {
+    const status = err?.response?.status;
     const message =
       err?.response?.data?.error ||
       err?.response?.data?.message ||
       err?.message ||
       'Request failed';
-    return Promise.reject(new Error(message));
+    const error = Object.assign(new Error(message), { status });
+    // Force logout on auth errors so they never surface as visible UI text
+    if (status === 401 || status === 403) {
+      import('../store/useSessionStore').then(({ useSessionStore }) => {
+        useSessionStore.getState().clearSession();
+      });
+    }
+    return Promise.reject(error);
   },
 );
 
