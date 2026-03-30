@@ -39,7 +39,10 @@ interface ChatsState {
   // ── Message actions ────────────────────────────────────────────────────────
   setMessages: (msgs: Message[]) => void;
   appendMessage: (msg: Message) => void;
+  prependMessages: (msgs: Message[]) => void;
   removeBulkMessages: (chatId: string, ids: string[]) => void;
+  hasMoreMessages: boolean;
+  setHasMoreMessages: (v: boolean) => void;
 
   // ── Selection ──────────────────────────────────────────────────────────────
   toggleSelect: (msgId: string) => void;
@@ -88,6 +91,7 @@ export const useChatsStore = create<ChatsState>((set) => ({
   loadingChats: false,
   loadingMessages: false,
   dataError: null,
+  hasMoreMessages: false,
   onlineUsers: new Set<string>(),
 
   // ── Chat list ──────────────────────────────────────────────────────────────
@@ -110,12 +114,18 @@ export const useChatsStore = create<ChatsState>((set) => ({
 
   // ── Messages ───────────────────────────────────────────────────────────────
 
-  setMessages: (messages) => set({ messages }),
+  setMessages: (messages) => set({ messages, hasMoreMessages: messages.length >= 50 }),
 
   appendMessage: (msg) => set(state => {
     if (state.messages.some(m => m.id === msg.id)) return state;
     return { messages: [...state.messages, msg] };
   }),
+
+  prependMessages: (msgs) => set(state => ({
+    messages: [...msgs, ...state.messages],
+  })),
+
+  setHasMoreMessages: (hasMoreMessages) => set({ hasMoreMessages }),
 
   removeBulkMessages: (chatId, ids) => set(state => ({
     messages: state.messages.filter(m => !(m.chat_id === chatId && ids.includes(m.id))),

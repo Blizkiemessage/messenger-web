@@ -21,8 +21,10 @@ export async function createGroupChat(payload: {
   return res.data;
 }
 
-export async function getChatMessages(chatId: string): Promise<Message[]> {
-  const res = await client.get<Message[]>(`/chats/${chatId}/messages`);
+export async function getChatMessages(chatId: string, before?: number): Promise<Message[]> {
+  const res = await client.get<Message[]>(`/chats/${chatId}/messages`, {
+    params: before ? { before } : undefined,
+  });
   return res.data;
 }
 

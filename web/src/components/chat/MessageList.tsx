@@ -4,7 +4,7 @@
  * ✅ "Удалить" button wired to onDeleteSingle — selects + opens confirm modal.
  * ✅ Explicit background colors as fallback for CSS var(--card).
  */
-import { useRef, useEffect, useState, useCallback } from 'react';
+import { useRef, useEffect, useLayoutEffect, useState, useCallback } from 'react';
 import { type Message, type Chat } from '../../types';
 import { MessageBubble } from './MessageBubble';
 import { Portal } from '../ui/Portal';
@@ -33,6 +33,9 @@ interface Props {
   matchedIds: string[];
   currentMatchId: string | null;
   pinnedFocusId: string | null;
+  hasMoreMessages: boolean;
+  loadingMore: boolean;
+  onLoadMore: () => void;
 }
 
 const CTX_WIDTH  = 200;
@@ -44,11 +47,18 @@ export function MessageList({
   onPinMessage, onUnpinMessage, onDeleteSingle, onForwardSingle,
   onReply, onReact, scrollTargetId, onScrollTargetHandled,
   searchQuery, matchedIds, currentMatchId, pinnedFocusId,
+  hasMoreMessages, loadingMore, onLoadMore,
 }: Props) {
-  const bottomRef   = useRef<HTMLDivElement | null>(null);
-  const matchRef    = useRef<HTMLDivElement | null>(null);
-  const pinnedRef   = useRef<HTMLDivElement | null>(null);
-  const isGroup     = chat.type === 'group';
+  const bottomRef      = useRef<HTMLDivElement | null>(null);
+  const matchRef       = useRef<HTMLDivElement | null>(null);
+  const pinnedRef      = useRef<HTMLDivElement | null>(null);
+  const containerRef   = useRef<HTMLDivElement | null>(null);
+  const prevScrollHeightRef = useRef(0);
+  const isGroup        = chat.type === 'group';
+  const [atBottom, setAtBottom] = useState(true);
+  // keep loadingMore in a ref so auto-scroll effect reads current value without re-running
+  const loadingMoreRef = useRef(loadingMore);
+  loadingMoreRef.current = loadingMore;
 
   const [ctxMenu, setCtxMenu] = useState<{ x: number; y: number; msg: Message } | null>(null);
   const [emojiTarget, setEmojiTarget] = useState<{ x: number; y: number; msgId: string } | null>(null);
@@ -75,10 +85,31 @@ export function MessageList({
     onScrollTargetHandled();
   }, [scrollTargetId]); // eslint-disable-line
 
+  // Restore scroll position after older messages are prepended
+  useLayoutEffect(() => {
+    const el = containerRef.current;
+    if (!el || prevScrollHeightRef.current === 0) return;
+    el.scrollTop = el.scrollTop + (el.scrollHeight - prevScrollHeightRef.current);
+    prevScrollHeightRef.current = 0;
+  }, [messages.length]); // eslint-disable-line
+
+  // Auto-scroll to bottom on new messages (but not when loading older ones)
   useEffect(() => {
-    if (!currentMatchId && !pinnedFocusId)
+    if (!currentMatchId && !pinnedFocusId && !loadingMoreRef.current)
       bottomRef.current?.scrollIntoView({ block: 'end' });
   }, [messages.length, chat.id]); // eslint-disable-line
+
+  // Scroll listener: track atBottom + trigger load-more when near top
+  const handleScroll = useCallback(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const { scrollTop, scrollHeight, clientHeight } = el;
+    setAtBottom(scrollHeight - scrollTop - clientHeight < 80);
+    if (scrollTop < 80 && hasMoreMessages && !loadingMore && prevScrollHeightRef.current === 0) {
+      prevScrollHeightRef.current = scrollHeight;
+      onLoadMore();
+    }
+  }, [hasMoreMessages, loadingMore, onLoadMore]);
 
   useEffect(() => {
     if (currentMatchId && matchRef.current)
@@ -108,7 +139,11 @@ export function MessageList({
   }, []);
 
   return (
-    <div className="messages" onClick={() => { hasSelection && onClearSelection(); }}>
+    <div className="messages" ref={containerRef} onScroll={handleScroll} onClick={() => { hasSelection && onClearSelection(); }}>
+      {loadingMore && <div className="msgsLoadingMore">Загрузка истории…</div>}
+      {!hasMoreMessages && messages.length > 0 && (
+        <div className="msgsBeginning">— начало истории переписки —</div>
+      )}
       {loadingMessages && <div className="msgHint">Загрузка…</div>}
 
       {messages.map((m, idx) => {
@@ -274,6 +309,21 @@ export function MessageList({
               </button>
             )}
           </div>
+        </Portal>
+      )}
+
+      {/* Scroll-to-bottom button — Portal so it's fixed above composer */}
+      {!atBottom && (
+        <Portal>
+          <button
+            className="scrollToBottomBtn"
+            onClick={() => bottomRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' })}
+            title="Перейти к последним сообщениям"
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="6 9 12 15 18 9"/>
+            </svg>
+          </button>
         </Portal>
       )}
     </div>
