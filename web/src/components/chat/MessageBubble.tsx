@@ -552,20 +552,20 @@ export function MessageBubble({
           </div>
         )}
 
-        {/* ✅ Reactions — inside bubble, above the time/status row */}
-        {(m.reactions?.length ?? 0) > 0 && (
-          <ReactionBar
-            reactions={m.reactions!}
-            meId={meId}
-            isOwn={isOwn}
-            onReact={onReact}
-          />
-        )}
-
         {!isAudio && (
-          <div className="bubbleMeta">
-            <span className="bubbleTime">{formatTime(m.created_at)}</span>
-            {isOwn && <MsgStatus isRead={isRead} />}
+          <div className="bubbleFooter">
+            {(m.reactions?.length ?? 0) > 0 && (
+              <ReactionBar
+                reactions={m.reactions!}
+                meId={meId}
+                isOwn={isOwn}
+                onReact={onReact}
+              />
+            )}
+            <div className="bubbleMeta">
+              <span className="bubbleTime">{formatTime(m.created_at)}</span>
+              {isOwn && <MsgStatus isRead={isRead} />}
+            </div>
           </div>
         )}
       </div>

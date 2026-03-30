@@ -919,7 +919,6 @@ input { font: inherit; color: inherit; background: transparent; }
   align-items: center;
   justify-content: flex-end;
   gap: 5px;
-  margin-top: 4px;
 }
 .bubbleTime {
   font-size: 11px;
@@ -4449,16 +4448,29 @@ input[type="date"].psInput::-webkit-calendar-picker-indicator {
 }
 .msgCtxItemReact {}
 
-/* ── Reaction bar (below bubble) ────────────────────────────────────── */
+/* ── Bubble footer: reactions + time/status on the same row ─────────── */
+.bubbleFooter {
+  display: flex;
+  align-items: flex-end;
+  gap: 6px;
+  margin-top: 4px;
+}
+.bubbleFooter .bubbleMeta {
+  margin-top: 0;
+  flex-shrink: 0;
+  margin-left: auto;
+}
+
+/* ── Reaction bar ─────────────────────────────────────────────────────── */
 .reactionBar {
   display: flex;
   flex-wrap: wrap;
   gap: 4px;
-  margin-top: -2px;
-  padding: 2px 6px 4px;
   justify-content: flex-start;
+  flex: 1 1 auto;
+  min-width: 0;
 }
-.reactionBarOwn { justify-content: flex-end; }
+.reactionBarOwn { justify-content: flex-start; }
 
 .reactionChip {
   display: flex;
