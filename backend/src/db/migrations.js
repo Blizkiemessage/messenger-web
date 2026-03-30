@@ -95,6 +95,9 @@ function runMigrations() {
     "ALTER TABLE messages ADD COLUMN reactions TEXT NOT NULL DEFAULT '[]'",
     // ✅ NEW: hide last seen time from other users
     'ALTER TABLE users ADD COLUMN hide_last_seen INTEGER NOT NULL DEFAULT 0',
+    // ✅ NEW: appearance settings — synced across devices
+    "ALTER TABLE users ADD COLUMN theme TEXT NOT NULL DEFAULT 'dark'",
+    "ALTER TABLE users ADD COLUMN accent_color TEXT NOT NULL DEFAULT '#2f81f7'",
   ];
 
   for (const sql of alters) {

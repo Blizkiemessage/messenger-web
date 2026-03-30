@@ -14,6 +14,8 @@ export type User = {
   hide_avatar?: boolean;           // ✅ hide avatar from others
   avatar_exceptions?: string;      // ✅ JSON array of user IDs who can still see it
   hide_last_seen?: boolean;        // ✅ hide last seen time from others
+  theme?: 'dark' | 'light';        // ✅ persisted appearance setting
+  accent_color?: string;            // ✅ persisted accent color
   created_at?: number;
   last_seen_at?: number | null;
   has_password?: boolean;

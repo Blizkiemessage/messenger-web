@@ -6,11 +6,13 @@
 import { useState, useCallback } from 'react';
 import { ACCENT_PRESETS, DEFAULT_ACCENT, applyAccentCss, applyAccent, loadUserAccent } from '../../utils/accent';
 import { useSessionStore } from '../../store/useSessionStore';
+import { updateMe } from '../../api/users';
 
 export function AppearanceTab() {
   const me = useSessionStore(s => s.me)!;
-  const [current, setCurrent] = useState<string>(() => loadUserAccent(me.id));
-  const [saved, setSaved] = useState<string>(() => loadUserAccent(me.id));
+  const sessionUpdateMe = useSessionStore(s => s.updateMe);
+  const [current, setCurrent] = useState<string>(() => me.accent_color || loadUserAccent(me.id));
+  const [saved, setSaved] = useState<string>(() => me.accent_color || loadUserAccent(me.id));
   const [justSaved, setJustSaved] = useState(false);
 
   const handleSelect = useCallback((hex: string) => {
@@ -25,11 +27,15 @@ export function AppearanceTab() {
   }, []);
 
   const handleSave = useCallback(() => {
-    applyAccent(me.id, current);  // save + apply for this user
+    applyAccent(me.id, current);  // save to localStorage + apply CSS
     setSaved(current);
     setJustSaved(true);
     setTimeout(() => setJustSaved(false), 2000);
-  }, [me.id, current]);
+    // Persist to backend so it syncs across devices
+    updateMe({ accent_color: current })
+      .then(updated => sessionUpdateMe(updated))
+      .catch(() => {});
+  }, [me.id, current, sessionUpdateMe]);
 
   const handleReset = useCallback(() => {
     setCurrent(DEFAULT_ACCENT);

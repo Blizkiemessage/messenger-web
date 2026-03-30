@@ -5,6 +5,7 @@
 import { create } from 'zustand';
 import { type Chat } from '../types';
 import { type Theme, getStoredTheme, applyTheme } from '../utils/theme';
+import { getSession } from '../storage/session';
 
 interface AppState {
   theme: Theme;
@@ -39,7 +40,9 @@ interface AppState {
   setShowForwardModal: (v: boolean) => void;
 }
 
-const initialTheme = getStoredTheme();
+// Prefer theme saved in the session user object (synced from backend) over localStorage
+const _savedSession = getSession();
+const initialTheme: Theme = (_savedSession?.user?.theme as Theme) || getStoredTheme();
 applyTheme(initialTheme);
 
 export const useAppStore = create<AppState>((set) => ({

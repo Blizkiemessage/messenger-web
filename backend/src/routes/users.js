@@ -38,11 +38,13 @@ router.patch('/me', (req, res, next) => {
       username, display_name, avatar_url, bio, birth_date,
       hide_email, hide_bio, hide_birth_date, no_group_add,
       hide_avatar, avatar_exceptions, hide_last_seen,
+      theme, accent_color,
     } = req.body;
     const updated = updateUser(req.userId, {
       username, display_name, avatar_url, bio,
       birth_date, hide_email, hide_bio, hide_birth_date, no_group_add,
       hide_avatar, avatar_exceptions, hide_last_seen,
+      theme, accent_color,
     });
     res.json(sanitizeUser(updated, { showPrivate: true }));
   } catch (err) {
