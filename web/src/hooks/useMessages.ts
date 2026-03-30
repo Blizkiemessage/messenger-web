@@ -36,6 +36,7 @@ export function useMessages() {
       .catch((e: any) => useChatsStore.getState().setDataError(e?.message ?? 'Ошибка загрузки сообщений'))
       .finally(() => useChatsStore.getState().setLoadingMessages(false));
 
+
     return () => { setActiveChat(null); };
   }, [token, activeChatId]); // eslint-disable-line
 
@@ -65,5 +66,16 @@ export function useMessages() {
     }
   }, []);
 
-  return { sendMessage, deleteSelected };
+  const loadOlderMessages = useCallback(async () => {
+    const { messages, hasMoreMessages, activeChatId: chatId } = useChatsStore.getState();
+    if (!chatId || !hasMoreMessages || messages.length === 0) return;
+    const before = messages[0].created_at;
+    try {
+      const older = await getChatMessages(chatId, before);
+      if (older.length > 0) useChatsStore.getState().prependMessages(older);
+      useChatsStore.getState().setHasMoreMessages(older.length >= 50);
+    } catch { /* ignore */ }
+  }, []);
+
+  return { sendMessage, deleteSelected, loadOlderMessages };
 }

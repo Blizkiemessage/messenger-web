@@ -57,7 +57,16 @@ export function ChatArea() {
   const setShowForwardModal = useAppStore(s => s.setShowForwardModal);
 
   const [messageText, setMessageText] = useState('');
-  useMessages(); // keeps message loading side-effect
+  const [loadingMore, setLoadingMore] = useState(false);
+  const { loadOlderMessages } = useMessages();
+  const hasMoreMessages = useChatsStore(s => s.hasMoreMessages);
+
+  const handleLoadMore = useCallback(async () => {
+    if (loadingMore) return;
+    setLoadingMore(true);
+    await loadOlderMessages();
+    setLoadingMore(false);
+  }, [loadingMore, loadOlderMessages]);
 
   // ── Reply state ───────────────────────────────────────────────────────────
   const [replyTo, setReplyTo] = useState<{
@@ -432,6 +441,9 @@ export function ChatArea() {
         matchedIds={matchedIds}
         currentMatchId={currentMatchId}
         pinnedFocusId={pinnedFocusId}
+        hasMoreMessages={hasMoreMessages}
+        loadingMore={loadingMore}
+        onLoadMore={handleLoadMore}
       />
 
       {isGroupClosed ? (
