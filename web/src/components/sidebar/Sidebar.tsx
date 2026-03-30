@@ -23,9 +23,11 @@ export function Sidebar() {
   const setChatFilter = useChatsStore(s => s.setChatFilter);
   const setActiveChatId = useChatsStore(s => s.setActiveChatId);
   const filteredChats = useChatsStore(useShallow(s => {
-    if (s.chatFilter === 'groups') return s.chats.filter(c => c.type === 'group');
-    if (s.chatFilter === 'direct') return s.chats.filter(c => c.type === 'direct');
-    return s.chats;
+    const byLastMsg = (a: typeof s.chats[0], b: typeof s.chats[0]) =>
+      (b.last_message?.created_at ?? b.created_at) - (a.last_message?.created_at ?? a.created_at);
+    if (s.chatFilter === 'groups') return [...s.chats.filter(c => c.type === 'group')].sort(byLastMsg);
+    if (s.chatFilter === 'direct') return [...s.chats.filter(c => c.type === 'direct')].sort(byLastMsg);
+    return [...s.chats].sort(byLastMsg);
   }));
 
   // App store — individual selectors

@@ -490,6 +490,16 @@ export function Composer({ value, onChange, onSend, onSendAttachment, externalFi
                 placeholder={uploading ? `Загрузка… ${progress}%` : isFileMode ? 'Файл готов к отправке' : 'Сообщение…'}
                 disabled={isFileMode || disabled}
                 onKeyDown={e => { if (!isFileMode && e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); if (value.trim()) onSend(); } }}
+                onPaste={e => {
+                  const items = e.clipboardData?.items;
+                  if (!items) return;
+                  for (const item of Array.from(items)) {
+                    if (item.type.startsWith('image/')) {
+                      const file = item.getAsFile();
+                      if (file) { e.preventDefault(); stageFile(file); break; }
+                    }
+                  }
+                }}
               />
               <button
                 className={`composerSend${uploading ? ' composerSendLoading' : ''}`}

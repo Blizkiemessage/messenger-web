@@ -197,12 +197,15 @@ export const useChatsStore = create<ChatsState>((set) => ({
 
   handleNewMessage: (msg) => set(state => {
     const isActive = msg.chat_id === state.activeChatId;
-    return {
-      chats: state.chats.map(c => c.id !== msg.chat_id ? c : {
+    const chats = state.chats
+      .map(c => c.id !== msg.chat_id ? c : {
         ...c,
         last_message: msg,
         unread_count: isActive ? 0 : (c.unread_count ?? 0) + 1,
-      }),
+      })
+      .sort((a, b) => (b.last_message?.created_at ?? b.created_at) - (a.last_message?.created_at ?? a.created_at));
+    return {
+      chats,
       messages: isActive && !state.messages.some(m => m.id === msg.id)
         ? [...state.messages, msg]
         : state.messages,
