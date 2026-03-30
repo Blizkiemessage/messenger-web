@@ -4307,3 +4307,236 @@ input[type="date"].psInput::-webkit-calendar-picker-indicator {
   .messages { padding: 8px 8px 6px; }
   .composer { padding: 6px 8px 8px; gap: 5px; }
 }
+
+/* ══════════════════════════════════════════════════════════════════════
+   NEW FEATURES: Reply/Quote + Emoji Reactions + Online Status
+   ══════════════════════════════════════════════════════════════════════ */
+
+/* ── Reply preview bar (above Composer) ─────────────────────────────── */
+.replyPreviewBar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px 6px 0;
+  margin: 0 12px 0;
+  border-top: 1px solid var(--border);
+  background: var(--panel);
+  border-radius: 10px 10px 0 0;
+  min-height: 48px;
+}
+
+.replyPreviewAccent {
+  width: 3px;
+  min-height: 36px;
+  background: var(--accent);
+  border-radius: 2px;
+  flex-shrink: 0;
+  margin-left: 10px;
+}
+
+.replyPreviewIcon {
+  color: var(--accent);
+  flex-shrink: 0;
+  opacity: 0.7;
+}
+
+.replyPreviewContent {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.replyPreviewSender {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--accent);
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  text-align: left;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.replyPreviewSender:hover { opacity: 0.8; }
+
+.replyPreviewText {
+  font-size: 12px;
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+
+.replyPreviewNoText { font-style: italic; }
+
+.replyPreviewClose {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--hover);
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--muted);
+  flex-shrink: 0;
+  transition: background .15s, color .15s;
+}
+.replyPreviewClose:hover { background: var(--accent-dim); color: var(--accent); }
+
+/* ── Quoted block inside message bubble ─────────────────────────────── */
+.bubbleReply {
+  border-left: 3px solid var(--accent);
+  border-radius: 0 6px 6px 0;
+  background: rgba(255,255,255,0.05);
+  padding: 5px 10px 5px 8px;
+  margin-bottom: 6px;
+  cursor: pointer;
+  transition: background .12s;
+  max-width: 100%;
+  overflow: hidden;
+}
+.bubbleReply:hover { background: rgba(255,255,255,0.09); }
+
+.bubbleReplySender {
+  display: block;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--accent);
+  background: none;
+  border: none;
+  padding: 0;
+  margin-bottom: 2px;
+  cursor: pointer;
+  text-align: left;
+}
+.bubbleReplySender:hover { opacity: 0.8; }
+
+.bubbleReplyText {
+  font-size: 12px;
+  color: var(--muted);
+  line-height: 1.4;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.bubbleReplyNoText { font-style: italic; }
+
+.bubbleReplyExpand {
+  background: none;
+  border: none;
+  padding: 0;
+  font-size: 11px;
+  color: var(--accent);
+  cursor: pointer;
+  text-decoration: underline;
+  margin-left: 2px;
+}
+.bubbleReplyExpand:hover { opacity: 0.8; }
+
+/* ── Context menu: Reply + React buttons ─────────────────────────────── */
+.msgCtxItemReply {
+  color: var(--accent);
+}
+.msgCtxItemReact {}
+
+/* ── Reaction bar (below bubble) ────────────────────────────────────── */
+.reactionBar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: -2px;
+  padding: 2px 6px 4px;
+  justify-content: flex-start;
+}
+.reactionBarOwn { justify-content: flex-end; }
+
+.reactionChip {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  padding: 2px 7px;
+  border-radius: 20px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  font-size: 14px;
+  cursor: pointer;
+  transition: background .12s, border-color .12s, transform .1s;
+  line-height: 1;
+}
+.reactionChip:hover {
+  background: var(--accent-dim);
+  border-color: var(--accent);
+  transform: scale(1.08);
+}
+.reactionChipMine {
+  background: var(--accent-dim);
+  border-color: var(--accent);
+}
+
+.reactionCount {
+  font-size: 11px;
+  color: var(--muted);
+  font-weight: 600;
+  line-height: 1;
+}
+
+/* ── Emoji picker panel ─────────────────────────────────────────────── */
+.emojiPickerPanel {
+  position: fixed;
+  z-index: 9999;
+  background: var(--card, #1c2333);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 8px;
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 4px;
+  box-shadow: 0 8px 32px rgba(0,0,0,.45);
+  width: 240px;
+}
+
+.emojiPickerBtn {
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  border: none;
+  background: transparent;
+  font-size: 20px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background .12s, transform .1s;
+  line-height: 1;
+}
+.emojiPickerBtn:hover {
+  background: var(--hover);
+  transform: scale(1.2);
+}
+
+/* ── Online status in ChatHeader subtitle ───────────────────────────── */
+.chSubOnline {
+  color: var(--accent) !important;
+  font-weight: 500;
+}
+
+/* ── Online status in UserProfileModal ─────────────────────────────── */
+.upOnlineStatus {
+  font-size: 12px;
+  color: var(--muted);
+  margin-top: 3px;
+}
+.upOnlineStatusOnline {
+  color: var(--accent) !important;
+  font-weight: 500;
+}

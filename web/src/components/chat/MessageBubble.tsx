@@ -4,7 +4,7 @@
  *           to the backend (Railway) instead of the frontend (Vercel).
  */
 import { useState, useRef, useEffect } from 'react';
-import { type Message, type User } from '../../types';
+import { type Message, type User, type MessageReaction } from '../../types';
 import { formatTime } from '../../utils/format';
 import { Avatar, resolveUrl } from '../ui/Avatar';
 import { MsgStatus } from '../ui/icons/MsgStatus';
@@ -327,6 +327,61 @@ function AudioPlayer({
 }
 
 
+// ── Quoted text with "показать больше" expander ──────────────────────────────
+function QuotedText({ text }: { text: string | null | undefined }) {
+  const [expanded, setExpanded] = useState(false);
+  const LIMIT = 120;
+  if (!text) return <span className="bubbleReplyNoText">Медиафайл</span>;
+  if (text.length <= LIMIT || expanded) return <span>{text}</span>;
+  return (
+    <>
+      <span>{text.slice(0, LIMIT)}…</span>
+      <button
+        className="bubbleReplyExpand"
+        onClick={e => { e.stopPropagation(); setExpanded(true); }}
+      >
+        показать больше
+      </button>
+    </>
+  );
+}
+
+// ── Reaction bar ─────────────────────────────────────────────────────────────
+function ReactionBar({
+  reactions, meId, isOwn, onReact,
+}: {
+  reactions: MessageReaction[];
+  meId: string;
+  isOwn: boolean;
+  onReact: (emoji: string) => void;
+}) {
+  if (!reactions || reactions.length === 0) return null;
+
+  // Group by emoji
+  const groups: Record<string, { count: number; isMine: boolean }> = {};
+  for (const r of reactions) {
+    if (!groups[r.emoji]) groups[r.emoji] = { count: 0, isMine: false };
+    groups[r.emoji].count++;
+    if (r.userId === meId) groups[r.emoji].isMine = true;
+  }
+
+  return (
+    <div className={`reactionBar${isOwn ? ' reactionBarOwn' : ''}`}>
+      {Object.entries(groups).map(([emoji, { count, isMine }]) => (
+        <button
+          key={emoji}
+          className={`reactionChip${isMine ? ' reactionChipMine' : ''}`}
+          onClick={e => { e.stopPropagation(); onReact(emoji); }}
+          title={isMine ? 'Убрать реакцию' : 'Поставить реакцию'}
+        >
+          <span>{emoji}</span>
+          {count > 1 && <span className="reactionCount">{count}</span>}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 // ── Props ─────────────────────────────────────────────────────────────────────
 interface Props {
   message: Message;
@@ -340,17 +395,21 @@ interface Props {
   hasSelection: boolean;
   highlight?: string;
   isSearchMatch?: boolean;
+  meId: string;
   onContextMenu: () => void;
   onClick: (e: React.MouseEvent) => void;
   onViewUser: (id: string) => void;
   onForwardedSenderClick?: (userId: string) => void;
+  onReact: (emoji: string) => void;
+  onScrollToMessage: (msgId: string) => void;
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
 export function MessageBubble({
   message: m, isOwn, isRead, isSelected, isGroup, sender,
   showAvatar, showName, hasSelection, highlight, isSearchMatch,
-  onContextMenu, onClick, onViewUser, onForwardedSenderClick,
+  meId, onContextMenu, onClick, onViewUser, onForwardedSenderClick,
+  onReact, onScrollToMessage,
 }: Props) {
   const hasAttachment = !!m.attachment_url;
   const isImage = m.attachment_type === 'image';
@@ -375,6 +434,7 @@ export function MessageBubble({
       ].filter(Boolean).join(' ')}
       onContextMenu={e => { if (m.is_system) return; e.preventDefault(); onContextMenu(); }}
       onClick={e => { if (!hasSelection) return; e.stopPropagation(); onClick(e); }}
+      onDoubleClick={e => { if (!m.is_system && !hasSelection) { e.stopPropagation(); onReact('❤️'); } }}
     >
       {isGroup && !isOwn && (
         <div className="msgAvatarSlot">
@@ -411,6 +471,26 @@ export function MessageBubble({
                   onClick={e => { e.stopPropagation(); onViewUser(m.sender_id); }}>
             {sender?.display_name || sender?.username || 'Пользователь'}
           </button>
+        )}
+
+        {/* ✅ Reply/Quote block */}
+        {m.reply && (
+          <div
+            className="bubbleReply"
+            onClick={e => { e.stopPropagation(); onScrollToMessage(m.reply!.id); }}
+          >
+            {m.reply.sender_id && (
+              <button
+                className="bubbleReplySender"
+                onClick={e => { e.stopPropagation(); onViewUser(m.reply!.sender_id!); }}
+              >
+                {m.reply.sender_username || 'Пользователь'}
+              </button>
+            )}
+            <div className="bubbleReplyText">
+              <QuotedText text={m.reply.text} />
+            </div>
+          </div>
         )}
 
         {/* ✅ Forwarded-from badge */}
@@ -479,6 +559,16 @@ export function MessageBubble({
           </div>
         )}
       </div>
+
+      {/* ✅ Reactions — rendered outside bubble, aligned by msg direction */}
+      {(m.reactions?.length ?? 0) > 0 && (
+        <ReactionBar
+          reactions={m.reactions!}
+          meId={meId}
+          isOwn={isOwn}
+          onReact={onReact}
+        />
+      )}
     </div>
   );
 }

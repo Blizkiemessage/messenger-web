@@ -11,7 +11,8 @@ import { ChatHeader } from './ChatHeader';
 import { MessageList } from './MessageList';
 import { Composer } from './Composer';
 import { EmptyState } from './EmptyState';
-import { sendChatMessage, getPinnedMessages, pinMessage as apiPin, unpinMessage as apiUnpin } from '../../api/chats';
+import { ReplyPreviewBar } from './ReplyPreviewBar';
+import { sendChatMessage, getPinnedMessages, pinMessage as apiPin, unpinMessage as apiUnpin, reactToMessage } from '../../api/chats';
 import type { UploadResult } from '../../api/upload';
 import type { Message } from '../../types';
 import { ForwardModal } from '../modals/ForwardModal';
@@ -57,6 +58,16 @@ export function ChatArea() {
 
   const [messageText, setMessageText] = useState('');
   useMessages(); // keeps message loading side-effect
+
+  // ── Reply state ───────────────────────────────────────────────────────────
+  const [replyTo, setReplyTo] = useState<{
+    messageId: string;
+    senderId: string;
+    senderName: string;
+    quotedText: string;
+  } | null>(null);
+
+  const [scrollTargetId, setScrollTargetId] = useState<string | null>(null);
 
   // ── Search ────────────────────────────────────────────────────────────────
   const [searchOpen,  setSearchOpen]  = useState(false);
@@ -209,6 +220,33 @@ export function ChatArea() {
     (forwardingIds ?? []).forEach(id => store.toggleSelect(id));
   }, [setShowForwardModal, forwardingIds]);
 
+  // ── Reply handlers ────────────────────────────────────────────────────────
+  const handleReply = useCallback((msg: Message, selectedText: string) => {
+    const sender = activeChat?.members.find(m => m.id === msg.sender_id);
+    const senderName = sender?.display_name || sender?.username || 'Пользователь';
+    setReplyTo({
+      messageId: msg.id,
+      senderId: msg.sender_id,
+      senderName,
+      quotedText: selectedText || msg.text || '',
+    });
+  }, [activeChat]);
+
+  const handleCancelReply = useCallback(() => setReplyTo(null), []);
+
+  // ── React handler ─────────────────────────────────────────────────────────
+  const handleReact = useCallback(async (msgId: string, emoji: string) => {
+    if (!activeChat) return;
+    try {
+      const { reactions } = await reactToMessage(activeChat.id, msgId, emoji);
+      useChatsStore.getState().setMessages(
+        useChatsStore.getState().messages.map(m =>
+          m.id === msgId ? { ...m, reactions } : m
+        )
+      );
+    } catch { /* socket will update state */ }
+  }, [activeChat]);
+
   // ── Send text (with auto-split) ───────────────────────────────────────────
   const handleSend = useCallback(async () => {
     const text = messageText.trim();
@@ -217,10 +255,21 @@ export function ChatArea() {
     const chatId = useChatsStore.getState().activeChatId;
     if (!chatId) return;
     const parts = splitMessage(text);
-    for (const part of parts) {
-      await sendChatMessage(chatId, { text: part });
+    // Attach reply only to the first part
+    const replyPayload = replyTo ? {
+      id: replyTo.messageId,
+      sender_id: replyTo.senderId,
+      sender_username: replyTo.senderName,
+      quoted_text: replyTo.quotedText,
+    } : undefined;
+    setReplyTo(null);
+    for (let i = 0; i < parts.length; i++) {
+      await sendChatMessage(chatId, {
+        text: parts[i],
+        reply: i === 0 ? replyPayload : undefined,
+      });
     }
-  }, [messageText]);
+  }, [messageText, replyTo]);
 
   // ── Send attachment ───────────────────────────────────────────────────────
   const handleSendAttachment = useCallback(async (result: UploadResult, caption: string) => {
@@ -375,6 +424,10 @@ export function ChatArea() {
         onUnpinMessage={handleUnpinMessage}
         onDeleteSingle={handleDeleteSingle}
         onForwardSingle={handleForwardSingle}
+        onReply={handleReply}
+        onReact={handleReact}
+        scrollTargetId={scrollTargetId}
+        onScrollTargetHandled={() => setScrollTargetId(null)}
         searchQuery={searchQuery.trim().toLowerCase()}
         matchedIds={matchedIds}
         currentMatchId={currentMatchId}
@@ -390,14 +443,24 @@ export function ChatArea() {
           <span>Группа закрыта — отправка сообщений недоступна</span>
         </div>
       ) : (
-        <Composer
-          value={messageText}
-          onChange={setMessageText}
-          onSend={handleSend}
-          onSendAttachment={handleSendAttachment}
-          externalFile={droppedFile}
-          onExternalFileConsumed={() => setDroppedFile(null)}
-        />
+        <>
+          {replyTo && (
+            <ReplyPreviewBar
+              reply={replyTo}
+              onCancel={handleCancelReply}
+              onViewUser={setViewUserId}
+              senderId={replyTo.senderId}
+            />
+          )}
+          <Composer
+            value={messageText}
+            onChange={setMessageText}
+            onSend={handleSend}
+            onSendAttachment={handleSendAttachment}
+            externalFile={droppedFile}
+            onExternalFileConsumed={() => setDroppedFile(null)}
+          />
+        </>
       )}
     </div>
   );

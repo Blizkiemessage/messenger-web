@@ -11,16 +11,40 @@ function decryptMessage(msg) {
   try {
     text = decrypt({ ciphertext: msg.ciphertext, iv: msg.iv, authTag: msg.auth_tag }).trim();
   } catch { text = '[encrypted]'; }
+
+  // Decrypt reply snippet if present
+  let reply = null;
+  if (msg.reply_to_id) {
+    let replyText = null;
+    if (msg.reply_to_ciphertext) {
+      try {
+        replyText = decrypt({
+          ciphertext: msg.reply_to_ciphertext,
+          iv: msg.reply_to_iv,
+          authTag: msg.reply_to_auth_tag,
+        }).trim();
+      } catch { replyText = null; }
+    }
+    reply = {
+      id: msg.reply_to_id,
+      sender_id: msg.reply_to_sender_id || null,
+      sender_username: msg.reply_to_sender_username || null,
+      text: replyText,
+    };
+  }
+
   return {
     id: msg.id, chat_id: msg.chat_id, sender_id: msg.sender_id, text,
     created_at: msg.created_at, deleted_at: msg.deleted_at || null,
     attachment_url: msg.attachment_url || null, attachment_type: msg.attachment_type || null,
     attachment_name: msg.attachment_name || null, attachment_size: msg.attachment_size || null,
     liked_by: JSON.parse(msg.liked_by || '[]'),
+    reactions: JSON.parse(msg.reactions || '[]'),
     is_system: msg.is_system ? true : false,
     is_pinned: msg.is_pinned ? true : false,
     forwarded_from_user_id: msg.forwarded_from_user_id || null,
     forwarded_from_username: msg.forwarded_from_username || null,
+    reply,
   };
 }
 
@@ -34,7 +58,7 @@ function getChatMessages(chatId, userId, { limit = 50, before = null } = {}) {
   return rows.reverse().map(decryptMessage);
 }
 
-function saveMessage(chatId, senderId, text, attachment = {}, isSystem = false) {
+function saveMessage(chatId, senderId, text, attachment = {}, isSystem = false, reply = null) {
   const db = getDb();
   if (!isSystem) {
     const member = db.prepare('SELECT 1 FROM chat_members WHERE chat_id = ? AND user_id = ?').get([chatId, senderId]);
@@ -43,13 +67,36 @@ function saveMessage(chatId, senderId, text, attachment = {}, isSystem = false) 
   const { ciphertext, iv, authTag } = encrypt(text || '');
   const msgId = uuidv4();
   const now = Date.now();
+
+  // Encrypt reply snippet if provided
+  let replyToId = null, replyToSenderId = null, replyToSenderUsername = null;
+  let replyToCiphertext = null, replyToIv = null, replyToAuthTag = null;
+  if (reply && reply.id) {
+    replyToId = reply.id;
+    replyToSenderId = reply.sender_id || null;
+    replyToSenderUsername = reply.sender_username || null;
+    const snippet = (reply.quoted_text || '').slice(0, 200);
+    if (snippet) {
+      const enc = encrypt(snippet);
+      replyToCiphertext = enc.ciphertext;
+      replyToIv = enc.iv;
+      replyToAuthTag = enc.authTag;
+    }
+  }
+
   db.prepare(
-    `INSERT INTO messages (id, chat_id, sender_id, ciphertext, iv, auth_tag, created_at, attachment_url, attachment_type, attachment_name, attachment_size, is_system)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+    `INSERT INTO messages (id, chat_id, sender_id, ciphertext, iv, auth_tag, created_at,
+       attachment_url, attachment_type, attachment_name, attachment_size, is_system,
+       reply_to_id, reply_to_sender_id, reply_to_sender_username,
+       reply_to_ciphertext, reply_to_iv, reply_to_auth_tag)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
   ).run([msgId, chatId, senderId, ciphertext, iv, authTag, now,
     attachment.attachment_url || null, attachment.attachment_type || null,
     attachment.attachment_name || null, attachment.attachment_size || null,
-    isSystem ? 1 : 0]);
+    isSystem ? 1 : 0,
+    replyToId, replyToSenderId, replyToSenderUsername,
+    replyToCiphertext, replyToIv, replyToAuthTag]);
+
   return decryptMessage(db.prepare('SELECT * FROM messages WHERE id = ?').get(msgId));
 }
 
@@ -152,4 +199,24 @@ function forwardMessages(targetChatId, senderId, messageIds) {
   return results;
 }
 
-module.exports = { decryptMessage, saveMessage, getChatMessages, deleteMessages, toggleReaction, pinMessage, unpinMessage, getPinnedMessages, forwardMessages };
+const ALLOWED_EMOJIS = new Set(['❤️','👍','😂','😮','😢','🔥','👏','🎉','🤔','💯','😍','😡']);
+
+// ✅ NEW: emoji reactions — toggle a specific emoji reaction for a user
+function toggleEmojiReaction(msgId, userId, emoji) {
+  if (!ALLOWED_EMOJIS.has(emoji)) throw Object.assign(new Error('Invalid emoji'), { status: 400 });
+  const db = getDb();
+  const msg = db.prepare('SELECT reactions FROM messages WHERE id = ?').get(msgId);
+  if (!msg) throw Object.assign(new Error('Message not found'), { status: 404 });
+  let reactions = JSON.parse(msg.reactions || '[]');
+  const existing = reactions.findIndex(r => r.userId === userId && r.emoji === emoji);
+  if (existing >= 0) {
+    reactions.splice(existing, 1);
+  } else {
+    // Cap total reactions per message at 200 to avoid unbounded growth
+    if (reactions.length < 200) reactions.push({ userId, emoji });
+  }
+  db.prepare('UPDATE messages SET reactions = ? WHERE id = ?').run([JSON.stringify(reactions), msgId]);
+  return reactions;
+}
+
+module.exports = { decryptMessage, saveMessage, getChatMessages, deleteMessages, toggleReaction, toggleEmojiReaction, pinMessage, unpinMessage, getPinnedMessages, forwardMessages };

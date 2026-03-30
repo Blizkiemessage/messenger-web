@@ -67,26 +67,53 @@ export function useSocket() {
       }
     };
 
-    socket.on('new-message',       onNewMessage);
-    socket.on('chat-read',         onChatRead);
-    socket.on('messages-deleted',  onMessagesDeleted);
-    socket.on('chat-created',      onChatCreated);
-    socket.on('chat-updated',      onChatUpdated);
-    socket.on('chat-removed',      onChatRemoved);
-    socket.on('account-deleted',   onAccountDeleted);
-    socket.on('message-pinned',    onMessagePinned);    // ✅
-    socket.on('message-unpinned',  onMessageUnpinned);  // ✅
+    // ✅ NEW: online presence events
+    const onUserOnline = ({ userId }: { userId: string }) => {
+      useChatsStore.getState().setUserOnline(userId);
+    };
+
+    const onUserOffline = ({ userId, last_seen_at }: { userId: string; last_seen_at?: number }) => {
+      useChatsStore.getState().setUserOffline(userId, last_seen_at);
+    };
+
+    // ✅ NEW: emoji reactions
+    const onMessageReactionV2 = ({
+      messageId, chatId, reactions,
+    }: { messageId: string; chatId: string; reactions: Array<{ userId: string; emoji: string }> }) => {
+      const state = useChatsStore.getState();
+      if (state.activeChatId === chatId) {
+        state.setMessages(state.messages.map(m =>
+          m.id === messageId ? { ...m, reactions } : m
+        ));
+      }
+    };
+
+    socket.on('new-message',          onNewMessage);
+    socket.on('chat-read',            onChatRead);
+    socket.on('messages-deleted',     onMessagesDeleted);
+    socket.on('chat-created',         onChatCreated);
+    socket.on('chat-updated',         onChatUpdated);
+    socket.on('chat-removed',         onChatRemoved);
+    socket.on('account-deleted',      onAccountDeleted);
+    socket.on('message-pinned',       onMessagePinned);       // ✅
+    socket.on('message-unpinned',     onMessageUnpinned);     // ✅
+    socket.on('user-online',          onUserOnline);          // ✅
+    socket.on('user-offline',         onUserOffline);         // ✅
+    socket.on('message-reaction-v2',  onMessageReactionV2);   // ✅
 
     return () => {
-      socket.off('new-message',       onNewMessage);
-      socket.off('chat-read',         onChatRead);
-      socket.off('messages-deleted',  onMessagesDeleted);
-      socket.off('chat-created',      onChatCreated);
-      socket.off('chat-updated',      onChatUpdated);
-      socket.off('chat-removed',      onChatRemoved);
-      socket.off('account-deleted',   onAccountDeleted);
-      socket.off('message-pinned',    onMessagePinned);
-      socket.off('message-unpinned',  onMessageUnpinned);
+      socket.off('new-message',          onNewMessage);
+      socket.off('chat-read',            onChatRead);
+      socket.off('messages-deleted',     onMessagesDeleted);
+      socket.off('chat-created',         onChatCreated);
+      socket.off('chat-updated',         onChatUpdated);
+      socket.off('chat-removed',         onChatRemoved);
+      socket.off('account-deleted',      onAccountDeleted);
+      socket.off('message-pinned',       onMessagePinned);
+      socket.off('message-unpinned',     onMessageUnpinned);
+      socket.off('user-online',          onUserOnline);
+      socket.off('user-offline',         onUserOffline);
+      socket.off('message-reaction-v2',  onMessageReactionV2);
       if (_markReadTimer) clearTimeout(_markReadTimer);
       disconnectSocket();
     };

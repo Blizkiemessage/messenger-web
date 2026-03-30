@@ -13,7 +13,7 @@
 
 const express = require('express');
 const { authMiddleware } = require('../middleware/auth');
-const { getChatMessages, saveMessage, toggleReaction, deleteMessages, pinMessage, unpinMessage, getPinnedMessages, forwardMessages } = require('../services/messageService');
+const { getChatMessages, saveMessage, toggleReaction, toggleEmojiReaction, deleteMessages, pinMessage, unpinMessage, getPinnedMessages, forwardMessages } = require('../services/messageService');
 const { getDb } = require('../config/database');
 
 const router = express.Router();
@@ -32,15 +32,18 @@ router.get('/:chatId/messages', (req, res, next) => {
 // POST /chats/:chatId/messages
 router.post('/:chatId/messages', (req, res, next) => {
   try {
-    const { text, attachment_url, attachment_type, attachment_name } = req.body;
+    const { text, attachment_url, attachment_type, attachment_name, reply } = req.body;
     const hasText = text && typeof text === 'string' && text.trim();
     const hasAttachment = attachment_url && attachment_type;
     if (!hasText && !hasAttachment) {
       return res.status(400).json({ error: 'text or attachment is required' });
     }
 
+    // Validate reply object if provided
+    const replyData = (reply && typeof reply.id === 'string') ? reply : null;
+
     const attachment = hasAttachment ? { attachment_url, attachment_type, attachment_name } : {};
-    const msg = saveMessage(req.params.chatId, req.userId, hasText ? text.trim() : '', attachment);
+    const msg = saveMessage(req.params.chatId, req.userId, hasText ? text.trim() : '', attachment, false, replyData);
 
     const db = getDb();
     const members = db
@@ -110,6 +113,41 @@ router.post('/:chatId/messages/:msgId/react', (req, res, next) => {
     }
 
     res.json({ liked_by: likedBy });
+  } catch (err) { next(err); }
+});
+
+// POST /chats/:chatId/messages/:msgId/react2  ✅ NEW — emoji reactions
+router.post('/:chatId/messages/:msgId/react2', (req, res, next) => {
+  try {
+    const { chatId, msgId } = req.params;
+    const { emoji } = req.body;
+    if (!emoji || typeof emoji !== 'string') {
+      return res.status(400).json({ error: 'emoji is required' });
+    }
+
+    const db = getDb();
+    const member = db
+      .prepare('SELECT 1 FROM chat_members WHERE chat_id = ? AND user_id = ?')
+      .get([chatId, req.userId]);
+    if (!member) return res.status(403).json({ error: 'Forbidden' });
+
+    const reactions = toggleEmojiReaction(msgId, req.userId, emoji);
+
+    const io = req.app.get('io');
+    if (io) {
+      const members = db
+        .prepare('SELECT user_id FROM chat_members WHERE chat_id = ?')
+        .all(chatId);
+      for (const m of members) {
+        io.to(`user:${m.user_id}`).emit('message-reaction-v2', {
+          messageId: msgId,
+          chatId,
+          reactions,
+        });
+      }
+    }
+
+    res.json({ reactions });
   } catch (err) { next(err); }
 });
 

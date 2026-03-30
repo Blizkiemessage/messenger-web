@@ -3,7 +3,7 @@
  * ✅ Fixed: uses Avatar component to show real photos instead of just letters.
  */
 import { type Chat } from '../../types';
-import { chatTitle, chatSubtitle, avatarLetter } from '../../utils/format';
+import { chatTitle, chatSubtitle, avatarLetter, formatLastSeen } from '../../utils/format';
 import { Avatar, resolveUrl } from '../ui/Avatar';
 import { useChatsStore } from '../../store/useChatsStore';
 
@@ -47,10 +47,12 @@ export function ChatHeader({
   pinnedCount, pinnedOpen, pinnedIndex, onTogglePinned, onPinnedNext, onPinnedPrev,
 }: Props) {
   const setActiveChatId = useChatsStore(s => s.setActiveChatId);
+  const onlineUsers = useChatsStore(s => s.onlineUsers);
   const isGroup = chat.type === 'group';
 
   // For direct chats — the other person's user object
   const partner = !isGroup ? chat.members.find(m => m.id !== meId) : null;
+  const isPartnerOnline = partner ? onlineUsers.has(partner.id) : false;
 
   // ✅ Build a synthetic "user" object for the Avatar component
   // Groups use chat.avatar_url (new feature); direct chats use partner avatar
@@ -135,7 +137,12 @@ export function ChatHeader({
           </div>
           <div>
             <div className="chName">{chatTitle(chat, meId)}</div>
-            <div className="chSub">{chatSubtitle(chat, meId)}</div>
+            <div className={`chSub${!isGroup && isPartnerOnline ? ' chSubOnline' : ''}`}>
+              {isGroup
+                ? chatSubtitle(chat, meId)
+                : formatLastSeen(partner?.last_seen_at, isPartnerOnline)
+              }
+            </div>
           </div>
         </button>
 

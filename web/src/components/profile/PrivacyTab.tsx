@@ -17,6 +17,9 @@ export function PrivacyTab({ me, onUpdate }: Props) {
   // ── Group add privacy ──────────────────────────────────────────────────────
   const [noGroupAdd, setNoGroupAdd] = useState(me.no_group_add ?? false);
 
+  // ── Last seen privacy ─────────────────────────────────────────────────────
+  const [hideLastSeen, setHideLastSeen] = useState(me.hide_last_seen ?? false);
+
   // ── Avatar privacy ─────────────────────────────────────────────────────────
   const [hideAvatar,   setHideAvatar]   = useState(me.hide_avatar ?? false);
   const [exceptions,   setExceptions]   = useState<User[]>([]);
@@ -71,6 +74,7 @@ export function PrivacyTab({ me, onUpdate }: Props) {
         no_group_add:      noGroupAdd,
         hide_avatar:       hideAvatar,
         avatar_exceptions: JSON.stringify(exceptions.map(e => e.id)),
+        hide_last_seen:    hideLastSeen,
       });
       onUpdate(next);
       setOk(true);
@@ -81,6 +85,19 @@ export function PrivacyTab({ me, onUpdate }: Props) {
 
   return (
     <div className="psBody">
+
+      {/* ── Last seen section ── */}
+      <div className="psPrivacySection">
+        <div className="psPrivacyTitle">Время посещения</div>
+        <div className="psPrivacyDesc">Управляйте тем, кто видит время вашего последнего входа.</div>
+        <label className="psPrivacyRow">
+          <div className="psPrivacyRowText">
+            <div className="psPrivacyRowLabel">Скрывать время последнего захода</div>
+            <div className="psPrivacyRowSub">Другие пользователи увидят "не в сети" вместо точного времени</div>
+          </div>
+          <Toggle value={hideLastSeen} onChange={setHideLastSeen} />
+        </label>
+      </div>
 
       {/* ── Groups section ── */}
       <div className="psPrivacySection">

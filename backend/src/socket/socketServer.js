@@ -113,11 +113,16 @@ function initSocket(httpServer) {
       onlineUsers.delete(userId);
       userActiveChat.delete(userId);
       const lastSeenAt = Date.now();
-      getDb()
-        .prepare('UPDATE users SET last_seen_at = ? WHERE id = ?')
-        .run([lastSeenAt, userId]);
+      const db = getDb();
+      db.prepare('UPDATE users SET last_seen_at = ? WHERE id = ?').run([lastSeenAt, userId]);
+      // Respect hide_last_seen: don't reveal timestamp to others if user opted out
+      const userRow = db.prepare('SELECT hide_last_seen FROM users WHERE id = ?').get(userId);
+      const showLastSeen = !userRow?.hide_last_seen;
       userChats.forEach(chat => {
-        io.to(`chat:${chat.id}`).emit('user-offline', { userId, last_seen_at: lastSeenAt });
+        io.to(`chat:${chat.id}`).emit('user-offline', {
+          userId,
+          last_seen_at: showLastSeen ? lastSeenAt : undefined,
+        });
       });
       console.log(`[Socket] Disconnected: ${userId}`);
     });

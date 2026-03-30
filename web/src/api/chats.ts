@@ -33,10 +33,25 @@ export async function sendChatMessage(
     attachment_url?: string;
     attachment_type?: string;
     attachment_name?: string;
-    attachment_size?: number | null;  // ✅ file size
+    attachment_size?: number | null;
+    reply?: {
+      id: string;
+      sender_id?: string | null;
+      sender_username?: string | null;
+      quoted_text?: string | null;
+    } | null;
   },
 ): Promise<Message> {
   const res = await client.post<Message>(`/chats/${chatId}/messages`, payload);
+  return res.data;
+}
+
+export async function reactToMessage(
+  chatId: string,
+  messageId: string,
+  emoji: string,
+): Promise<{ reactions: Array<{ userId: string; emoji: string }> }> {
+  const res = await client.post(`/chats/${chatId}/messages/${messageId}/react2`, { emoji });
   return res.data;
 }
 

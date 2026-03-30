@@ -8,6 +8,7 @@ import { useRef, useEffect, useState, useCallback } from 'react';
 import { type Message, type Chat } from '../../types';
 import { MessageBubble } from './MessageBubble';
 import { Portal } from '../ui/Portal';
+import { EmojiPicker } from '../ui/EmojiPicker';
 
 interface Props {
   messages: Message[];
@@ -23,7 +24,11 @@ interface Props {
   onPinMessage: (msgId: string) => void;
   onUnpinMessage: (msgId: string) => void;
   onDeleteSingle: (msgId: string) => void;
-  onForwardSingle: (msgId: string) => void;  // ✅ new
+  onForwardSingle: (msgId: string) => void;
+  onReply: (msg: Message, selectedText: string) => void;
+  onReact: (msgId: string, emoji: string) => void;
+  scrollTargetId: string | null;
+  onScrollTargetHandled: () => void;
   searchQuery: string;
   matchedIds: string[];
   currentMatchId: string | null;
@@ -31,20 +36,24 @@ interface Props {
 }
 
 const CTX_WIDTH  = 200;
-const CTX_HEIGHT = 148;  // taller to fit "Переслать" button
+const CTX_HEIGHT = 220;  // taller to fit Reply + React buttons
 
 export function MessageList({
   messages, chat, meId, partnerReadAt, selectedIds, hasSelection,
   loadingMessages, onToggleSelect, onClearSelection, onViewUser,
   onPinMessage, onUnpinMessage, onDeleteSingle, onForwardSingle,
+  onReply, onReact, scrollTargetId, onScrollTargetHandled,
   searchQuery, matchedIds, currentMatchId, pinnedFocusId,
 }: Props) {
-  const bottomRef  = useRef<HTMLDivElement | null>(null);
-  const matchRef   = useRef<HTMLDivElement | null>(null);
-  const pinnedRef  = useRef<HTMLDivElement | null>(null);
-  const isGroup    = chat.type === 'group';
+  const bottomRef   = useRef<HTMLDivElement | null>(null);
+  const matchRef    = useRef<HTMLDivElement | null>(null);
+  const pinnedRef   = useRef<HTMLDivElement | null>(null);
+  const scrollRef   = useRef<HTMLDivElement | null>(null);
+  const isGroup     = chat.type === 'group';
 
   const [ctxMenu, setCtxMenu] = useState<{ x: number; y: number; msg: Message } | null>(null);
+  const [emojiTarget, setEmojiTarget] = useState<{ x: number; y: number; msgId: string } | null>(null);
+  const selectedTextRef = useRef<string>('');
 
   useEffect(() => {
     if (!ctxMenu) return;
@@ -56,6 +65,16 @@ export function MessageList({
       window.removeEventListener('contextmenu', close);
     };
   }, [ctxMenu]);
+
+  // Scroll to a specific message (e.g. clicking on a reply quote)
+  useEffect(() => {
+    if (!scrollTargetId) return;
+    const el = document.querySelector(`[data-msg-id="${scrollTargetId}"]`) as HTMLElement | null;
+    if (el) {
+      requestAnimationFrame(() => el.scrollIntoView({ behavior: 'smooth', block: 'center' }));
+    }
+    onScrollTargetHandled();
+  }, [scrollTargetId]); // eslint-disable-line
 
   useEffect(() => {
     if (!currentMatchId && !pinnedFocusId)
@@ -76,6 +95,8 @@ export function MessageList({
     if (msg.is_system) return;
     e.preventDefault();
     e.stopPropagation();
+    // Capture selected text BEFORE the menu opens (selection clears on some actions)
+    selectedTextRef.current = window.getSelection()?.toString().trim() ?? '';
     const vw = window.innerWidth;
     const vh = window.innerHeight;
     let x = e.clientX;
@@ -112,6 +133,7 @@ export function MessageList({
         return (
           <div
             key={m.id}
+            data-msg-id={m.id}
             ref={isFocused ? matchRef : isPinnedFocus ? pinnedRef : null}
             onContextMenu={e => handleContextMenu(e, m)}
           >
@@ -127,16 +149,32 @@ export function MessageList({
               hasSelection={hasSelection}
               highlight={isMatch ? searchQuery : undefined}
               isSearchMatch={isFocused}
+              meId={meId}
               onContextMenu={() => onToggleSelect(m.id)}
               onClick={() => onToggleSelect(m.id)}
               onViewUser={onViewUser}
               onForwardedSenderClick={onViewUser}
+              onReact={(emoji) => onReact(m.id, emoji)}
+              onScrollToMessage={(msgId) => {
+                const el = document.querySelector(`[data-msg-id="${msgId}"]`) as HTMLElement | null;
+                if (el) requestAnimationFrame(() => el.scrollIntoView({ behavior: 'smooth', block: 'center' }));
+              }}
             />
           </div>
         );
       })}
 
       <div ref={bottomRef} />
+
+      {/* ✅ Emoji picker portal */}
+      {emojiTarget && (
+        <EmojiPicker
+          x={emojiTarget.x}
+          y={emojiTarget.y}
+          onPick={(emoji) => { onReact(emojiTarget.msgId, emoji); }}
+          onClose={() => setEmojiTarget(null)}
+        />
+      )}
 
       {/* ✅ Portal: context menu renders at document.body level */}
       {ctxMenu && (
@@ -147,7 +185,43 @@ export function MessageList({
             onClick={e => e.stopPropagation()}
             onContextMenu={e => e.preventDefault()}
           >
-            {/* ✅ Forward — always on top */}
+            {/* ✅ Reply — always first */}
+            {!ctxMenu.msg.is_system && (
+              <button
+                className="msgCtxItem msgCtxItemReply"
+                onClick={() => {
+                  onReply(ctxMenu.msg, selectedTextRef.current);
+                  setCtxMenu(null);
+                }}
+              >
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="9 17 4 12 9 7"/>
+                  <path d="M20 18v-2a4 4 0 0 0-4-4H4"/>
+                </svg>
+                Ответить
+              </button>
+            )}
+
+            {/* ✅ React with emoji */}
+            {!ctxMenu.msg.is_system && (
+              <button
+                className="msgCtxItem msgCtxItemReact"
+                onClick={() => {
+                  setEmojiTarget({ x: ctxMenu.x, y: ctxMenu.y, msgId: ctxMenu.msg.id });
+                  setCtxMenu(null);
+                }}
+              >
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="12" cy="12" r="10"/>
+                  <path d="M8 14s1.5 2 4 2 4-2 4-2"/>
+                  <line x1="9" y1="9" x2="9.01" y2="9"/>
+                  <line x1="15" y1="9" x2="15.01" y2="9"/>
+                </svg>
+                Поставить реакцию
+              </button>
+            )}
+
+            {/* ✅ Forward */}
             {!ctxMenu.msg.is_system && (
               <button
                 className="msgCtxItem msgCtxItemForward"
