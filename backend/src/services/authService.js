@@ -199,8 +199,14 @@ async function verifyEmailAndCreateAccount(email, otp) {
     throw Object.assign(new Error('Код недействителен или истёк'), { status: 400 });
   }
 
+  if ((row.attempts || 0) >= 5) {
+    db.prepare('UPDATE otps SET used = 1 WHERE id = ?').run(row.id);
+    throw Object.assign(new Error('Превышено количество попыток. Запросите новый код.'), { status: 429 });
+  }
+
   const valid = await bcrypt.compare(otp, row.code_hash);
   if (!valid) {
+    db.prepare('UPDATE otps SET attempts = attempts + 1 WHERE id = ?').run(row.id);
     throw Object.assign(new Error('Неверный код'), { status: 400 });
   }
 
@@ -293,8 +299,14 @@ async function verifyEmailChange(userId, email, otp) {
     throw Object.assign(new Error('Код недействителен'), { status: 400 });
   }
 
+  if ((row.attempts || 0) >= 5) {
+    db.prepare('UPDATE otps SET used = 1 WHERE id = ?').run(row.id);
+    throw Object.assign(new Error('Превышено количество попыток. Запросите новый код.'), { status: 429 });
+  }
+
   const valid = await bcrypt.compare(otp, row.code_hash);
   if (!valid) {
+    db.prepare('UPDATE otps SET attempts = attempts + 1 WHERE id = ?').run(row.id);
     throw Object.assign(new Error('Неверный код'), { status: 400 });
   }
 

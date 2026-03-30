@@ -1,7 +1,9 @@
 function errorHandler(err, req, res, next) {
-  console.error('[ERROR]', err.message);
   const status = err.status || 500;
-  res.status(status).json({ error: err.message || 'Internal server error' });
+  console.error('[ERROR]', status, err.message, err.stack);
+  // Don't expose internal error details (stack traces, SQL) to clients
+  const message = status < 500 ? (err.message || 'Request failed') : 'Internal server error';
+  res.status(status).json({ error: message });
 }
 
 module.exports = { errorHandler };

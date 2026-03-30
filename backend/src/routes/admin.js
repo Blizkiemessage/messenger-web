@@ -1,26 +1,51 @@
 const express = require('express');
+const rateLimit = require('express-rate-limit');
+const { v4: uuidv4 } = require('uuid');
 const { authMiddleware } = require('../middleware/auth');
 const { getDb } = require('../config/database');
 const { sign } = require('../utils/jwt');
 
 const router = express.Router();
 
+const adminLoginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 10,
+  message: { error: 'Слишком много попыток. Попробуйте через 15 минут.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
 // POST /admin/api/login
-router.post('/login', (req, res, next) => {
+router.post('/login', adminLoginLimiter, (req, res, next) => {
   try {
+    const ADMIN_USERNAME = process.env.ADMIN_USERNAME;
+    const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD;
+
+    if (!ADMIN_USERNAME || !ADMIN_PASSWORD) {
+      return res.status(503).json({ error: 'Admin not configured' });
+    }
+
     const { username, password } = req.body;
-    if (username.toLowerCase() !== 'pashaaa' || password !== '***REDACTED-CREDENTIAL***') {
+    if (!username || !password) {
+      return res.status(400).json({ error: 'Username и пароль обязательны' });
+    }
+    if (username.toLowerCase() !== ADMIN_USERNAME.toLowerCase() || password !== ADMIN_PASSWORD) {
       return res.status(401).json({ error: 'Неверный логин или пароль' });
     }
     const db = getDb();
-    const user = db.prepare('SELECT id FROM users WHERE LOWER(username) = ?').get('pashaaa');
-    
+    const user = db.prepare('SELECT id FROM users WHERE LOWER(username) = ?').get(ADMIN_USERNAME.toLowerCase());
+
     if (!user) {
-      return res.status(404).json({ error: 'Пользователь pashaaa не найден в БД' });
+      return res.status(404).json({ error: 'Admin user not found in DB' });
     }
-    
-    // Create an admin token
-    const token = sign({ sub: user.id, jti: 'admin-session' });
+
+    // Create a real revocable session
+    const jti = uuidv4();
+    const now = Date.now();
+    db.prepare('INSERT INTO sessions (id, user_id, created_at, revoked) VALUES (?, ?, ?, 0)')
+      .run([jti, user.id, now]);
+
+    const token = sign({ sub: user.id, jti });
     res.json({ token });
   } catch (err) {
     next(err);
@@ -29,12 +54,16 @@ router.post('/login', (req, res, next) => {
 
 router.use(authMiddleware);
 
-// Middleware to ensure the user is 'pashaaa'
+// Middleware to ensure the user is the configured admin
 function isAdmin(req, res, next) {
+  const ADMIN_USERNAME = process.env.ADMIN_USERNAME;
+  if (!ADMIN_USERNAME) {
+    return res.status(503).json({ error: 'Admin not configured' });
+  }
   const db = getDb();
   const user = db.prepare('SELECT username FROM users WHERE id = ?').get(req.userId);
-  
-  if (!user || user.username.toLowerCase() !== 'pashaaa') {
+
+  if (!user || user.username.toLowerCase() !== ADMIN_USERNAME.toLowerCase()) {
     return res.status(403).json({ error: 'Access denied: Admins only' });
   }
   next();
@@ -84,8 +113,8 @@ router.delete('/users/:id', (req, res, next) => {
       db.prepare('DELETE FROM users WHERE id = ?').run(targetUserId);
       // Clean up any empty direct chats
       db.exec(`
-        DELETE FROM chats 
-        WHERE type = 'direct' 
+        DELETE FROM chats
+        WHERE type = 'direct'
         AND id NOT IN (SELECT chat_id FROM chat_members)
       `);
       db.exec('COMMIT');

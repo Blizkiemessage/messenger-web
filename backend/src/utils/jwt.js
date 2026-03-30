@@ -6,11 +6,11 @@ const SECRET = () => {
 };
 
 function sign(payload, options = {}) {
-  return jwt.sign(payload, SECRET(), { expiresIn: '30d', ...options });
+  return jwt.sign(payload, SECRET(), { algorithm: 'HS256', expiresIn: '30d', ...options });
 }
 
 function verify(token) {
-  return jwt.verify(token, SECRET());
+  return jwt.verify(token, SECRET(), { algorithms: ['HS256'] });
 }
 
 module.exports = { sign, verify };

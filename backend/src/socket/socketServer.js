@@ -27,8 +27,20 @@ const userActiveChat = new Map();
 function initSocket(httpServer) {
   const io = new Server(httpServer, {
     cors: {
-      origin: '*',
+      origin: (origin, cb) => {
+        if (!origin) return cb(null, true);
+        if (
+          /^https?:\/\/localhost(:\d+)?$/.test(origin) ||
+          /^https?:\/\/127\.0\.0\.1(:\d+)?$/.test(origin) ||
+          /^https?:\/\/10\.\d+\.\d+\.\d+(:\d+)?$/.test(origin) ||
+          /^https?:\/\/192\.168\.\d+\.\d+(:\d+)?$/.test(origin) ||
+          /^https:\/\/.*\.vercel\.app$/.test(origin) ||
+          (process.env.ALLOWED_ORIGIN && origin === process.env.ALLOWED_ORIGIN)
+        ) return cb(null, true);
+        return cb(new Error(`CORS blocked: ${origin}`));
+      },
       methods: ['GET', 'POST'],
+      credentials: true,
     },
   });
 

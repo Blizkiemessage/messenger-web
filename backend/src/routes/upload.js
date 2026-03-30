@@ -55,7 +55,20 @@ router.post('/', upload.single('file'), async (req, res) => {
              : VIDEO_TYPES.includes(mime) ? 'video'
              : AUDIO_TYPES.includes(mime) ? 'audio'
              : 'file';
-  const ext = path.extname(req.file.originalname) || '';
+
+  // Derive extension from MIME type whitelist — never trust client-supplied filename extension
+  const MIME_TO_EXT = {
+    'image/jpeg': '.jpg', 'image/png': '.png', 'image/gif': '.gif',
+    'image/webp': '.webp', 'image/heic': '.heic', 'image/heif': '.heif',
+    'image/bmp': '.bmp', 'image/tiff': '.tiff', 'image/svg+xml': '.svg',
+    'audio/webm': '.webm', 'audio/ogg': '.ogg', 'audio/mp4': '.m4a',
+    'audio/mpeg': '.mp3', 'audio/wav': '.wav', 'audio/aac': '.aac',
+    'audio/flac': '.flac', 'audio/x-m4a': '.m4a',
+    'video/mp4': '.mp4', 'video/quicktime': '.mov', 'video/x-msvideo': '.avi',
+    'video/webm': '.webm', 'video/mov': '.mov', 'video/mpeg': '.mpeg',
+    'video/x-matroska': '.mkv',
+  };
+  const ext = MIME_TO_EXT[mime] || '';
 
   // ✅ FIX CYRILLIC: multer decodes filenames as latin1. Re-encode to get UTF-8.
   const originalName = Buffer.from(req.file.originalname, 'latin1').toString('utf8');

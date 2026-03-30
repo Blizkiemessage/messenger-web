@@ -2,6 +2,16 @@ const API_BASE = '/admin/api';
 const AUTH_API = '/admin/api/login';
 
 let token = localStorage.getItem('admin_token');
+let currentUserId = null;
+
+function parseJwtSub(t) {
+  try {
+    const payload = JSON.parse(atob(t.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')));
+    return payload.sub || null;
+  } catch { return null; }
+}
+
+if (token) currentUserId = parseJwtSub(token);
 
 // Setup UI based on auth state
 if (token) {
@@ -19,12 +29,6 @@ document.getElementById('login-form').addEventListener('submit', async (e) => {
   const username = document.getElementById('login-username').value.trim();
   const password = document.getElementById('login-password').value;
   
-  if (username.toLowerCase() !== 'pashaaa') {
-    errorEl.textContent = 'Доступ разрешен только для pashaaa';
-    errorEl.style.display = 'block';
-    return;
-  }
-
   loginBtn.disabled = true;
   loginBtn.textContent = 'Вход...';
   errorEl.style.display = 'none';
@@ -40,8 +44,9 @@ document.getElementById('login-form').addEventListener('submit', async (e) => {
     if (!res.ok) throw new Error(data.error || 'Ошибка входа');
     
     token = data.token;
+    currentUserId = parseJwtSub(token);
     localStorage.setItem('admin_token', token);
-    
+
     document.getElementById('login-screen').classList.add('d-none');
     document.getElementById('app').classList.remove('d-none');
     loadStats();
@@ -117,7 +122,7 @@ async function loadUsers() {
     tbody.innerHTML = '';
     
     users.forEach(u => {
-      const isMe = u.username.toLowerCase() === 'pashaaa';
+      const isMe = u.id === currentUserId;
       const tr = document.createElement('tr');
       tr.innerHTML = `
         <td>

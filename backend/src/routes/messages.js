@@ -38,6 +38,9 @@ router.post('/:chatId/messages', (req, res, next) => {
     if (!hasText && !hasAttachment) {
       return res.status(400).json({ error: 'text or attachment is required' });
     }
+    if (hasText && text.length > 4000) {
+      return res.status(400).json({ error: 'Message text max 4000 chars' });
+    }
 
     const attachment = hasAttachment ? { attachment_url, attachment_type, attachment_name } : {};
     const msg = saveMessage(req.params.chatId, req.userId, hasText ? text.trim() : '', attachment);
