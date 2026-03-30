@@ -26,6 +26,7 @@ import {
 } from './components/modals/ConfirmModals';
 
 import { deleteAccount as apiDeleteAccount } from './api/auth';
+import { getMe } from './api/users';
 import {
   createDirectChat,
   leaveGroup as apiLeaveGroup,
@@ -79,6 +80,13 @@ export default function App() {
   useEffect(() => {
     if (token) useChatsStore.getState().loadChats();
   }, [token]); // eslint-disable-line
+
+  // Refresh user profile on mount — syncs settings changed on other devices
+  useEffect(() => {
+    const t = useSessionStore.getState().token;
+    if (!t) return;
+    getMe().then(user => setSession(t, user)).catch(() => {});
+  }, []); // eslint-disable-line
 
   // Auth gate
   if (!token || !me) {
