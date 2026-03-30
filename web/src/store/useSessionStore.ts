@@ -7,7 +7,8 @@
 import { create } from 'zustand';
 import { type User } from '../types';
 import { getSession, setSession as persistSession, clearSession as clearPersisted } from '../storage/session';
-import { onUserLogin, onUserLogout } from '../utils/accent';
+import { onUserLogin, onUserLogout, applyAccentCss, saveUserAccent } from '../utils/accent';
+import { applyTheme, type Theme } from '../utils/theme';
 
 interface SessionState {
   token: string | null;
@@ -30,7 +31,20 @@ export const useSessionStore = create<SessionState>((set) => ({
 
   setSession: (token, me) => {
     persistSession({ token, user: me });
-    const accent = onUserLogin(me.id);   // load + apply this user's colour
+    // Apply accent from server (overrides localStorage default)
+    if (me.accent_color) {
+      applyAccentCss(me.accent_color);
+      saveUserAccent(me.id, me.accent_color);
+    }
+    // Apply theme from server and sync useAppStore state so the toggle button is correct
+    if (me.theme) {
+      applyTheme(me.theme as Theme);
+      // Lazy import to avoid circular dep at module init time
+      import('./useAppStore').then(({ useAppStore }) => {
+        useAppStore.setState({ theme: me.theme as Theme });
+      });
+    }
+    const accent = me.accent_color || onUserLogin(me.id);
     set({ token, me, accent });
   },
 

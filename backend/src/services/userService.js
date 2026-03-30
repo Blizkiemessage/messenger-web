@@ -37,6 +37,9 @@ function sanitizeUser(u, { showPrivate = false, viewerId = null } = {}) {
     avatar_exceptions: showPrivate ? (u.avatar_exceptions || '[]')        : undefined,
     hide_last_seen:    showPrivate ? (u.hide_last_seen    ? true : false) : undefined,
     has_password:      showPrivate ? !!u.password_hash : undefined,
+    // Appearance — always returned to self (showPrivate), ignored for others
+    theme:        showPrivate ? (u.theme        || 'dark')     : undefined,
+    accent_color: showPrivate ? (u.accent_color || '#2f81f7')  : undefined,
   };
 }
 
@@ -48,6 +51,7 @@ function updateUser(userId, {
   username, display_name, avatar_url, bio,
   birth_date, hide_bio, hide_birth_date, hide_email, no_group_add,
   hide_avatar, avatar_exceptions, hide_last_seen,
+  theme, accent_color,
 }) {
   const db = getDb();
 
@@ -70,6 +74,8 @@ function updateUser(userId, {
   if (hide_avatar      !== undefined) db.prepare('UPDATE users SET hide_avatar = ? WHERE id = ?').run([hide_avatar ? 1 : 0, userId]);
   if (avatar_exceptions !== undefined) db.prepare('UPDATE users SET avatar_exceptions = ? WHERE id = ?').run([avatar_exceptions, userId]);
   if (hide_last_seen   !== undefined) db.prepare('UPDATE users SET hide_last_seen = ? WHERE id = ?').run([hide_last_seen ? 1 : 0, userId]);
+  if (theme            !== undefined) db.prepare('UPDATE users SET theme = ? WHERE id = ?').run([theme, userId]);
+  if (accent_color     !== undefined) db.prepare('UPDATE users SET accent_color = ? WHERE id = ?').run([accent_color, userId]);
 
   return db.prepare('SELECT * FROM users WHERE id = ?').get(userId);
 }

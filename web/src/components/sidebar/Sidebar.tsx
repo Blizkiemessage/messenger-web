@@ -9,6 +9,7 @@ import { UserSearch } from './UserSearch';
 import { FolderTabs } from './FolderTabs';
 import { ChatList } from './ChatList';
 import { SidebarBottom } from './SidebarBottom';
+import { updateMe } from '../../api/users';
 
 export function Sidebar() {
   // Session
@@ -34,7 +35,13 @@ export function Sidebar() {
   const theme = useAppStore(s => s.theme);
   const showProfile = useAppStore(s => s.showProfile);
   const toggleProfile = useAppStore(s => s.toggleProfile);
-  const toggleTheme = useAppStore(s => s.toggleTheme);
+  const toggleThemeAction = useAppStore(s => s.toggleTheme);
+  const sessionUpdateMe = useSessionStore(s => s.updateMe);
+  const toggleTheme = () => {
+    toggleThemeAction();
+    const next = useAppStore.getState().theme;
+    updateMe({ theme: next }).then(u => sessionUpdateMe(u)).catch(() => {});
+  };
   const setShowProfileSettings = useAppStore(s => s.setShowProfileSettings);
   const setShowCreateGroup = useAppStore(s => s.setShowCreateGroup);
   const setChatCtxMenu = useAppStore(s => s.setChatCtxMenu);
