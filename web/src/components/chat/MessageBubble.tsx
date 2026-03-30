@@ -552,6 +552,16 @@ export function MessageBubble({
           </div>
         )}
 
+        {/* ✅ Reactions — inside bubble, above the time/status row */}
+        {(m.reactions?.length ?? 0) > 0 && (
+          <ReactionBar
+            reactions={m.reactions!}
+            meId={meId}
+            isOwn={isOwn}
+            onReact={onReact}
+          />
+        )}
+
         {!isAudio && (
           <div className="bubbleMeta">
             <span className="bubbleTime">{formatTime(m.created_at)}</span>
@@ -559,16 +569,6 @@ export function MessageBubble({
           </div>
         )}
       </div>
-
-      {/* ✅ Reactions — rendered outside bubble, aligned by msg direction */}
-      {(m.reactions?.length ?? 0) > 0 && (
-        <ReactionBar
-          reactions={m.reactions!}
-          meId={meId}
-          isOwn={isOwn}
-          onReact={onReact}
-        />
-      )}
     </div>
   );
 }
