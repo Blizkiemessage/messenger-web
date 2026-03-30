@@ -18,6 +18,7 @@ export async function updateMe(payload: {
   no_group_add?: boolean;
   hide_avatar?: boolean;
   avatar_exceptions?: string;
+  hide_last_seen?: boolean;
 }): Promise<User> {
   const res = await client.patch<User>('/users/me', payload);
   return res.data;

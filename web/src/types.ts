@@ -13,9 +13,22 @@ export type User = {
   no_group_add?: boolean;
   hide_avatar?: boolean;           // ✅ hide avatar from others
   avatar_exceptions?: string;      // ✅ JSON array of user IDs who can still see it
+  hide_last_seen?: boolean;        // ✅ hide last seen time from others
   created_at?: number;
   last_seen_at?: number | null;
   has_password?: boolean;
+};
+
+export type MessageReply = {
+  id: string;
+  sender_id?: string | null;
+  sender_username?: string | null;
+  text?: string | null;
+};
+
+export type MessageReaction = {
+  userId: string;
+  emoji: string;
 };
 
 export type Message = {
@@ -30,10 +43,12 @@ export type Message = {
   attachment_name?: string | null;
   attachment_size?: number | null;
   liked_by?: string[];
+  reactions?: MessageReaction[];
   is_system?: boolean;
   is_pinned?: boolean;
   forwarded_from_user_id?: string | null;   // ✅ forwarding attribution
   forwarded_from_username?: string | null;  // ✅ forwarding attribution
+  reply?: MessageReply | null;              // ✅ reply/quote
 };
 
 export type Chat = {

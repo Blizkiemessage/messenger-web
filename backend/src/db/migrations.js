@@ -86,6 +86,17 @@ function runMigrations() {
     'ALTER TABLE users ADD COLUMN hide_email INTEGER NOT NULL DEFAULT 0',
     // ✅ SECURITY: track failed OTP attempts to prevent brute-force
     'ALTER TABLE otps ADD COLUMN attempts INTEGER NOT NULL DEFAULT 0',
+    // ✅ NEW: reply/quote columns
+    'ALTER TABLE messages ADD COLUMN reply_to_id TEXT',
+    'ALTER TABLE messages ADD COLUMN reply_to_sender_id TEXT',
+    'ALTER TABLE messages ADD COLUMN reply_to_sender_username TEXT',
+    'ALTER TABLE messages ADD COLUMN reply_to_ciphertext TEXT',
+    'ALTER TABLE messages ADD COLUMN reply_to_iv TEXT',
+    'ALTER TABLE messages ADD COLUMN reply_to_auth_tag TEXT',
+    // ✅ NEW: emoji reactions (array of { userId, emoji })
+    "ALTER TABLE messages ADD COLUMN reactions TEXT NOT NULL DEFAULT '[]'",
+    // ✅ NEW: hide last seen time from other users
+    'ALTER TABLE users ADD COLUMN hide_last_seen INTEGER NOT NULL DEFAULT 0',
   ];
 
   for (const sql of alters) {

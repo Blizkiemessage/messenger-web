@@ -3,9 +3,10 @@
  */
 import { useEffect, useState } from 'react';
 import { type User } from '../../types';
-import { avatarLetter, formatBirthDate } from '../../utils/format';
+import { avatarLetter, formatBirthDate, formatLastSeen } from '../../utils/format';
 import { resolveUrl } from '../ui/Avatar';
 import { getUserById } from '../../api/users';
+import { useChatsStore } from '../../store/useChatsStore';
 
 interface Props {
   userId: string;
@@ -16,6 +17,7 @@ interface Props {
 export function UserProfileModal({ userId, onClose, onStartChat }: Props) {
   const [user,    setUser]    = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const onlineUsers = useChatsStore(s => s.onlineUsers);
 
   useEffect(() => {
     setLoading(true);
@@ -24,6 +26,8 @@ export function UserProfileModal({ userId, onClose, onStartChat }: Props) {
       .catch(() => setUser(null))
       .finally(() => setLoading(false));
   }, [userId]);
+
+  const isOnline = user ? onlineUsers.has(user.id) : false;
 
   return (
     <div className="modalOverlay" onClick={e => e.target === e.currentTarget && onClose()}>
@@ -53,6 +57,9 @@ export function UserProfileModal({ userId, onClose, onStartChat }: Props) {
               </div>
               <div className="upName">{user.display_name || user.username}</div>
               {user.username && <div className="upUsername">@{user.username}</div>}
+              <div className={`upOnlineStatus${isOnline ? ' upOnlineStatusOnline' : ''}`}>
+                {formatLastSeen(user.last_seen_at, isOnline)}
+              </div>
             </div>
 
             {/* Info rows */}

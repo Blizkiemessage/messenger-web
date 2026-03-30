@@ -59,6 +59,11 @@ interface ChatsState {
   setLoadingMessages: (v: boolean) => void;
   setDataError: (e: string | null) => void;
 
+  // ── Online presence ────────────────────────────────────────────────────────
+  onlineUsers: Set<string>;
+  setUserOnline: (userId: string) => void;
+  setUserOffline: (userId: string, lastSeenAt?: number) => void;
+
   // ── Socket-driven updates ──────────────────────────────────────────────────
   /** Incoming new-message event: update last_message + unread count. */
   handleNewMessage: (msg: Message) => void;
@@ -83,6 +88,7 @@ export const useChatsStore = create<ChatsState>((set) => ({
   loadingChats: false,
   loadingMessages: false,
   dataError: null,
+  onlineUsers: new Set<string>(),
 
   // ── Chat list ──────────────────────────────────────────────────────────────
 
@@ -155,6 +161,37 @@ export const useChatsStore = create<ChatsState>((set) => ({
   setLoadingChats: (loadingChats) => set({ loadingChats }),
   setLoadingMessages: (loadingMessages) => set({ loadingMessages }),
   setDataError: (dataError) => set({ dataError }),
+
+  // ── Online presence ────────────────────────────────────────────────────────
+
+  setUserOnline: (userId) => set(state => {
+    const next = new Set(state.onlineUsers);
+    next.add(userId);
+    return {
+      onlineUsers: next,
+      // Update last_seen_at in chat members so ChatHeader re-renders
+      chats: state.chats.map(c => ({
+        ...c,
+        members: c.members.map(m => m.id === userId ? { ...m, last_seen_at: Date.now() } : m),
+      })),
+    };
+  }),
+
+  setUserOffline: (userId, lastSeenAt) => set(state => {
+    const next = new Set(state.onlineUsers);
+    next.delete(userId);
+    return {
+      onlineUsers: next,
+      chats: state.chats.map(c => ({
+        ...c,
+        members: c.members.map(m =>
+          m.id === userId && lastSeenAt !== undefined
+            ? { ...m, last_seen_at: lastSeenAt }
+            : m
+        ),
+      })),
+    };
+  }),
 
   // ── Socket-driven updates ──────────────────────────────────────────────────
 

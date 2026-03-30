@@ -23,7 +23,8 @@ function sanitizeUser(u, { showPrivate = false, viewerId = null } = {}) {
     username:     u.username,
     display_name: u.display_name,
     avatar_url:   avatarUrl,
-    last_seen_at: u.last_seen_at,
+    // Hide last_seen_at from others if user has opted in to privacy
+    last_seen_at: (!showPrivate && u.hide_last_seen) ? null : (u.last_seen_at ?? null),
     email:        (showPrivate || !u.hide_email)       ? (u.email      || null) : null,
     bio:          (showPrivate || !u.hide_bio)        ? (u.bio        || null) : null,
     birth_date:   (showPrivate || !u.hide_birth_date) ? (u.birth_date || null) : null,
@@ -34,6 +35,7 @@ function sanitizeUser(u, { showPrivate = false, viewerId = null } = {}) {
     no_group_add:      showPrivate ? (u.no_group_add      ? true : false) : undefined,
     hide_avatar:       showPrivate ? (u.hide_avatar       ? true : false) : undefined,
     avatar_exceptions: showPrivate ? (u.avatar_exceptions || '[]')        : undefined,
+    hide_last_seen:    showPrivate ? (u.hide_last_seen    ? true : false) : undefined,
     has_password:      showPrivate ? !!u.password_hash : undefined,
   };
 }
@@ -45,7 +47,7 @@ function getUserById(userId) {
 function updateUser(userId, {
   username, display_name, avatar_url, bio,
   birth_date, hide_bio, hide_birth_date, hide_email, no_group_add,
-  hide_avatar, avatar_exceptions,
+  hide_avatar, avatar_exceptions, hide_last_seen,
 }) {
   const db = getDb();
 
@@ -67,6 +69,7 @@ function updateUser(userId, {
   // ✅ NEW
   if (hide_avatar      !== undefined) db.prepare('UPDATE users SET hide_avatar = ? WHERE id = ?').run([hide_avatar ? 1 : 0, userId]);
   if (avatar_exceptions !== undefined) db.prepare('UPDATE users SET avatar_exceptions = ? WHERE id = ?').run([avatar_exceptions, userId]);
+  if (hide_last_seen   !== undefined) db.prepare('UPDATE users SET hide_last_seen = ? WHERE id = ?').run([hide_last_seen ? 1 : 0, userId]);
 
   return db.prepare('SELECT * FROM users WHERE id = ?').get(userId);
 }

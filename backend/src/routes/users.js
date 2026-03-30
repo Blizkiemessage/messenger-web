@@ -37,7 +37,7 @@ router.patch('/me', (req, res, next) => {
     const {
       username, display_name, avatar_url, bio, birth_date,
       hide_email, hide_bio, hide_birth_date, no_group_add,
-      hide_avatar, avatar_exceptions,
+      hide_avatar, avatar_exceptions, hide_last_seen,
     } = req.body;
     if (username && username.length > 32) return res.status(400).json({ error: 'username max 32 chars' });
     if (display_name && display_name.length > 64) return res.status(400).json({ error: 'display_name max 64 chars' });
@@ -45,7 +45,7 @@ router.patch('/me', (req, res, next) => {
     const updated = updateUser(req.userId, {
       username, display_name, avatar_url, bio,
       birth_date, hide_email, hide_bio, hide_birth_date, no_group_add,
-      hide_avatar, avatar_exceptions,
+      hide_avatar, avatar_exceptions, hide_last_seen,
     });
     res.json(sanitizeUser(updated, { showPrivate: true }));
   } catch (err) {
