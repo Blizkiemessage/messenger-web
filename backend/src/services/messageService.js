@@ -201,18 +201,23 @@ function forwardMessages(targetChatId, senderId, messageIds) {
 
 const ALLOWED_EMOJIS = new Set(['❤️','👍','😂','😮','😢','🔥','👏','🎉','🤔','💯','😍','😡']);
 
-// ✅ NEW: emoji reactions — toggle a specific emoji reaction for a user
+// ✅ NEW: emoji reactions — toggle a specific emoji reaction for a user.
+// One reaction per user per message: adding a new emoji removes the previous one.
 function toggleEmojiReaction(msgId, userId, emoji) {
   if (!ALLOWED_EMOJIS.has(emoji)) throw Object.assign(new Error('Invalid emoji'), { status: 400 });
   const db = getDb();
   const msg = db.prepare('SELECT reactions FROM messages WHERE id = ?').get(msgId);
   if (!msg) throw Object.assign(new Error('Message not found'), { status: 404 });
   let reactions = JSON.parse(msg.reactions || '[]');
-  const existing = reactions.findIndex(r => r.userId === userId && r.emoji === emoji);
-  if (existing >= 0) {
-    reactions.splice(existing, 1);
+
+  const sameEmojiIdx = reactions.findIndex(r => r.userId === userId && r.emoji === emoji);
+  if (sameEmojiIdx >= 0) {
+    // User clicked same emoji → remove (toggle off)
+    reactions.splice(sameEmojiIdx, 1);
   } else {
-    // Cap total reactions per message at 200 to avoid unbounded growth
+    // Remove any existing reaction this user already has (enforce 1 per user)
+    reactions = reactions.filter(r => r.userId !== userId);
+    // Cap total reactions per message at 200
     if (reactions.length < 200) reactions.push({ userId, emoji });
   }
   db.prepare('UPDATE messages SET reactions = ? WHERE id = ?').run([JSON.stringify(reactions), msgId]);
