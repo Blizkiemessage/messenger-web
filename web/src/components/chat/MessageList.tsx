@@ -48,7 +48,6 @@ export function MessageList({
   const bottomRef   = useRef<HTMLDivElement | null>(null);
   const matchRef    = useRef<HTMLDivElement | null>(null);
   const pinnedRef   = useRef<HTMLDivElement | null>(null);
-  const scrollRef   = useRef<HTMLDivElement | null>(null);
   const isGroup     = chat.type === 'group';
 
   const [ctxMenu, setCtxMenu] = useState<{ x: number; y: number; msg: Message } | null>(null);

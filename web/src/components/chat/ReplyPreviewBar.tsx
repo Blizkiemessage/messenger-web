@@ -2,8 +2,6 @@
  * ReplyPreviewBar — shown above the Composer when user is replying to a message.
  * Shows sender name + quoted text snippet + cancel button.
  */
-import { type MessageReply } from '../../types';
-
 interface Props {
   reply: {
     messageId: string;
