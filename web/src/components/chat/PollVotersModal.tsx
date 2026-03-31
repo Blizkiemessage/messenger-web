@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { getPollVoters } from '../../api/polls';
 import type { User } from '../../types';
-import { avatarLetter } from '../../utils/format';
+import { Avatar } from '../ui/Avatar';
 
 interface Props {
   pollId: string;
@@ -53,7 +53,7 @@ export function PollVotersModal({ pollId, optionId, optionText, onClose }: Props
           )}
           {voters.map(u => (
             <div key={u.id} className="modalUserItem" style={{ cursor: 'default' }}>
-              <div className="modalUserAvatar">{avatarLetter(u.display_name || u.username || '')}</div>
+              <Avatar user={u} size={36} radius={10} />
               <div className="modalUserInfo">
                 <div className="modalUserName">{u.display_name || u.username || u.id}</div>
                 {u.username && u.display_name && (
