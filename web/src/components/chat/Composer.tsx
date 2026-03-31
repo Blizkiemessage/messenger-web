@@ -127,6 +127,8 @@ interface Props {
   externalFile?: File | null;
   onExternalFileConsumed?: () => void;
   disabled?: boolean;
+  isGroup?: boolean;
+  onOpenPollCreator?: () => void;
 }
 
 type VoiceState = 'idle' | 'recording' | 'preview';
@@ -134,7 +136,7 @@ const LOCK_THRESHOLD = 60;
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
-export function Composer({ value, onChange, onSend, onSendAttachment, externalFile, onExternalFileConsumed, disabled }: Props) {
+export function Composer({ value, onChange, onSend, onSendAttachment, externalFile, onExternalFileConsumed, disabled, isGroup, onOpenPollCreator }: Props) {
   // File staging
   const [staged,    setStaged]    = useState<File | null>(null);
   const [caption,   setCaption]   = useState('');
@@ -146,6 +148,20 @@ export function Composer({ value, onChange, onSend, onSendAttachment, externalFi
   const captionInputRef = useRef<HTMLInputElement>(null);
   const textInputRef    = useRef<HTMLInputElement>(null);
   const cancelRef       = useRef<(() => void) | null>(null);
+
+  const [attachMenuOpen, setAttachMenuOpen] = useState(false);
+  const attachMenuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!attachMenuOpen) return;
+    function onOutside(e: MouseEvent) {
+      if (attachMenuRef.current && !attachMenuRef.current.contains(e.target as Node)) {
+        setAttachMenuOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', onOutside);
+    return () => document.removeEventListener('mousedown', onOutside);
+  }, [attachMenuOpen]);
 
   useEffect(() => {
     if (externalFile) { stageFile(externalFile); onExternalFileConsumed?.(); }
@@ -473,15 +489,35 @@ export function Composer({ value, onChange, onSend, onSendAttachment, externalFi
             </div>
           ) : (
             <>
-              <button
-                className={`composerAttach${isFileMode ? ' composerAttachActive' : ''}`}
-                onClick={() => { if (!uploading) fileInputRef.current?.click(); }}
-                title="Прикрепить файл" disabled={uploading}
-              >
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
-                </svg>
-              </button>
+              <div style={{ position: 'relative' }} ref={attachMenuRef}>
+                <button
+                  className={`composerAttach${isFileMode || attachMenuOpen ? ' composerAttachActive' : ''}`}
+                  onClick={() => { if (!uploading) setAttachMenuOpen(v => !v); }}
+                  title="Прикрепить" disabled={uploading}
+                >
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+                  </svg>
+                </button>
+                {attachMenuOpen && (
+                  <div className="composerAttachMenu">
+                    <button className="composerAttachMenuItem" onClick={() => { setAttachMenuOpen(false); fileInputRef.current?.click(); }}>
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/>
+                      </svg>
+                      Файлы и медиа
+                    </button>
+                    {isGroup && onOpenPollCreator && (
+                      <button className="composerAttachMenuItem" onClick={() => { setAttachMenuOpen(false); onOpenPollCreator(); }}>
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <rect x="3" y="3" width="18" height="18" rx="2"/><line x1="8" y1="12" x2="16" y2="12"/><line x1="8" y1="8" x2="11" y2="8"/><line x1="8" y1="16" x2="14" y2="16"/>
+                        </svg>
+                        Опрос
+                      </button>
+                    )}
+                  </div>
+                )}
+              </div>
               <input
                 ref={textInputRef}
                 className="composerInput"

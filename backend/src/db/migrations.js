@@ -53,6 +53,31 @@ function runMigrations() {
   `);
 
   db.exec(`
+    CREATE TABLE IF NOT EXISTS polls (
+      id TEXT PRIMARY KEY,
+      message_id TEXT NOT NULL,
+      chat_id TEXT NOT NULL,
+      creator_id TEXT NOT NULL,
+      question TEXT NOT NULL,
+      options TEXT NOT NULL,
+      allow_multiple INTEGER NOT NULL DEFAULT 0,
+      is_anonymous INTEGER NOT NULL DEFAULT 1,
+      is_quiz INTEGER NOT NULL DEFAULT 0,
+      correct_option_id TEXT,
+      closed_at INTEGER,
+      created_at INTEGER NOT NULL
+    );
+    CREATE TABLE IF NOT EXISTS poll_votes (
+      poll_id TEXT NOT NULL,
+      user_id TEXT NOT NULL,
+      option_id TEXT NOT NULL,
+      created_at INTEGER NOT NULL,
+      PRIMARY KEY (poll_id, user_id, option_id)
+    );
+    CREATE INDEX IF NOT EXISTS idx_poll_votes_poll ON poll_votes(poll_id);
+  `);
+
+  db.exec(`
     CREATE TABLE IF NOT EXISTS friend_requests (
       from_user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
       to_user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -112,6 +137,8 @@ function runMigrations() {
     // ✅ NEW: appearance settings — synced across devices
     "ALTER TABLE users ADD COLUMN theme TEXT NOT NULL DEFAULT 'dark'",
     "ALTER TABLE users ADD COLUMN accent_color TEXT NOT NULL DEFAULT '#2f81f7'",
+    // ✅ NEW: polls
+    'ALTER TABLE messages ADD COLUMN poll_id TEXT',
   ];
 
   for (const sql of alters) {

@@ -76,6 +76,11 @@ export function useSocket() {
       useChatsStore.getState().setUserOffline(userId, last_seen_at);
     };
 
+    // ✅ NEW: poll vote updates
+    const onPollUpdated = ({ messageId, poll }: { messageId: string; poll: import('../types').Poll }) => {
+      useChatsStore.getState().updateMessagePoll(messageId, poll);
+    };
+
     // ✅ NEW: emoji reactions
     const onMessageReactionV2 = ({
       messageId, chatId, reactions,
@@ -100,6 +105,7 @@ export function useSocket() {
     socket.on('user-online',          onUserOnline);          // ✅
     socket.on('user-offline',         onUserOffline);         // ✅
     socket.on('message-reaction-v2',  onMessageReactionV2);   // ✅
+    socket.on('poll-updated',         onPollUpdated);           // ✅
 
     return () => {
       socket.off('new-message',          onNewMessage);
@@ -114,6 +120,7 @@ export function useSocket() {
       socket.off('user-online',          onUserOnline);
       socket.off('user-offline',         onUserOffline);
       socket.off('message-reaction-v2',  onMessageReactionV2);
+      socket.off('poll-updated',         onPollUpdated);
       if (_markReadTimer) clearTimeout(_markReadTimer);
       disconnectSocket();
     };

@@ -8,6 +8,7 @@ import { type Message, type User, type MessageReaction } from '../../types';
 import { formatTime } from '../../utils/format';
 import { Avatar, resolveUrl } from '../ui/Avatar';
 import { MsgStatus } from '../ui/icons/MsgStatus';
+import { PollBubble } from './PollBubble';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -402,6 +403,9 @@ interface Props {
   onForwardedSenderClick?: (userId: string) => void;
   onReact: (emoji: string) => void;
   onScrollToMessage: (msgId: string) => void;
+  onVote?: (msgId: string, optionIds: string[]) => void;
+  onRetract?: (msgId: string) => void;
+  onViewVoters?: (pollId: string, optionId: string) => void;
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
@@ -409,7 +413,7 @@ export function MessageBubble({
   message: m, isOwn, isRead, isSelected, isGroup, sender,
   showAvatar, showName, hasSelection, highlight, isSearchMatch,
   meId, onContextMenu, onClick, onViewUser, onForwardedSenderClick,
-  onReact, onScrollToMessage,
+  onReact, onScrollToMessage, onVote, onRetract, onViewVoters,
 }: Props) {
   const hasAttachment = !!m.attachment_url;
   const isImage = m.attachment_type === 'image';
@@ -545,8 +549,19 @@ export function MessageBubble({
           />
         )}
 
+        {/* Poll bubble */}
+        {m.poll && (
+          <PollBubble
+            poll={m.poll}
+            meId={meId}
+            onVote={optionIds => onVote?.(m.id, optionIds)}
+            onRetract={() => onRetract?.(m.id)}
+            onViewVoters={optId => onViewVoters?.(m.poll!.id, optId)}
+          />
+        )}
+
         {/* Plain text */}
-        {pureText && (
+        {!m.poll && pureText && (
           <div className="bubbleText">
             <HighlightText text={pureText} term={highlight || ''} />
           </div>

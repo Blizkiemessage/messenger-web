@@ -13,9 +13,13 @@ import { Composer } from './Composer';
 import { EmptyState } from './EmptyState';
 import { ReplyPreviewBar } from './ReplyPreviewBar';
 import { sendChatMessage, getPinnedMessages, pinMessage as apiPin, unpinMessage as apiUnpin, reactToMessage } from '../../api/chats';
+import { createPoll, votePoll, retractVote } from '../../api/polls';
+import type { CreatePollData } from '../../api/polls';
 import type { UploadResult } from '../../api/upload';
 import type { Message } from '../../types';
 import { ForwardModal } from '../modals/ForwardModal';
+import { PollCreatorModal } from './PollCreatorModal';
+import { PollVotersModal } from './PollVotersModal';
 
 // ── Max chars per message — split at last word boundary ──────────────────────
 const MAX_MSG_CHARS = 4000;
@@ -58,6 +62,8 @@ export function ChatArea() {
 
   const [messageText, setMessageText] = useState('');
   const [loadingMore, setLoadingMore] = useState(false);
+  const [showPollCreator, setShowPollCreator] = useState(false);
+  const [voterModal, setVoterModal] = useState<{ pollId: string; optionId: string; optionText: string } | null>(null);
   const { loadOlderMessages } = useMessages();
   const hasMoreMessages = useChatsStore(s => s.hasMoreMessages);
 
@@ -313,6 +319,40 @@ export function ChatArea() {
     if (file) setDroppedFile(file);
   }, []);
 
+  // ── Poll handlers ─────────────────────────────────────────────────────────
+  const handleSendPoll = useCallback(async (data: CreatePollData) => {
+    const chatId = useChatsStore.getState().activeChatId;
+    if (!chatId) return;
+    const { message } = await createPoll(chatId, data);
+    // Socket will broadcast new-message; optimistic add just in case
+    useChatsStore.getState().addMessage(message as Message);
+  }, []);
+
+  const handleVote = useCallback(async (msgId: string, optionIds: string[]) => {
+    const msg = useChatsStore.getState().messages.find(m => m.id === msgId);
+    if (!msg?.poll_id) return;
+    try {
+      const { poll } = await votePoll(msg.poll_id, optionIds);
+      useChatsStore.getState().updateMessagePoll(msgId, poll);
+    } catch { /* socket will update */ }
+  }, []);
+
+  const handleRetract = useCallback(async (msgId: string) => {
+    const msg = useChatsStore.getState().messages.find(m => m.id === msgId);
+    if (!msg?.poll_id) return;
+    try {
+      const { poll } = await retractVote(msg.poll_id);
+      useChatsStore.getState().updateMessagePoll(msgId, poll);
+    } catch { /* socket will update */ }
+  }, []);
+
+  const handleViewVoters = useCallback((pollId: string, optionId: string) => {
+    const msgs = useChatsStore.getState().messages;
+    const msg = msgs.find(m => m.poll?.id === pollId);
+    const opt = msg?.poll?.options.find(o => o.id === optionId);
+    setVoterModal({ pollId, optionId, optionText: opt?.text ?? '' });
+  }, []);
+
   if (!activeChat) return <EmptyState />;
 
   const isGroupClosed = activeChat.type === 'group' && activeChat.is_closed === true;
@@ -376,6 +416,24 @@ export function ChatArea() {
             </button>
           </div>
         </div>
+      )}
+
+      {/* Poll creator modal */}
+      {showPollCreator && (
+        <PollCreatorModal
+          onClose={() => setShowPollCreator(false)}
+          onCreatePoll={handleSendPoll}
+        />
+      )}
+
+      {/* Poll voters modal */}
+      {voterModal && (
+        <PollVotersModal
+          pollId={voterModal.pollId}
+          optionId={voterModal.optionId}
+          optionText={voterModal.optionText}
+          onClose={() => setVoterModal(null)}
+        />
       )}
 
       {/* ✅ Forward modal */}
@@ -444,6 +502,9 @@ export function ChatArea() {
         hasMoreMessages={hasMoreMessages}
         loadingMore={loadingMore}
         onLoadMore={handleLoadMore}
+        onVote={handleVote}
+        onRetract={handleRetract}
+        onViewVoters={handleViewVoters}
       />
 
       {isGroupClosed ? (
@@ -471,6 +532,8 @@ export function ChatArea() {
             onSendAttachment={handleSendAttachment}
             externalFile={droppedFile}
             onExternalFileConsumed={() => setDroppedFile(null)}
+            isGroup={activeChat.type === 'group'}
+            onOpenPollCreator={() => setShowPollCreator(true)}
           />
         </>
       )}

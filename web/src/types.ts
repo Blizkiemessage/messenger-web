@@ -33,6 +33,27 @@ export type MessageReaction = {
   emoji: string;
 };
 
+export type PollOption = {
+  id: string;
+  text: string;
+  vote_count: number;
+  percentage: number;
+  voters?: string[] | null; // usernames; null for anonymous polls
+};
+
+export type Poll = {
+  id: string;
+  question: string;
+  options: PollOption[];
+  allow_multiple: boolean;
+  is_anonymous: boolean;
+  is_quiz: boolean;
+  correct_option_id?: string | null;
+  closed_at?: number | null;
+  total_votes: number;
+  my_votes: string[]; // option IDs this viewer voted for
+};
+
 export type Message = {
   id: string;
   chat_id: string;
@@ -48,9 +69,11 @@ export type Message = {
   reactions?: MessageReaction[];
   is_system?: boolean;
   is_pinned?: boolean;
-  forwarded_from_user_id?: string | null;   // ✅ forwarding attribution
-  forwarded_from_username?: string | null;  // ✅ forwarding attribution
-  reply?: MessageReply | null;              // ✅ reply/quote
+  forwarded_from_user_id?: string | null;
+  forwarded_from_username?: string | null;
+  reply?: MessageReply | null;
+  poll_id?: string | null;
+  poll?: Poll | null;
 };
 
 export type Chat = {

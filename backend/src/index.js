@@ -16,6 +16,7 @@ const uploadRoutes = require('./routes/upload');
 const adminRoutes = require('./routes/admin');
 const friendsRoutes = require('./routes/friends');
 const supportRoutes = require('./routes/support');
+const pollsRoutes = require('./routes/polls');
 const path = require('path');
 
 const app = express();
@@ -65,6 +66,7 @@ app.use('/chats', messagesRoutes);
 app.use('/admin/api', adminRoutes);
 app.use('/friends', friendsRoutes);
 app.use('/support', supportRoutes);
+app.use('/polls', pollsRoutes);
 
 app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 app.use('/admin', express.static(path.join(__dirname, '../public/admin')));

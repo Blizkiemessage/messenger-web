@@ -67,6 +67,10 @@ interface ChatsState {
   setUserOnline: (userId: string) => void;
   setUserOffline: (userId: string, lastSeenAt?: number) => void;
 
+  // ── Poll updates ───────────────────────────────────────────────────────────
+  addMessage: (msg: Message) => void;
+  updateMessagePoll: (messageId: string, poll: import('../types').Poll) => void;
+
   // ── Socket-driven updates ──────────────────────────────────────────────────
   /** Incoming new-message event: update last_message + unread count. */
   handleNewMessage: (msg: Message) => void;
@@ -202,6 +206,17 @@ export const useChatsStore = create<ChatsState>((set) => ({
       })),
     };
   }),
+
+  // ── Poll updates ───────────────────────────────────────────────────────────
+
+  addMessage: (msg) => set(state => {
+    if (state.messages.some(m => m.id === msg.id)) return state;
+    return { messages: [...state.messages, msg] };
+  }),
+
+  updateMessagePoll: (messageId, poll) => set(state => ({
+    messages: state.messages.map(m => m.id === messageId ? { ...m, poll } : m),
+  })),
 
   // ── Socket-driven updates ──────────────────────────────────────────────────
 
