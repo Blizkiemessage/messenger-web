@@ -22,6 +22,7 @@
 const { v4: uuidv4 } = require('uuid');
 const { getDb } = require('../config/database');
 const { sanitizeUser } = require('./userService');
+const { deleteFromS3, deleteManyFromS3 } = require('../utils/s3Delete');
 const { decryptMessage, saveMessage } = require('./messageService');
 
 // ─── Internal helpers ────────────────────────────────────────────────────────
@@ -424,7 +425,17 @@ function deleteDirectChat(chatId, userId) {
     .prepare('SELECT user_id FROM chat_members WHERE chat_id = ?')
     .all(chatId);
 
+  // Collect S3 objects before cascade delete
+  const chatRow = db.prepare('SELECT avatar_url FROM chats WHERE id = ?').get(chatId);
+  const attachments = db
+    .prepare('SELECT attachment_url FROM messages WHERE chat_id = ? AND attachment_url IS NOT NULL')
+    .all(chatId)
+    .map(r => r.attachment_url);
+
   db.prepare('DELETE FROM chats WHERE id = ?').run([chatId]);
+
+  // Fire-and-forget S3 cleanup
+  deleteManyFromS3([chatRow?.avatar_url, ...attachments]);
 
   return members.map(m => m.user_id);
 }
@@ -432,11 +443,13 @@ function deleteDirectChat(chatId, userId) {
 function updateChatMetadata(chatId, requesterId, { name, description, avatar_url }) {
   const db = getDb();
 
-  const chat = db.prepare('SELECT creator_id FROM chats WHERE id = ?').get(chatId);
+  const chat = db.prepare('SELECT creator_id, avatar_url FROM chats WHERE id = ?').get(chatId);
   if (!chat) throw Object.assign(new Error('Chat not found'), { status: 404 });
   if (chat.creator_id !== requesterId) {
     throw Object.assign(new Error('Only creator can update chat'), { status: 403 });
   }
+
+  const oldAvatarUrl = avatar_url !== undefined ? (chat.avatar_url || null) : null;
 
   if (name !== undefined)
     db.prepare('UPDATE chats SET name = ? WHERE id = ?').run([name, chatId]);
@@ -444,6 +457,9 @@ function updateChatMetadata(chatId, requesterId, { name, description, avatar_url
     db.prepare('UPDATE chats SET description = ? WHERE id = ?').run([description, chatId]);
   if (avatar_url !== undefined)
     db.prepare('UPDATE chats SET avatar_url = ? WHERE id = ?').run([avatar_url, chatId]);
+
+  // Delete replaced avatar from S3 (fire-and-forget)
+  if (oldAvatarUrl && oldAvatarUrl !== avatar_url) deleteFromS3(oldAvatarUrl);
 
   return getChatById(chatId, requesterId);
 }
@@ -453,7 +469,7 @@ function updateChatMetadata(chatId, requesterId, { name, description, avatar_url
 function deleteAccount(userId) {
   const db = getDb();
 
-  const user = db.prepare('SELECT display_name, username FROM users WHERE id = ?').get(userId);
+  const user = db.prepare('SELECT display_name, username, avatar_url FROM users WHERE id = ?').get(userId);
   if (!user) throw Object.assign(new Error('User not found'), { status: 404 });
   const userName = user.display_name || user.username || 'Пользователь';
 
@@ -472,6 +488,16 @@ function deleteAccount(userId) {
        WHERE cm.user_id = ? AND c.type = 'direct'`
     )
     .all(userId);
+
+  // Collect S3 objects to delete after account teardown
+  const s3UrlsToDelete = [user.avatar_url].filter(Boolean);
+  if (directChats.length) {
+    const placeholders = directChats.map(() => '?').join(',');
+    const directChatIds = directChats.map(c => c.id);
+    db.prepare(`SELECT attachment_url FROM messages WHERE chat_id IN (${placeholders}) AND attachment_url IS NOT NULL`)
+      .all(directChatIds)
+      .forEach(r => s3UrlsToDelete.push(r.attachment_url));
+  }
 
   const groupNotifications = [];
   const deletedDirectChatIds = [];
@@ -519,6 +545,9 @@ function deleteAccount(userId) {
     db.exec('ROLLBACK');
     throw e;
   }
+
+  // Fire-and-forget S3 cleanup (user avatar + all direct chat attachments)
+  deleteManyFromS3(s3UrlsToDelete);
 
   return { groupNotifications, deletedDirectChatIds, directChatMembersMap };
 }

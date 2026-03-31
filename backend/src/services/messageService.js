@@ -5,6 +5,7 @@
 const { v4: uuidv4 } = require('uuid');
 const { getDb } = require('../config/database');
 const { encrypt, decrypt } = require('../crypto/aes');
+const { deleteFromS3 } = require('../utils/s3Delete');
 
 function decryptMessage(msg) {
   let text = '';
@@ -107,10 +108,11 @@ function deleteMessages(chatId, senderId, messageIds) {
   const now = Date.now();
   const deleted = [];
   for (const msgId of messageIds) {
-    const msg = db.prepare('SELECT id, sender_id FROM messages WHERE id = ? AND chat_id = ?').get([msgId, chatId]);
+    const msg = db.prepare('SELECT id, sender_id, attachment_url FROM messages WHERE id = ? AND chat_id = ?').get([msgId, chatId]);
     if (!msg || msg.sender_id !== senderId) continue;
     db.prepare('UPDATE messages SET deleted_at = ? WHERE id = ?').run([now, msgId]);
     deleted.push(msgId);
+    if (msg.attachment_url) deleteFromS3(msg.attachment_url); // fire-and-forget
   }
   return deleted;
 }

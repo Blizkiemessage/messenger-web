@@ -19,6 +19,7 @@ const express = require('express');
 const { authMiddleware } = require('../middleware/auth');
 const { getUserById, updateUser, searchUsers, sanitizeUser } = require('../services/userService');
 const { deleteAccount } = require('../services/chatService');
+const { deleteFromS3 } = require('../utils/s3Delete');
 const { initiateEmailChange, verifyEmailChange } = require('../services/authService');
 
 const router = express.Router();
@@ -40,15 +41,24 @@ router.patch('/me', (req, res, next) => {
       hide_avatar, avatar_exceptions, hide_last_seen,
       theme, accent_color,
     } = req.body;
-    if (username && username.length > 32) return res.status(400).json({ error: 'username max 32 chars' });
-    if (display_name && display_name.length > 64) return res.status(400).json({ error: 'display_name max 64 chars' });
-    if (bio && bio.length > 500) return res.status(400).json({ error: 'bio max 500 chars' });
+
+    // Capture old avatar before overwriting
+    let oldAvatarUrl = null;
+    if (avatar_url !== undefined) {
+      const cur = getUserById(req.userId);
+      oldAvatarUrl = cur?.avatar_url || null;
+    }
+
     const updated = updateUser(req.userId, {
       username, display_name, avatar_url, bio,
       birth_date, hide_email, hide_bio, hide_birth_date, no_group_add,
       hide_avatar, avatar_exceptions, hide_last_seen,
       theme, accent_color,
     });
+
+    // Delete old avatar from S3 if it was replaced (fire-and-forget)
+    if (oldAvatarUrl && oldAvatarUrl !== avatar_url) deleteFromS3(oldAvatarUrl);
+
     res.json(sanitizeUser(updated, { showPrivate: true }));
   } catch (err) {
     if (err.message && err.message.includes('UNIQUE')) {

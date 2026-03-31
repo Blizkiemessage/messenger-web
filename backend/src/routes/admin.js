@@ -4,6 +4,7 @@ const { v4: uuidv4 } = require('uuid');
 const { authMiddleware } = require('../middleware/auth');
 const { getDb } = require('../config/database');
 const { sign } = require('../utils/jwt');
+const { deleteManyFromS3 } = require('../utils/s3Delete');
 
 const router = express.Router();
 
@@ -134,6 +135,13 @@ router.delete('/users/:id', (req, res, next) => {
       return res.status(400).json({ error: 'Cannot delete yourself' });
     }
 
+    // Collect S3 objects before cascade
+    const targetUser = db.prepare('SELECT avatar_url FROM users WHERE id = ?').get(targetUserId);
+    const msgAttachments = db
+      .prepare('SELECT attachment_url FROM messages WHERE sender_id = ? AND attachment_url IS NOT NULL')
+      .all(targetUserId)
+      .map(r => r.attachment_url);
+
     // Cascade delete manually just in case PRAGMA foreign_keys is off
     db.exec('BEGIN');
     try {
@@ -147,6 +155,8 @@ router.delete('/users/:id', (req, res, next) => {
         AND id NOT IN (SELECT chat_id FROM chat_members)
       `);
       db.exec('COMMIT');
+      // Fire-and-forget S3 cleanup
+      deleteManyFromS3([targetUser?.avatar_url, ...msgAttachments]);
       res.json({ ok: true });
     } catch (e) {
       db.exec('ROLLBACK');
@@ -178,12 +188,22 @@ router.get('/chats', (req, res, next) => {
 router.delete('/chats/:id', (req, res, next) => {
   try {
     const db = getDb();
+
+    // Collect S3 objects before cascade
+    const chat = db.prepare('SELECT avatar_url FROM chats WHERE id = ?').get(req.params.id);
+    const msgAttachments = db
+      .prepare('SELECT attachment_url FROM messages WHERE chat_id = ? AND attachment_url IS NOT NULL')
+      .all(req.params.id)
+      .map(r => r.attachment_url);
+
     db.exec('BEGIN');
     try {
       db.prepare('DELETE FROM messages WHERE chat_id = ?').run(req.params.id);
       db.prepare('DELETE FROM chat_members WHERE chat_id = ?').run(req.params.id);
       db.prepare('DELETE FROM chats WHERE id = ?').run(req.params.id);
       db.exec('COMMIT');
+      // Fire-and-forget S3 cleanup
+      deleteManyFromS3([chat?.avatar_url, ...msgAttachments]);
       res.json({ ok: true });
     } catch (e) {
       db.exec('ROLLBACK');
