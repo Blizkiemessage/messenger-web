@@ -44,4 +44,40 @@ async function sendOtpEmail(to, otp) {
   });
 }
 
-module.exports = { sendOtpEmail };
+/**
+ * Send a support report email to the admin address.
+ */
+async function sendSupportEmail({ subject, username, userEmail, sentAt, description, imageBuffer, imageFilename }) {
+  const to = 'blizkie.noreply@mail.ru';
+  const from = process.env.SMTP_FROM || process.env.SMTP_USER;
+
+  const escapedDesc = description
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+
+  const html = `
+    <div style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:24px">
+      <h2 style="margin:0 0 20px;color:#111">${subject}</h2>
+      <table style="border-collapse:collapse;width:100%;margin-bottom:20px">
+        <tr><td style="padding:6px 12px 6px 0;color:#555;white-space:nowrap">👤 Пользователь</td><td style="padding:6px 0;font-weight:600">@${username}</td></tr>
+        <tr><td style="padding:6px 12px 6px 0;color:#555;white-space:nowrap">📧 Email</td><td style="padding:6px 0">${userEmail}</td></tr>
+        <tr><td style="padding:6px 12px 6px 0;color:#555;white-space:nowrap">🕐 Дата и время</td><td style="padding:6px 0">${sentAt}</td></tr>
+      </table>
+      <hr style="border:none;border-top:1px solid #ddd;margin:0 0 20px"/>
+      <p style="white-space:pre-wrap;margin:0;line-height:1.6;color:#222">${escapedDesc}</p>
+    </div>`;
+
+  const attachments = imageBuffer
+    ? [{ filename: imageFilename || 'attachment', content: imageBuffer }]
+    : [];
+
+  if (!process.env.SMTP_HOST) {
+    console.log(`[EMAIL DEV] Support report from @${username}: ${subject}`);
+    return;
+  }
+
+  await getTransporter().sendMail({ from, to, subject, html, text: description, attachments });
+}
+
+module.exports = { sendOtpEmail, sendSupportEmail };

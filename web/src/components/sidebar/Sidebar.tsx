@@ -1,6 +1,7 @@
 /**
  * Sidebar — proper Zustand v5 selectors (no bare useStore() calls).
  */
+import { useState } from 'react';
 import { useShallow } from 'zustand/shallow';
 import { useSessionStore } from '../../store/useSessionStore';
 import { useChatsStore } from '../../store/useChatsStore';
@@ -9,6 +10,7 @@ import { UserSearch } from './UserSearch';
 import { FolderTabs } from './FolderTabs';
 import { ChatList } from './ChatList';
 import { SidebarBottom } from './SidebarBottom';
+import { SupportModal } from '../modals/SupportModal';
 import { updateMe } from '../../api/users';
 
 export function Sidebar() {
@@ -46,6 +48,8 @@ export function Sidebar() {
   const setShowCreateGroup = useAppStore(s => s.setShowCreateGroup);
   const setChatCtxMenu = useAppStore(s => s.setChatCtxMenu);
 
+  const [showSupport, setShowSupport] = useState(false);
+
   return (
     <aside className="sidebar">
       <UserSearch />
@@ -73,9 +77,14 @@ export function Sidebar() {
           setShowProfileSettings(true);
           useAppStore.getState().setShowProfile(false);
         }}
+        onOpenSupport={() => {
+          setShowSupport(true);
+          useAppStore.getState().setShowProfile(false);
+        }}
         onLogout={clearSession}
         onThemeToggle={toggleTheme}
       />
+      {showSupport && <SupportModal me={me} onClose={() => setShowSupport(false)} />}
     </aside>
   );
 }
