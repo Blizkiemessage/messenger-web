@@ -63,12 +63,20 @@ export function PollBubble({ poll, meId: _meId, onVote, onRetract: _onRetract, o
               <div className="pollOptionRow">
                 {/* Check indicator */}
                 <div className={`pollOptionCheck${isVoted || isStaged ? ' checked' : ''}${isCorrect ? ' quizCorrect' : ''}${isWrong ? ' quizWrong' : ''}`}>
-                  {(isVoted || isStaged) && (
+                  {/* Wrong answer: red X */}
+                  {isWrong && (
+                    <svg width="10" height="10" viewBox="0 0 12 12" fill="none" stroke="#fff" strokeWidth="2.4" strokeLinecap="round">
+                      <line x1="2" y1="2" x2="10" y2="10"/><line x1="10" y1="2" x2="2" y2="10"/>
+                    </svg>
+                  )}
+                  {/* Correct answer: green checkmark (always shown after voting) */}
+                  {isCorrect && (
                     <svg width="10" height="10" viewBox="0 0 12 12" fill="none" stroke="#fff" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
                       <polyline points="2 6 5 9 10 3"/>
                     </svg>
                   )}
-                  {isCorrect && !isVoted && (
+                  {/* Non-quiz voted option: checkmark */}
+                  {!poll.is_quiz && (isVoted || isStaged) && (
                     <svg width="10" height="10" viewBox="0 0 12 12" fill="none" stroke="#fff" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
                       <polyline points="2 6 5 9 10 3"/>
                     </svg>
