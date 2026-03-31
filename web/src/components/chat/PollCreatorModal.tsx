@@ -180,8 +180,8 @@ export function PollCreatorModal({ onClose, onCreatePoll }: Props) {
         </div>
 
         <div className="modalFooter">
-          <button className="modalBtnSecondary" onClick={onClose} disabled={busy}>Отмена</button>
-          <button className="modalBtnPrimary" onClick={handleSubmit} disabled={busy}>
+          <button className="modalCancelBtn" onClick={onClose} disabled={busy}>Отмена</button>
+          <button className="modalCreateBtn" onClick={handleSubmit} disabled={busy}>
             {busy ? 'Создание…' : 'Создать опрос'}
           </button>
         </div>
