@@ -12,7 +12,7 @@ router.post('/', requireAuth, (req, res) => {
     const { chat_id, question, options, allow_multiple, is_anonymous, is_quiz, correct_option_id } = req.body;
     if (!chat_id) return res.status(400).json({ error: 'chat_id required' });
 
-    const result = createPoll(chat_id, req.user.id, { question, options, allow_multiple, is_anonymous, is_quiz, correct_option_id });
+    const result = createPoll(chat_id, req.userId, { question, options, allow_multiple, is_anonymous, is_quiz, correct_option_id });
 
     // Emit new message to all chat members
     getIo(req).to(`chat:${chat_id}`).emit('new-message', result.message);
@@ -30,7 +30,7 @@ router.post('/:pollId/vote', requireAuth, (req, res) => {
     if (!Array.isArray(option_ids) || option_ids.length === 0)
       return res.status(400).json({ error: 'option_ids required' });
 
-    const poll = votePoll(req.params.pollId, req.user.id, option_ids);
+    const poll = votePoll(req.params.pollId, req.userId, option_ids);
 
     // Get message_id so we can emit poll-updated with correct message reference
     const db = getDb();
@@ -57,7 +57,7 @@ router.post('/:pollId/vote', requireAuth, (req, res) => {
 // DELETE /polls/:pollId/vote — retract vote
 router.delete('/:pollId/vote', requireAuth, (req, res) => {
   try {
-    const poll = retractVote(req.params.pollId, req.user.id);
+    const poll = retractVote(req.params.pollId, req.userId);
 
     const db = getDb();
     const chatPollRow = db.prepare('SELECT message_id, chat_id FROM polls WHERE id = ?').get(req.params.pollId);
@@ -77,7 +77,7 @@ router.delete('/:pollId/vote', requireAuth, (req, res) => {
 // GET /polls/:pollId/voters/:optId — public polls only
 router.get('/:pollId/voters/:optId', requireAuth, (req, res) => {
   try {
-    const voters = getPollVoters(req.params.pollId, req.params.optId, req.user.id);
+    const voters = getPollVoters(req.params.pollId, req.params.optId, req.userId);
     res.json({ voters });
   } catch (err) {
     res.status(err.status || 500).json({ error: err.message });
