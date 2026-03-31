@@ -1,7 +1,8 @@
 import { useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { v4 as uuidv4 } from 'uuid';
 import type { CreatePollData } from '../../api/polls';
+
+const uuidv4 = () => crypto.randomUUID();
 
 interface Props {
   onClose: () => void;
