@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { requireAuth } = require('../middleware/auth');
+const { authMiddleware: requireAuth } = require('../middleware/auth');
 const { createPoll, votePoll, retractVote, getPollVoters } = require('../services/pollService');
 const { getDb } = require('../config/database');
 
