@@ -4593,3 +4593,305 @@ input[type="date"].psInput::-webkit-calendar-picker-indicator {
   box-shadow: 0 4px 14px rgba(0,0,0,0.35);
   transform: translateY(-1px);
 }
+
+/* ── SupportModal ──────────────────────────────────────────────────────── */
+.supportCard {
+  background: var(--card);
+  border-radius: 16px;
+  width: 460px;
+  max-width: 95vw;
+  padding: 28px 28px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.supportTitle {
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--text);
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin-bottom: 6px;
+}
+
+.supportSubtitle {
+  font-size: 13px;
+  color: var(--muted);
+  margin: 0 0 20px;
+}
+
+/* Type selection */
+.supportTypeGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.supportTypeBtn {
+  background: var(--input-bg, var(--panel));
+  border: 1.5px solid var(--border);
+  border-radius: 12px;
+  padding: 18px 14px 16px;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  transition: border-color .15s, background .15s, transform .1s;
+  color: var(--text);
+}
+.supportTypeBtn:hover {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 8%, var(--panel));
+  transform: translateY(-1px);
+}
+
+.supportTypeBtnIcon {
+  width: 52px;
+  height: 52px;
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--accent);
+}
+
+.supportTypeBtnLabel {
+  font-size: 14px;
+  font-weight: 600;
+  text-align: center;
+}
+
+.supportTypeBtnDesc {
+  font-size: 11px;
+  color: var(--muted);
+  text-align: center;
+}
+
+/* Readonly meta row */
+.supportMetaRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 12px 0 16px;
+}
+
+.supportMetaChip {
+  font-size: 12px;
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  color: var(--accent);
+  border-radius: 20px;
+  padding: 3px 10px;
+  font-weight: 500;
+  white-space: nowrap;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.supportMetaSubject {
+  background: color-mix(in srgb, var(--muted) 15%, transparent);
+  color: var(--text);
+}
+
+/* Form fields */
+.supportField {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 14px;
+}
+
+.supportFieldLabel {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text);
+}
+
+.supportFieldRequired {
+  color: #e05252;
+}
+
+.supportFieldOptional {
+  color: var(--muted);
+  font-weight: 400;
+}
+
+.supportTextarea {
+  width: 100%;
+  min-height: 120px;
+  resize: vertical;
+  background: var(--input-bg, var(--panel));
+  border: 1.5px solid var(--border);
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-size: 14px;
+  color: var(--text);
+  font-family: inherit;
+  line-height: 1.5;
+  transition: border-color .15s;
+  box-sizing: border-box;
+}
+.supportTextarea:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+/* Image dropzone */
+.supportImageDropzone {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px;
+  border: 1.5px dashed var(--border);
+  border-radius: 10px;
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--muted);
+  transition: border-color .15s, color .15s;
+}
+.supportImageDropzone:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.supportImagePreview {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  border: 1.5px solid var(--border);
+  border-radius: 10px;
+}
+
+.supportImageThumb {
+  width: 44px;
+  height: 44px;
+  object-fit: cover;
+  border-radius: 7px;
+  flex-shrink: 0;
+}
+
+.supportImageName {
+  font-size: 13px;
+  color: var(--text);
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.supportImageRemove {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--muted);
+  display: flex;
+  align-items: center;
+  padding: 4px;
+  border-radius: 6px;
+  flex-shrink: 0;
+  transition: color .15s, background .15s;
+}
+.supportImageRemove:hover {
+  color: #e05252;
+  background: rgba(224, 82, 82, .1);
+}
+
+/* Actions row */
+.supportActions {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+  margin-top: 4px;
+}
+
+.supportCancelBtn {
+  background: none;
+  border: 1.5px solid var(--border);
+  border-radius: 9px;
+  padding: 8px 18px;
+  font-size: 14px;
+  color: var(--text);
+  cursor: pointer;
+  transition: background .15s, border-color .15s;
+}
+.supportCancelBtn:hover:not(:disabled) {
+  background: var(--panel);
+}
+.supportCancelBtn:disabled { opacity: .5; cursor: default; }
+
+.supportSubmitBtn {
+  background: var(--accent);
+  border: none;
+  border-radius: 9px;
+  padding: 8px 20px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #fff;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  transition: opacity .15s, transform .1s;
+}
+.supportSubmitBtn:hover:not(:disabled) { opacity: .88; transform: translateY(-1px); }
+.supportSubmitBtn:disabled { opacity: .5; cursor: default; }
+
+/* Spinner */
+.supportSpinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(255,255,255,.35);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: spin .7s linear infinite;
+  display: inline-block;
+}
+
+/* Result screen */
+.supportResult {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 12px 0 20px;
+  gap: 14px;
+}
+
+.supportResultIcon {
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.supportResultSuccess {
+  background: rgba(34, 197, 94, .15);
+  color: #22c55e;
+}
+
+.supportResultError {
+  background: rgba(224, 82, 82, .15);
+  color: #e05252;
+}
+
+.supportResultTitle {
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.supportResultDesc {
+  font-size: 13px;
+  color: var(--muted);
+  line-height: 1.55;
+  max-width: 340px;
+}
