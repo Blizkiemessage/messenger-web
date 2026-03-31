@@ -45,6 +45,7 @@ function decryptMessage(msg) {
     is_pinned: msg.is_pinned ? true : false,
     forwarded_from_user_id: msg.forwarded_from_user_id || null,
     forwarded_from_username: msg.forwarded_from_username || null,
+    poll_id: msg.poll_id || null,
     reply,
   };
 }
@@ -56,10 +57,25 @@ function getChatMessages(chatId, userId, { limit = 50, before = null } = {}) {
   const rows = before
     ? db.prepare(`SELECT * FROM messages WHERE chat_id = ? AND deleted_at IS NULL AND created_at < ? ORDER BY created_at DESC LIMIT ?`).all([chatId, before, limit])
     : db.prepare(`SELECT * FROM messages WHERE chat_id = ? AND deleted_at IS NULL ORDER BY created_at DESC LIMIT ?`).all([chatId, limit]);
-  return rows.reverse().map(decryptMessage);
+  const messages = rows.reverse().map(decryptMessage);
+
+  // Attach poll payloads for poll messages
+  const pollIds = messages.filter(m => m.poll_id).map(m => m.poll_id);
+  if (pollIds.length > 0) {
+    const { buildPollPayload } = require('./pollService');
+    const placeholders = pollIds.map(() => '?').join(',');
+    const polls = db.prepare(`SELECT * FROM polls WHERE id IN (${placeholders})`).all(pollIds);
+    const pollMap = {};
+    for (const p of polls) pollMap[p.id] = buildPollPayload(p, userId);
+    for (const m of messages) {
+      if (m.poll_id && pollMap[m.poll_id]) m.poll = pollMap[m.poll_id];
+    }
+  }
+
+  return messages;
 }
 
-function saveMessage(chatId, senderId, text, attachment = {}, isSystem = false, reply = null) {
+function saveMessage(chatId, senderId, text, attachment = {}, isSystem = false, reply = null, pollId = null) {
   const db = getDb();
   if (!isSystem) {
     const member = db.prepare('SELECT 1 FROM chat_members WHERE chat_id = ? AND user_id = ?').get([chatId, senderId]);
@@ -89,14 +105,15 @@ function saveMessage(chatId, senderId, text, attachment = {}, isSystem = false, 
     `INSERT INTO messages (id, chat_id, sender_id, ciphertext, iv, auth_tag, created_at,
        attachment_url, attachment_type, attachment_name, attachment_size, is_system,
        reply_to_id, reply_to_sender_id, reply_to_sender_username,
-       reply_to_ciphertext, reply_to_iv, reply_to_auth_tag)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+       reply_to_ciphertext, reply_to_iv, reply_to_auth_tag, poll_id)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
   ).run([msgId, chatId, senderId, ciphertext, iv, authTag, now,
     attachment.attachment_url || null, attachment.attachment_type || null,
     attachment.attachment_name || null, attachment.attachment_size || null,
     isSystem ? 1 : 0,
     replyToId, replyToSenderId, replyToSenderUsername,
-    replyToCiphertext, replyToIv, replyToAuthTag]);
+    replyToCiphertext, replyToIv, replyToAuthTag,
+    pollId || null]);
 
   return decryptMessage(db.prepare('SELECT * FROM messages WHERE id = ?').get(msgId));
 }

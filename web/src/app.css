@@ -4895,3 +4895,342 @@ input[type="date"].psInput::-webkit-calendar-picker-indicator {
   line-height: 1.55;
   max-width: 340px;
 }
+
+/* ── Attach menu popup ──────────────────────────────────────────────────────── */
+.composerAttachMenu {
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 0;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  z-index: 20;
+  min-width: 180px;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+}
+
+.composerAttachMenuItem {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  font-size: 14px;
+  cursor: pointer;
+  background: none;
+  border: none;
+  color: var(--text);
+  width: 100%;
+  text-align: left;
+  transition: background .12s;
+}
+
+.composerAttachMenuItem:hover {
+  background: var(--panel);
+}
+
+/* ── Poll bubble ────────────────────────────────────────────────────────────── */
+.pollBubble {
+  padding: 4px 0;
+  min-width: 240px;
+  max-width: 340px;
+}
+
+.pollQuestion {
+  font-size: 15px;
+  font-weight: 600;
+  margin-bottom: 4px;
+  line-height: 1.35;
+}
+
+.pollMeta {
+  font-size: 12px;
+  color: var(--muted);
+  margin-bottom: 12px;
+}
+
+.pollOptions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.pollOption {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.pollOptionClickable {
+  cursor: pointer;
+}
+
+.pollOptionClickable:hover .pollOptionCheck {
+  border-color: var(--accent);
+}
+
+.pollOptionPublic {
+  cursor: pointer;
+}
+
+.pollOptionPublic:hover .pollOptionText {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.pollOptionRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.pollOptionCheck {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 2px solid var(--border);
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background .15s, border-color .15s;
+}
+
+.pollOptionCheck.checked {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+.pollOptionCheck.quizCorrect {
+  background: #22c55e;
+  border-color: #22c55e;
+  box-shadow: 0 0 8px #22c55e88;
+}
+
+.pollOptionCheck.quizWrong {
+  background: #ef4444;
+  border-color: #ef4444;
+}
+
+.pollOptionText {
+  font-size: 14px;
+  flex: 1;
+}
+
+.pollOptionPct {
+  font-size: 12px;
+  color: var(--muted);
+  min-width: 32px;
+  text-align: right;
+}
+
+.pollBar {
+  height: 3px;
+  background: var(--border);
+  border-radius: 2px;
+  overflow: hidden;
+  margin-left: 26px;
+}
+
+.pollBarFill {
+  height: 100%;
+  background: var(--accent);
+  border-radius: 2px;
+  transition: width .35s ease;
+}
+
+.pollBarFill.quizCorrect {
+  background: #22c55e;
+}
+
+.pollVoteBtn {
+  background: var(--accent);
+  border: none;
+  border-radius: 8px;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 600;
+  padding: 8px 16px;
+  cursor: pointer;
+  width: 100%;
+  margin-bottom: 8px;
+  transition: opacity .15s;
+}
+
+.pollVoteBtn:disabled {
+  opacity: .45;
+  cursor: default;
+}
+
+.pollTotalVotes {
+  font-size: 12px;
+  color: var(--muted);
+  text-align: center;
+}
+
+/* ── Poll creator modal ─────────────────────────────────────────────────────── */
+.pollCreatorCard {
+  width: 480px;
+  max-width: 95vw;
+}
+
+.pollOptionInput {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.pollRemoveOption {
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  background: none;
+  color: var(--muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background .12s, color .12s;
+}
+
+.pollRemoveOption:hover {
+  background: #ef444422;
+  color: #ef4444;
+  border-color: #ef4444;
+}
+
+.pollAddOption {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: none;
+  border: none;
+  color: var(--accent);
+  font-size: 13px;
+  cursor: pointer;
+  padding: 4px 0;
+  transition: opacity .12s;
+}
+
+.pollAddOption:hover { opacity: .75; }
+
+.pollToggleRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 0;
+  border-top: 1px solid var(--border);
+}
+
+.pollToggle {
+  display: flex;
+  background: var(--panel);
+  border-radius: 8px;
+  padding: 2px;
+  gap: 2px;
+}
+
+.pollToggleBtn {
+  padding: 4px 12px;
+  border-radius: 6px;
+  border: none;
+  background: none;
+  font-size: 13px;
+  cursor: pointer;
+  color: var(--muted);
+  transition: background .12s, color .12s;
+}
+
+.pollToggleBtn.active {
+  background: var(--accent);
+  color: #fff;
+}
+
+/* Anonymous toggle switch */
+.pollAnonToggle {
+  width: 36px;
+  height: 20px;
+  border-radius: 10px;
+  background: var(--border);
+  border: none;
+  cursor: pointer;
+  position: relative;
+  transition: background .2s;
+  padding: 0;
+  flex-shrink: 0;
+}
+
+.pollAnonToggle.active {
+  background: var(--accent);
+}
+
+.pollAnonKnob {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #fff;
+  transition: left .2s;
+  display: block;
+}
+
+.pollAnonToggle.active .pollAnonKnob {
+  left: 18px;
+}
+
+/* Quiz star mark button */
+.pollQuizMark {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: none;
+  background: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--muted);
+  flex-shrink: 0;
+  transition: color .12s;
+}
+
+.pollQuizMark:hover { color: #f59e0b; }
+.pollQuizMark.active { color: #f59e0b; }
+
+/* Quiz checkbox */
+.pollCheckbox {
+  position: relative;
+  cursor: pointer;
+}
+
+.pollCheckbox input {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.pollCheckboxBox {
+  display: block;
+  width: 18px;
+  height: 18px;
+  border-radius: 4px;
+  border: 2px solid var(--border);
+  background: none;
+  transition: background .15s, border-color .15s;
+}
+
+.pollCheckbox input:checked + .pollCheckboxBox {
+  background: var(--accent);
+  border-color: var(--accent);
+}

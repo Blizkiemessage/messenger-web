@@ -36,6 +36,9 @@ interface Props {
   hasMoreMessages: boolean;
   loadingMore: boolean;
   onLoadMore: () => void;
+  onVote?: (msgId: string, optionIds: string[]) => void;
+  onRetract?: (msgId: string) => void;
+  onViewVoters?: (pollId: string, optionId: string) => void;
 }
 
 const CTX_WIDTH  = 200;
@@ -48,6 +51,7 @@ export function MessageList({
   onReply, onReact, scrollTargetId, onScrollTargetHandled,
   searchQuery, matchedIds, currentMatchId, pinnedFocusId,
   hasMoreMessages, loadingMore, onLoadMore,
+  onVote, onRetract, onViewVoters,
 }: Props) {
   const bottomRef      = useRef<HTMLDivElement | null>(null);
   const matchRef       = useRef<HTMLDivElement | null>(null);
@@ -193,6 +197,9 @@ export function MessageList({
                 const el = document.querySelector(`[data-msg-id="${msgId}"]`) as HTMLElement | null;
                 if (el) requestAnimationFrame(() => el.scrollIntoView({ behavior: 'smooth', block: 'center' }));
               }}
+              onVote={onVote}
+              onRetract={onRetract}
+              onViewVoters={onViewVoters}
             />
           </div>
         );
@@ -290,6 +297,19 @@ export function MessageList({
                   <path d="M16 3a1 1 0 0 0-1 1v1H9V4a1 1 0 0 0-2 0v1a3 3 0 0 0-3 3v1l2 2v4H4a1 1 0 0 0 0 2h7v3a1 1 0 0 0 2 0v-3h7a1 1 0 0 0 0-2h-2v-4l2-2V8a3 3 0 0 0-3-3V4a1 1 0 0 0-1-1z"/>
                 </svg>
                 Закрепить
+              </button>
+            )}
+
+            {/* Retract vote */}
+            {ctxMenu.msg.poll && ctxMenu.msg.poll.my_votes.length > 0 && (
+              <button
+                className="msgCtxItem"
+                onClick={() => { onRetract?.(ctxMenu.msg.id); setCtxMenu(null); }}
+              >
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-5.05"/>
+                </svg>
+                Переголосовать
               </button>
             )}
 
