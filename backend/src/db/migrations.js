@@ -39,6 +39,20 @@ function runMigrations() {
   `);
 
   db.exec(`
+    CREATE TABLE IF NOT EXISTS support_reports (
+      id TEXT PRIMARY KEY,
+      type TEXT NOT NULL,
+      username TEXT NOT NULL,
+      user_email TEXT,
+      subject TEXT NOT NULL,
+      description TEXT NOT NULL,
+      has_image INTEGER NOT NULL DEFAULT 0,
+      created_at INTEGER NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_support_reports_created ON support_reports(created_at);
+  `);
+
+  db.exec(`
     CREATE TABLE IF NOT EXISTS friend_requests (
       from_user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
       to_user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,

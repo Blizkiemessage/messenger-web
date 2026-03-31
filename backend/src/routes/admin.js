@@ -42,24 +42,53 @@ function isAdmin(req, res, next) {
 
 router.use(isAdmin);
 
-// GET /admin/api/stats
+// GET /admin/api/stats?from=<ms>&to=<ms>
 router.get('/stats', (req, res, next) => {
   try {
     const db = getDb();
-    const usersCount = db.prepare('SELECT COUNT(*) as count FROM users').get().count;
-    const chatsCount = db.prepare('SELECT COUNT(*) as count FROM chats').get().count;
-    const messagesCount = db.prepare('SELECT COUNT(*) as count FROM messages').get().count;
-    res.json({ users: usersCount, chats: chatsCount, messages: messagesCount });
+    const from = req.query.from ? parseInt(req.query.from) : null;
+    const to   = req.query.to   ? parseInt(req.query.to)   : null;
+
+    // Build a WHERE clause fragment and params for date filtering
+    function dateWhere(alias) {
+      const col = alias ? `${alias}.created_at` : 'created_at';
+      if (from && to)  return { where: `WHERE ${col} >= ? AND ${col} <= ?`, params: [from, to] };
+      if (from)        return { where: `WHERE ${col} >= ?`,               params: [from] };
+      if (to)          return { where: `WHERE ${col} <= ?`,               params: [to] };
+      return { where: '', params: [] };
+    }
+
+    function countTable(table) {
+      const { where, params } = dateWhere('');
+      return db.prepare(`SELECT COUNT(*) as c FROM ${table} ${where}`).get(params).c;
+    }
+
+    function countSupport(type) {
+      const { where, params } = dateWhere('');
+      const and = where ? ' AND type = ?' : 'WHERE type = ?';
+      return db.prepare(`SELECT COUNT(*) as c FROM support_reports ${where}${and}`).get([...params, type]).c;
+    }
+
+    res.json({
+      users:            countTable('users'),
+      chats:            countTable('chats'),
+      messages:         countTable('messages'),
+      support_bugs:     countSupport('bug'),
+      support_features: countSupport('feature'),
+    });
   } catch (err) {
     next(err);
   }
 });
 
-// GET /admin/api/users
+// GET /admin/api/users?search=<query>
 router.get('/users', (req, res, next) => {
   try {
     const db = getDb();
-    const users = db.prepare('SELECT id, username, display_name, created_at, last_seen_at FROM users').all();
+    const search = req.query.search ? `%${req.query.search.toLowerCase()}%` : null;
+    const users = search
+      ? db.prepare('SELECT id, username, display_name, email, created_at, last_seen_at FROM users WHERE LOWER(username) LIKE ? OR LOWER(COALESCE(email, \'\')) LIKE ?').all([search, search])
+      : db.prepare('SELECT id, username, display_name, email, created_at, last_seen_at FROM users').all();
     res.json(users);
   } catch (err) {
     next(err);
