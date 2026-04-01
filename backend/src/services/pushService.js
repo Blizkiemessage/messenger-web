@@ -20,7 +20,7 @@ function fireAndForgetPush(chatId, senderId, text, io) {
       if (members.length === 0) return;
 
       // 2. Filter to offline members (not in io.onlineUsers)
-      const onlineUsers = io.onlineUsers instanceof Map ? io.onlineUsers : new Map();
+      const onlineUsers = io.onlineUsers instanceof Set ? io.onlineUsers : new Set();
       const offlineIds = members
         .map(m => m.user_id)
         .filter(id => !onlineUsers.has(id));

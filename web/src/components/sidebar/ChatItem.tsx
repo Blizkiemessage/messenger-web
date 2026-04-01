@@ -10,11 +10,12 @@ interface Props {
   chat: Chat;
   meId: string;
   isActive: boolean;
+  isOnline?: boolean;
   onClick: () => void;
   onContextMenu: (e: React.MouseEvent) => void;
 }
 
-export function ChatItem({ chat, meId, isActive, onClick, onContextMenu }: Props) {
+export function ChatItem({ chat, meId, isActive, isOnline, onClick, onContextMenu }: Props) {
   const title = chatTitle(chat, meId);
 
   // For direct chats — partner's user object; for groups — synthetic object with group avatar
@@ -30,12 +31,15 @@ export function ChatItem({ chat, meId, isActive, onClick, onContextMenu }: Props
       onClick={onClick}
       onContextMenu={onContextMenu}
     >
-      {/* ✅ Real avatar with photo support */}
-      <div className={`ciAvatar${chat.type === 'group' ? ' group' : ''}${hasPhoto ? ' ciAvatarPhoto' : ''}`}>
-        {hasPhoto
-          ? <Avatar user={avatarUser} size={42} radius={13} />
-          : avatarLetter(title)
-        }
+      {/* Avatar with optional online dot for direct chats */}
+      <div className="ciAvatarWrap">
+        <div className={`ciAvatar${chat.type === 'group' ? ' group' : ''}${hasPhoto ? ' ciAvatarPhoto' : ''}`}>
+          {hasPhoto
+            ? <Avatar user={avatarUser} size={42} radius={13} />
+            : avatarLetter(title)
+          }
+        </div>
+        {isOnline && chat.type === 'direct' && <span className="ciOnlineDot" />}
       </div>
 
       <div className="ciBody">

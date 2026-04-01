@@ -308,6 +308,7 @@ input { font: inherit; color: inherit; background: transparent; }
 }
 .chatItem:hover { background: var(--panel); }
 .chatItem.active { background: var(--accent-dim); }
+.ciAvatarWrap { position: relative; flex-shrink: 0; width: 42px; height: 42px; }
 .ciAvatar {
   width: 42px; height: 42px;
   border-radius: 13px;
@@ -316,6 +317,15 @@ input { font: inherit; color: inherit; background: transparent; }
   display: grid; place-items: center;
   font-weight: 700; font-size: 17px;
   flex-shrink: 0;
+}
+.ciOnlineDot {
+  position: absolute;
+  bottom: -1px; right: -1px;
+  width: 11px; height: 11px;
+  border-radius: 50%;
+  background: #4cd964;
+  border: 2px solid var(--sidebar);
+  pointer-events: none;
 }
 .chatItem.active .ciAvatar { background: rgba(47,129,247,.25); color: var(--accent); }
 .ciBody { flex: 1; min-width: 0; }
