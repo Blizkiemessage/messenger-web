@@ -40,6 +40,7 @@ interface Props {
   onRetract?: (msgId: string) => void;
   onViewVoters?: (pollId: string, optionId: string) => void;
   onEdit: (msgId: string) => void;
+  meUsername?: string;
 }
 
 const CTX_WIDTH  = 200;
@@ -52,7 +53,7 @@ export function MessageList({
   onReply, onReact, scrollTargetId, onScrollTargetHandled,
   searchQuery, matchedIds, currentMatchId, pinnedFocusId,
   hasMoreMessages, loadingMore, onLoadMore,
-  onVote, onRetract, onViewVoters, onEdit,
+  onVote, onRetract, onViewVoters, onEdit, meUsername,
 }: Props) {
   const bottomRef      = useRef<HTMLDivElement | null>(null);
   const matchRef       = useRef<HTMLDivElement | null>(null);
@@ -201,6 +202,7 @@ export function MessageList({
               onVote={onVote}
               onRetract={onRetract}
               onViewVoters={onViewVoters}
+              meUsername={meUsername}
             />
           </div>
         );

@@ -195,6 +195,28 @@ function HighlightText({ text, term }: { text: string; term: string }) {
   );
 }
 
+// ── Mention + highlight renderer ──────────────────────────────────────────────
+function MentionText({ text, term, meUsername }: { text: string; term: string; meUsername?: string }) {
+  // Split by @word tokens, keeping them as separate elements
+  const parts = text.split(/(@\w+)/g);
+  return (
+    <>
+      {parts.map((part, i) => {
+        if (/^@\w+$/.test(part)) {
+          const word = part.slice(1);
+          const isMine = !!meUsername && word.toLowerCase() === meUsername.toLowerCase();
+          return (
+            <span key={i} className={isMine ? 'mention mentionMe' : 'mention'}>
+              {part}
+            </span>
+          );
+        }
+        return <HighlightText key={i} text={part} term={term} />;
+      })}
+    </>
+  );
+}
+
 // ── Audio player for voice messages ──────────────────────────────────────────
 function AudioPlayer({
   url, isOwn, isRead, sendTime,
@@ -406,6 +428,7 @@ interface Props {
   onVote?: (msgId: string, optionIds: string[]) => void;
   onRetract?: (msgId: string) => void;
   onViewVoters?: (pollId: string, optionId: string) => void;
+  meUsername?: string;
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
@@ -413,7 +436,7 @@ export function MessageBubble({
   message: m, isOwn, isRead, isSelected, isGroup, sender,
   showAvatar, showName, hasSelection, highlight, isSearchMatch,
   meId, onContextMenu, onClick, onViewUser, onForwardedSenderClick,
-  onReact, onScrollToMessage, onVote, onRetract, onViewVoters,
+  onReact, onScrollToMessage, onVote, onRetract, onViewVoters, meUsername,
 }: Props) {
   const hasAttachment = !!m.attachment_url;
   const isImage = m.attachment_type === 'image';
@@ -563,7 +586,7 @@ export function MessageBubble({
         {/* Plain text */}
         {!m.poll && pureText && (
           <div className="bubbleText">
-            <HighlightText text={pureText} term={highlight || ''} />
+            <MentionText text={pureText} term={highlight || ''} meUsername={meUsername} />
           </div>
         )}
 

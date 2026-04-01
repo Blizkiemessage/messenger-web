@@ -67,6 +67,7 @@ export function ChatArea() {
 
   const [messageText, setMessageText] = useState('');
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [mentionBannerId, setMentionBannerId] = useState<string | null>(null);
   const [loadingMore, setLoadingMore] = useState(false);
   const [showPollCreator, setShowPollCreator] = useState(false);
   const [voterModal, setVoterModal] = useState<{ pollId: string; optionId: string; optionText: string } | null>(null);
@@ -133,6 +134,18 @@ export function ChatArea() {
   const pinnedFocusId = pinnedOpen && pinnedMessages.length > 0
     ? pinnedMessages[pinnedIdx]?.id ?? null
     : null;
+
+  // ── Mention banner: detect @me in unread messages on chat entry ───────────
+  useEffect(() => {
+    setMentionBannerId(null);
+    if (!activeChat || !me.username || (activeChat.unread_count ?? 0) === 0) return;
+    const myHandle = '@' + me.username.toLowerCase();
+    const unread = messages.slice(-(activeChat.unread_count ?? 0));
+    const found = unread.find(m =>
+      m.sender_id !== me.id && !m.is_system && m.text?.toLowerCase().includes(myHandle)
+    );
+    if (found) setMentionBannerId(found.id);
+  }, [activeChatId, messages.length]); // eslint-disable-line
 
   const handleTogglePinned = useCallback(() => {
     setPinnedOpen(v => !v);
@@ -556,6 +569,7 @@ export function ChatArea() {
         onRetract={handleRetract}
         onViewVoters={handleViewVoters}
         onEdit={handleStartEdit}
+        meUsername={me.username ?? undefined}
       />
 
       {isGroupClosed ? (
@@ -576,6 +590,20 @@ export function ChatArea() {
               senderId={replyTo.senderId}
             />
           )}
+          {mentionBannerId && !editingId && (
+            <div className="mentionBanner" onClick={() => { setScrollTargetId(mentionBannerId); setMentionBannerId(null); }}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="12" r="4"/>
+                <path d="M16 8v5a3 3 0 0 0 6 0v-1a10 10 0 1 0-3.92 7.94"/>
+              </svg>
+              <span>Вас упомянули — нажмите, чтобы перейти</span>
+              <button className="mentionBannerClose" onClick={e => { e.stopPropagation(); setMentionBannerId(null); }}>
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                  <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                </svg>
+              </button>
+            </div>
+          )}
           <Composer
             value={messageText}
             onChange={setMessageText}
@@ -589,6 +617,7 @@ export function ChatArea() {
             onTypingStop={() => activeChatId && emitTypingStop(activeChatId)}
             editingMessageId={editingId}
             onCancelEdit={handleCancelEdit}
+            members={activeChat.type === 'group' ? (activeChat.members ?? []) : []}
           />
         </>
       )}
