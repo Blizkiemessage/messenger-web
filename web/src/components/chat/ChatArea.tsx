@@ -368,12 +368,7 @@ export function ChatArea() {
     if (!activeChat || typingUserIds.length === 0) return '';
     const others = typingUserIds.filter(id => id !== me.id);
     if (others.length === 0) return '';
-    const names = others.map(id => {
-      const m = activeChat.members.find(u => u.id === id);
-      return m?.display_name || m?.username || 'Пользователь';
-    });
-    const verb = names.length === 1 ? 'печатает' : 'печатают';
-    return `${names.join(', ')} ${verb}`;
+    return others.length === 1 ? 'Печатает' : 'Печатают';
   })();
 
   if (!activeChat) return <EmptyState />;
