@@ -1,5 +1,6 @@
 import { type Chat } from '../../types';
 import { ChatItem } from './ChatItem';
+import { useChatsStore } from '../../store/useChatsStore';
 
 type ChatFilter = 'all' | 'groups' | 'direct';
 
@@ -17,6 +18,8 @@ interface Props {
 export function ChatList({
   chats, meId, activeChatId, filter, loading, error, onSelect, onContextMenu,
 }: Props) {
+  const onlineUsers = useChatsStore(s => s.onlineUsers);
+
   return (
     <div className="chatList">
       {error && <div className="listErr">{error}</div>}
@@ -30,16 +33,21 @@ export function ChatList({
             : 'Найдите пользователя выше чтобы начать диалог'}
         </div>
       )}
-      {chats.map(c => (
-        <ChatItem
-          key={c.id}
-          chat={c}
-          meId={meId}
-          isActive={c.id === activeChatId}
-          onClick={() => onSelect(c.id)}
-          onContextMenu={e => { e.preventDefault(); onContextMenu(e, c); }}
-        />
-      ))}
+      {chats.map(c => {
+        const partner = c.type === 'direct' ? c.members.find(m => m.id !== meId) : null;
+        const isOnline = partner ? onlineUsers.has(partner.id) : false;
+        return (
+          <ChatItem
+            key={c.id}
+            chat={c}
+            meId={meId}
+            isActive={c.id === activeChatId}
+            isOnline={isOnline}
+            onClick={() => onSelect(c.id)}
+            onContextMenu={e => { e.preventDefault(); onContextMenu(e, c); }}
+          />
+        );
+      })}
     </div>
   );
 }
