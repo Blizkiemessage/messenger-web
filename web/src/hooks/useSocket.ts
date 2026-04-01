@@ -45,7 +45,7 @@ export function useSocket() {
     const pushTimer = setTimeout(() => { registerPush(); }, 5000);
 
     const onNewMessage = (msg: Message) => {
-      const { activeChatId, chats, loadChats, handleNewMessage } = useChatsStore.getState();
+      const { chats, loadChats, handleNewMessage } = useChatsStore.getState();
       if (!chats.some(c => c.id === msg.chat_id)) { loadChats(); return; }
       handleNewMessage(msg);
       // Read tracking is handled by MessageList scroll observer — no auto-mark here
