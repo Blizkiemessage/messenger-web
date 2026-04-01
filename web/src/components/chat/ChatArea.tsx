@@ -277,7 +277,8 @@ export function ChatArea() {
     setEditingId(msgId);
     setMessageText(msg.text || '');
     setReplyTo(null);
-  }, []);
+    clearSelection();
+  }, [clearSelection]);
 
   const handleCancelEdit = useCallback(() => {
     setEditingId(null);

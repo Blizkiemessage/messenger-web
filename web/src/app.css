@@ -4453,9 +4453,7 @@ input[type="date"].psInput::-webkit-calendar-picker-indicator {
 .bubbleReplyExpand:hover { opacity: 0.8; }
 
 /* ── Context menu: Reply + React buttons ─────────────────────────────── */
-.msgCtxItemReply {
-  color: var(--accent);
-}
+.msgCtxItemReply {}
 .msgCtxItemReact {}
 
 /* ── Bubble footer: reactions + time/status on the same row ─────────── */
@@ -5312,6 +5310,4 @@ input[type="date"].psInput::-webkit-calendar-picker-indicator {
 }
 
 /* ── Edit context menu item ──────────────────────────────────────────── */
-.msgCtxItemEdit {
-  color: var(--accent);
-}
+.msgCtxItemEdit {}
