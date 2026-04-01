@@ -136,19 +136,6 @@ export function ChatArea() {
     ? pinnedMessages[pinnedIdx]?.id ?? null
     : null;
 
-  // ── First-unread scroll target: set once when messages load ─────────────
-  const [firstUnreadId, setFirstUnreadId] = useState<string | null>(null);
-
-  useEffect(() => { setFirstUnreadId(null); }, [activeChatId]);
-
-  useEffect(() => {
-    if (loadingMessages || messages.length === 0) return;
-    const unread = activeChat?.unread_count ?? 0;
-    if (unread === 0) { setFirstUnreadId(null); return; }
-    const idx = Math.max(0, messages.length - unread);
-    setFirstUnreadId(messages[idx]?.id ?? null);
-  }, [activeChatId, loadingMessages]); // eslint-disable-line
-
   // ── Mention banner: detect @me in unread messages on chat entry ───────────
   useEffect(() => {
     setMentionBannerId(null);
@@ -591,7 +578,7 @@ export function ChatArea() {
         onViewVoters={handleViewVoters}
         onEdit={handleStartEdit}
         meUsername={me.username ?? undefined}
-        firstUnreadId={firstUnreadId}
+        unreadCount={activeChat?.unread_count ?? 0}
         onMarkRead={handleMarkRead}
       />
 

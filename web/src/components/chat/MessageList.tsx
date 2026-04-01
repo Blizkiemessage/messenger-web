@@ -41,7 +41,7 @@ interface Props {
   onViewVoters?: (pollId: string, optionId: string) => void;
   onEdit: (msgId: string) => void;
   meUsername?: string;
-  firstUnreadId?: string | null;
+  unreadCount?: number;
   onMarkRead?: (readUntil: number) => void;
 }
 
@@ -55,7 +55,7 @@ export function MessageList({
   onReply, onReact, scrollTargetId, onScrollTargetHandled,
   searchQuery, matchedIds, currentMatchId, pinnedFocusId,
   hasMoreMessages, loadingMore, onLoadMore,
-  onVote, onRetract, onViewVoters, onEdit, meUsername, firstUnreadId, onMarkRead,
+  onVote, onRetract, onViewVoters, onEdit, meUsername, unreadCount, onMarkRead,
 }: Props) {
   const bottomRef      = useRef<HTMLDivElement | null>(null);
   const matchRef       = useRef<HTMLDivElement | null>(null);
@@ -122,9 +122,15 @@ export function MessageList({
     if (currentMatchId || pinnedFocusId || loadingMoreRef.current) return;
     if (!initialScrollDoneRef.current) {
       initialScrollDoneRef.current = true;
+      // Compute first unread synchronously here — avoids the race where a
+      // separate ChatArea effect sets firstUnreadId AFTER this effect runs.
+      const count = unreadCount ?? 0;
+      const targetId = count > 0
+        ? messages[Math.max(0, messages.length - count)]?.id ?? null
+        : null;
       requestAnimationFrame(() => {
-        if (firstUnreadId) {
-          const el = document.querySelector(`[data-msg-id="${firstUnreadId}"]`) as HTMLElement | null;
+        if (targetId) {
+          const el = document.querySelector(`[data-msg-id="${targetId}"]`) as HTMLElement | null;
           if (el) { el.scrollIntoView({ block: 'end' }); updateReadPosition(); return; }
         }
         bottomRef.current?.scrollIntoView({ block: 'end' });
@@ -132,7 +138,6 @@ export function MessageList({
       });
     } else if (atBottomRef.current) {
       bottomRef.current?.scrollIntoView({ block: 'end' });
-      // Mark new message as read if user is at bottom
       requestAnimationFrame(() => updateReadPosition());
     }
   }, [messages.length, chat.id]); // eslint-disable-line
