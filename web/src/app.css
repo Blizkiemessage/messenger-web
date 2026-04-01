@@ -5314,3 +5314,101 @@ input[type="date"].psInput::-webkit-calendar-picker-indicator {
 
 /* ── Edit context menu item ──────────────────────────────────────────── */
 .msgCtxItemEdit {}
+
+/* ── Sessions tab ────────────────────────────────────────────────────── */
+.sessionsLoading {
+  color: var(--muted);
+  font-size: 13px;
+  text-align: center;
+  padding: 24px 0;
+}
+.sessionsEmpty {
+  color: var(--muted);
+  font-size: 13px;
+  text-align: center;
+  padding: 24px 0;
+}
+.sessionsRevokeAllBtn {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  width: 100%;
+  padding: 9px 14px;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background: var(--panel);
+  color: var(--danger);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background .15s;
+}
+.sessionsRevokeAllBtn:hover:not(:disabled) { background: color-mix(in srgb, var(--danger) 10%, transparent); }
+.sessionsRevokeAllBtn:disabled { opacity: .55; cursor: default; }
+.sessionsRevokeAllBtn svg { color: var(--danger); flex-shrink: 0; }
+.sessionsList {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.sessionsItem {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background: var(--panel);
+}
+.sessionsItemCurrent {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 6%, var(--panel));
+}
+.sessionsIcon {
+  color: var(--muted);
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+}
+.sessionsItemCurrent .sessionsIcon { color: var(--accent); }
+.sessionsInfo {
+  flex: 1;
+  min-width: 0;
+}
+.sessionsDevice {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  flex-wrap: wrap;
+}
+.sessionsCurrentBadge {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 7px;
+  border-radius: 20px;
+  background: color-mix(in srgb, var(--accent) 18%, transparent);
+  color: var(--accent);
+  letter-spacing: .2px;
+}
+.sessionsMeta {
+  font-size: 12px;
+  color: var(--muted);
+  margin-top: 2px;
+}
+.sessionsRevokeBtn {
+  flex-shrink: 0;
+  padding: 5px 12px;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--danger);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background .15s;
+}
+.sessionsRevokeBtn:hover:not(:disabled) { background: color-mix(in srgb, var(--danger) 10%, transparent); }
+.sessionsRevokeBtn:disabled { opacity: .5; cursor: default; }

@@ -17,7 +17,8 @@ const adminRoutes = require('./routes/admin');
 const friendsRoutes = require('./routes/friends');
 const supportRoutes = require('./routes/support');
 const pollsRoutes = require('./routes/polls');
-const pushRoutes  = require('./routes/push');
+const pushRoutes     = require('./routes/push');
+const sessionsRoutes = require('./routes/sessions');
 const path = require('path');
 
 const app = express();
@@ -68,7 +69,8 @@ app.use('/admin/api', adminRoutes);
 app.use('/friends', friendsRoutes);
 app.use('/support', supportRoutes);
 app.use('/polls', pollsRoutes);
-app.use('/push',  pushRoutes);
+app.use('/push',     pushRoutes);
+app.use('/sessions', sessionsRoutes);
 
 app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 app.use('/admin', express.static(path.join(__dirname, '../public/admin')));

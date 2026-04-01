@@ -26,7 +26,7 @@ router.post('/login', limiter, async (req, res, next) => {
     if (!login || typeof login !== 'string' || login.trim().length < 3) {
       return res.status(400).json({ error: 'Введите username или email' });
     }
-    const result = await loginOrRegister(login, password || null);
+    const result = await loginOrRegister(login, password || null, req.headers['user-agent'] || '');
     res.json(result);
   } catch (err) {
     next(err);
@@ -63,7 +63,7 @@ router.post('/verify-email', limiter, async (req, res, next) => {
     if (!otp || typeof otp !== 'string' || !/^\d{6}$/.test(otp.trim())) {
       return res.status(400).json({ error: 'Код должен состоять из 6 цифр' });
     }
-    const result = await verifyEmailAndCreateAccount(email.trim(), otp.trim());
+    const result = await verifyEmailAndCreateAccount(email.trim(), otp.trim(), req.headers['user-agent'] || '');
     res.status(201).json(result);
   } catch (err) {
     next(err);

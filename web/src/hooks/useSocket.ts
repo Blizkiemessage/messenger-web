@@ -106,6 +106,16 @@ export function useSocket() {
       }
     };
 
+    // ✅ NEW: session revoked — log out if it's our session
+    const onSessionRevoked = ({ sessionId }: { sessionId: string }) => {
+      const { token } = useSessionStore.getState();
+      if (!token) return;
+      try {
+        const payload = JSON.parse(atob(token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')));
+        if (payload?.jti === sessionId) useSessionStore.getState().clearSession();
+      } catch { /* ignore malformed token */ }
+    };
+
     const onMessageEdited = (msg: Message) => {
       const state = useChatsStore.getState();
       if (state.activeChatId === msg.chat_id) {
@@ -132,6 +142,7 @@ export function useSocket() {
     socket.on('user-offline',         onUserOffline);         // ✅
     socket.on('message-reaction-v2',  onMessageReactionV2);   // ✅
     socket.on('message-edited',        onMessageEdited);         // ✅
+    socket.on('session-revoked',       onSessionRevoked);        // ✅
     socket.on('poll-updated',         onPollUpdated);           // ✅
     socket.on('user-typing',          onUserTyping);            // ✅
     socket.on('user-stopped-typing',  onUserStoppedTyping);     // ✅
@@ -150,6 +161,7 @@ export function useSocket() {
       socket.off('user-offline',         onUserOffline);
       socket.off('message-reaction-v2',  onMessageReactionV2);
       socket.off('message-edited',        onMessageEdited);
+      socket.off('session-revoked',       onSessionRevoked);
       socket.off('poll-updated',         onPollUpdated);
       socket.off('user-typing',          onUserTyping);
       socket.off('user-stopped-typing',  onUserStoppedTyping);
