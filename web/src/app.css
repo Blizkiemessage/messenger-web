@@ -5263,3 +5263,55 @@ input[type="date"].psInput::-webkit-calendar-picker-indicator {
   66%  { content: '...'; }
   100% { content: '';    }
 }
+
+/* ── Message edited indicator ────────────────────────────────────────── */
+.bubbleEdited {
+  font-size: 10px;
+  color: var(--muted);
+  opacity: 0.75;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+/* ── Editing banner (inside Composer, above input row) ───────────────── */
+.editingBanner {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 6px 12px;
+  border-top: 1px solid var(--border);
+  background: var(--panel);
+  color: var(--accent);
+  font-size: 12px;
+  font-weight: 500;
+}
+.editingBanner svg {
+  flex-shrink: 0;
+  opacity: 0.85;
+}
+.editingBanner span {
+  flex: 1;
+}
+.editingBannerClose {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  flex-shrink: 0;
+  transition: background 0.15s, color 0.15s;
+}
+.editingBannerClose:hover {
+  background: var(--accent-dim);
+  color: var(--accent);
+}
+
+/* ── Edit context menu item ──────────────────────────────────────────── */
+.msgCtxItemEdit {
+  color: var(--accent);
+}

@@ -12,7 +12,7 @@ import { MessageList } from './MessageList';
 import { Composer } from './Composer';
 import { EmptyState } from './EmptyState';
 import { ReplyPreviewBar } from './ReplyPreviewBar';
-import { sendChatMessage, getPinnedMessages, pinMessage as apiPin, unpinMessage as apiUnpin, reactToMessage } from '../../api/chats';
+import { sendChatMessage, getPinnedMessages, pinMessage as apiPin, unpinMessage as apiUnpin, reactToMessage, editMessage as apiEditMessage } from '../../api/chats';
 import { createPoll, votePoll, retractVote } from '../../api/polls';
 import { emitTypingStart, emitTypingStop } from '../../socket/socketClient';
 import type { CreatePollData } from '../../api/polls';
@@ -66,6 +66,7 @@ export function ChatArea() {
   const setShowForwardModal = useAppStore(s => s.setShowForwardModal);
 
   const [messageText, setMessageText] = useState('');
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [loadingMore, setLoadingMore] = useState(false);
   const [showPollCreator, setShowPollCreator] = useState(false);
   const [voterModal, setVoterModal] = useState<{ pollId: string; optionId: string; optionText: string } | null>(null);
@@ -269,6 +270,20 @@ export function ChatArea() {
     } catch { /* socket will update state */ }
   }, [activeChat]);
 
+  // ── Edit handlers ─────────────────────────────────────────────────────────
+  const handleStartEdit = useCallback((msgId: string) => {
+    const msg = useChatsStore.getState().messages.find(m => m.id === msgId);
+    if (!msg) return;
+    setEditingId(msgId);
+    setMessageText(msg.text || '');
+    setReplyTo(null);
+  }, []);
+
+  const handleCancelEdit = useCallback(() => {
+    setEditingId(null);
+    setMessageText('');
+  }, []);
+
   // ── Send text (with auto-split) ───────────────────────────────────────────
   const handleSend = useCallback(async () => {
     const text = messageText.trim();
@@ -277,6 +292,21 @@ export function ChatArea() {
     // Stop typing indicator immediately on send
     const cid = useChatsStore.getState().activeChatId;
     if (cid) emitTypingStop(cid);
+
+    if (editingId) {
+      const chatId = useChatsStore.getState().activeChatId;
+      if (!chatId) return;
+      const id = editingId;
+      setEditingId(null);
+      try {
+        const updated = await apiEditMessage(chatId, id, text);
+        useChatsStore.getState().setMessages(
+          useChatsStore.getState().messages.map(m => m.id === updated.id ? updated : m)
+        );
+      } catch { /* socket will update */ }
+      return;
+    }
+
     const chatId = useChatsStore.getState().activeChatId;
     if (!chatId) return;
     const parts = splitMessage(text);
@@ -294,7 +324,7 @@ export function ChatArea() {
         reply: i === 0 ? replyPayload : undefined,
       });
     }
-  }, [messageText, replyTo]);
+  }, [messageText, replyTo, editingId]);
 
   // ── Send attachment ───────────────────────────────────────────────────────
   const handleSendAttachment = useCallback(async (result: UploadResult, caption: string) => {
@@ -524,6 +554,7 @@ export function ChatArea() {
         onVote={handleVote}
         onRetract={handleRetract}
         onViewVoters={handleViewVoters}
+        onEdit={handleStartEdit}
       />
 
       {isGroupClosed ? (
@@ -536,7 +567,7 @@ export function ChatArea() {
         </div>
       ) : (
         <>
-          {replyTo && (
+          {replyTo && !editingId && (
             <ReplyPreviewBar
               reply={replyTo}
               onCancel={handleCancelReply}
@@ -555,6 +586,8 @@ export function ChatArea() {
             onOpenPollCreator={() => setShowPollCreator(true)}
             onTypingStart={() => activeChatId && emitTypingStart(activeChatId)}
             onTypingStop={() => activeChatId && emitTypingStop(activeChatId)}
+            editingMessageId={editingId}
+            onCancelEdit={handleCancelEdit}
           />
         </>
       )}

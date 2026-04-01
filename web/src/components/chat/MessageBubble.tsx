@@ -406,6 +406,7 @@ interface Props {
   onVote?: (msgId: string, optionIds: string[]) => void;
   onRetract?: (msgId: string) => void;
   onViewVoters?: (pollId: string, optionId: string) => void;
+  onEdit?: (msgId: string) => void;
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
@@ -413,7 +414,7 @@ export function MessageBubble({
   message: m, isOwn, isRead, isSelected, isGroup, sender,
   showAvatar, showName, hasSelection, highlight, isSearchMatch,
   meId, onContextMenu, onClick, onViewUser, onForwardedSenderClick,
-  onReact, onScrollToMessage, onVote, onRetract, onViewVoters,
+  onReact, onScrollToMessage, onVote, onRetract, onViewVoters, onEdit,
 }: Props) {
   const hasAttachment = !!m.attachment_url;
   const isImage = m.attachment_type === 'image';
@@ -578,6 +579,7 @@ export function MessageBubble({
               />
             )}
             <div className="bubbleMeta">
+              {m.edited_at && <span className="bubbleEdited">(изм.)</span>}
               <span className="bubbleTime">{formatTime(m.created_at)}</span>
               {isOwn && <MsgStatus isRead={isRead} />}
             </div>

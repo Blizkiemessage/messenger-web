@@ -106,6 +106,19 @@ export function useSocket() {
       }
     };
 
+    const onMessageEdited = (msg: Message) => {
+      const state = useChatsStore.getState();
+      if (state.activeChatId === msg.chat_id) {
+        state.setMessages(state.messages.map(m => m.id === msg.id ? msg : m));
+      }
+      // Also update last_message in chat list if it matches
+      state.chats.forEach(c => {
+        if (c.last_message?.id === msg.id) {
+          state.upsertChat({ ...c, last_message: msg });
+        }
+      });
+    };
+
     socket.on('new-message',          onNewMessage);
     socket.on('chat-read',            onChatRead);
     socket.on('messages-deleted',     onMessagesDeleted);
@@ -118,6 +131,7 @@ export function useSocket() {
     socket.on('user-online',          onUserOnline);          // ✅
     socket.on('user-offline',         onUserOffline);         // ✅
     socket.on('message-reaction-v2',  onMessageReactionV2);   // ✅
+    socket.on('message-edited',        onMessageEdited);         // ✅
     socket.on('poll-updated',         onPollUpdated);           // ✅
     socket.on('user-typing',          onUserTyping);            // ✅
     socket.on('user-stopped-typing',  onUserStoppedTyping);     // ✅
@@ -135,6 +149,7 @@ export function useSocket() {
       socket.off('user-online',          onUserOnline);
       socket.off('user-offline',         onUserOffline);
       socket.off('message-reaction-v2',  onMessageReactionV2);
+      socket.off('message-edited',        onMessageEdited);
       socket.off('poll-updated',         onPollUpdated);
       socket.off('user-typing',          onUserTyping);
       socket.off('user-stopped-typing',  onUserStoppedTyping);

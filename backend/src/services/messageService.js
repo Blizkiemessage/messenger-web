@@ -47,6 +47,7 @@ function decryptMessage(msg) {
     forwarded_from_username: msg.forwarded_from_username || null,
     poll_id: msg.poll_id || null,
     reply,
+    edited_at: msg.edited_at || null,
   };
 }
 
@@ -243,4 +244,17 @@ function toggleEmojiReaction(msgId, userId, emoji) {
   return reactions;
 }
 
-module.exports = { decryptMessage, saveMessage, getChatMessages, deleteMessages, toggleReaction, toggleEmojiReaction, pinMessage, unpinMessage, getPinnedMessages, forwardMessages };
+function editMessage(chatId, msgId, senderId, newText) {
+  const db = getDb();
+  const msg = db.prepare('SELECT id, sender_id, chat_id, attachment_url FROM messages WHERE id = ? AND chat_id = ? AND deleted_at IS NULL').get([msgId, chatId]);
+  if (!msg) throw Object.assign(new Error('Message not found'), { status: 404 });
+  if (msg.sender_id !== senderId) throw Object.assign(new Error('Forbidden'), { status: 403 });
+  if (msg.attachment_url) throw Object.assign(new Error('Cannot edit attachment messages'), { status: 400 });
+  const { ciphertext, iv, authTag } = encrypt(newText.trim());
+  const now = Date.now();
+  db.prepare('UPDATE messages SET ciphertext = ?, iv = ?, auth_tag = ?, edited_at = ? WHERE id = ?')
+    .run([ciphertext, iv, authTag, now, msgId]);
+  return decryptMessage(db.prepare('SELECT * FROM messages WHERE id = ?').get(msgId));
+}
+
+module.exports = { decryptMessage, saveMessage, getChatMessages, deleteMessages, toggleReaction, toggleEmojiReaction, pinMessage, unpinMessage, getPinnedMessages, forwardMessages, editMessage };

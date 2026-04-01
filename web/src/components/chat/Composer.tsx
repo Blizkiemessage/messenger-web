@@ -131,6 +131,8 @@ interface Props {
   onOpenPollCreator?: () => void;
   onTypingStart?: () => void;
   onTypingStop?: () => void;
+  editingMessageId?: string | null;
+  onCancelEdit?: () => void;
 }
 
 type VoiceState = 'idle' | 'recording' | 'preview';
@@ -138,7 +140,7 @@ const LOCK_THRESHOLD = 60;
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
-export function Composer({ value, onChange, onSend, onSendAttachment, externalFile, onExternalFileConsumed, disabled, isGroup, onOpenPollCreator, onTypingStart, onTypingStop }: Props) {
+export function Composer({ value, onChange, onSend, onSendAttachment, externalFile, onExternalFileConsumed, disabled, isGroup, onOpenPollCreator, onTypingStart, onTypingStop, editingMessageId, onCancelEdit }: Props) {
   // File staging
   const [staged,    setStaged]    = useState<File | null>(null);
   const [caption,   setCaption]   = useState('');
@@ -468,6 +470,22 @@ export function Composer({ value, onChange, onSend, onSendAttachment, externalFi
               )}
             </button>
           </div>
+        </div>
+      )}
+
+      {/* ── Editing banner ── */}
+      {editingMessageId && (
+        <div className="editingBanner">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+          </svg>
+          <span>Редактирование</span>
+          <button className="editingBannerClose" onClick={onCancelEdit} title="Отменить редактирование">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+              <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+            </svg>
+          </button>
         </div>
       )}
 

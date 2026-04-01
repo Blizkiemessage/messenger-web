@@ -132,3 +132,8 @@ export async function forwardMessages(chatId: string, messageIds: string[]): Pro
   const res = await client.post<import('../types').Message[]>(`/chats/${chatId}/messages/forward`, { messageIds });
   return res.data;
 }
+
+export async function editMessage(chatId: string, messageId: string, text: string): Promise<import('../types').Message> {
+  const res = await client.patch<import('../types').Message>(`/chats/${chatId}/messages/${messageId}`, { text });
+  return res.data;
+}

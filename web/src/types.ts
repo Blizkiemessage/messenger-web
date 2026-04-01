@@ -61,6 +61,7 @@ export type Message = {
   text: string;
   created_at: number;
   deleted_at?: number | null;
+  edited_at?: number | null;
   attachment_url?: string | null;
   attachment_type?: string | null;
   attachment_name?: string | null;
