@@ -125,7 +125,7 @@ export function MessageList({
       requestAnimationFrame(() => {
         if (firstUnreadId) {
           const el = document.querySelector(`[data-msg-id="${firstUnreadId}"]`) as HTMLElement | null;
-          if (el) { el.scrollIntoView({ block: 'start' }); updateReadPosition(); return; }
+          if (el) { el.scrollIntoView({ block: 'end' }); updateReadPosition(); return; }
         }
         bottomRef.current?.scrollIntoView({ block: 'end' });
         updateReadPosition();
