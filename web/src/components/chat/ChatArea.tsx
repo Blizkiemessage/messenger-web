@@ -14,6 +14,7 @@ import { EmptyState } from './EmptyState';
 import { ReplyPreviewBar } from './ReplyPreviewBar';
 import { sendChatMessage, getPinnedMessages, pinMessage as apiPin, unpinMessage as apiUnpin, reactToMessage } from '../../api/chats';
 import { createPoll, votePoll, retractVote } from '../../api/polls';
+import { emitTypingStart, emitTypingStop } from '../../socket/socketClient';
 import type { CreatePollData } from '../../api/polls';
 import type { UploadResult } from '../../api/upload';
 import type { Message } from '../../types';
@@ -66,6 +67,8 @@ export function ChatArea() {
   const [voterModal, setVoterModal] = useState<{ pollId: string; optionId: string; optionText: string } | null>(null);
   const { loadOlderMessages } = useMessages();
   const hasMoreMessages = useChatsStore(s => s.hasMoreMessages);
+  const activeChatId = useChatsStore(s => s.activeChatId);
+  const typingUserIds = useChatsStore(s => s.typingUsers.get(s.activeChatId ?? '') ?? []);
 
   const handleLoadMore = useCallback(async () => {
     if (loadingMore) return;
@@ -267,6 +270,9 @@ export function ChatArea() {
     const text = messageText.trim();
     if (!text) return;
     setMessageText('');
+    // Stop typing indicator immediately on send
+    const cid = useChatsStore.getState().activeChatId;
+    if (cid) emitTypingStop(cid);
     const chatId = useChatsStore.getState().activeChatId;
     if (!chatId) return;
     const parts = splitMessage(text);
@@ -352,6 +358,19 @@ export function ChatArea() {
     const opt = msg?.poll?.options.find(o => o.id === optionId);
     setVoterModal({ pollId, optionId, optionText: opt?.text ?? '' });
   }, []);
+
+  // ── Typing indicator text ─────────────────────────────────────────────────
+  const typingText = (() => {
+    if (!activeChat || typingUserIds.length === 0) return '';
+    const others = typingUserIds.filter(id => id !== me.id);
+    if (others.length === 0) return '';
+    const names = others.map(id => {
+      const m = activeChat.members.find(u => u.id === id);
+      return m?.display_name || m?.username || 'Пользователь';
+    });
+    const verb = names.length === 1 ? 'печатает' : 'печатают';
+    return `${names.join(', ')} ${verb}`;
+  })();
 
   if (!activeChat) return <EmptyState />;
 
@@ -474,6 +493,7 @@ export function ChatArea() {
         onTogglePinned={handleTogglePinned}
         onPinnedNext={handlePinnedNext}
         onPinnedPrev={handlePinnedPrev}
+        typingText={typingText}
       />
 
       <MessageList
@@ -534,6 +554,8 @@ export function ChatArea() {
             onExternalFileConsumed={() => setDroppedFile(null)}
             isGroup={activeChat.type === 'group'}
             onOpenPollCreator={() => setShowPollCreator(true)}
+            onTypingStart={() => activeChatId && emitTypingStart(activeChatId)}
+            onTypingStop={() => activeChatId && emitTypingStop(activeChatId)}
           />
         </>
       )}

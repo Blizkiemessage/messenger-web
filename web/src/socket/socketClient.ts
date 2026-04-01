@@ -44,3 +44,11 @@ export function setActiveChat(chatId: string | null): void {
   socket?.emit('set-active-chat', chatId);
 }
 
+export function emitTypingStart(chatId: string): void {
+  socket?.emit('typing-start', { chatId });
+}
+
+export function emitTypingStop(chatId: string): void {
+  socket?.emit('typing-stop', { chatId });
+}
+

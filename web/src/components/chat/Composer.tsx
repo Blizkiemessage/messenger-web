@@ -129,6 +129,8 @@ interface Props {
   disabled?: boolean;
   isGroup?: boolean;
   onOpenPollCreator?: () => void;
+  onTypingStart?: () => void;
+  onTypingStop?: () => void;
 }
 
 type VoiceState = 'idle' | 'recording' | 'preview';
@@ -136,7 +138,7 @@ const LOCK_THRESHOLD = 60;
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
-export function Composer({ value, onChange, onSend, onSendAttachment, externalFile, onExternalFileConsumed, disabled, isGroup, onOpenPollCreator }: Props) {
+export function Composer({ value, onChange, onSend, onSendAttachment, externalFile, onExternalFileConsumed, disabled, isGroup, onOpenPollCreator, onTypingStart, onTypingStop }: Props) {
   // File staging
   const [staged,    setStaged]    = useState<File | null>(null);
   const [caption,   setCaption]   = useState('');
@@ -151,6 +153,8 @@ export function Composer({ value, onChange, onSend, onSendAttachment, externalFi
 
   const [attachMenuOpen, setAttachMenuOpen] = useState(false);
   const attachMenuRef = useRef<HTMLDivElement>(null);
+  const typingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isTypingRef = useRef(false);
 
   useEffect(() => {
     if (!attachMenuOpen) return;
@@ -522,10 +526,34 @@ export function Composer({ value, onChange, onSend, onSendAttachment, externalFi
                 ref={textInputRef}
                 className="composerInput"
                 value={isFileMode ? '' : value}
-                onChange={e => { if (!isFileMode) onChange(e.target.value); }}
+                onChange={e => {
+                  if (!isFileMode) {
+                    onChange(e.target.value);
+                    if (e.target.value.trim()) {
+                      if (!isTypingRef.current) { isTypingRef.current = true; onTypingStart?.(); }
+                      if (typingTimerRef.current) clearTimeout(typingTimerRef.current);
+                      typingTimerRef.current = setTimeout(() => {
+                        isTypingRef.current = false; onTypingStop?.();
+                        typingTimerRef.current = null;
+                      }, 3000);
+                    } else {
+                      if (isTypingRef.current) { isTypingRef.current = false; onTypingStop?.(); }
+                      if (typingTimerRef.current) { clearTimeout(typingTimerRef.current); typingTimerRef.current = null; }
+                    }
+                  }
+                }}
                 placeholder={uploading ? `Загрузка… ${progress}%` : isFileMode ? 'Файл готов к отправке' : 'Сообщение…'}
                 disabled={isFileMode || disabled}
-                onKeyDown={e => { if (!isFileMode && e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); if (value.trim()) onSend(); } }}
+                onKeyDown={e => {
+                  if (!isFileMode && e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    if (value.trim()) {
+                      if (isTypingRef.current) { isTypingRef.current = false; onTypingStop?.(); }
+                      if (typingTimerRef.current) { clearTimeout(typingTimerRef.current); typingTimerRef.current = null; }
+                      onSend();
+                    }
+                  }
+                }}
                 onPaste={e => {
                   const items = e.clipboardData?.items;
                   if (!items) return;

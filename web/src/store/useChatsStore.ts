@@ -71,6 +71,10 @@ interface ChatsState {
   addMessage: (msg: Message) => void;
   updateMessagePoll: (messageId: string, poll: import('../types').Poll) => void;
 
+  // ── Typing indicators ──────────────────────────────────────────────────────
+  typingUsers: Map<string, string[]>; // chatId → [userId, ...]
+  setTyping: (chatId: string, userId: string, isTyping: boolean) => void;
+
   // ── Socket-driven updates ──────────────────────────────────────────────────
   /** Incoming new-message event: update last_message + unread count. */
   handleNewMessage: (msg: Message) => void;
@@ -97,6 +101,7 @@ export const useChatsStore = create<ChatsState>((set) => ({
   dataError: null,
   hasMoreMessages: false,
   onlineUsers: new Set<string>(),
+  typingUsers: new Map<string, string[]>(),
 
   // ── Chat list ──────────────────────────────────────────────────────────────
 
@@ -217,6 +222,18 @@ export const useChatsStore = create<ChatsState>((set) => ({
   updateMessagePoll: (messageId, poll) => set(state => ({
     messages: state.messages.map(m => m.id === messageId ? { ...m, poll } : m),
   })),
+
+  setTyping: (chatId, userId, isTyping) => set(state => {
+    const next = new Map(state.typingUsers);
+    const current = next.get(chatId) ?? [];
+    if (isTyping) {
+      if (!current.includes(userId)) next.set(chatId, [...current, userId]);
+    } else {
+      const filtered = current.filter(id => id !== userId);
+      filtered.length > 0 ? next.set(chatId, filtered) : next.delete(chatId);
+    }
+    return { typingUsers: next };
+  }),
 
   // ── Socket-driven updates ──────────────────────────────────────────────────
 
