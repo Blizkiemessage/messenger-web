@@ -270,6 +270,7 @@ export function MessageList({
               onRetract={onRetract}
               onViewVoters={onViewVoters}
               meUsername={meUsername}
+              members={chat.members}
             />
           </div>
         );

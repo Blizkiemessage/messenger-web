@@ -5418,6 +5418,8 @@ input[type="date"].psInput::-webkit-calendar-picker-indicator {
   color: var(--accent);
   font-weight: 500;
 }
+.mentionLink   { cursor: pointer; text-decoration: underline; text-decoration-style: dotted; }
+.mentionLink:hover { opacity: .8; }
 .mentionMe {
   background: color-mix(in srgb, var(--accent) 14%, transparent);
   border-radius: 3px;
