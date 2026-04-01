@@ -25,6 +25,10 @@ import { PollVotersModal } from './PollVotersModal';
 // ── Max chars per message — split at last word boundary ──────────────────────
 const MAX_MSG_CHARS = 4000;
 
+// Stable empty array so the typingUsers selector doesn't create a new reference
+// on every render (which would cause an infinite re-render loop).
+const EMPTY_TYPING: string[] = [];
+
 function splitMessage(text: string): string[] {
   if (text.length <= MAX_MSG_CHARS) return [text];
   const parts: string[] = [];
@@ -68,7 +72,7 @@ export function ChatArea() {
   const { loadOlderMessages } = useMessages();
   const hasMoreMessages = useChatsStore(s => s.hasMoreMessages);
   const activeChatId = useChatsStore(s => s.activeChatId);
-  const typingUserIds = useChatsStore(s => s.typingUsers.get(s.activeChatId ?? '') ?? []);
+  const typingUserIds = useChatsStore(s => s.typingUsers.get(s.activeChatId ?? '') ?? EMPTY_TYPING);
 
   const handleLoadMore = useCallback(async () => {
     if (loadingMore) return;
