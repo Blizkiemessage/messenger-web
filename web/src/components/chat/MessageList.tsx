@@ -137,15 +137,16 @@ export function MessageList({
     }
   }, [messages.length, chat.id]); // eslint-disable-line
 
-  // Find the max created_at of all messages whose bottom edge is in the viewport
+  // Find the max created_at of all messages whose bottom edge is visible in the container.
+  // Uses getBoundingClientRect() — works regardless of CSS positioning of the container.
   const updateReadPosition = useCallback(() => {
     if (!onMarkRead || !containerRef.current) return;
     const el = containerRef.current;
-    const viewportBottom = el.scrollTop + el.clientHeight;
+    const containerBottom = el.getBoundingClientRect().bottom;
     const msgEls = el.querySelectorAll<HTMLElement>('[data-msg-id]');
     let maxTs = 0;
     for (const msgEl of Array.from(msgEls)) {
-      if (msgEl.offsetTop + msgEl.offsetHeight <= viewportBottom + 80) {
+      if (msgEl.getBoundingClientRect().bottom <= containerBottom + 80) {
         const ts = msgTimestampMap.current.get(msgEl.dataset.msgId!);
         if (ts && ts > maxTs) maxTs = ts;
       } else {
@@ -155,7 +156,7 @@ export function MessageList({
     if (maxTs > 0) onMarkRead(maxTs);
   }, [onMarkRead]);
 
-  // Scroll listener: track atBottom + trigger load-more when near top + debounced read tracking
+  // Scroll listener: track atBottom + trigger load-more when near top + read tracking
   const handleScroll = useCallback(() => {
     const el = containerRef.current;
     if (!el) return;
@@ -167,10 +168,14 @@ export function MessageList({
       prevScrollHeightRef.current = scrollHeight;
       onLoadMore();
     }
-    // Debounced read position update
     if (onMarkRead) {
       if (readDebounceRef.current) clearTimeout(readDebounceRef.current);
-      readDebounceRef.current = setTimeout(updateReadPosition, 500);
+      // When at bottom: mark immediately; otherwise debounce 500ms
+      if (isAtBottom) {
+        updateReadPosition();
+      } else {
+        readDebounceRef.current = setTimeout(updateReadPosition, 500);
+      }
     }
   }, [hasMoreMessages, loadingMore, onLoadMore, onMarkRead, updateReadPosition]);
 
