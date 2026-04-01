@@ -43,7 +43,7 @@ interface Props {
 }
 
 const CTX_WIDTH  = 200;
-const CTX_HEIGHT = 250;  // taller to fit Reply + React + Edit buttons
+const CTX_HEIGHT = 280;  // taller to fit Reply + Copy + Edit + React buttons
 
 export function MessageList({
   messages, chat, meId, partnerReadAt, selectedIds, hasSelection,
@@ -144,7 +144,7 @@ export function MessageList({
   }, []);
 
   return (
-    <div className="messages" ref={containerRef} onScroll={handleScroll} onClick={() => { hasSelection && onClearSelection(); }}>
+    <div className="messages" ref={containerRef} onScroll={handleScroll} onClick={() => { hasSelection && onClearSelection(); setCtxMenu(null); }}>
       {loadingMore && <div className="msgsLoadingMore">Загрузка истории…</div>}
       {!hasMoreMessages && messages.length > 0 && (
         <div className="msgsBeginning">— начало истории переписки —</div>
@@ -241,6 +241,20 @@ export function MessageList({
                   <path d="M20 18v-2a4 4 0 0 0-4-4H4"/>
                 </svg>
                 Ответить
+              </button>
+            )}
+
+            {/* Copy text */}
+            {!ctxMenu.msg.is_system && ctxMenu.msg.text && !ctxMenu.msg.attachment_url && (
+              <button
+                className="msgCtxItem"
+                onClick={() => { navigator.clipboard.writeText(ctxMenu.msg.text).catch(() => {}); setCtxMenu(null); }}
+              >
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+                  <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+                </svg>
+                Копировать текст
               </button>
             )}
 
