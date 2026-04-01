@@ -31,8 +31,9 @@ export function useSocket() {
     const socket = getSocket();
     if (!socket) return;
 
-    // Register for Web Push notifications (fire-and-forget, non-critical)
-    registerPush();
+    // Register for Web Push notifications after a short delay so the app
+    // fully renders first and the permission dialog appears in context.
+    const pushTimer = setTimeout(() => { registerPush(); }, 5000);
 
     const onNewMessage = (msg: Message) => {
       const { activeChatId, chats, loadChats, handleNewMessage } = useChatsStore.getState();
@@ -137,6 +138,7 @@ export function useSocket() {
       socket.off('poll-updated',         onPollUpdated);
       socket.off('user-typing',          onUserTyping);
       socket.off('user-stopped-typing',  onUserStoppedTyping);
+      clearTimeout(pushTimer);
       if (_markReadTimer) clearTimeout(_markReadTimer);
       disconnectSocket();
     };
