@@ -60,6 +60,10 @@ router.post('/:chatId/messages', (req, res, next) => {
       }
     }
 
+    // Fire-and-forget push to offline members
+    const { fireAndForgetPush } = require('../services/pushService');
+    fireAndForgetPush(req.params.chatId, req.userId, hasText ? text.trim() : '', io);
+
     res.status(201).json(msg);
   } catch (err) { next(err); }
 });

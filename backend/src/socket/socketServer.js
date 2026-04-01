@@ -140,6 +140,9 @@ function initSocket(httpServer) {
     });
   });
 
+  // Expose onlineUsers on the io instance so REST routes can check presence
+  io.onlineUsers = onlineUsers;
+
   return io;
 }
 

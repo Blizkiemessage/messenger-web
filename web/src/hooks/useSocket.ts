@@ -8,6 +8,7 @@ import { connectSocket, disconnectSocket, getSocket } from '../socket/socketClie
 import { markChatRead as apiMarkChatRead } from '../api/chats';
 import { useSessionStore } from '../store/useSessionStore';
 import { useChatsStore } from '../store/useChatsStore';
+import { registerPush } from '../utils/push';
 
 let _markReadTimer: ReturnType<typeof setTimeout> | null = null;
 
@@ -29,6 +30,9 @@ export function useSocket() {
     connectSocket(token);
     const socket = getSocket();
     if (!socket) return;
+
+    // Register for Web Push notifications (fire-and-forget, non-critical)
+    registerPush();
 
     const onNewMessage = (msg: Message) => {
       const { activeChatId, chats, loadChats, handleNewMessage } = useChatsStore.getState();
@@ -81,6 +85,14 @@ export function useSocket() {
       useChatsStore.getState().updateMessagePoll(messageId, poll);
     };
 
+    // ✅ NEW: typing indicators
+    const onUserTyping = ({ userId, chatId }: { userId: string; chatId: string }) => {
+      useChatsStore.getState().setTyping(chatId, userId, true);
+    };
+    const onUserStoppedTyping = ({ userId, chatId }: { userId: string; chatId: string }) => {
+      useChatsStore.getState().setTyping(chatId, userId, false);
+    };
+
     // ✅ NEW: emoji reactions
     const onMessageReactionV2 = ({
       messageId, chatId, reactions,
@@ -106,6 +118,8 @@ export function useSocket() {
     socket.on('user-offline',         onUserOffline);         // ✅
     socket.on('message-reaction-v2',  onMessageReactionV2);   // ✅
     socket.on('poll-updated',         onPollUpdated);           // ✅
+    socket.on('user-typing',          onUserTyping);            // ✅
+    socket.on('user-stopped-typing',  onUserStoppedTyping);     // ✅
 
     return () => {
       socket.off('new-message',          onNewMessage);
@@ -121,6 +135,8 @@ export function useSocket() {
       socket.off('user-offline',         onUserOffline);
       socket.off('message-reaction-v2',  onMessageReactionV2);
       socket.off('poll-updated',         onPollUpdated);
+      socket.off('user-typing',          onUserTyping);
+      socket.off('user-stopped-typing',  onUserStoppedTyping);
       if (_markReadTimer) clearTimeout(_markReadTimer);
       disconnectSocket();
     };

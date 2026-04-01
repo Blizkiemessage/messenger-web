@@ -36,6 +36,7 @@ interface Props {
   onSearchNext: () => void;
   onSearchPrev: () => void;
   onSearchClose: () => void;
+  typingText?: string;
 }
 
 export function ChatHeader({
@@ -45,6 +46,7 @@ export function ChatHeader({
   searchOpen, searchQuery, searchTotal, searchCurrent,
   onToggleSearch, onSearchChange, onSearchNext, onSearchPrev, onSearchClose,
   pinnedCount, pinnedOpen, pinnedIndex, onTogglePinned, onPinnedNext, onPinnedPrev,
+  typingText,
 }: Props) {
   const setActiveChatId = useChatsStore(s => s.setActiveChatId);
   const onlineUsers = useChatsStore(s => s.onlineUsers);
@@ -137,12 +139,16 @@ export function ChatHeader({
           </div>
           <div>
             <div className="chName">{chatTitle(chat, meId)}</div>
-            <div className={`chSub${!isGroup && isPartnerOnline ? ' chSubOnline' : ''}`}>
-              {isGroup
-                ? chatSubtitle(chat, meId)
-                : formatLastSeen(partner?.last_seen_at, isPartnerOnline)
-              }
-            </div>
+            {typingText ? (
+              <div className="chSub chSubTyping">{typingText}</div>
+            ) : (
+              <div className={`chSub${!isGroup && isPartnerOnline ? ' chSubOnline' : ''}`}>
+                {isGroup
+                  ? chatSubtitle(chat, meId)
+                  : formatLastSeen(partner?.last_seen_at, isPartnerOnline)
+                }
+              </div>
+            )}
           </div>
         </button>
 

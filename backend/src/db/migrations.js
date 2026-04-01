@@ -141,6 +141,15 @@ function runMigrations() {
     "ALTER TABLE users ADD COLUMN accent_color TEXT NOT NULL DEFAULT '#2f81f7'",
     // ✅ NEW: polls
     'ALTER TABLE messages ADD COLUMN poll_id TEXT',
+    // ✅ NEW: push subscriptions table
+    `CREATE TABLE IF NOT EXISTS push_subscriptions (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL,
+      endpoint TEXT NOT NULL UNIQUE,
+      p256dh TEXT NOT NULL,
+      auth_key TEXT NOT NULL,
+      created_at INTEGER NOT NULL
+    )`,
   ];
 
   for (const sql of alters) {
