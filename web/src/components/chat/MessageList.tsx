@@ -41,6 +41,8 @@ interface Props {
   onViewVoters?: (pollId: string, optionId: string) => void;
   onEdit: (msgId: string) => void;
   meUsername?: string;
+  firstUnreadId?: string | null;
+  onMarkRead?: (readUntil: number) => void;
 }
 
 const CTX_WIDTH  = 200;
@@ -53,7 +55,7 @@ export function MessageList({
   onReply, onReact, scrollTargetId, onScrollTargetHandled,
   searchQuery, matchedIds, currentMatchId, pinnedFocusId,
   hasMoreMessages, loadingMore, onLoadMore,
-  onVote, onRetract, onViewVoters, onEdit, meUsername,
+  onVote, onRetract, onViewVoters, onEdit, meUsername, firstUnreadId, onMarkRead,
 }: Props) {
   const bottomRef      = useRef<HTMLDivElement | null>(null);
   const matchRef       = useRef<HTMLDivElement | null>(null);
@@ -62,9 +64,25 @@ export function MessageList({
   const prevScrollHeightRef = useRef(0);
   const isGroup        = chat.type === 'group';
   const [atBottom, setAtBottom] = useState(true);
+  const atBottomRef    = useRef(true);
+  // Track whether we've done the initial scroll-to-first-unread for this chat
+  const initialScrollDoneRef = useRef(false);
+  const readDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Map of msgId → created_at for O(1) lookup during scroll
+  const msgTimestampMap = useRef(new Map<string, number>());
+  useEffect(() => {
+    msgTimestampMap.current = new Map(messages.map(m => [m.id, m.created_at]));
+  }, [messages]);
   // keep loadingMore in a ref so auto-scroll effect reads current value without re-running
   const loadingMoreRef = useRef(loadingMore);
   loadingMoreRef.current = loadingMore;
+
+  // Reset per-chat state when chat switches
+  useEffect(() => {
+    initialScrollDoneRef.current = false;
+    atBottomRef.current = true;
+    setAtBottom(true);
+  }, [chat.id]);
 
   const [ctxMenu, setCtxMenu] = useState<{ x: number; y: number; msg: Message } | null>(null);
   const [emojiTarget, setEmojiTarget] = useState<{ x: number; y: number; msgId: string } | null>(null);
@@ -99,23 +117,62 @@ export function MessageList({
     prevScrollHeightRef.current = 0;
   }, [messages.length]); // eslint-disable-line
 
-  // Auto-scroll to bottom on new messages (but not when loading older ones)
+  // Auto-scroll: first load → first unread (or bottom); new messages → bottom if at bottom
   useEffect(() => {
-    if (!currentMatchId && !pinnedFocusId && !loadingMoreRef.current)
+    if (currentMatchId || pinnedFocusId || loadingMoreRef.current) return;
+    if (!initialScrollDoneRef.current) {
+      initialScrollDoneRef.current = true;
+      requestAnimationFrame(() => {
+        if (firstUnreadId) {
+          const el = document.querySelector(`[data-msg-id="${firstUnreadId}"]`) as HTMLElement | null;
+          if (el) { el.scrollIntoView({ block: 'start' }); updateReadPosition(); return; }
+        }
+        bottomRef.current?.scrollIntoView({ block: 'end' });
+        updateReadPosition();
+      });
+    } else if (atBottomRef.current) {
       bottomRef.current?.scrollIntoView({ block: 'end' });
+      // Mark new message as read if user is at bottom
+      requestAnimationFrame(() => updateReadPosition());
+    }
   }, [messages.length, chat.id]); // eslint-disable-line
 
-  // Scroll listener: track atBottom + trigger load-more when near top
+  // Find the max created_at of all messages whose bottom edge is in the viewport
+  const updateReadPosition = useCallback(() => {
+    if (!onMarkRead || !containerRef.current) return;
+    const el = containerRef.current;
+    const viewportBottom = el.scrollTop + el.clientHeight;
+    const msgEls = el.querySelectorAll<HTMLElement>('[data-msg-id]');
+    let maxTs = 0;
+    for (const msgEl of Array.from(msgEls)) {
+      if (msgEl.offsetTop + msgEl.offsetHeight <= viewportBottom + 80) {
+        const ts = msgTimestampMap.current.get(msgEl.dataset.msgId!);
+        if (ts && ts > maxTs) maxTs = ts;
+      } else {
+        break; // messages are in DOM order (oldest→newest), safe to stop
+      }
+    }
+    if (maxTs > 0) onMarkRead(maxTs);
+  }, [onMarkRead]);
+
+  // Scroll listener: track atBottom + trigger load-more when near top + debounced read tracking
   const handleScroll = useCallback(() => {
     const el = containerRef.current;
     if (!el) return;
     const { scrollTop, scrollHeight, clientHeight } = el;
-    setAtBottom(scrollHeight - scrollTop - clientHeight < 80);
+    const isAtBottom = scrollHeight - scrollTop - clientHeight < 80;
+    setAtBottom(isAtBottom);
+    atBottomRef.current = isAtBottom;
     if (scrollTop < 80 && hasMoreMessages && !loadingMore && prevScrollHeightRef.current === 0) {
       prevScrollHeightRef.current = scrollHeight;
       onLoadMore();
     }
-  }, [hasMoreMessages, loadingMore, onLoadMore]);
+    // Debounced read position update
+    if (onMarkRead) {
+      if (readDebounceRef.current) clearTimeout(readDebounceRef.current);
+      readDebounceRef.current = setTimeout(updateReadPosition, 500);
+    }
+  }, [hasMoreMessages, loadingMore, onLoadMore, onMarkRead, updateReadPosition]);
 
   useEffect(() => {
     if (currentMatchId && matchRef.current)

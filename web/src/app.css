@@ -5450,18 +5450,8 @@ input[type="date"].psInput::-webkit-calendar-picker-indicator {
 }
 .mentionPopupItem:hover,
 .mentionPopupItemActive { background: var(--hover); }
-.mentionPopupAvatar {
-  width: 30px;
-  height: 30px;
-  border-radius: 50%;
-  background: var(--accent);
-  color: #fff;
-  font-size: 13px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-}
+.mentionPopupItem > img,
+.mentionPopupItem > div:first-child { flex-shrink: 0; }
 .mentionPopupName {
   font-size: 14px;
   font-weight: 500;

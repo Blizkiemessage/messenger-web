@@ -15,6 +15,7 @@ import { ReplyPreviewBar } from './ReplyPreviewBar';
 import { sendChatMessage, getPinnedMessages, pinMessage as apiPin, unpinMessage as apiUnpin, reactToMessage, editMessage as apiEditMessage } from '../../api/chats';
 import { createPoll, votePoll, retractVote } from '../../api/polls';
 import { emitTypingStart, emitTypingStop } from '../../socket/socketClient';
+import { scheduleMarkRead } from '../../hooks/useSocket';
 import type { CreatePollData } from '../../api/polls';
 import type { UploadResult } from '../../api/upload';
 import type { Message } from '../../types';
@@ -134,6 +135,19 @@ export function ChatArea() {
   const pinnedFocusId = pinnedOpen && pinnedMessages.length > 0
     ? pinnedMessages[pinnedIdx]?.id ?? null
     : null;
+
+  // ── First-unread scroll target: set once when messages load ─────────────
+  const [firstUnreadId, setFirstUnreadId] = useState<string | null>(null);
+
+  useEffect(() => { setFirstUnreadId(null); }, [activeChatId]);
+
+  useEffect(() => {
+    if (loadingMessages || messages.length === 0) return;
+    const unread = activeChat?.unread_count ?? 0;
+    if (unread === 0) { setFirstUnreadId(null); return; }
+    const idx = Math.max(0, messages.length - unread);
+    setFirstUnreadId(messages[idx]?.id ?? null);
+  }, [activeChatId, loadingMessages]); // eslint-disable-line
 
   // ── Mention banner: detect @me in unread messages on chat entry ───────────
   useEffect(() => {
@@ -296,6 +310,13 @@ export function ChatArea() {
   const handleCancelEdit = useCallback(() => {
     setEditingId(null);
     setMessageText('');
+  }, []);
+
+  // ── Mark-read via scroll ──────────────────────────────────────────────────
+  const handleMarkRead = useCallback((readUntil: number) => {
+    const chatId = useChatsStore.getState().activeChatId;
+    if (!chatId) return;
+    scheduleMarkRead(chatId, readUntil);
   }, []);
 
   // ── Send text (with auto-split) ───────────────────────────────────────────
@@ -570,6 +591,8 @@ export function ChatArea() {
         onViewVoters={handleViewVoters}
         onEdit={handleStartEdit}
         meUsername={me.username ?? undefined}
+        firstUnreadId={firstUnreadId}
+        onMarkRead={handleMarkRead}
       />
 
       {isGroupClosed ? (

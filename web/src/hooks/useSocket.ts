@@ -11,15 +11,24 @@ import { useChatsStore } from '../store/useChatsStore';
 import { registerPush } from '../utils/push';
 
 let _markReadTimer: ReturnType<typeof setTimeout> | null = null;
+let _pendingReadUntil: number | undefined = undefined;
+let _pendingChatId: string | null = null;
 
-export function scheduleMarkRead(chatId: string) {
+export function scheduleMarkRead(chatId: string, readUntil?: number) {
+  // Don't move read position backwards
+  if (readUntil !== undefined && _pendingChatId === chatId &&
+      _pendingReadUntil !== undefined && readUntil <= _pendingReadUntil) return;
+
   if (_markReadTimer) clearTimeout(_markReadTimer);
+  _pendingChatId  = chatId;
+  _pendingReadUntil = readUntil;
+
   _markReadTimer = setTimeout(async () => {
+    _markReadTimer = null;
     try {
-      await apiMarkChatRead(chatId);
-      useChatsStore.getState().markChatRead(chatId);
+      await apiMarkChatRead(chatId, _pendingReadUntil);
     } catch { /* ignore */ }
-  }, 300);
+  }, 400);
 }
 
 export function useSocket() {
@@ -37,10 +46,9 @@ export function useSocket() {
 
     const onNewMessage = (msg: Message) => {
       const { activeChatId, chats, loadChats, handleNewMessage } = useChatsStore.getState();
-      const isActive = msg.chat_id === activeChatId;
       if (!chats.some(c => c.id === msg.chat_id)) { loadChats(); return; }
       handleNewMessage(msg);
-      if (isActive) scheduleMarkRead(msg.chat_id);
+      // Read tracking is handled by MessageList scroll observer — no auto-mark here
     };
 
     const onChatRead = ({ chatId, userId, readAt }: { chatId: string; userId: string; readAt: number }) => {

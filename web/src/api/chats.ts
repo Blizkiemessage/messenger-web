@@ -57,8 +57,11 @@ export async function reactToMessage(
   return res.data;
 }
 
-export async function markChatRead(chatId: string): Promise<{ readAt: number }> {
-  const res = await client.post<{ ok: boolean; readAt: number }>(`/chats/${chatId}/read`);
+export async function markChatRead(chatId: string, readUntil?: number): Promise<{ readAt: number }> {
+  const res = await client.post<{ ok: boolean; readAt: number }>(
+    `/chats/${chatId}/read`,
+    readUntil !== undefined ? { readUntil } : {}
+  );
   return res.data;
 }
 

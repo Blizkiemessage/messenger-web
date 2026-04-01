@@ -1,4 +1,5 @@
 import { type User } from '../../types';
+import { Avatar } from '../ui/Avatar';
 
 interface Props {
   members: User[];
@@ -27,9 +28,7 @@ export function MentionPopup({ members, filter, activeIdx, onSelect }: Props) {
           className={`mentionPopupItem${i === activeIdx ? ' mentionPopupItemActive' : ''}`}
           onMouseDown={e => { e.preventDefault(); onSelect(m.username!); }}
         >
-          <div className="mentionPopupAvatar">
-            {(m.display_name || m.username || '?')[0].toUpperCase()}
-          </div>
+          <Avatar user={m} size={30} radius={8} />
           <div>
             <div className="mentionPopupName">{m.display_name || m.username}</div>
             {m.display_name && <div className="mentionPopupUser">@{m.username}</div>}
