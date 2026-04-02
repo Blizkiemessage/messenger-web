@@ -618,6 +618,11 @@ input { font: inherit; color: inherit; background: transparent; }
   outline: none;
   font-size: 14px;
   transition: border-color .15s;
+  resize: none;
+  overflow-y: auto;
+  max-height: 150px;
+  line-height: 1.45;
+  font-family: inherit;
 }
 .composerInput:focus { border-color: rgba(47,129,247,.4); }
 .composerSend {

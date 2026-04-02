@@ -153,7 +153,7 @@ export function Composer({ value, onChange, onSend, onSendAttachment, externalFi
 
   const fileInputRef    = useRef<HTMLInputElement>(null);
   const captionInputRef = useRef<HTMLInputElement>(null);
-  const textInputRef    = useRef<HTMLInputElement>(null);
+  const textInputRef    = useRef<HTMLTextAreaElement>(null);
   const cancelRef       = useRef<(() => void) | null>(null);
 
   const [attachMenuOpen, setAttachMenuOpen] = useState(false);
@@ -197,6 +197,13 @@ export function Composer({ value, onChange, onSend, onSendAttachment, externalFi
   useEffect(() => {
     if (externalFile) { stageFile(externalFile); onExternalFileConsumed?.(); }
   }, [externalFile]); // eslint-disable-line
+
+  // Reset textarea height when value is cleared (after send)
+  useEffect(() => {
+    if (!value && textInputRef.current) {
+      textInputRef.current.style.height = 'auto';
+    }
+  }, [value]);
 
   function stageFile(file: File) {
     setStaged(file); setCaption(''); setProgress(0); setUploadErr(null);
@@ -575,13 +582,17 @@ export function Composer({ value, onChange, onSend, onSendAttachment, externalFi
                   </div>
                 )}
               </div>
-              <input
+              <textarea
                 ref={textInputRef}
                 className="composerInput"
+                rows={1}
                 value={isFileMode ? '' : value}
                 onChange={e => {
                   if (!isFileMode) {
                     onChange(e.target.value);
+                    // Auto-resize: grow up to 150px, then scroll
+                    e.target.style.height = 'auto';
+                    e.target.style.height = Math.min(e.target.scrollHeight, 150) + 'px';
                     if (e.target.value.trim()) {
                       if (!isTypingRef.current) { isTypingRef.current = true; onTypingStart?.(); }
                       if (typingTimerRef.current) clearTimeout(typingTimerRef.current);
@@ -655,6 +666,7 @@ export function Composer({ value, onChange, onSend, onSendAttachment, externalFi
               />
               <button
                 className={`composerSend${uploading ? ' composerSendLoading' : ''}`}
+
                 onClick={isFileMode ? () => handleSendFile() : () => { if (value.trim()) onSend(); }}
                 disabled={!canSend}
               >
