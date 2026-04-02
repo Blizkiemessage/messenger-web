@@ -243,10 +243,14 @@ export function ChatArea() {
 
   // ✅ Delete single message from context menu — selects it then opens confirm modal
   const handleDeleteSingle = useCallback((msgId: string) => {
-    clearSelection();
-    toggleSelect(msgId);
+    if (selectedIds.size <= 1) {
+      // Single or no prior selection — select only the right-clicked message
+      clearSelection();
+      toggleSelect(msgId);
+    }
+    // Multi-selection — keep all selected; modal will delete them all
     setShowDeleteConfirm(true);
-  }, [clearSelection, toggleSelect, setShowDeleteConfirm]);
+  }, [selectedIds.size, clearSelection, toggleSelect, setShowDeleteConfirm]);
 
   // ✅ "Add more" — close the modal and pre-select already-queued messages so user just taps extras
   const handleForwardAddMore = useCallback(() => {

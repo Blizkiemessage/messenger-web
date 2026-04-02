@@ -99,6 +99,11 @@ export function MessageList({
     };
   }, [ctxMenu]);
 
+  // Close context menu whenever selection is fully cleared
+  useEffect(() => {
+    if (!hasSelection) setCtxMenu(null);
+  }, [hasSelection]);
+
   // Scroll to a specific message (e.g. clicking on a reply quote)
   useEffect(() => {
     if (!scrollTargetId) return;
@@ -297,8 +302,9 @@ export function MessageList({
             onClick={e => e.stopPropagation()}
             onContextMenu={e => e.preventDefault()}
           >
-            {/* ✅ Reply — always first */}
-            {!ctxMenu.msg.is_system && (
+            {(() => { const multiSelect = selectedIds.size > 1; return (<>
+            {/* Reply — single message only */}
+            {!multiSelect && !ctxMenu.msg.is_system && (
               <button
                 className="msgCtxItem msgCtxItemReply"
                 onClick={() => {
@@ -314,8 +320,8 @@ export function MessageList({
               </button>
             )}
 
-            {/* Copy text */}
-            {!ctxMenu.msg.is_system && ctxMenu.msg.text && !ctxMenu.msg.attachment_url && (
+            {/* Copy text — single message only */}
+            {!multiSelect && !ctxMenu.msg.is_system && ctxMenu.msg.text && !ctxMenu.msg.attachment_url && (
               <button
                 className="msgCtxItem"
                 onClick={() => { navigator.clipboard.writeText(ctxMenu.msg.text).catch(() => {}); setCtxMenu(null); }}
@@ -328,8 +334,8 @@ export function MessageList({
               </button>
             )}
 
-            {/* ✅ Edit — only own text messages (no attachment) */}
-            {ctxMenu.msg.sender_id === meId && !ctxMenu.msg.attachment_url && !ctxMenu.msg.is_system && !ctxMenu.msg.poll && (
+            {/* Edit — single message only, own text messages */}
+            {!multiSelect && ctxMenu.msg.sender_id === meId && !ctxMenu.msg.attachment_url && !ctxMenu.msg.is_system && !ctxMenu.msg.poll && (
               <button
                 className="msgCtxItem msgCtxItemEdit"
                 onClick={() => { onEdit(ctxMenu.msg.id); setCtxMenu(null); }}
@@ -342,8 +348,8 @@ export function MessageList({
               </button>
             )}
 
-            {/* ✅ React with emoji */}
-            {!ctxMenu.msg.is_system && (
+            {/* React with emoji — single message only */}
+            {!multiSelect && !ctxMenu.msg.is_system && (
               <button
                 className="msgCtxItem msgCtxItemReact"
                 onClick={() => {
@@ -359,7 +365,7 @@ export function MessageList({
                 </svg>
                 Поставить реакцию
               </button>
-            )}
+            )}</>); })()}
 
             {/* ✅ Forward */}
             {!ctxMenu.msg.is_system && (
@@ -399,8 +405,8 @@ export function MessageList({
               </button>
             )}
 
-            {/* Retract vote */}
-            {ctxMenu.msg.poll && ctxMenu.msg.poll.my_votes.length > 0 && (
+            {/* Retract vote — single message only */}
+            {selectedIds.size <= 1 && ctxMenu.msg.poll && ctxMenu.msg.poll.my_votes.length > 0 && (
               <button
                 className="msgCtxItem"
                 onClick={() => { onRetract?.(ctxMenu.msg.id); setCtxMenu(null); }}
