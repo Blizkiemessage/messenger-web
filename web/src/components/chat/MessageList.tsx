@@ -262,7 +262,7 @@ export function MessageList({
               highlight={isMatch ? searchQuery : undefined}
               isSearchMatch={isFocused}
               meId={meId}
-              onContextMenu={() => onToggleSelect(m.id)}
+              onContextMenu={hasSelection ? () => {} : () => onToggleSelect(m.id)}
               onClick={() => onToggleSelect(m.id)}
               onViewUser={onViewUser}
               onForwardedSenderClick={onViewUser}
@@ -320,11 +320,17 @@ export function MessageList({
               </button>
             )}
 
-            {/* Copy text — single message only */}
-            {!multiSelect && !ctxMenu.msg.is_system && ctxMenu.msg.text && !ctxMenu.msg.attachment_url && (
+            {/* Copy text — single or multi (copies all selected texts joined by blank line) */}
+            {!ctxMenu.msg.is_system && (multiSelect ? messages.some(m => selectedIds.has(m.id) && m.text) : (ctxMenu.msg.text && !ctxMenu.msg.attachment_url)) && (
               <button
                 className="msgCtxItem"
-                onClick={() => { navigator.clipboard.writeText(ctxMenu.msg.text).catch(() => {}); setCtxMenu(null); }}
+                onClick={() => {
+                  const text = multiSelect
+                    ? messages.filter(m => selectedIds.has(m.id) && m.text).map(m => m.text).join('\n\n')
+                    : ctxMenu.msg.text;
+                  navigator.clipboard.writeText(text).catch(() => {});
+                  setCtxMenu(null);
+                }}
               >
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
