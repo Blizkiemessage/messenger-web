@@ -623,6 +623,7 @@ export function Composer({ value, onChange, onSend, onSendAttachment, externalFi
                         previewPosition="none"
                         skinTonePosition="none"
                         maxFrequentRows={2}
+                        noCountryFlags={false}
                       />
                     </div>
                   )}
