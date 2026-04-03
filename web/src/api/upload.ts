@@ -159,7 +159,7 @@ export function uploadFile(
     }
 
     // 2b. Presigned: compress image client-side, then PUT directly to S3
-    const { uploadUrl, fileUrl, contentType: serverContentType, contentDisposition } = presignRes.data as { uploadUrl: string; fileUrl: string; contentType: string; contentDisposition: string };
+    const { uploadUrl, fileUrl, contentDisposition } = presignRes.data as { uploadUrl: string; fileUrl: string; contentType: string; contentDisposition: string };
     let blob: Blob = file;
     let mime = file.type;
 
