@@ -2755,6 +2755,15 @@ input[type="date"].psInput::-webkit-calendar-picker-indicator {
   border: 1px solid var(--border);
   animation: slideUp .2s ease;
 }
+@media (max-width: 600px) {
+  .composerEmojiPanel {
+    position: fixed;
+    bottom: 70px;
+    left: 50%;
+    right: auto;
+    transform: translateX(-50%);
+  }
+}
 
 /* ── Spinner animation for upload send button ────────────────────────────── */
 .composerSpinner {
