@@ -23,6 +23,77 @@ export interface UploadTask {
   cancel: () => void;
 }
 
+// Client-side video compression via MediaRecorder.
+// Re-encodes the video at lower bitrate (1 Mbps video + 128 kbps audio → ~8x smaller than typical phone video).
+// Falls back to original file if browser doesn't support the codec.
+async function compressVideo(file: File): Promise<{ blob: Blob; mime: string }> {
+  const supported = MediaRecorder.isTypeSupported('video/webm;codecs=vp9,opus')
+    ? 'video/webm;codecs=vp9,opus'
+    : MediaRecorder.isTypeSupported('video/webm;codecs=vp8,opus')
+    ? 'video/webm;codecs=vp8,opus'
+    : null;
+
+  if (!supported) return { blob: file, mime: file.type };
+
+  return new Promise((resolve) => {
+    const video = document.createElement('video');
+    video.muted = true;
+    video.playsInline = true;
+    video.src = URL.createObjectURL(file);
+
+    video.onloadedmetadata = () => {
+      const canvas = document.createElement('canvas');
+      // Limit to 720p to save space
+      const MAX = 1280;
+      let { videoWidth: w, videoHeight: h } = video;
+      if (w > MAX || h > MAX) {
+        const r = Math.min(MAX / w, MAX / h);
+        w = Math.round(w * r);
+        h = Math.round(h * r);
+      }
+      canvas.width  = w;
+      canvas.height = h;
+      const ctx = canvas.getContext('2d')!;
+
+      const stream = canvas.captureStream(30);
+      // Add audio track from original video if available
+      const audioCtx = new AudioContext();
+      const src = audioCtx.createMediaElementSource(video);
+      const dst = audioCtx.createMediaStreamDestination();
+      src.connect(dst);
+      for (const track of dst.stream.getAudioTracks()) stream.addTrack(track);
+
+      const recorder = new MediaRecorder(stream, {
+        mimeType: supported,
+        videoBitsPerSecond: 1_000_000,   // 1 Mbps
+        audioBitsPerSecond: 128_000,
+      });
+      const chunks: Blob[] = [];
+      recorder.ondataavailable = e => { if (e.data.size > 0) chunks.push(e.data); };
+      recorder.onstop = () => {
+        URL.revokeObjectURL(video.src);
+        audioCtx.close();
+        const blob = new Blob(chunks, { type: 'video/webm' });
+        // Only use compressed version if it's actually smaller
+        resolve(blob.size < file.size ? { blob, mime: 'video/webm' } : { blob: file, mime: file.type });
+      };
+
+      recorder.start(100);
+      video.play();
+
+      const drawFrame = () => {
+        if (video.ended || video.paused) { recorder.stop(); return; }
+        ctx.drawImage(video, 0, 0, w, h);
+        requestAnimationFrame(drawFrame);
+      };
+      video.onplay = () => requestAnimationFrame(drawFrame);
+      video.onended = () => recorder.stop();
+    };
+
+    video.onerror = () => resolve({ blob: file, mime: file.type });
+  });
+}
+
 // Client-side image compression — mirrors server sharp logic:
 // GIF and SVG pass through unchanged; everything else → WebP, quality 0.82, max 2560px.
 async function compressImage(file: File): Promise<{ blob: Blob; mime: string }> {
@@ -62,11 +133,11 @@ export function uploadFile(
   const controller = new AbortController();
 
   const promise = (async (): Promise<UploadResult> => {
-    // Determine what mime we'll actually upload (WebP for compressible images)
+    // Determine what mime we'll actually upload (WebP for images, WebM for videos)
     const isImage = file.type.startsWith('image/');
-    const uploadMime = (isImage && file.type !== 'image/gif' && file.type !== 'image/svg+xml')
-      ? 'image/webp'
-      : file.type;
+    const isVideo = file.type.startsWith('video/');
+    const compressibleImage = isImage && file.type !== 'image/gif' && file.type !== 'image/svg+xml';
+    const uploadMime = compressibleImage ? 'image/webp' : isVideo ? 'video/webm' : file.type;
 
     // 1. Ask backend for a presigned URL
     const presignRes = await client.post<{ fallback: true } | { uploadUrl: string; fileUrl: string }>(
@@ -88,12 +159,16 @@ export function uploadFile(
     }
 
     // 2b. Presigned: compress image client-side, then PUT directly to S3
-    const { uploadUrl, fileUrl } = presignRes.data;
+    const { uploadUrl, fileUrl, contentType: serverContentType, contentDisposition } = presignRes.data as { uploadUrl: string; fileUrl: string; contentType: string; contentDisposition: string };
     let blob: Blob = file;
     let mime = file.type;
 
     if (isImage) {
       const compressed = await compressImage(file);
+      blob = compressed.blob;
+      mime = compressed.mime;
+    } else if (isVideo) {
+      const compressed = await compressVideo(file);
       blob = compressed.blob;
       mime = compressed.mime;
     }
@@ -110,11 +185,12 @@ export function uploadFile(
       xhr.upload.onprogress = e => { if (e.total) onProgress(Math.round(e.loaded / e.total * 100)); };
       xhr.onload = () => {
         if (xhr.status >= 200 && xhr.status < 300) resolve();
-        else reject(new Error(`S3 upload error ${xhr.status}`));
+        else reject(new Error(`Ошибка загрузки (${xhr.status})`));
       };
-      xhr.onerror = () => reject(new Error('Upload failed'));
+      xhr.onerror = () => reject(new Error('Ошибка сети при загрузке файла. Проверьте CORS в настройках бакета.'));
       xhr.open('PUT', uploadUrl);
       xhr.setRequestHeader('Content-Type', mime);
+      if (contentDisposition) xhr.setRequestHeader('Content-Disposition', contentDisposition);
       xhr.send(blob);
     });
 

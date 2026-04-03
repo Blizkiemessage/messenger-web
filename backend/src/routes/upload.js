@@ -170,16 +170,17 @@ router.post('/presign', async (req, res, next) => {
       ? 'inline'
       : `attachment; filename*=UTF-8''${encodeURIComponent(origName || key)}`;
 
+    // ContentType and ContentDisposition are NOT signed — client sends them freely.
+    // Signing ContentType forces the client to send a matching header, which some
+    // S3-compatible providers (Yandex Cloud) reject during CORS preflight.
     const command = new PutObjectCommand({
       Bucket: process.env.S3_BUCKET,
       Key: key,
-      ContentType: mime,
-      ContentDisposition: contentDisposition,
     });
 
     const uploadUrl = await getSignedUrl(s3, command, { expiresIn: 300 });
     const publicUrl = process.env.S3_PUBLIC_URL.replace(/\/+$/, '');
-    res.json({ uploadUrl, fileUrl: `${publicUrl}/${key}` });
+    res.json({ uploadUrl, fileUrl: `${publicUrl}/${key}`, contentType: mime, contentDisposition });
   } catch (err) { next(err); }
 });
 
