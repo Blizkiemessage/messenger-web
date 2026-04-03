@@ -3065,6 +3065,12 @@ input[type="date"].psInput::-webkit-calendar-picker-indicator {
 .bubbleAttachVideo {
   margin: 0 -12px;
 }
+.bubbleVideoPlayer {
+  position: relative;
+  display: inline-block;
+  max-width: 320px;
+  width: 100%;
+}
 .bubbleVideo {
   display: block;
   width: 100%;
@@ -3073,6 +3079,25 @@ input[type="date"].psInput::-webkit-calendar-picker-indicator {
   background: #000;
   border-radius: 0;
 }
+.bubbleVideoFullscreenBtn {
+  position: absolute;
+  bottom: 38px; /* above native controls bar */
+  right: 8px;
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  border: none;
+  background: rgba(0,0,0,.55);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  backdrop-filter: blur(4px);
+  opacity: 0;
+  transition: opacity .2s;
+}
+.bubbleVideoPlayer:hover .bubbleVideoFullscreenBtn { opacity: 1; }
 
 /* ── Caption below image/video ───────────────────────────────────────────── */
 .bubbleCaption {

@@ -141,23 +141,39 @@ function ImageAttachment({
 }
 
 // ── Video attachment ─────────────────────────────────────────────────────────
-// ✅ FIXED: poster is a plain dark div (no nested <video> to avoid double load)
 function VideoAttachment({
   url, caption,
 }: { url: string; caption?: string; name?: string }) {
   const [playing, setPlaying] = useState(false);
+  const videoRef = useRef<HTMLVideoElement>(null);
+
+  const goFullscreen = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    const el = videoRef.current;
+    if (!el) return;
+    if (el.requestFullscreen) el.requestFullscreen();
+    else if ((el as any).webkitRequestFullscreen) (el as any).webkitRequestFullscreen();
+  };
 
   if (playing) {
     return (
       <div className="bubbleAttachVideo">
-        <video
-          src={url}
-          controls
-          autoPlay
-          className="bubbleVideo"
-          preload="auto"
-          playsInline
-        />
+        <div className="bubbleVideoPlayer">
+          <video
+            ref={videoRef}
+            src={url}
+            controls
+            autoPlay
+            className="bubbleVideo"
+            preload="auto"
+            playsInline
+          />
+          <button className="bubbleVideoFullscreenBtn" onClick={goFullscreen} title="Полный экран">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z"/>
+            </svg>
+          </button>
+        </div>
         {caption && <div className="bubbleCaption">{caption}</div>}
       </div>
     );
