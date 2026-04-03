@@ -40,10 +40,14 @@ interface Props {
   onVote?: (msgId: string, optionIds: string[]) => void;
   onRetract?: (msgId: string) => void;
   onViewVoters?: (pollId: string, optionId: string) => void;
+  onEdit: (msgId: string) => void;
+  meUsername?: string;
+  unreadCount?: number;
+  onMarkRead?: (readUntil: number) => void;
 }
 
 const CTX_WIDTH  = 200;
-const CTX_HEIGHT = 220;  // taller to fit Reply + React buttons
+const CTX_HEIGHT = 280;  // taller to fit Reply + Copy + Edit + React buttons
 
 export function MessageList({
   messages, chat, meId, partnerReadAt, selectedIds, hasSelection,
@@ -52,7 +56,7 @@ export function MessageList({
   onReply, onReact, scrollTargetId, onScrollTargetHandled,
   searchQuery, matchedIds, currentMatchId, pinnedFocusId,
   hasMoreMessages, loadingMore, onLoadMore,
-  onVote, onRetract, onViewVoters,
+  onVote, onRetract, onViewVoters, onEdit, meUsername, unreadCount, onMarkRead,
 }: Props) {
   const bottomRef      = useRef<HTMLDivElement | null>(null);
   const matchRef       = useRef<HTMLDivElement | null>(null);
@@ -61,9 +65,25 @@ export function MessageList({
   const prevScrollHeightRef = useRef(0);
   const isGroup        = chat.type === 'group';
   const [atBottom, setAtBottom] = useState(true);
+  const atBottomRef    = useRef(true);
+  // Track whether we've done the initial scroll-to-first-unread for this chat
+  const initialScrollDoneRef = useRef(false);
+  const readDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Map of msgId → created_at for O(1) lookup during scroll
+  const msgTimestampMap = useRef(new Map<string, number>());
+  useEffect(() => {
+    msgTimestampMap.current = new Map(messages.map(m => [m.id, m.created_at]));
+  }, [messages]);
   // keep loadingMore in a ref so auto-scroll effect reads current value without re-running
   const loadingMoreRef = useRef(loadingMore);
   loadingMoreRef.current = loadingMore;
+
+  // Reset per-chat state when chat switches
+  useEffect(() => {
+    initialScrollDoneRef.current = false;
+    atBottomRef.current = true;
+    setAtBottom(true);
+  }, [chat.id]);
 
   const [ctxMenu, setCtxMenu] = useState<{ x: number; y: number; msg: Message } | null>(null);
   const [emojiTarget, setEmojiTarget] = useState<{ x: number; y: number; msgId: string } | null>(null);
@@ -80,6 +100,11 @@ export function MessageList({
       window.removeEventListener('contextmenu', close);
     };
   }, [ctxMenu]);
+
+  // Close context menu whenever selection is fully cleared
+  useEffect(() => {
+    if (!hasSelection) setCtxMenu(null);
+  }, [hasSelection]);
 
   // Scroll to a specific message (e.g. clicking on a reply quote)
   useEffect(() => {
@@ -99,23 +124,72 @@ export function MessageList({
     prevScrollHeightRef.current = 0;
   }, [messages.length]); // eslint-disable-line
 
-  // Auto-scroll to bottom on new messages (but not when loading older ones)
+  // Auto-scroll: first load → first unread (or bottom); new messages → bottom if at bottom
   useEffect(() => {
-    if (!currentMatchId && !pinnedFocusId && !loadingMoreRef.current)
+    if (currentMatchId || pinnedFocusId || loadingMoreRef.current) return;
+    if (!initialScrollDoneRef.current) {
+      initialScrollDoneRef.current = true;
+      // Compute first unread synchronously here — avoids the race where a
+      // separate ChatArea effect sets firstUnreadId AFTER this effect runs.
+      const count = unreadCount ?? 0;
+      const targetId = count > 0
+        ? messages[Math.max(0, messages.length - count)]?.id ?? null
+        : null;
+      requestAnimationFrame(() => {
+        if (targetId) {
+          const el = document.querySelector(`[data-msg-id="${targetId}"]`) as HTMLElement | null;
+          if (el) { el.scrollIntoView({ block: 'end' }); updateReadPosition(); return; }
+        }
+        bottomRef.current?.scrollIntoView({ block: 'end' });
+        updateReadPosition();
+      });
+    } else if (atBottomRef.current) {
       bottomRef.current?.scrollIntoView({ block: 'end' });
+      requestAnimationFrame(() => updateReadPosition());
+    }
   }, [messages.length, chat.id]); // eslint-disable-line
 
-  // Scroll listener: track atBottom + trigger load-more when near top
+  // Find the max created_at of all messages whose bottom edge is visible in the container.
+  // Uses getBoundingClientRect() — works regardless of CSS positioning of the container.
+  const updateReadPosition = useCallback(() => {
+    if (!onMarkRead || !containerRef.current) return;
+    const el = containerRef.current;
+    const containerBottom = el.getBoundingClientRect().bottom;
+    const msgEls = el.querySelectorAll<HTMLElement>('[data-msg-id]');
+    let maxTs = 0;
+    for (const msgEl of Array.from(msgEls)) {
+      if (msgEl.getBoundingClientRect().bottom <= containerBottom + 80) {
+        const ts = msgTimestampMap.current.get(msgEl.dataset.msgId!);
+        if (ts && ts > maxTs) maxTs = ts;
+      } else {
+        break; // messages are in DOM order (oldest→newest), safe to stop
+      }
+    }
+    if (maxTs > 0) onMarkRead(maxTs);
+  }, [onMarkRead]);
+
+  // Scroll listener: track atBottom + trigger load-more when near top + read tracking
   const handleScroll = useCallback(() => {
     const el = containerRef.current;
     if (!el) return;
     const { scrollTop, scrollHeight, clientHeight } = el;
-    setAtBottom(scrollHeight - scrollTop - clientHeight < 80);
+    const isAtBottom = scrollHeight - scrollTop - clientHeight < 80;
+    setAtBottom(isAtBottom);
+    atBottomRef.current = isAtBottom;
     if (scrollTop < 80 && hasMoreMessages && !loadingMore && prevScrollHeightRef.current === 0) {
       prevScrollHeightRef.current = scrollHeight;
       onLoadMore();
     }
-  }, [hasMoreMessages, loadingMore, onLoadMore]);
+    if (onMarkRead) {
+      if (readDebounceRef.current) clearTimeout(readDebounceRef.current);
+      // When at bottom: mark immediately; otherwise debounce 500ms
+      if (isAtBottom) {
+        updateReadPosition();
+      } else {
+        readDebounceRef.current = setTimeout(updateReadPosition, 500);
+      }
+    }
+  }, [hasMoreMessages, loadingMore, onLoadMore, onMarkRead, updateReadPosition]);
 
   useEffect(() => {
     if (currentMatchId && matchRef.current)
@@ -145,7 +219,7 @@ export function MessageList({
   }, []);
 
   return (
-    <div className="messages" ref={containerRef} onScroll={handleScroll} onClick={() => { hasSelection && onClearSelection(); }}>
+    <div className="messages" ref={containerRef} onScroll={handleScroll} onClick={() => { hasSelection && onClearSelection(); setCtxMenu(null); }}>
       {loadingMore && <div className="msgsLoadingMore">Загрузка истории…</div>}
       {!hasMoreMessages && messages.length > 0 && (
         <div className="msgsBeginning">— начало истории переписки —</div>
@@ -190,7 +264,7 @@ export function MessageList({
               highlight={isMatch ? searchQuery : undefined}
               isSearchMatch={isFocused}
               meId={meId}
-              onContextMenu={() => onToggleSelect(m.id)}
+              onContextMenu={hasSelection ? () => {} : () => onToggleSelect(m.id)}
               onClick={() => onToggleSelect(m.id)}
               onViewUser={onViewUser}
               onForwardedSenderClick={onViewUser}
@@ -202,6 +276,8 @@ export function MessageList({
               onVote={onVote}
               onRetract={onRetract}
               onViewVoters={onViewVoters}
+              meUsername={meUsername}
+              members={chat.members}
               onViewReaders={isOwn && isGroup ? () => setReadersTarget(m.id) : undefined}
             />
           </div>
@@ -237,8 +313,9 @@ export function MessageList({
             onClick={e => e.stopPropagation()}
             onContextMenu={e => e.preventDefault()}
           >
-            {/* ✅ Reply — always first */}
-            {!ctxMenu.msg.is_system && (
+            {(() => { const multiSelect = selectedIds.size > 1; return (<>
+            {/* Reply — single message only */}
+            {!multiSelect && !ctxMenu.msg.is_system && (
               <button
                 className="msgCtxItem msgCtxItemReply"
                 onClick={() => {
@@ -254,8 +331,42 @@ export function MessageList({
               </button>
             )}
 
-            {/* ✅ React with emoji */}
-            {!ctxMenu.msg.is_system && (
+            {/* Copy text — single or multi (copies all selected texts joined by blank line) */}
+            {!ctxMenu.msg.is_system && (multiSelect ? messages.some(m => selectedIds.has(m.id) && m.text) : (ctxMenu.msg.text && !ctxMenu.msg.attachment_url)) && (
+              <button
+                className="msgCtxItem"
+                onClick={() => {
+                  const text = multiSelect
+                    ? messages.filter(m => selectedIds.has(m.id) && m.text).map(m => m.text).join('\n\n')
+                    : ctxMenu.msg.text;
+                  navigator.clipboard.writeText(text).catch(() => {});
+                  setCtxMenu(null);
+                }}
+              >
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+                  <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+                </svg>
+                Копировать текст
+              </button>
+            )}
+
+            {/* Edit — single message only, own text messages */}
+            {!multiSelect && ctxMenu.msg.sender_id === meId && !ctxMenu.msg.attachment_url && !ctxMenu.msg.is_system && !ctxMenu.msg.poll && (
+              <button
+                className="msgCtxItem msgCtxItemEdit"
+                onClick={() => { onEdit(ctxMenu.msg.id); setCtxMenu(null); }}
+              >
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                  <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                </svg>
+                Редактировать
+              </button>
+            )}
+
+            {/* React with emoji — single message only */}
+            {!multiSelect && !ctxMenu.msg.is_system && (
               <button
                 className="msgCtxItem msgCtxItemReact"
                 onClick={() => {
@@ -271,7 +382,7 @@ export function MessageList({
                 </svg>
                 Поставить реакцию
               </button>
-            )}
+            )}</>); })()}
 
             {/* ✅ Forward */}
             {!ctxMenu.msg.is_system && (
@@ -311,8 +422,8 @@ export function MessageList({
               </button>
             )}
 
-            {/* Retract vote */}
-            {ctxMenu.msg.poll && ctxMenu.msg.poll.my_votes.length > 0 && (
+            {/* Retract vote — single message only */}
+            {selectedIds.size <= 1 && ctxMenu.msg.poll && ctxMenu.msg.poll.my_votes.length > 0 && (
               <button
                 className="msgCtxItem"
                 onClick={() => { onRetract?.(ctxMenu.msg.id); setCtxMenu(null); }}

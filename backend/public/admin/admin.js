@@ -2,6 +2,7 @@ const API_BASE = '/admin/api';
 const AUTH_API = '/admin/api/login';
 
 let token = localStorage.getItem('admin_token');
+let adminUsername = localStorage.getItem('admin_username') || '';
 
 // ─── Cached data for sorting/filtering ────────────────────────────────────
 let usersData = [];
@@ -27,12 +28,6 @@ document.getElementById('login-form').addEventListener('submit', async (e) => {
   const username = document.getElementById('login-username').value.trim();
   const password = document.getElementById('login-password').value;
 
-  if (username.toLowerCase() !== 'pashaaa') {
-    errorEl.textContent = 'Доступ разрешен только для pashaaa';
-    errorEl.style.display = 'block';
-    return;
-  }
-
   loginBtn.disabled = true;
   loginBtn.textContent = 'Вход...';
   errorEl.style.display = 'none';
@@ -47,7 +42,9 @@ document.getElementById('login-form').addEventListener('submit', async (e) => {
     if (!res.ok) throw new Error(data.error || 'Ошибка входа');
 
     token = data.token;
+    adminUsername = username.toLowerCase();
     localStorage.setItem('admin_token', token);
+    localStorage.setItem('admin_username', adminUsername);
     document.getElementById('login-screen').classList.add('d-none');
     document.getElementById('app').classList.remove('d-none');
     loadStats();
@@ -62,6 +59,7 @@ document.getElementById('login-form').addEventListener('submit', async (e) => {
 
 function logout() {
   localStorage.removeItem('admin_token');
+  localStorage.removeItem('admin_username');
   location.reload();
 }
 
@@ -203,7 +201,7 @@ function renderUsers(list) {
   }
   tbody.innerHTML = '';
   list.forEach(u => {
-    const isMe = u.username.toLowerCase() === 'pashaaa';
+    const isMe = adminUsername && u.username.toLowerCase() === adminUsername;
     const tr = document.createElement('tr');
     tr.innerHTML = `
       <td>

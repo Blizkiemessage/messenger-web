@@ -257,12 +257,12 @@ function getOrCreateSavedChat(userId) {
 
 // ─── Membership ──────────────────────────────────────────────────────────────
 
-function markChatAsRead(chatId, userId) {
-  const now = Date.now();
+function markChatAsRead(chatId, userId, readUntil) {
+  const ts = readUntil && readUntil < Date.now() ? readUntil : Date.now();
   getDb()
-    .prepare('UPDATE chat_members SET last_read_at = ? WHERE chat_id = ? AND user_id = ?')
-    .run([now, chatId, userId]);
-  return now;
+    .prepare('UPDATE chat_members SET last_read_at = ? WHERE chat_id = ? AND user_id = ? AND last_read_at < ?')
+    .run([ts, chatId, userId, ts]);
+  return ts;
 }
 
 function addChatMember(chatId, requesterId, newUserId) {

@@ -4,6 +4,7 @@ import { ProfileTab }    from '../profile/ProfileTab';
 import { PasswordTab }   from '../profile/PasswordTab';
 import { PrivacyTab }    from '../profile/PrivacyTab';
 import { AppearanceTab } from '../profile/AppearanceTab';
+import { SessionsTab }   from '../profile/SessionsTab';
 
 interface Props {
   me: User;
@@ -13,7 +14,7 @@ interface Props {
   onDeleteAccount: () => Promise<void>;
 }
 
-type Tab = 'profile' | 'password' | 'privacy' | 'appearance';
+type Tab = 'profile' | 'password' | 'privacy' | 'appearance' | 'sessions';
 
 export function ProfileSettingsModal({ me, token, onClose, onUpdate, onDeleteAccount }: Props) {
   const [tab, setTab] = useState<Tab>('profile');
@@ -79,12 +80,14 @@ export function ProfileSettingsModal({ me, token, onClose, onUpdate, onDeleteAcc
           <button className={`psTab${tab === 'password'   ? ' active' : ''}`} onClick={() => setTab('password')}>Пароль</button>
           <button className={`psTab${tab === 'privacy'    ? ' active' : ''}`} onClick={() => setTab('privacy')}>Конфиденциальность</button>
           <button className={`psTab${tab === 'appearance' ? ' active' : ''}`} onClick={() => setTab('appearance')}>Внешний вид</button>
+          <button className={`psTab${tab === 'sessions'   ? ' active' : ''}`} onClick={() => setTab('sessions')}>Сессии</button>
         </div>
 
         {tab === 'profile'    && <ProfileTab    me={me} token={token} onUpdate={onUpdate} />}
         {tab === 'password'   && <PasswordTab   me={me} onUpdate={onUpdate} />}
         {tab === 'privacy'    && <PrivacyTab    me={me} onUpdate={onUpdate} />}
         {tab === 'appearance' && <AppearanceTab />}
+        {tab === 'sessions'   && <SessionsTab />}
 
         <div className="psDeleteSection">
           <button className="psDeleteBtn" onClick={openDeleteConfirm}>

@@ -11,15 +11,24 @@ import { useChatsStore } from '../store/useChatsStore';
 import { registerPush } from '../utils/push';
 
 let _markReadTimer: ReturnType<typeof setTimeout> | null = null;
+let _pendingReadUntil: number | undefined = undefined;
+let _pendingChatId: string | null = null;
 
-export function scheduleMarkRead(chatId: string) {
+export function scheduleMarkRead(chatId: string, readUntil?: number) {
+  // Don't move read position backwards
+  if (readUntil !== undefined && _pendingChatId === chatId &&
+      _pendingReadUntil !== undefined && readUntil <= _pendingReadUntil) return;
+
   if (_markReadTimer) clearTimeout(_markReadTimer);
+  _pendingChatId  = chatId;
+  _pendingReadUntil = readUntil;
+
   _markReadTimer = setTimeout(async () => {
+    _markReadTimer = null;
     try {
-      await apiMarkChatRead(chatId);
-      useChatsStore.getState().markChatRead(chatId);
+      await apiMarkChatRead(chatId, _pendingReadUntil);
     } catch { /* ignore */ }
-  }, 300);
+  }, 400);
 }
 
 export function useSocket() {
@@ -36,11 +45,10 @@ export function useSocket() {
     const pushTimer = setTimeout(() => { registerPush(); }, 5000);
 
     const onNewMessage = (msg: Message) => {
-      const { activeChatId, chats, loadChats, handleNewMessage } = useChatsStore.getState();
-      const isActive = msg.chat_id === activeChatId;
+      const { chats, loadChats, handleNewMessage } = useChatsStore.getState();
       if (!chats.some(c => c.id === msg.chat_id)) { loadChats(); return; }
       handleNewMessage(msg);
-      if (isActive) scheduleMarkRead(msg.chat_id);
+      // Read tracking is handled by MessageList scroll observer — no auto-mark here
     };
 
     const onChatRead = ({ chatId, userId, readAt }: { chatId: string; userId: string; readAt: number }) => {
@@ -106,6 +114,29 @@ export function useSocket() {
       }
     };
 
+    // ✅ NEW: session revoked — log out if it's our session
+    const onSessionRevoked = ({ sessionId }: { sessionId: string }) => {
+      const { token } = useSessionStore.getState();
+      if (!token) return;
+      try {
+        const payload = JSON.parse(atob(token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')));
+        if (payload?.jti === sessionId) useSessionStore.getState().clearSession();
+      } catch { /* ignore malformed token */ }
+    };
+
+    const onMessageEdited = (msg: Message) => {
+      const state = useChatsStore.getState();
+      if (state.activeChatId === msg.chat_id) {
+        state.setMessages(state.messages.map(m => m.id === msg.id ? msg : m));
+      }
+      // Also update last_message in chat list if it matches
+      state.chats.forEach(c => {
+        if (c.last_message?.id === msg.id) {
+          state.upsertChat({ ...c, last_message: msg });
+        }
+      });
+    };
+
     socket.on('new-message',          onNewMessage);
     socket.on('chat-read',            onChatRead);
     socket.on('messages-deleted',     onMessagesDeleted);
@@ -118,6 +149,8 @@ export function useSocket() {
     socket.on('user-online',          onUserOnline);          // ✅
     socket.on('user-offline',         onUserOffline);         // ✅
     socket.on('message-reaction-v2',  onMessageReactionV2);   // ✅
+    socket.on('message-edited',        onMessageEdited);         // ✅
+    socket.on('session-revoked',       onSessionRevoked);        // ✅
     socket.on('poll-updated',         onPollUpdated);           // ✅
     socket.on('user-typing',          onUserTyping);            // ✅
     socket.on('user-stopped-typing',  onUserStoppedTyping);     // ✅
@@ -135,6 +168,8 @@ export function useSocket() {
       socket.off('user-online',          onUserOnline);
       socket.off('user-offline',         onUserOffline);
       socket.off('message-reaction-v2',  onMessageReactionV2);
+      socket.off('message-edited',        onMessageEdited);
+      socket.off('session-revoked',       onSessionRevoked);
       socket.off('poll-updated',         onPollUpdated);
       socket.off('user-typing',          onUserTyping);
       socket.off('user-stopped-typing',  onUserStoppedTyping);

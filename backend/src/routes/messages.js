@@ -14,7 +14,7 @@
 const express = require('express');
 const rateLimit = require('express-rate-limit');
 const { authMiddleware } = require('../middleware/auth');
-const { getChatMessages, saveMessage, toggleReaction, toggleEmojiReaction, deleteMessages, pinMessage, unpinMessage, getPinnedMessages, forwardMessages } = require('../services/messageService');
+const { getChatMessages, saveMessage, toggleReaction, toggleEmojiReaction, deleteMessages, pinMessage, unpinMessage, getPinnedMessages, forwardMessages, editMessage } = require('../services/messageService');
 const { getDb } = require('../config/database');
 
 const router = express.Router();
@@ -102,6 +102,29 @@ router.delete('/:chatId/messages', (req, res, next) => {
     }
 
     res.json({ ok: true, deleted });
+  } catch (err) { next(err); }
+});
+
+// PATCH /chats/:chatId/messages/:msgId — edit a message
+router.patch('/:chatId/messages/:msgId', (req, res, next) => {
+  try {
+    const { text } = req.body;
+    if (!text || typeof text !== 'string' || !text.trim()) {
+      return res.status(400).json({ error: 'text is required' });
+    }
+    if (text.length > 4000) {
+      return res.status(400).json({ error: 'Message text max 4000 chars' });
+    }
+    const msg = editMessage(req.params.chatId, req.params.msgId, req.userId, text);
+    const io = req.app.get('io');
+    if (io) {
+      const db = getDb();
+      const members = db.prepare('SELECT user_id FROM chat_members WHERE chat_id = ?').all(req.params.chatId);
+      for (const m of members) {
+        io.to(`user:${m.user_id}`).emit('message-edited', msg);
+      }
+    }
+    res.json(msg);
   } catch (err) { next(err); }
 });
 

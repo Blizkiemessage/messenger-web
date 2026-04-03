@@ -273,15 +273,25 @@ export const useChatsStore = create<ChatsState>((set) => ({
     }),
   })),
 
-  handleChatRead: (chatId, userId, readAt, meId) => {
-    if (userId === meId) return;
-    set(state => ({
+  handleChatRead: (chatId, userId, readAt, meId) => set(state => {
+    if (userId === meId) {
+      // Own read event: recompute unread_count from currently loaded messages
+      const newUnread = state.activeChatId === chatId
+        ? state.messages.filter(m =>
+            m.created_at > readAt && m.sender_id !== meId && !m.is_system
+          ).length
+        : 0;
+      return {
+        chats: state.chats.map(c => c.id !== chatId ? c : { ...c, unread_count: newUnread }),
+      };
+    }
+    return {
       chats: state.chats.map(c => c.id !== chatId ? c : {
         ...c,
         partner_last_read_at: Math.max(c.partner_last_read_at ?? 0, readAt),
       }),
-    }));
-  },
+    };
+  }),
 
   markChatRead: (chatId) => set(state => ({
     chats: state.chats.map(c => c.id === chatId ? { ...c, unread_count: 0 } : c),

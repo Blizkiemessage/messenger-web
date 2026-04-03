@@ -196,6 +196,39 @@ function HighlightText({ text, term }: { text: string; term: string }) {
   );
 }
 
+// ── Mention + highlight renderer ──────────────────────────────────────────────
+function MentionText({ text, term, meUsername, members, onMentionClick }: {
+  text: string;
+  term: string;
+  meUsername?: string;
+  members?: User[];
+  onMentionClick?: (userId: string) => void;
+}) {
+  const parts = text.split(/(@\w+)/g);
+  return (
+    <>
+      {parts.map((part, i) => {
+        if (/^@\w+$/.test(part)) {
+          const word = part.slice(1);
+          const isMine = !!meUsername && word.toLowerCase() === meUsername.toLowerCase();
+          const user = members?.find(m => m.username?.toLowerCase() === word.toLowerCase());
+          const clickable = !!user && !!onMentionClick;
+          return (
+            <span
+              key={i}
+              className={`${isMine ? 'mention mentionMe' : 'mention'}${clickable ? ' mentionLink' : ''}`}
+              onClick={clickable ? (e) => { e.stopPropagation(); onMentionClick!(user!.id); } : undefined}
+            >
+              {part}
+            </span>
+          );
+        }
+        return <HighlightText key={i} text={part} term={term} />;
+      })}
+    </>
+  );
+}
+
 // ── URL helpers ───────────────────────────────────────────────────────────────
 const URL_SPLIT_REGEX = /(https?:\/\/[^\s<>"']+)/gi;
 
@@ -209,7 +242,11 @@ function isUrl(part: string): boolean {
   return /^https?:\/\//i.test(part);
 }
 
-function renderMessageText(text: string, term?: string): React.ReactNode {
+function renderMessageText(
+  text: string,
+  term?: string,
+  mentionProps?: { meUsername?: string; members?: User[]; onMentionClick?: (id: string) => void },
+): React.ReactNode {
   const parts = text.split(URL_SPLIT_REGEX);
   return parts.map((part, i) => {
     if (isUrl(part)) {
@@ -218,6 +255,14 @@ function renderMessageText(text: string, term?: string): React.ReactNode {
            className="bubbleLink" onClick={e => e.stopPropagation()}>
           {part}
         </a>
+      );
+    }
+    if (mentionProps) {
+      return (
+        <MentionText key={i} text={part} term={term || ''}
+          meUsername={mentionProps.meUsername}
+          members={mentionProps.members}
+          onMentionClick={mentionProps.onMentionClick} />
       );
     }
     return term ? <HighlightText key={i} text={part} term={term} /> : part;
@@ -435,6 +480,8 @@ interface Props {
   onVote?: (msgId: string, optionIds: string[]) => void;
   onRetract?: (msgId: string) => void;
   onViewVoters?: (pollId: string, optionId: string) => void;
+  meUsername?: string;
+  members?: User[];
   onViewReaders?: () => void;
 }
 
@@ -443,7 +490,7 @@ export function MessageBubble({
   message: m, isOwn, isRead, isSelected, isGroup, sender,
   showAvatar, showName, hasSelection, highlight, isSearchMatch,
   meId, onContextMenu, onClick, onViewUser, onForwardedSenderClick,
-  onReact, onScrollToMessage, onVote, onRetract, onViewVoters, onViewReaders,
+  onReact, onScrollToMessage, onVote, onRetract, onViewVoters, meUsername, members, onViewReaders,
 }: Props) {
   const hasAttachment = !!m.attachment_url;
   const isImage = m.attachment_type === 'image';
@@ -605,7 +652,7 @@ export function MessageBubble({
         {/* Plain text */}
         {!m.poll && pureText && (
           <div className="bubbleText">
-            {renderMessageText(pureText, highlight)}
+            {renderMessageText(pureText, highlight, { meUsername, members, onMentionClick: onViewUser })}
           </div>
         )}
 
@@ -640,6 +687,7 @@ export function MessageBubble({
               />
             )}
             <div className="bubbleMeta">
+              {m.edited_at && <span className="bubbleEdited">(изм.)</span>}
               <span className="bubbleTime">{formatTime(m.created_at)}</span>
               {isOwn && isGroup && onViewReaders && (
                 <button
