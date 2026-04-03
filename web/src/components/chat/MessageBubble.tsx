@@ -166,10 +166,13 @@ function VideoAttachment({
   return (
     <div className="bubbleAttachVideo">
       <div className="bubbleVideoPoster" onClick={() => setPlaying(true)}>
-        {/* Plain dark background — no nested <video> that triggers a second request */}
-        <div className="bubbleVideoPosterBg">
-          {name && <span className="bubbleVideoPosterName">{name}</span>}
-        </div>
+        <video
+          src={url}
+          className="bubbleVideoThumb"
+          preload="metadata"
+          muted
+          playsInline
+        />
         <div className="bubbleVideoPlayBtn">
           <svg width="28" height="28" viewBox="0 0 24 24" fill="currentColor">
             <path d="M8 5v14l11-7z"/>
