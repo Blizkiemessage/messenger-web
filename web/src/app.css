@@ -2731,6 +2731,31 @@ input[type="date"].psInput::-webkit-calendar-picker-indicator {
   background: var(--accent-dim);
 }
 
+/* ── Emoji picker button & panel ────────────────────────────────────────── */
+.composerEmojiWrap { position: relative; flex-shrink: 0; }
+.composerEmojiBtn {
+  display: grid; place-items: center;
+  width: 36px; height: 36px;
+  border-radius: 10px;
+  border: none; background: none; cursor: pointer;
+  color: var(--muted);
+  transition: color .15s, background .15s;
+  flex-shrink: 0;
+}
+.composerEmojiBtn:hover,
+.composerEmojiBtn.active { color: var(--accent); background: var(--accent-dim); }
+.composerEmojiPanel {
+  position: absolute;
+  bottom: calc(100% + 10px);
+  right: 0;
+  z-index: 200;
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: var(--shadow);
+  border: 1px solid var(--border);
+  animation: slideUp .2s ease;
+}
+
 /* ── Spinner animation for upload send button ────────────────────────────── */
 .composerSpinner {
   animation: spinnerRotate 0.9s linear infinite;
