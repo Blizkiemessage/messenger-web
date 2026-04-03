@@ -157,6 +157,14 @@ function runMigrations() {
     // ✅ NEW: session device tracking
     'ALTER TABLE sessions ADD COLUMN user_agent TEXT',
     'ALTER TABLE sessions ADD COLUMN last_used_at INTEGER',
+    // ✅ NEW: cached link previews (24h TTL, keyed by URL)
+    `CREATE TABLE IF NOT EXISTS link_previews (
+      url TEXT PRIMARY KEY,
+      title TEXT,
+      description TEXT,
+      image TEXT,
+      fetched_at INTEGER NOT NULL
+    )`,
   ];
 
   for (const sql of alters) {
