@@ -171,6 +171,29 @@ function runMigrations() {
     }
   } catch (err) { console.error('[DB] Failed to assign default creator:', err.message); }
 
+  // Backfill search_text for old messages that were encrypted before this column existed
+  try {
+    const { decrypt } = require('../crypto/aes');
+    const rows = db.prepare(
+      `SELECT id, ciphertext, iv, auth_tag FROM messages WHERE search_text IS NULL AND is_system = 0 AND deleted_at IS NULL`
+    ).all();
+    if (rows.length > 0) {
+      const update = db.prepare(`UPDATE messages SET search_text = ? WHERE id = ?`);
+      const backfill = db.transaction(() => {
+        let count = 0;
+        for (const row of rows) {
+          try {
+            const text = decrypt({ ciphertext: row.ciphertext, iv: row.iv, authTag: row.auth_tag }).trim();
+            if (text) { update.run([text, row.id]); count++; }
+          } catch { /* skip undecryptable rows */ }
+        }
+        return count;
+      });
+      const filled = backfill();
+      console.log(`[DB] Backfilled search_text for ${filled} old messages`);
+    }
+  } catch (err) { console.error('[DB] search_text backfill failed:', err.message); }
+
   console.log('[DB] Migrations complete');
 }
 
