@@ -85,6 +85,10 @@ interface ChatsState {
   /** Optimistically mark a chat as read for the current user. */
   markChatRead: (chatId: string) => void;
 
+  // ── Scroll target (global search navigation) ───────────────────────────────
+  scrollToMessageId: string | null;
+  setScrollToMessageId: (id: string | null) => void;
+
   // ── Async ──────────────────────────────────────────────────────────────────
   /** Fetch the full chats list from the API and update state. */
   loadChats: () => Promise<void>;
@@ -102,6 +106,7 @@ export const useChatsStore = create<ChatsState>((set) => ({
   hasMoreMessages: false,
   onlineUsers: new Set<string>(),
   typingUsers: new Map<string, string[]>(),
+  scrollToMessageId: null,
 
   // ── Chat list ──────────────────────────────────────────────────────────────
 
@@ -174,6 +179,10 @@ export const useChatsStore = create<ChatsState>((set) => ({
     }
     return { chatFilter, activeChatId };
   }),
+
+  // ── Scroll target ──────────────────────────────────────────────────────────
+
+  setScrollToMessageId: (scrollToMessageId) => set({ scrollToMessageId }),
 
   // ── Loading ────────────────────────────────────────────────────────────────
 
