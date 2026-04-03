@@ -3936,6 +3936,13 @@ input[type="date"].psInput::-webkit-calendar-picker-indicator {
   color: #fff;
   animation: none;
 }
+.composerMicSend {
+  background: var(--accent);
+  color: #fff;
+  transform: scale(1) !important;
+  transition: background .13s, transform .15s;
+}
+.composerMicSend:hover { background: color-mix(in srgb, var(--accent) 80%, #000); }
 @keyframes micPulse {
   0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--danger) 28%, transparent); }
   50%       { box-shadow: 0 0 0 8px color-mix(in srgb, var(--danger) 0%, transparent); }
