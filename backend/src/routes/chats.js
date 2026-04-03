@@ -3,6 +3,7 @@ const { authMiddleware } = require('../middleware/auth');
 const {
   getUserChats,
   getOrCreateDirectChat,
+  getOrCreateSavedChat,
   createGroupChat,
   getChatById,
   markChatAsRead,
@@ -266,6 +267,14 @@ router.patch('/:id/avatar', (req, res, next) => {
     }
 
     res.json(updatedChat);
+  } catch (err) { next(err); }
+});
+
+// POST /chats/saved — get or create the current user's self-archive chat
+router.post('/saved', (req, res, next) => {
+  try {
+    const chat = getOrCreateSavedChat(req.userId);
+    res.json(chat);
   } catch (err) { next(err); }
 });
 

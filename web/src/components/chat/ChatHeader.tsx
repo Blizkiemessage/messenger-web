@@ -51,15 +51,17 @@ export function ChatHeader({
   const setActiveChatId = useChatsStore(s => s.setActiveChatId);
   const onlineUsers = useChatsStore(s => s.onlineUsers);
   const isGroup = chat.type === 'group';
+  const isSaved = chat.type === 'saved';
 
   // For direct chats — the other person's user object
-  const partner = !isGroup ? chat.members.find(m => m.id !== meId) : null;
+  const partner = !isGroup && !isSaved ? chat.members.find(m => m.id !== meId) : null;
   const isPartnerOnline = partner ? onlineUsers.has(partner.id) : false;
 
   // ✅ Build a synthetic "user" object for the Avatar component
-  // Groups use chat.avatar_url (new feature); direct chats use partner avatar
+  // Groups use chat.avatar_url (new feature); direct chats use partner avatar; saved uses icon
   const avatarUser = isGroup
     ? { id: chat.id, display_name: chat.name, avatar_url: chat.avatar_url ?? null }
+    : isSaved ? null
     : partner ?? null;
 
   if (hasSelection) {
@@ -129,7 +131,13 @@ export function ChatHeader({
         >
           {/* ✅ Real avatar with photo support */}
           <div className={`chAvatarWrap${isGroup ? ' group' : ''}`}>
-            {resolveUrl(avatarUser?.avatar_url) ? (
+            {isSaved ? (
+              <div className="chAvatar chAvatarSaved">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/>
+                </svg>
+              </div>
+            ) : resolveUrl(avatarUser?.avatar_url) ? (
               <Avatar user={avatarUser} size={38} radius={12} />
             ) : (
               <div className={`chAvatar${isGroup ? ' group' : ''}`}>
@@ -139,7 +147,9 @@ export function ChatHeader({
           </div>
           <div>
             <div className="chName">{chatTitle(chat, meId)}</div>
-            {typingText ? (
+            {isSaved ? (
+              <div className="chSub">Ваши заметки</div>
+            ) : typingText ? (
               <div className="chSub chSubTyping">{typingText}</div>
             ) : (
               <div className={`chSub${!isGroup && isPartnerOnline ? ' chSubOnline' : ''}`}>

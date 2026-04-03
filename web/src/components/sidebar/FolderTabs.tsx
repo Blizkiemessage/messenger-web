@@ -4,9 +4,10 @@ interface Props {
   filter: ChatFilter;
   onFilterChange: (f: ChatFilter) => void;
   onNewGroup: () => void;
+  onSavedMessages: () => void;
 }
 
-export function FolderTabs({ filter, onFilterChange, onNewGroup }: Props) {
+export function FolderTabs({ filter, onFilterChange, onNewGroup, onSavedMessages }: Props) {
   return (
     <div className="folderTabs">
       {(['all', 'direct', 'groups'] as const).map(f => (
@@ -24,6 +25,12 @@ export function FolderTabs({ filter, onFilterChange, onNewGroup }: Props) {
           <line x1="5" y1="12" x2="19" y2="12"/>
         </svg>
         <span>Группа</span>
+      </button>
+      <button className="newGroupBtn savedBtn" onClick={onSavedMessages} title="Сохранённые сообщения">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/>
+        </svg>
+        <span>Заметки</span>
       </button>
     </div>
   );

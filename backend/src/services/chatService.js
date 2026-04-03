@@ -222,6 +222,39 @@ function getOrCreateDirectChat(userAId, userBId) {
   return getChatById(chatId, userAId);
 }
 
+function getOrCreateSavedChat(userId) {
+  const db = getDb();
+
+  const existing = db
+    .prepare(
+      `SELECT c.id FROM chats c
+       JOIN chat_members cm ON cm.chat_id = c.id AND cm.user_id = ?
+       WHERE c.type = 'saved' LIMIT 1`
+    )
+    .get([userId]);
+
+  if (existing) return getChatById(existing.id, userId);
+
+  const chatId = uuidv4();
+  const now = Date.now();
+
+  db.exec('BEGIN');
+  try {
+    db.prepare(
+      'INSERT INTO chats (id, type, name, creator_id, created_at) VALUES (?, ?, ?, ?, ?)'
+    ).run([chatId, 'saved', 'Сохранённые сообщения', userId, now]);
+    db.prepare(
+      'INSERT INTO chat_members (chat_id, user_id, joined_at) VALUES (?, ?, ?)'
+    ).run([chatId, userId, now]);
+    db.exec('COMMIT');
+  } catch (e) {
+    db.exec('ROLLBACK');
+    throw e;
+  }
+
+  return getChatById(chatId, userId);
+}
+
 // ─── Membership ──────────────────────────────────────────────────────────────
 
 function markChatAsRead(chatId, userId) {
@@ -556,6 +589,7 @@ module.exports = {
   getUserChats,
   getChatById,
   getOrCreateDirectChat,
+  getOrCreateSavedChat,
   createGroupChat,
   markChatAsRead,
   addChatMember,

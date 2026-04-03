@@ -78,7 +78,7 @@ export type Message = {
 
 export type Chat = {
   id: string;
-  type: 'direct' | 'group';
+  type: 'direct' | 'group' | 'saved';
   name?: string | null;
   description?: string | null;
   avatar_url?: string | null;

@@ -17,13 +17,15 @@ interface Props {
 
 export function ChatItem({ chat, meId, isActive, isOnline, onClick, onContextMenu }: Props) {
   const title = chatTitle(chat, meId);
+  const isSaved = chat.type === 'saved';
 
-  // For direct chats — partner's user object; for groups — synthetic object with group avatar
+  // For direct chats — partner's user object; for groups — synthetic object with group avatar; for saved — null
   const avatarUser = chat.type === 'group'
     ? { id: chat.id, display_name: chat.name, avatar_url: chat.avatar_url ?? null }
+    : isSaved ? null
     : chat.members.find(m => m.id !== meId) ?? null;
 
-  const hasPhoto = !!resolveUrl(avatarUser?.avatar_url);
+  const hasPhoto = !isSaved && !!resolveUrl(avatarUser?.avatar_url);
 
   return (
     <button
@@ -33,12 +35,20 @@ export function ChatItem({ chat, meId, isActive, isOnline, onClick, onContextMen
     >
       {/* Avatar with optional online dot for direct chats */}
       <div className="ciAvatarWrap">
-        <div className={`ciAvatar${chat.type === 'group' ? ' group' : ''}${hasPhoto ? ' ciAvatarPhoto' : ''}`}>
-          {hasPhoto
-            ? <Avatar user={avatarUser} size={42} radius={13} />
-            : avatarLetter(title)
-          }
-        </div>
+        {isSaved ? (
+          <div className="ciAvatar ciAvatarSaved">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/>
+            </svg>
+          </div>
+        ) : (
+          <div className={`ciAvatar${chat.type === 'group' ? ' group' : ''}${hasPhoto ? ' ciAvatarPhoto' : ''}`}>
+            {hasPhoto
+              ? <Avatar user={avatarUser} size={42} radius={13} />
+              : avatarLetter(title)
+            }
+          </div>
+        )}
         {isOnline && chat.type === 'direct' && <span className="ciOnlineDot" />}
       </div>
 
