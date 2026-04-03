@@ -10,6 +10,8 @@ import { uploadFile } from '../../api/upload';
 import type { UploadResult } from '../../api/upload';
 import { type User } from '../../types';
 import { MentionPopup } from './MentionPopup';
+import Picker from '@emoji-mart/react';
+import data from '@emoji-mart/data';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -158,6 +160,9 @@ export function Composer({ value, onChange, onSend, onSendAttachment, externalFi
 
   const [attachMenuOpen, setAttachMenuOpen] = useState(false);
   const attachMenuRef = useRef<HTMLDivElement>(null);
+
+  const [emojiOpen, setEmojiOpen] = useState(false);
+  const emojiWrapRef = useRef<HTMLDivElement>(null);
   const typingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isTypingRef = useRef(false);
 
@@ -193,6 +198,32 @@ export function Composer({ value, onChange, onSend, onSendAttachment, externalFi
     document.addEventListener('mousedown', onOutside);
     return () => document.removeEventListener('mousedown', onOutside);
   }, [attachMenuOpen]);
+
+  useEffect(() => {
+    if (!emojiOpen) return;
+    function onOutside(e: MouseEvent) {
+      if (emojiWrapRef.current && !emojiWrapRef.current.contains(e.target as Node)) {
+        setEmojiOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', onOutside);
+    return () => document.removeEventListener('mousedown', onOutside);
+  }, [emojiOpen]);
+
+  const insertEmoji = useCallback((native: string) => {
+    const input = textInputRef.current;
+    const start = input?.selectionStart ?? value.length;
+    const end   = input?.selectionEnd   ?? value.length;
+    const next  = value.slice(0, start) + native + value.slice(end);
+    onChange(next);
+    requestAnimationFrame(() => {
+      if (input) {
+        const pos = start + native.length;
+        input.setSelectionRange(pos, pos);
+        input.focus();
+      }
+    });
+  }, [value, onChange]);
 
   useEffect(() => {
     if (externalFile) { stageFile(externalFile); onExternalFileConsumed?.(); }
@@ -665,6 +696,38 @@ export function Composer({ value, onChange, onSend, onSendAttachment, externalFi
                   }
                 }}
               />
+              {/* ── Emoji picker button ── */}
+              {!isFileMode && (
+                <div className="composerEmojiWrap" ref={emojiWrapRef}>
+                  <button
+                    className={`composerEmojiBtn${emojiOpen ? ' active' : ''}`}
+                    onClick={() => setEmojiOpen(v => !v)}
+                    title="Эмодзи"
+                    tabIndex={-1}
+                  >
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                      <circle cx="12" cy="12" r="10"/>
+                      <path d="M8 14s1.5 2 4 2 4-2 4-2"/>
+                      <line x1="9" y1="9" x2="9.01" y2="9"/>
+                      <line x1="15" y1="9" x2="15.01" y2="9"/>
+                    </svg>
+                  </button>
+                  {emojiOpen && (
+                    <div className="composerEmojiPanel">
+                      <Picker
+                        data={data}
+                        onEmojiSelect={(e: { native: string }) => insertEmoji(e.native)}
+                        theme={document.documentElement.dataset.theme === 'light' ? 'light' : 'dark'}
+                        locale="ru"
+                        previewPosition="none"
+                        skinTonePosition="none"
+                        maxFrequentRows={2}
+                      />
+                    </div>
+                  )}
+                </div>
+              )}
+
               <button
                 className={`composerSend${uploading ? ' composerSendLoading' : ''}`}
 
