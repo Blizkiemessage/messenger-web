@@ -98,13 +98,13 @@ export function UserSearch() {
   const setActiveChatId     = useChatsStore(s => s.setActiveChatId);
   const setScrollToMessageId = useChatsStore(s => s.setScrollToMessageId);
 
-  const showTabs    = query.trim().length >= 2;
-  const showResults = query.trim().length >= 2;
+  const showTabs    = query.trim().length >= 1;
+  const showResults = query.trim().length >= 1;
 
   // ── Global search debounce ─────────────────────────────────────────────────
   useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
-    if (query.trim().length < 2 || mode === 'user') {
+    if (query.trim().length < 1 || mode === 'user') {
       setGlobalResults(null);
       return;
     }

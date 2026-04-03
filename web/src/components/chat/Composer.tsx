@@ -545,7 +545,8 @@ export function Composer({ value, onChange, onSend, onSendAttachment, externalFi
                 placeholder={uploading ? `Загрузка… ${progress}%` : isFileMode ? 'Файл готов к отправке' : 'Сообщение…'}
                 disabled={isFileMode || disabled}
                 onKeyDown={e => {
-                  if (!isFileMode && e.key === 'Enter' && !e.shiftKey) {
+                  const isMobile = navigator.maxTouchPoints > 0 && /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+                  if (!isFileMode && e.key === 'Enter' && !e.shiftKey && !isMobile) {
                     e.preventDefault();
                     if (value.trim()) {
                       if (isTypingRef.current) { isTypingRef.current = false; onTypingStop?.(); }

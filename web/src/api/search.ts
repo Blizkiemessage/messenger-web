@@ -29,7 +29,7 @@ export type GlobalSearchResult = {
 
 export async function globalSearch(q: string): Promise<GlobalSearchResult> {
   const query = q.trim();
-  if (query.length < 2) return { users: [], chats: [], messages: [] };
+  if (query.length < 1) return { users: [], chats: [], messages: [] };
   const res = await client.get<GlobalSearchResult>('/search', { params: { q: query } });
   return res.data;
 }
