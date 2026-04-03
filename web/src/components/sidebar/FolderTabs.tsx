@@ -1,3 +1,5 @@
+import { useRef } from 'react';
+
 type ChatFilter = 'all' | 'groups' | 'direct';
 
 interface Props {
@@ -8,8 +10,38 @@ interface Props {
 }
 
 export function FolderTabs({ filter, onFilterChange, onNewGroup, onSavedMessages }: Props) {
+  const ref = useRef<HTMLDivElement>(null);
+  const drag = useRef({ active: false, startX: 0, scrollLeft: 0 });
+
+  const onMouseDown = (e: React.MouseEvent) => {
+    const el = ref.current;
+    if (!el) return;
+    drag.current = { active: true, startX: e.pageX - el.offsetLeft, scrollLeft: el.scrollLeft };
+    el.classList.add('dragging');
+  };
+
+  const onMouseMove = (e: React.MouseEvent) => {
+    if (!drag.current.active) return;
+    const el = ref.current;
+    if (!el) return;
+    e.preventDefault();
+    el.scrollLeft = drag.current.scrollLeft - (e.pageX - el.offsetLeft - drag.current.startX);
+  };
+
+  const stopDrag = () => {
+    drag.current.active = false;
+    ref.current?.classList.remove('dragging');
+  };
+
   return (
-    <div className="folderTabs">
+    <div
+      ref={ref}
+      className="folderTabs"
+      onMouseDown={onMouseDown}
+      onMouseMove={onMouseMove}
+      onMouseUp={stopDrag}
+      onMouseLeave={stopDrag}
+    >
       {(['all', 'direct', 'groups'] as const).map(f => (
         <button
           key={f}
