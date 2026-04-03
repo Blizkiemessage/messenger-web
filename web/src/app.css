@@ -5213,10 +5213,24 @@ input[type="date"].psInput::-webkit-calendar-picker-indicator {
   margin-top: 1px;
 }
 .readerTime {
-  font-size: 12px;
-  color: var(--muted);
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
   flex-shrink: 0;
+}
+.readerTimeVal {
+  font-size: 12.5px;
+  color: var(--muted);
   white-space: nowrap;
+  line-height: 1;
+}
+.readerTimeDate {
+  font-size: 10.5px;
+  color: var(--muted);
+  opacity: .55;
+  white-space: nowrap;
+  line-height: 1;
 }
 .readersLoading {
   display: flex;
