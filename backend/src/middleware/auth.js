@@ -27,6 +27,12 @@ function authMiddleware(req, res, next) {
 
   req.userId = payload.sub;
   req.sessionId = payload.jti;
+
+  // Update last_used_at (non-blocking)
+  try {
+    db.prepare('UPDATE sessions SET last_used_at = ? WHERE id = ?').run([Date.now(), payload.jti]);
+  } catch { /* ignore */ }
+
   next();
 }
 

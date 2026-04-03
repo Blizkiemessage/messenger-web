@@ -152,6 +152,11 @@ function runMigrations() {
       auth_key TEXT NOT NULL,
       created_at INTEGER NOT NULL
     )`,
+    // ✅ NEW: message editing
+    'ALTER TABLE messages ADD COLUMN edited_at INTEGER',
+    // ✅ NEW: session device tracking
+    'ALTER TABLE sessions ADD COLUMN user_agent TEXT',
+    'ALTER TABLE sessions ADD COLUMN last_used_at INTEGER',
   ];
 
   for (const sql of alters) {

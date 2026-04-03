@@ -10,7 +10,6 @@ import { joinChat, setActiveChat } from '../socket/socketClient';
 import { useSessionStore } from '../store/useSessionStore';
 import { useChatsStore } from '../store/useChatsStore';
 import { useAppStore } from '../store/useAppStore';
-import { scheduleMarkRead } from './useSocket';
 
 export function useMessages() {
   const token = useSessionStore(s => s.token);
@@ -26,12 +25,11 @@ export function useMessages() {
     useChatsStore.getState().setDataError(null);
     joinChat(activeChatId);
     setActiveChat(activeChatId);
-    useChatsStore.getState().markChatRead(activeChatId);
 
     getChatMessages(activeChatId)
       .then(msgs => {
         useChatsStore.getState().setMessages(msgs);
-        scheduleMarkRead(activeChatId);
+        // Read marking is driven by scroll position in MessageList — not auto-marked here
       })
       .catch((e: any) => useChatsStore.getState().setDataError(e?.message ?? 'Ошибка загрузки сообщений'))
       .finally(() => useChatsStore.getState().setLoadingMessages(false));

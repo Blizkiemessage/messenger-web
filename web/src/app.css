@@ -670,6 +670,9 @@ input { font: inherit; color: inherit; background: transparent; }
 .msg { display: flex; }
 .msg.in { justify-content: flex-start; }
 .msg.out { justify-content: flex-end; }
+@media (pointer: coarse) {
+  .msg * { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+}
 .bubble {
   max-width: min(520px, 72%);
   border-radius: 16px;
@@ -702,6 +705,11 @@ input { font: inherit; color: inherit; background: transparent; }
   outline: none;
   font-size: 14px;
   transition: border-color .15s;
+  resize: none;
+  overflow-y: auto;
+  max-height: 150px;
+  line-height: 1.45;
+  font-family: inherit;
 }
 .composerInput:focus { border-color: rgba(47,129,247,.4); }
 .composerSend {
@@ -4540,9 +4548,7 @@ input[type="date"].psInput::-webkit-calendar-picker-indicator {
 .bubbleReplyExpand:hover { opacity: 0.8; }
 
 /* ── Context menu: Reply + React buttons ─────────────────────────────── */
-.msgCtxItemReply {
-  color: var(--accent);
-}
+.msgCtxItemReply {}
 .msgCtxItemReact {}
 
 /* ── Bubble footer: reactions + time/status on the same row ─────────── */
@@ -5350,3 +5356,237 @@ input[type="date"].psInput::-webkit-calendar-picker-indicator {
   66%  { content: '...'; }
   100% { content: '';    }
 }
+
+/* ── Message edited indicator ────────────────────────────────────────── */
+.bubbleEdited {
+  font-size: 10px;
+  color: var(--muted);
+  opacity: 0.75;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+/* ── Editing banner (inside Composer, above input row) ───────────────── */
+.editingBanner {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 6px 12px;
+  border-top: 1px solid var(--border);
+  background: var(--panel);
+  color: var(--accent);
+  font-size: 12px;
+  font-weight: 500;
+}
+.editingBanner svg {
+  flex-shrink: 0;
+  opacity: 0.85;
+}
+.editingBanner span {
+  flex: 1;
+}
+.editingBannerClose {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  flex-shrink: 0;
+  transition: background 0.15s, color 0.15s;
+}
+.editingBannerClose:hover {
+  background: var(--accent-dim);
+  color: var(--accent);
+}
+
+/* ── Edit context menu item ──────────────────────────────────────────── */
+.msgCtxItemEdit {}
+
+/* ── Sessions tab ────────────────────────────────────────────────────── */
+.sessionsLoading {
+  color: var(--muted);
+  font-size: 13px;
+  text-align: center;
+  padding: 24px 0;
+}
+.sessionsEmpty {
+  color: var(--muted);
+  font-size: 13px;
+  text-align: center;
+  padding: 24px 0;
+}
+.sessionsRevokeAllBtn {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  width: 100%;
+  padding: 9px 14px;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background: var(--panel);
+  color: var(--danger);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background .15s;
+}
+.sessionsRevokeAllBtn:hover:not(:disabled) { background: color-mix(in srgb, var(--danger) 10%, transparent); }
+.sessionsRevokeAllBtn:disabled { opacity: .55; cursor: default; }
+.sessionsRevokeAllBtn svg { color: var(--danger); flex-shrink: 0; }
+.sessionsList {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.sessionsItem {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background: var(--panel);
+}
+.sessionsItemCurrent {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 6%, var(--panel));
+}
+.sessionsIcon {
+  color: var(--muted);
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+}
+.sessionsItemCurrent .sessionsIcon { color: var(--accent); }
+.sessionsInfo {
+  flex: 1;
+  min-width: 0;
+}
+.sessionsDevice {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  flex-wrap: wrap;
+}
+.sessionsCurrentBadge {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 7px;
+  border-radius: 20px;
+  background: color-mix(in srgb, var(--accent) 18%, transparent);
+  color: var(--accent);
+  letter-spacing: .2px;
+}
+.sessionsMeta {
+  font-size: 12px;
+  color: var(--muted);
+  margin-top: 2px;
+}
+.sessionsRevokeBtn {
+  flex-shrink: 0;
+  padding: 5px 12px;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--danger);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background .15s;
+}
+.sessionsRevokeBtn:hover:not(:disabled) { background: color-mix(in srgb, var(--danger) 10%, transparent); }
+.sessionsRevokeBtn:disabled { opacity: .5; cursor: default; }
+
+/* ── @username mention styles ────────────────────────────────────────── */
+.mention {
+  color: var(--accent);
+  font-weight: 500;
+}
+.mentionLink   { cursor: pointer; text-decoration: underline; text-decoration-style: dotted; }
+.mentionLink:hover { opacity: .8; }
+.mentionMe {
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+  border-radius: 3px;
+  padding: 0 2px;
+}
+
+/* ── Mention popup (above composer input) ────────────────────────────── */
+.composerWrap { position: relative; }
+.mentionPopup {
+  position: absolute;
+  bottom: 100%;
+  left: 0;
+  right: 0;
+  max-height: 260px;
+  overflow-y: auto;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: 0 4px 20px rgba(0,0,0,.18);
+  z-index: 200;
+  margin-bottom: 4px;
+}
+.mentionPopupItem {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 14px;
+  cursor: pointer;
+  transition: background .12s;
+}
+.mentionPopupItem:hover,
+.mentionPopupItemActive { background: var(--hover); }
+.mentionPopupItem > img,
+.mentionPopupItem > div:first-child { flex-shrink: 0; }
+.mentionPopupName {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text);
+  line-height: 1.3;
+}
+.mentionPopupUser {
+  font-size: 12px;
+  color: var(--text-secondary);
+  line-height: 1.3;
+}
+
+/* ── Mention banner (shown when you were mentioned in unread messages) ── */
+.mentionBanner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 14px;
+  background: color-mix(in srgb, var(--accent) 10%, var(--card));
+  border-top: 1px solid color-mix(in srgb, var(--accent) 20%, var(--border));
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--text);
+  transition: background .15s;
+  user-select: none;
+}
+.mentionBanner:hover {
+  background: color-mix(in srgb, var(--accent) 18%, var(--card));
+}
+.mentionBanner svg { flex-shrink: 0; color: var(--accent); }
+.mentionBanner span { flex: 1; }
+.mentionBannerClose {
+  margin-left: auto;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--text-secondary);
+  padding: 2px 4px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  transition: background .12s;
+}
+.mentionBannerClose:hover { background: var(--hover); }

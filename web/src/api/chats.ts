@@ -57,8 +57,11 @@ export async function reactToMessage(
   return res.data;
 }
 
-export async function markChatRead(chatId: string): Promise<{ readAt: number }> {
-  const res = await client.post<{ ok: boolean; readAt: number }>(`/chats/${chatId}/read`);
+export async function markChatRead(chatId: string, readUntil?: number): Promise<{ readAt: number }> {
+  const res = await client.post<{ ok: boolean; readAt: number }>(
+    `/chats/${chatId}/read`,
+    readUntil !== undefined ? { readUntil } : {}
+  );
   return res.data;
 }
 
@@ -130,5 +133,10 @@ export async function unpinMessage(chatId: string, messageId: string): Promise<v
 // ✅ NEW: forward messages to a chat
 export async function forwardMessages(chatId: string, messageIds: string[]): Promise<import('../types').Message[]> {
   const res = await client.post<import('../types').Message[]>(`/chats/${chatId}/messages/forward`, { messageIds });
+  return res.data;
+}
+
+export async function editMessage(chatId: string, messageId: string, text: string): Promise<import('../types').Message> {
+  const res = await client.patch<import('../types').Message>(`/chats/${chatId}/messages/${messageId}`, { text });
   return res.data;
 }

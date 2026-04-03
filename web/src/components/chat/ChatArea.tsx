@@ -12,9 +12,10 @@ import { MessageList } from './MessageList';
 import { Composer } from './Composer';
 import { EmptyState } from './EmptyState';
 import { ReplyPreviewBar } from './ReplyPreviewBar';
-import { sendChatMessage, getPinnedMessages, pinMessage as apiPin, unpinMessage as apiUnpin, reactToMessage } from '../../api/chats';
+import { sendChatMessage, getPinnedMessages, pinMessage as apiPin, unpinMessage as apiUnpin, reactToMessage, editMessage as apiEditMessage } from '../../api/chats';
 import { createPoll, votePoll, retractVote } from '../../api/polls';
 import { emitTypingStart, emitTypingStop } from '../../socket/socketClient';
+import { scheduleMarkRead } from '../../hooks/useSocket';
 import type { CreatePollData } from '../../api/polls';
 import type { UploadResult } from '../../api/upload';
 import type { Message } from '../../types';
@@ -66,6 +67,8 @@ export function ChatArea() {
   const setShowForwardModal = useAppStore(s => s.setShowForwardModal);
 
   const [messageText, setMessageText] = useState('');
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [mentionBannerId, setMentionBannerId] = useState<string | null>(null);
   const [loadingMore, setLoadingMore] = useState(false);
   const [showPollCreator, setShowPollCreator] = useState(false);
   const [voterModal, setVoterModal] = useState<{ pollId: string; optionId: string; optionText: string } | null>(null);
@@ -142,6 +145,18 @@ export function ChatArea() {
   const pinnedFocusId = pinnedOpen && pinnedMessages.length > 0
     ? pinnedMessages[pinnedIdx]?.id ?? null
     : null;
+
+  // ── Mention banner: detect @me in unread messages on chat entry ───────────
+  useEffect(() => {
+    setMentionBannerId(null);
+    if (!activeChat || !me.username || (activeChat.unread_count ?? 0) === 0) return;
+    const myHandle = '@' + me.username.toLowerCase();
+    const unread = messages.slice(-(activeChat.unread_count ?? 0));
+    const found = unread.find(m =>
+      m.sender_id !== me.id && !m.is_system && m.text?.toLowerCase().includes(myHandle)
+    );
+    if (found) setMentionBannerId(found.id);
+  }, [activeChatId, messages.length]); // eslint-disable-line
 
   const handleTogglePinned = useCallback(() => {
     setPinnedOpen(v => !v);
@@ -238,10 +253,14 @@ export function ChatArea() {
 
   // ✅ Delete single message from context menu — selects it then opens confirm modal
   const handleDeleteSingle = useCallback((msgId: string) => {
-    clearSelection();
-    toggleSelect(msgId);
+    if (selectedIds.size <= 1) {
+      // Single or no prior selection — select only the right-clicked message
+      clearSelection();
+      toggleSelect(msgId);
+    }
+    // Multi-selection — keep all selected; modal will delete them all
     setShowDeleteConfirm(true);
-  }, [clearSelection, toggleSelect, setShowDeleteConfirm]);
+  }, [selectedIds.size, clearSelection, toggleSelect, setShowDeleteConfirm]);
 
   // ✅ "Add more" — close the modal and pre-select already-queued messages so user just taps extras
   const handleForwardAddMore = useCallback(() => {
@@ -279,6 +298,28 @@ export function ChatArea() {
     } catch { /* socket will update state */ }
   }, [activeChat]);
 
+  // ── Edit handlers ─────────────────────────────────────────────────────────
+  const handleStartEdit = useCallback((msgId: string) => {
+    const msg = useChatsStore.getState().messages.find(m => m.id === msgId);
+    if (!msg) return;
+    setEditingId(msgId);
+    setMessageText(msg.text || '');
+    setReplyTo(null);
+    clearSelection();
+  }, [clearSelection]);
+
+  const handleCancelEdit = useCallback(() => {
+    setEditingId(null);
+    setMessageText('');
+  }, []);
+
+  // ── Mark-read via scroll ──────────────────────────────────────────────────
+  const handleMarkRead = useCallback((readUntil: number) => {
+    const chatId = useChatsStore.getState().activeChatId;
+    if (!chatId) return;
+    scheduleMarkRead(chatId, readUntil);
+  }, []);
+
   // ── Send text (with auto-split) ───────────────────────────────────────────
   const handleSend = useCallback(async () => {
     const text = messageText.trim();
@@ -287,6 +328,21 @@ export function ChatArea() {
     // Stop typing indicator immediately on send
     const cid = useChatsStore.getState().activeChatId;
     if (cid) emitTypingStop(cid);
+
+    if (editingId) {
+      const chatId = useChatsStore.getState().activeChatId;
+      if (!chatId) return;
+      const id = editingId;
+      setEditingId(null);
+      try {
+        const updated = await apiEditMessage(chatId, id, text);
+        useChatsStore.getState().setMessages(
+          useChatsStore.getState().messages.map(m => m.id === updated.id ? updated : m)
+        );
+      } catch { /* socket will update */ }
+      return;
+    }
+
     const chatId = useChatsStore.getState().activeChatId;
     if (!chatId) return;
     const parts = splitMessage(text);
@@ -304,7 +360,7 @@ export function ChatArea() {
         reply: i === 0 ? replyPayload : undefined,
       });
     }
-  }, [messageText, replyTo]);
+  }, [messageText, replyTo, editingId]);
 
   // ── Send attachment ───────────────────────────────────────────────────────
   const handleSendAttachment = useCallback(async (result: UploadResult, caption: string) => {
@@ -534,6 +590,10 @@ export function ChatArea() {
         onVote={handleVote}
         onRetract={handleRetract}
         onViewVoters={handleViewVoters}
+        onEdit={handleStartEdit}
+        meUsername={me.username ?? undefined}
+        unreadCount={activeChat?.unread_count ?? 0}
+        onMarkRead={handleMarkRead}
       />
 
       {isGroupClosed ? (
@@ -546,13 +606,27 @@ export function ChatArea() {
         </div>
       ) : (
         <>
-          {replyTo && (
+          {replyTo && !editingId && (
             <ReplyPreviewBar
               reply={replyTo}
               onCancel={handleCancelReply}
               onViewUser={setViewUserId}
               senderId={replyTo.senderId}
             />
+          )}
+          {mentionBannerId && !editingId && (
+            <div className="mentionBanner" onClick={() => { setScrollTargetId(mentionBannerId); setMentionBannerId(null); }}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="12" r="4"/>
+                <path d="M16 8v5a3 3 0 0 0 6 0v-1a10 10 0 1 0-3.92 7.94"/>
+              </svg>
+              <span>Вас упомянули — нажмите, чтобы перейти</span>
+              <button className="mentionBannerClose" onClick={e => { e.stopPropagation(); setMentionBannerId(null); }}>
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                  <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                </svg>
+              </button>
+            </div>
           )}
           <Composer
             value={messageText}
@@ -565,6 +639,9 @@ export function ChatArea() {
             onOpenPollCreator={() => setShowPollCreator(true)}
             onTypingStart={() => activeChatId && emitTypingStart(activeChatId)}
             onTypingStop={() => activeChatId && emitTypingStop(activeChatId)}
+            editingMessageId={editingId}
+            onCancelEdit={handleCancelEdit}
+            members={activeChat.type === 'group' ? (activeChat.members ?? []) : []}
           />
         </>
       )}

@@ -8,6 +8,8 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { uploadFile } from '../../api/upload';
 import type { UploadResult } from '../../api/upload';
+import { type User } from '../../types';
+import { MentionPopup } from './MentionPopup';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -131,6 +133,9 @@ interface Props {
   onOpenPollCreator?: () => void;
   onTypingStart?: () => void;
   onTypingStop?: () => void;
+  editingMessageId?: string | null;
+  onCancelEdit?: () => void;
+  members?: User[];
 }
 
 type VoiceState = 'idle' | 'recording' | 'preview';
@@ -138,7 +143,7 @@ const LOCK_THRESHOLD = 60;
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
-export function Composer({ value, onChange, onSend, onSendAttachment, externalFile, onExternalFileConsumed, disabled, isGroup, onOpenPollCreator, onTypingStart, onTypingStop }: Props) {
+export function Composer({ value, onChange, onSend, onSendAttachment, externalFile, onExternalFileConsumed, disabled, isGroup, onOpenPollCreator, onTypingStart, onTypingStop, editingMessageId, onCancelEdit, members }: Props) {
   // File staging
   const [staged,    setStaged]    = useState<File | null>(null);
   const [caption,   setCaption]   = useState('');
@@ -148,13 +153,35 @@ export function Composer({ value, onChange, onSend, onSendAttachment, externalFi
 
   const fileInputRef    = useRef<HTMLInputElement>(null);
   const captionInputRef = useRef<HTMLInputElement>(null);
-  const textInputRef    = useRef<HTMLInputElement>(null);
+  const textInputRef    = useRef<HTMLTextAreaElement>(null);
   const cancelRef       = useRef<(() => void) | null>(null);
 
   const [attachMenuOpen, setAttachMenuOpen] = useState(false);
   const attachMenuRef = useRef<HTMLDivElement>(null);
   const typingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isTypingRef = useRef(false);
+
+  // ── Mention popup ─────────────────────────────────────────────────────────
+  const [mentionQuery, setMentionQuery] = useState<string | null>(null);
+  const [mentionStart, setMentionStart] = useState(0);
+  const [mentionIdx,   setMentionIdx]   = useState(0);
+
+  const filteredMembers = mentionQuery !== null
+    ? (members ?? []).filter(m => {
+        if (!m.username) return false;
+        const q = mentionQuery.toLowerCase();
+        return (m.username ?? '').toLowerCase().includes(q)
+            || (m.display_name ?? '').toLowerCase().includes(q);
+      }).slice(0, 8)
+    : [];
+
+  const selectMention = useCallback((username: string) => {
+    const before = value.slice(0, mentionStart);
+    const after  = value.slice(mentionStart + 1 + (mentionQuery?.length ?? 0));
+    onChange(before + '@' + username + ' ' + after);
+    setMentionQuery(null);
+    setTimeout(() => textInputRef.current?.focus(), 0);
+  }, [value, mentionStart, mentionQuery, onChange]);
 
   useEffect(() => {
     if (!attachMenuOpen) return;
@@ -170,6 +197,13 @@ export function Composer({ value, onChange, onSend, onSendAttachment, externalFi
   useEffect(() => {
     if (externalFile) { stageFile(externalFile); onExternalFileConsumed?.(); }
   }, [externalFile]); // eslint-disable-line
+
+  // Reset textarea height when value is cleared (after send)
+  useEffect(() => {
+    if (!value && textInputRef.current) {
+      textInputRef.current.style.height = 'auto';
+    }
+  }, [value]);
 
   function stageFile(file: File) {
     setStaged(file); setCaption(''); setProgress(0); setUploadErr(null);
@@ -471,6 +505,32 @@ export function Composer({ value, onChange, onSend, onSendAttachment, externalFi
         </div>
       )}
 
+      {/* ── Mention popup ── */}
+      {mentionQuery !== null && filteredMembers.length > 0 && (
+        <MentionPopup
+          members={filteredMembers}
+          filter={mentionQuery}
+          activeIdx={mentionIdx}
+          onSelect={selectMention}
+        />
+      )}
+
+      {/* ── Editing banner ── */}
+      {editingMessageId && (
+        <div className="editingBanner">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+          </svg>
+          <span>Редактирование</span>
+          <button className="editingBannerClose" onClick={onCancelEdit} title="Отменить редактирование">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+              <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+            </svg>
+          </button>
+        </div>
+      )}
+
       {/* ── Normal composer row ── */}
       {voiceState !== 'preview' && (
         <div className="composer">
@@ -522,13 +582,17 @@ export function Composer({ value, onChange, onSend, onSendAttachment, externalFi
                   </div>
                 )}
               </div>
-              <input
+              <textarea
                 ref={textInputRef}
                 className="composerInput"
+                rows={1}
                 value={isFileMode ? '' : value}
                 onChange={e => {
                   if (!isFileMode) {
                     onChange(e.target.value);
+                    // Auto-resize: grow up to 150px, then scroll
+                    e.target.style.height = 'auto';
+                    e.target.style.height = Math.min(e.target.scrollHeight, 150) + 'px';
                     if (e.target.value.trim()) {
                       if (!isTypingRef.current) { isTypingRef.current = true; onTypingStart?.(); }
                       if (typingTimerRef.current) clearTimeout(typingTimerRef.current);
@@ -540,11 +604,46 @@ export function Composer({ value, onChange, onSend, onSendAttachment, externalFi
                       if (isTypingRef.current) { isTypingRef.current = false; onTypingStop?.(); }
                       if (typingTimerRef.current) { clearTimeout(typingTimerRef.current); typingTimerRef.current = null; }
                     }
+                    // Mention detection
+                    if (members?.length) {
+                      const cursor = e.target.selectionStart ?? e.target.value.length;
+                      const match = e.target.value.slice(0, cursor).match(/@(\w*)$/);
+                      if (match) {
+                        setMentionQuery(match[1].toLowerCase());
+                        setMentionStart(cursor - match[0].length);
+                        setMentionIdx(0);
+                      } else {
+                        setMentionQuery(null);
+                      }
+                    }
                   }
                 }}
                 placeholder={uploading ? `Загрузка… ${progress}%` : isFileMode ? 'Файл готов к отправке' : 'Сообщение…'}
                 disabled={isFileMode || disabled}
                 onKeyDown={e => {
+                  // Mention popup keyboard navigation — takes priority over send
+                  if (mentionQuery !== null && filteredMembers.length > 0) {
+                    if (e.key === 'ArrowUp') {
+                      e.preventDefault();
+                      setMentionIdx(i => (i - 1 + filteredMembers.length) % filteredMembers.length);
+                      return;
+                    }
+                    if (e.key === 'ArrowDown') {
+                      e.preventDefault();
+                      setMentionIdx(i => (i + 1) % filteredMembers.length);
+                      return;
+                    }
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                      e.preventDefault();
+                      selectMention(filteredMembers[mentionIdx]?.username ?? '');
+                      return;
+                    }
+                    if (e.key === 'Escape') {
+                      e.preventDefault();
+                      setMentionQuery(null);
+                      return;
+                    }
+                  }
                   if (!isFileMode && e.key === 'Enter' && !e.shiftKey) {
                     e.preventDefault();
                     if (value.trim()) {
@@ -567,6 +666,7 @@ export function Composer({ value, onChange, onSend, onSendAttachment, externalFi
               />
               <button
                 className={`composerSend${uploading ? ' composerSendLoading' : ''}`}
+
                 onClick={isFileMode ? () => handleSendFile() : () => { if (value.trim()) onSend(); }}
                 disabled={!canSend}
               >

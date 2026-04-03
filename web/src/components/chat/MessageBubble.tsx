@@ -195,6 +195,39 @@ function HighlightText({ text, term }: { text: string; term: string }) {
   );
 }
 
+// ── Mention + highlight renderer ──────────────────────────────────────────────
+function MentionText({ text, term, meUsername, members, onMentionClick }: {
+  text: string;
+  term: string;
+  meUsername?: string;
+  members?: User[];
+  onMentionClick?: (userId: string) => void;
+}) {
+  const parts = text.split(/(@\w+)/g);
+  return (
+    <>
+      {parts.map((part, i) => {
+        if (/^@\w+$/.test(part)) {
+          const word = part.slice(1);
+          const isMine = !!meUsername && word.toLowerCase() === meUsername.toLowerCase();
+          const user = members?.find(m => m.username?.toLowerCase() === word.toLowerCase());
+          const clickable = !!user && !!onMentionClick;
+          return (
+            <span
+              key={i}
+              className={`${isMine ? 'mention mentionMe' : 'mention'}${clickable ? ' mentionLink' : ''}`}
+              onClick={clickable ? (e) => { e.stopPropagation(); onMentionClick!(user!.id); } : undefined}
+            >
+              {part}
+            </span>
+          );
+        }
+        return <HighlightText key={i} text={part} term={term} />;
+      })}
+    </>
+  );
+}
+
 // ── Audio player for voice messages ──────────────────────────────────────────
 function AudioPlayer({
   url, isOwn, isRead, sendTime,
@@ -406,6 +439,8 @@ interface Props {
   onVote?: (msgId: string, optionIds: string[]) => void;
   onRetract?: (msgId: string) => void;
   onViewVoters?: (pollId: string, optionId: string) => void;
+  meUsername?: string;
+  members?: User[];
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
@@ -413,7 +448,7 @@ export function MessageBubble({
   message: m, isOwn, isRead, isSelected, isGroup, sender,
   showAvatar, showName, hasSelection, highlight, isSearchMatch,
   meId, onContextMenu, onClick, onViewUser, onForwardedSenderClick,
-  onReact, onScrollToMessage, onVote, onRetract, onViewVoters,
+  onReact, onScrollToMessage, onVote, onRetract, onViewVoters, meUsername, members,
 }: Props) {
   const hasAttachment = !!m.attachment_url;
   const isImage = m.attachment_type === 'image';
@@ -563,7 +598,7 @@ export function MessageBubble({
         {/* Plain text */}
         {!m.poll && pureText && (
           <div className="bubbleText">
-            <HighlightText text={pureText} term={highlight || ''} />
+            <MentionText text={pureText} term={highlight || ''} meUsername={meUsername} members={members} onMentionClick={onViewUser} />
           </div>
         )}
 
@@ -578,6 +613,7 @@ export function MessageBubble({
               />
             )}
             <div className="bubbleMeta">
+              {m.edited_at && <span className="bubbleEdited">(изм.)</span>}
               <span className="bubbleTime">{formatTime(m.created_at)}</span>
               {isOwn && <MsgStatus isRead={isRead} />}
             </div>

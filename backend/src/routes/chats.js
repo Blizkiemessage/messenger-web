@@ -93,10 +93,11 @@ router.get('/:id', (req, res) => {
   res.json(chat);
 });
 
-// POST /chats/:id/read — mark all messages in chat as read
+// POST /chats/:id/read — mark messages as read up to optional readUntil timestamp
 router.post('/:id/read', (req, res, next) => {
   try {
-    const readAt = markChatAsRead(req.params.id, req.userId);
+    const readUntil = typeof req.body?.readUntil === 'number' ? req.body.readUntil : undefined;
+    const readAt = markChatAsRead(req.params.id, req.userId, readUntil);
     const io = req.app.get('io');
     if (io) {
       io.to(`chat:${req.params.id}`).emit('chat-read', {
