@@ -105,15 +105,16 @@ function saveMessage(chatId, senderId, text, attachment = {}, isSystem = false, 
     `INSERT INTO messages (id, chat_id, sender_id, ciphertext, iv, auth_tag, created_at,
        attachment_url, attachment_type, attachment_name, attachment_size, is_system,
        reply_to_id, reply_to_sender_id, reply_to_sender_username,
-       reply_to_ciphertext, reply_to_iv, reply_to_auth_tag, poll_id)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+       reply_to_ciphertext, reply_to_iv, reply_to_auth_tag, poll_id, search_text)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
   ).run([msgId, chatId, senderId, ciphertext, iv, authTag, now,
     attachment.attachment_url || null, attachment.attachment_type || null,
     attachment.attachment_name || null, attachment.attachment_size || null,
     isSystem ? 1 : 0,
     replyToId, replyToSenderId, replyToSenderUsername,
     replyToCiphertext, replyToIv, replyToAuthTag,
-    pollId || null]);
+    pollId || null,
+    isSystem ? null : (text || null)]);
 
   return decryptMessage(db.prepare('SELECT * FROM messages WHERE id = ?').get(msgId));
 }
@@ -204,13 +205,14 @@ function forwardMessages(targetChatId, senderId, messageIds) {
       `INSERT INTO messages
          (id, chat_id, sender_id, ciphertext, iv, auth_tag, created_at,
           attachment_url, attachment_type, attachment_name, attachment_size,
-          is_system, forwarded_from_user_id, forwarded_from_username)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?)`
+          is_system, forwarded_from_user_id, forwarded_from_username, search_text)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?)`
     ).run([
       newId, targetChatId, senderId, ciphertext, iv, authTag, now,
       orig.attachment_url || null, orig.attachment_type || null,
       orig.attachment_name || null, orig.attachment_size || null,
       fwdUserId, fwdUsername,
+      origDecrypted.text || null,
     ]);
 
     results.push(decryptMessage(db.prepare('SELECT * FROM messages WHERE id = ?').get(newId)));

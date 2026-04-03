@@ -91,6 +91,16 @@ export function ChatArea() {
 
   const [scrollTargetId, setScrollTargetId] = useState<string | null>(null);
 
+  // ── Global search scroll target ───────────────────────────────────────────
+  const scrollToMessageId    = useChatsStore(s => s.scrollToMessageId);
+  const setScrollToMessageId = useChatsStore(s => s.setScrollToMessageId);
+  useEffect(() => {
+    if (scrollToMessageId) {
+      setScrollTargetId(scrollToMessageId);
+      setScrollToMessageId(null);
+    }
+  }, [scrollToMessageId, setScrollToMessageId]);
+
   // ── Search ────────────────────────────────────────────────────────────────
   const [searchOpen,  setSearchOpen]  = useState(false);
   const [searchQuery, setSearchQuery] = useState('');

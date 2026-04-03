@@ -141,6 +141,8 @@ function runMigrations() {
     "ALTER TABLE users ADD COLUMN accent_color TEXT NOT NULL DEFAULT '#2f81f7'",
     // ✅ NEW: polls
     'ALTER TABLE messages ADD COLUMN poll_id TEXT',
+    // ✅ NEW: plaintext search index for messages (encrypted text is not searchable)
+    'ALTER TABLE messages ADD COLUMN search_text TEXT',
     // ✅ NEW: push subscriptions table
     `CREATE TABLE IF NOT EXISTS push_subscriptions (
       id TEXT PRIMARY KEY,
