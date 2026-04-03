@@ -4,6 +4,7 @@ const path    = require('path');
 const fs      = require('fs');
 const { v4: uuidv4 } = require('uuid');
 const { S3Client, PutObjectCommand } = require('@aws-sdk/client-s3');
+const { getSignedUrl } = require('@aws-sdk/s3-request-presigner');
 const { authMiddleware } = require('../middleware/auth');
 const sharp = require('sharp');
 
@@ -135,6 +136,51 @@ router.post('/', upload.single('file'), async (req, res) => {
     fs.writeFileSync(path.join(uploadDir, filename), req.file.buffer);
     res.json({ url: `/uploads/${filename}`, type, name: originalName, size });
   }
+});
+
+// POST /upload/presign — returns a presigned PUT URL for direct S3 upload
+// Body: { mime, size, filename }  (mime is already the final upload mime, e.g. image/webp after client compression)
+router.post('/presign', async (req, res, next) => {
+  try {
+    if (!useS3) return res.json({ fallback: true });
+
+    const { mime, size, filename: origName } = req.body;
+    if (!mime || !size) return res.status(400).json({ error: 'mime and size required' });
+    if (size > MAX_SIZE) return res.status(400).json({ error: 'File too large (max 100MB)' });
+
+    const ALLOWED = [...IMAGE_TYPES, ...VIDEO_TYPES, ...AUDIO_TYPES];
+    if (!ALLOWED.includes(mime)) return res.status(400).json({ error: 'File type not allowed' });
+
+    const MIME_TO_EXT = {
+      'image/jpeg': '.jpg', 'image/png': '.png', 'image/gif': '.gif',
+      'image/webp': '.webp', 'image/heic': '.heic', 'image/heif': '.heif',
+      'image/bmp': '.bmp', 'image/tiff': '.tiff', 'image/svg+xml': '.svg',
+      'audio/webm': '.webm', 'audio/ogg': '.ogg', 'audio/mp4': '.m4a',
+      'audio/mpeg': '.mp3', 'audio/wav': '.wav', 'audio/aac': '.aac',
+      'audio/flac': '.flac', 'audio/x-m4a': '.m4a',
+      'video/mp4': '.mp4', 'video/quicktime': '.mov', 'video/x-msvideo': '.avi',
+      'video/webm': '.webm', 'video/mov': '.mov', 'video/mpeg': '.mpeg',
+      'video/x-matroska': '.mkv',
+    };
+
+    const ext = MIME_TO_EXT[mime] || '';
+    const key = `${uuidv4()}${ext}`;
+    const isInline = mime.startsWith('image/') || mime.startsWith('video/');
+    const contentDisposition = isInline
+      ? 'inline'
+      : `attachment; filename*=UTF-8''${encodeURIComponent(origName || key)}`;
+
+    const command = new PutObjectCommand({
+      Bucket: process.env.S3_BUCKET,
+      Key: key,
+      ContentType: mime,
+      ContentDisposition: contentDisposition,
+    });
+
+    const uploadUrl = await getSignedUrl(s3, command, { expiresIn: 300 });
+    const publicUrl = process.env.S3_PUBLIC_URL.replace(/\/+$/, '');
+    res.json({ uploadUrl, fileUrl: `${publicUrl}/${key}` });
+  } catch (err) { next(err); }
 });
 
 module.exports = router;
