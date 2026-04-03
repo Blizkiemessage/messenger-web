@@ -45,7 +45,7 @@ export async function verifyEmailChange(email: string, otp: string): Promise<Use
 
 export async function searchUsers(q: string): Promise<User[]> {
   const query = q.trim();
-  if (query.length < 2) return [];
+  if (query.length < 1) return [];
   const res = await client.get<User[]>('/users/search', { params: { q: query } });
   return res.data;
 }

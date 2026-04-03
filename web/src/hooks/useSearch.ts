@@ -27,7 +27,7 @@ export function useSearch(opts: UseSearchOptions = {}) {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (query.trim().length < 2) {
+    if (query.trim().length < 1) {
       setResults([]);
       return;
     }

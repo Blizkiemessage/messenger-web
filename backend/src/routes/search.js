@@ -21,7 +21,7 @@ router.use(authMiddleware);
 
 router.get('/', (req, res) => {
   const q = (req.query.q || '').trim();
-  if (q.length < 2) return res.json({ users: [], chats: [], messages: [] });
+  if (q.length < 1) return res.json({ users: [], chats: [], messages: [] });
 
   const db = getDb();
   const userId = req.userId;
