@@ -12,6 +12,7 @@ import { ChatList } from './ChatList';
 import { SidebarBottom } from './SidebarBottom';
 import { SupportModal } from '../modals/SupportModal';
 import { updateMe } from '../../api/users';
+import { getSavedChat } from '../../api/chats';
 
 export function Sidebar() {
   // Session
@@ -30,6 +31,7 @@ export function Sidebar() {
       (b.last_message?.created_at ?? b.created_at) - (a.last_message?.created_at ?? a.created_at);
     if (s.chatFilter === 'groups') return [...s.chats.filter(c => c.type === 'group')].sort(byLastMsg);
     if (s.chatFilter === 'direct') return [...s.chats.filter(c => c.type === 'direct')].sort(byLastMsg);
+    // 'all' — include saved chat in the list
     return [...s.chats].sort(byLastMsg);
   }));
 
@@ -50,6 +52,16 @@ export function Sidebar() {
 
   const [showSupport, setShowSupport] = useState(false);
 
+  const handleSavedMessages = async () => {
+    const existing = useChatsStore.getState().chats.find(c => c.type === 'saved');
+    if (existing) { setActiveChatId(existing.id); return; }
+    try {
+      const chat = await getSavedChat();
+      useChatsStore.getState().upsertChat(chat);
+      setActiveChatId(chat.id);
+    } catch { /* ignore — network issues */ }
+  };
+
   return (
     <aside className="sidebar">
       <UserSearch />
@@ -57,6 +69,7 @@ export function Sidebar() {
         filter={chatFilter}
         onFilterChange={setChatFilter}
         onNewGroup={() => setShowCreateGroup(true)}
+        onSavedMessages={handleSavedMessages}
       />
       <ChatList
         chats={filteredChats}

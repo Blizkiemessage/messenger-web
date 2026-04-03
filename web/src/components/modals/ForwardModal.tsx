@@ -86,9 +86,9 @@ export function ForwardModal({ messages: initMessages, meId, onClose, onAddMore 
   }, [selectedTargets, forwardMsgs, chats, onClose]);
 
   // ── Derived lists ─────────────────────────────────────────────────────────
-  // All chats excluding self-only
+  // All chats excluding self-only (but always include the saved chat)
   const chatList = useMemo(() =>
-    chats.filter(c => c.type === 'group' || c.members.some(m => m.id !== meId)),
+    chats.filter(c => c.type === 'saved' || c.type === 'group' || c.members.some(m => m.id !== meId)),
     [chats, meId]
   );
 
@@ -201,11 +201,13 @@ export function ForwardModal({ messages: initMessages, meId, onClose, onAddMore 
               <div className="fwdList">
                 {chatList.map(chat => {
                   const selected = selectedTargets.has(chat.id);
+                  const isSaved = chat.type === 'saved';
                   const partner = chat.type === 'direct'
                     ? chat.members.find(m => m.id !== meId)
                     : null;
                   const avatarUser = chat.type === 'group'
                     ? { id: chat.id, display_name: chat.name, avatar_url: chat.avatar_url ?? null } as User
+                    : isSaved ? null
                     : partner ?? null;
                   return (
                     <button
@@ -220,11 +222,22 @@ export function ForwardModal({ messages: initMessages, meId, onClose, onAddMore 
                           </svg>
                         )}
                       </div>
-                      <Avatar user={avatarUser} size={36} radius={11} />
+                      {isSaved ? (
+                        <div className="fwdItemAvatarSaved">
+                          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/>
+                          </svg>
+                        </div>
+                      ) : (
+                        <Avatar user={avatarUser} size={36} radius={11} />
+                      )}
                       <div className="fwdItemInfo">
                         <div className="fwdItemName">{chatTitle(chat, meId)}</div>
                         {chat.type === 'group' && (
                           <div className="fwdItemSub">{chat.members.length} участн.</div>
+                        )}
+                        {isSaved && (
+                          <div className="fwdItemSub">Ваши заметки</div>
                         )}
                       </div>
                     </button>

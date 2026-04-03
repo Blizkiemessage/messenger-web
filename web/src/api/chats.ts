@@ -6,6 +6,11 @@ export async function getChats(): Promise<Chat[]> {
   return res.data;
 }
 
+export async function getSavedChat(): Promise<Chat> {
+  const res = await client.post<Chat>('/chats/saved');
+  return res.data;
+}
+
 export async function createDirectChat(userId: string): Promise<Chat> {
   if (!userId) throw new Error('userId is required');
   const res = await client.post<Chat>('/chats', { userId });

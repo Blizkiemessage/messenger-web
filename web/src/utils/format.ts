@@ -9,12 +9,14 @@ export function formatTime(ts: number): string {
 }
 
 export function chatTitle(chat: Chat, meId: string): string {
+  if (chat.type === 'saved') return 'Сохранённые сообщения';
   if (chat.type === 'group') return chat.name || 'Группа';
   const other = chat.members.find(m => m.id !== meId);
   return other?.display_name || other?.username || 'Диалог';
 }
 
 export function chatSubtitle(chat: Chat, meId: string): string {
+  if (chat.type === 'saved') return 'Ваши заметки';
   if (chat.type === 'group') return `${chat.members.length} участников`;
   const other = chat.members.find(m => m.id !== meId);
   return other?.username ? `@${other.username}` : '';
