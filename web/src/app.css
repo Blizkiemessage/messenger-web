@@ -1126,6 +1126,23 @@ input { font: inherit; color: inherit; background: transparent; }
   filter: drop-shadow(0 0 3px color-mix(in srgb, var(--accent) 50%, transparent));
 }
 
+/* ── "Who read" eye button inside message bubble ───────────────────── */
+.bubbleReadersBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--muted);
+  opacity: .55;
+  flex-shrink: 0;
+  transition: opacity .15s, color .15s;
+  line-height: 1;
+}
+.bubbleReadersBtn:hover { opacity: 1; color: var(--accent); }
+
 /* ── Message selection ──────────────────────────────────────────────── */
 .msg.out .bubble {
   cursor: context-menu;
@@ -5157,6 +5174,74 @@ input[type="date"].psInput::-webkit-calendar-picker-indicator {
 .composerAttachMenuItem:hover {
   background: var(--panel);
 }
+
+/* ── Message Readers Modal ──────────────────────────────────────────────────── */
+.readersModal {
+  width: min(400px, 94vw);
+  max-height: 70vh;
+  display: flex;
+  flex-direction: column;
+}
+.readersList {
+  overflow-y: auto;
+  flex: 1;
+  padding: 4px 0 8px;
+}
+.readerItem {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 16px;
+  transition: background .12s;
+}
+.readerItem:hover { background: var(--panel); }
+.readerInfo {
+  flex: 1;
+  min-width: 0;
+}
+.readerName {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.readerUsername {
+  font-size: 12px;
+  color: var(--muted);
+  margin-top: 1px;
+}
+.readerTime {
+  font-size: 12px;
+  color: var(--muted);
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+.readersLoading {
+  display: flex;
+  justify-content: center;
+  padding: 32px 0;
+}
+.readersSpinner {
+  width: 24px; height: 24px;
+  border: 2.5px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin .7s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.readersEmpty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 36px 24px;
+  color: var(--muted);
+  font-size: 13.5px;
+  text-align: center;
+}
+.readersEmptyIcon { opacity: .4; }
 
 /* ── Poll bubble ────────────────────────────────────────────────────────────── */
 .pollBubble {

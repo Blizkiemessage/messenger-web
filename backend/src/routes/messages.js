@@ -240,4 +240,44 @@ router.delete('/:chatId/messages/:msgId/pin', (req, res, next) => {
   } catch (err) { next(err); }
 });
 
+// GET /chats/:chatId/messages/:msgId/readers
+// Returns list of members who have read past this message (last_read_at >= msg.created_at), excluding sender
+router.get('/:chatId/messages/:msgId/readers', (req, res, next) => {
+  try {
+    const db = getDb();
+    const { chatId, msgId } = req.params;
+    const userId = req.userId;
+
+    // Verify requesting user is a member
+    const isMember = db.prepare(
+      'SELECT 1 FROM chat_members WHERE chat_id = ? AND user_id = ?'
+    ).get([chatId, userId]);
+    if (!isMember) return res.status(403).json({ error: 'Not a member' });
+
+    // Get the message
+    const msg = db.prepare(
+      'SELECT created_at, sender_id FROM messages WHERE id = ? AND chat_id = ? AND deleted_at IS NULL'
+    ).get([msgId, chatId]);
+    if (!msg) return res.status(404).json({ error: 'Message not found' });
+
+    // Query members who have read at or past this message timestamp, excluding the sender
+    const rows = db.prepare(`
+      SELECT u.id, u.username, u.display_name, u.avatar_url,
+             u.hide_avatar, u.avatar_exceptions, cm.last_read_at as read_at
+      FROM chat_members cm
+      JOIN users u ON u.id = cm.user_id
+      WHERE cm.chat_id = ?
+        AND cm.user_id != ?
+        AND cm.last_read_at >= ?
+      ORDER BY cm.last_read_at ASC
+    `).all([chatId, msg.sender_id, msg.created_at]);
+
+    const { sanitizeUser } = require('../services/userService');
+    res.json(rows.map(r => ({
+      user: sanitizeUser(r, { viewerId: userId }),
+      read_at: r.read_at,
+    })));
+  } catch (err) { next(err); }
+});
+
 module.exports = router;

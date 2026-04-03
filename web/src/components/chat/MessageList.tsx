@@ -9,6 +9,7 @@ import { type Message, type Chat } from '../../types';
 import { MessageBubble } from './MessageBubble';
 import { Portal } from '../ui/Portal';
 import { EmojiPicker } from '../ui/EmojiPicker';
+import { MessageReadersModal } from './MessageReadersModal';
 
 interface Props {
   messages: Message[];
@@ -86,6 +87,7 @@ export function MessageList({
 
   const [ctxMenu, setCtxMenu] = useState<{ x: number; y: number; msg: Message } | null>(null);
   const [emojiTarget, setEmojiTarget] = useState<{ x: number; y: number; msgId: string } | null>(null);
+  const [readersTarget, setReadersTarget] = useState<string | null>(null); // msgId
   const selectedTextRef = useRef<string>('');
 
   useEffect(() => {
@@ -276,12 +278,21 @@ export function MessageList({
               onViewVoters={onViewVoters}
               meUsername={meUsername}
               members={chat.members}
+              onViewReaders={isOwn && isGroup ? () => setReadersTarget(m.id) : undefined}
             />
           </div>
         );
       })}
 
       <div ref={bottomRef} />
+
+      {readersTarget && (
+        <MessageReadersModal
+          chatId={chat.id}
+          msgId={readersTarget}
+          onClose={() => setReadersTarget(null)}
+        />
+      )}
 
       {/* ✅ Emoji picker portal */}
       {emojiTarget && (

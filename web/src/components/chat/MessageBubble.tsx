@@ -482,6 +482,7 @@ interface Props {
   onViewVoters?: (pollId: string, optionId: string) => void;
   meUsername?: string;
   members?: User[];
+  onViewReaders?: () => void;
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
@@ -489,7 +490,7 @@ export function MessageBubble({
   message: m, isOwn, isRead, isSelected, isGroup, sender,
   showAvatar, showName, hasSelection, highlight, isSearchMatch,
   meId, onContextMenu, onClick, onViewUser, onForwardedSenderClick,
-  onReact, onScrollToMessage, onVote, onRetract, onViewVoters, meUsername, members,
+  onReact, onScrollToMessage, onVote, onRetract, onViewVoters, meUsername, members, onViewReaders,
 }: Props) {
   const hasAttachment = !!m.attachment_url;
   const isImage = m.attachment_type === 'image';
@@ -688,6 +689,18 @@ export function MessageBubble({
             <div className="bubbleMeta">
               {m.edited_at && <span className="bubbleEdited">(изм.)</span>}
               <span className="bubbleTime">{formatTime(m.created_at)}</span>
+              {isOwn && isGroup && onViewReaders && (
+                <button
+                  className="bubbleReadersBtn"
+                  onClick={e => { e.stopPropagation(); onViewReaders(); }}
+                  title="Кто прочитал"
+                >
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                    <circle cx="12" cy="12" r="3"/>
+                  </svg>
+                </button>
+              )}
               {isOwn && <MsgStatus isRead={isRead} />}
             </div>
           </div>
