@@ -12,12 +12,21 @@
  */
 
 const express = require('express');
+const rateLimit = require('express-rate-limit');
 const { authMiddleware } = require('../middleware/auth');
 const { getChatMessages, saveMessage, toggleReaction, toggleEmojiReaction, deleteMessages, pinMessage, unpinMessage, getPinnedMessages, forwardMessages } = require('../services/messageService');
 const { getDb } = require('../config/database');
 
 const router = express.Router();
 router.use(authMiddleware);
+
+const msgLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 60,
+  message: { error: 'Too many messages, please slow down' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
 
 // GET /chats/:chatId/messages
 router.get('/:chatId/messages', (req, res, next) => {
@@ -30,7 +39,7 @@ router.get('/:chatId/messages', (req, res, next) => {
 });
 
 // POST /chats/:chatId/messages
-router.post('/:chatId/messages', (req, res, next) => {
+router.post('/:chatId/messages', msgLimiter, (req, res, next) => {
   try {
     const { text, attachment_url, attachment_type, attachment_name, reply } = req.body;
     const hasText = text && typeof text === 'string' && text.trim();

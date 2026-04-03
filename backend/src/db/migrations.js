@@ -160,6 +160,10 @@ function runMigrations() {
       image TEXT,
       fetched_at INTEGER NOT NULL
     )`,
+    // ✅ NEW: FTS5 virtual table for fast full-text search (replaces LIKE)
+    `CREATE VIRTUAL TABLE IF NOT EXISTS messages_fts USING fts5(search_text, content=messages, content_rowid=rowid)`,
+    `CREATE TRIGGER IF NOT EXISTS messages_fts_insert AFTER INSERT ON messages WHEN new.search_text IS NOT NULL BEGIN INSERT INTO messages_fts(rowid, search_text) VALUES (new.rowid, new.search_text); END`,
+    `CREATE TRIGGER IF NOT EXISTS messages_fts_update AFTER UPDATE OF search_text ON messages WHEN new.search_text IS NOT NULL BEGIN INSERT INTO messages_fts(messages_fts, rowid, search_text) VALUES('delete', old.rowid, old.search_text); INSERT INTO messages_fts(rowid, search_text) VALUES(new.rowid, new.search_text); END`,
   ];
 
   for (const sql of alters) {
@@ -196,6 +200,20 @@ function runMigrations() {
       console.log(`[DB] Backfilled search_text for ${filled} old messages`);
     }
   } catch (err) { console.error('[DB] search_text backfill failed:', err.message); }
+
+  // Populate FTS5 index if empty (first run, or after a rebuild)
+  try {
+    const ftsCount = db.prepare('SELECT COUNT(*) AS n FROM messages_fts').get().n;
+    if (ftsCount === 0) {
+      db.exec(`
+        INSERT INTO messages_fts(rowid, search_text)
+        SELECT rowid, search_text FROM messages
+        WHERE search_text IS NOT NULL AND deleted_at IS NULL AND is_system = 0
+      `);
+      const n = db.prepare('SELECT COUNT(*) AS n FROM messages_fts').get().n;
+      if (n > 0) console.log(`[DB] FTS5 index populated with ${n} messages`);
+    }
+  } catch (err) { console.error('[DB] FTS5 backfill failed:', err.message); }
 
   console.log('[DB] Migrations complete');
 }

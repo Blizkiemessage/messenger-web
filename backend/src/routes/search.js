@@ -25,7 +25,8 @@ router.get('/', (req, res) => {
 
   const db = getDb();
   const userId = req.userId;
-  const like = `%${q.toLowerCase()}%`;
+  // FTS5 prefix query: escape inner quotes, then wrap and add * for prefix match
+  const ftsQuery = `"${q.replace(/"/g, '""')}"*`;
 
   // ── 1. Users ────────────────────────────────────────────────────────────────
   const users = searchUsers(q, userId);
@@ -75,12 +76,12 @@ router.get('/', (req, res) => {
     JOIN users u ON u.id = m.sender_id
     LEFT JOIN chat_members cm2 ON cm2.chat_id = m.chat_id AND cm2.user_id != ? AND c.type = 'direct'
     LEFT JOIN users partner ON partner.id = cm2.user_id
-    WHERE LOWER(m.search_text) LIKE ?
+    WHERE m.rowid IN (SELECT rowid FROM messages_fts WHERE messages_fts MATCH ?)
       AND m.deleted_at IS NULL
       AND m.is_system = 0
     ORDER BY m.created_at DESC
     LIMIT 20
-  `).all([userId, userId, like]);
+  `).all([userId, userId, ftsQuery]);
 
   const messages = msgRows.map(m => ({
     id: m.id,
