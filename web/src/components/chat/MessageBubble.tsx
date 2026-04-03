@@ -143,7 +143,7 @@ function ImageAttachment({
 // ── Video attachment ─────────────────────────────────────────────────────────
 // ✅ FIXED: poster is a plain dark div (no nested <video> to avoid double load)
 function VideoAttachment({
-  url, caption, name,
+  url, caption,
 }: { url: string; caption?: string; name?: string }) {
   const [playing, setPlaying] = useState(false);
 
