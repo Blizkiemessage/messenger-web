@@ -152,6 +152,14 @@ function runMigrations() {
       auth_key TEXT NOT NULL,
       created_at INTEGER NOT NULL
     )`,
+    // ✅ NEW: cached link previews (24h TTL, keyed by URL)
+    `CREATE TABLE IF NOT EXISTS link_previews (
+      url TEXT PRIMARY KEY,
+      title TEXT,
+      description TEXT,
+      image TEXT,
+      fetched_at INTEGER NOT NULL
+    )`,
   ];
 
   for (const sql of alters) {

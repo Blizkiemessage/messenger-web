@@ -3,7 +3,8 @@
  * ✅ FIXED: resolveUrl applied to attachment URLs so /uploads/ paths resolve
  *           to the backend (Railway) instead of the frontend (Vercel).
  */
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useMemo } from 'react';
+import { getLinkPreview, type LinkPreview } from '../../api/linkPreview';
 import { type Message, type User, type MessageReaction } from '../../types';
 import { formatTime } from '../../utils/format';
 import { Avatar, resolveUrl } from '../ui/Avatar';
@@ -193,6 +194,34 @@ function HighlightText({ text, term }: { text: string; term: string }) {
       )}
     </>
   );
+}
+
+// ── URL helpers ───────────────────────────────────────────────────────────────
+const URL_SPLIT_REGEX = /(https?:\/\/[^\s<>"']+)/gi;
+
+function extractFirstUrl(text: string | null | undefined): string | null {
+  if (!text) return null;
+  const m = text.match(/https?:\/\/[^\s<>"']+/i);
+  return m ? m[0] : null;
+}
+
+function isUrl(part: string): boolean {
+  return /^https?:\/\//i.test(part);
+}
+
+function renderMessageText(text: string, term?: string): React.ReactNode {
+  const parts = text.split(URL_SPLIT_REGEX);
+  return parts.map((part, i) => {
+    if (isUrl(part)) {
+      return (
+        <a key={i} href={part} target="_blank" rel="noopener noreferrer"
+           className="bubbleLink" onClick={e => e.stopPropagation()}>
+          {part}
+        </a>
+      );
+    }
+    return term ? <HighlightText key={i} text={part} term={term} /> : part;
+  });
 }
 
 // ── Audio player for voice messages ──────────────────────────────────────────
@@ -421,6 +450,18 @@ export function MessageBubble({
   const isAudio = m.attachment_type === 'audio';
   const isFile  = hasAttachment && !isImage && !isVideo && !isAudio;
 
+  // Link preview
+  const firstUrl = useMemo(() => extractFirstUrl(m.text), [m.text]);
+  const [preview, setPreview] = useState<LinkPreview | null>(null);
+  useEffect(() => {
+    if (!firstUrl) return;
+    let cancelled = false;
+    getLinkPreview(firstUrl).then(p => {
+      if (!cancelled && p.title) setPreview(p);
+    }).catch(() => {});
+    return () => { cancelled = true; };
+  }, [firstUrl]);
+
   // ✅ KEY FIX: resolve /uploads/... URLs to absolute backend URLs.
   // Without this, Vercel's SPA rewrite catches the relative path and serves index.html.
   const attachmentUrl = resolveUrl(m.attachment_url) ?? m.attachment_url ?? '';
@@ -563,8 +604,28 @@ export function MessageBubble({
         {/* Plain text */}
         {!m.poll && pureText && (
           <div className="bubbleText">
-            <HighlightText text={pureText} term={highlight || ''} />
+            {renderMessageText(pureText, highlight)}
           </div>
+        )}
+
+        {/* Link preview card */}
+        {preview && firstUrl && (
+          <a href={firstUrl} target="_blank" rel="noopener noreferrer"
+             className="linkPreviewCard" onClick={e => e.stopPropagation()}>
+            {preview.image && (
+              <img src={preview.image} className="linkPreviewImg" alt=""
+                   onError={e => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }} />
+            )}
+            <div className="linkPreviewBody">
+              <div className="linkPreviewDomain">
+                {(() => { try { return new URL(firstUrl).hostname.replace(/^www\./, ''); } catch { return firstUrl; } })()}
+              </div>
+              <div className="linkPreviewTitle">{preview.title}</div>
+              {preview.description && (
+                <div className="linkPreviewDesc">{preview.description}</div>
+              )}
+            </div>
+          </a>
         )}
 
         {!isAudio && (

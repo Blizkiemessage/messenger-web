@@ -19,6 +19,7 @@ const supportRoutes = require('./routes/support');
 const pollsRoutes = require('./routes/polls');
 const pushRoutes  = require('./routes/push');
 const searchRoutes = require('./routes/search');
+const linkPreviewRoutes = require('./routes/linkPreview');
 const path = require('path');
 
 const app = express();
@@ -71,6 +72,7 @@ app.use('/support', supportRoutes);
 app.use('/polls', pollsRoutes);
 app.use('/push',  pushRoutes);
 app.use('/search', searchRoutes);
+app.use('/link-preview', linkPreviewRoutes);
 
 app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 app.use('/admin', express.static(path.join(__dirname, '../public/admin')));
