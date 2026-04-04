@@ -14,6 +14,9 @@ const {
   closeGroup,
   transferAdmin,
   deleteDirectChat,
+  togglePinChat,
+  toggleMuteChat,
+  updateChatPinOrder,
 } = require('../services/chatService');
 
 const router = express.Router();
@@ -213,6 +216,32 @@ router.post('/:id/transfer-admin', (req, res, next) => {
       }
     }
     res.json(updatedChat);
+  } catch (err) { next(err); }
+});
+
+// POST /chats/pin-order — reorder pinned chats (must come before /:id)
+router.post('/pin-order', (req, res, next) => {
+  try {
+    const { orderedChatIds } = req.body;
+    if (!Array.isArray(orderedChatIds)) return res.status(400).json({ error: 'orderedChatIds array required' });
+    updateChatPinOrder(req.userId, orderedChatIds);
+    res.json({ ok: true });
+  } catch (err) { next(err); }
+});
+
+// POST /chats/:id/pin — toggle pin for a chat
+router.post('/:id/pin', (req, res, next) => {
+  try {
+    const result = togglePinChat(req.params.id, req.userId);
+    res.json(result);
+  } catch (err) { next(err); }
+});
+
+// POST /chats/:id/mute — toggle mute for a chat
+router.post('/:id/mute', (req, res, next) => {
+  try {
+    const result = toggleMuteChat(req.params.id, req.userId);
+    res.json(result);
   } catch (err) { next(err); }
 });
 

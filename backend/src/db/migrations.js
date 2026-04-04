@@ -152,6 +152,10 @@ function runMigrations() {
       auth_key TEXT NOT NULL,
       created_at INTEGER NOT NULL
     )`,
+    // ✅ NEW: per-user chat pin & mute (stored in chat_members)
+    'ALTER TABLE chat_members ADD COLUMN is_pinned INTEGER NOT NULL DEFAULT 0',
+    'ALTER TABLE chat_members ADD COLUMN pin_order INTEGER',
+    'ALTER TABLE chat_members ADD COLUMN is_muted INTEGER NOT NULL DEFAULT 0',
     // ✅ NEW: message editing
     'ALTER TABLE messages ADD COLUMN edited_at INTEGER',
     // ✅ NEW: session device tracking

@@ -141,6 +141,20 @@ export async function forwardMessages(chatId: string, messageIds: string[]): Pro
   return res.data;
 }
 
+export async function pinChat(chatId: string): Promise<{ is_pinned: boolean; pin_order: number | null }> {
+  const res = await client.post(`/chats/${chatId}/pin`);
+  return res.data;
+}
+
+export async function muteChat(chatId: string): Promise<{ is_muted: boolean }> {
+  const res = await client.post(`/chats/${chatId}/mute`);
+  return res.data;
+}
+
+export async function updatePinOrder(orderedChatIds: string[]): Promise<void> {
+  await client.post('/chats/pin-order', { orderedChatIds });
+}
+
 export async function editMessage(chatId: string, messageId: string, text: string): Promise<import('../types').Message> {
   const res = await client.patch<import('../types').Message>(`/chats/${chatId}/messages/${messageId}`, { text });
   return res.data;

@@ -431,6 +431,44 @@ input { font: inherit; color: inherit; background: transparent; }
   padding: 0 5px;
   flex-shrink: 0;
 }
+.ciBadgeMuted {
+  background: var(--muted);
+  opacity: .7;
+}
+
+/* Right slot in ciBottom: mute + pin + badge */
+.ciRightSlot {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+.ciMuteIcon {
+  width: 13px; height: 13px;
+  color: var(--muted);
+  opacity: .65;
+  flex-shrink: 0;
+}
+.ciPinIcon {
+  width: 12px; height: 12px;
+  color: var(--muted);
+  opacity: .6;
+  flex-shrink: 0;
+}
+
+/* Drag-and-drop states for pinned chats */
+.ciDraggable { cursor: grab; }
+.ciDraggable:active { cursor: grabbing; }
+.ciDragging { opacity: .35; }
+.ciDragOver { border-top: 2px solid var(--accent); }
+
+/* Separator between pinned and regular sections */
+.pinnedDivider {
+  height: 1px;
+  background: var(--border);
+  margin: 4px 10px;
+  flex-shrink: 0;
+}
 
 /* Bottom bar */
 .sidebarBottom {
@@ -1903,6 +1941,11 @@ input[type="date"].psInput::-webkit-calendar-picker-indicator {
 .ctxItem:hover { background: var(--hover); }
 .ctxItemDanger { color: var(--danger, #f87171); }
 .ctxItemDanger:hover { background: rgba(248,113,113,.12); }
+.ctxDivider {
+  height: 1px;
+  background: var(--border);
+  margin: 4px 0;
+}
 
 /* ── System message ───────────────────────────────────────────────── */
 .msgSystem {

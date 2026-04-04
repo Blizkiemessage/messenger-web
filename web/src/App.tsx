@@ -36,6 +36,8 @@ import {
   closeGroup as apiCloseGroup,
   transferAdminRights as apiTransferAdminRights,
   updateGroupAvatar as apiUpdateGroupAvatar,
+  pinChat as apiPinChat,
+  muteChat as apiMuteChat,
 } from './api/chats';
 
 export default function App() {
@@ -205,6 +207,23 @@ export default function App() {
           onClose={() => setChatCtxMenu(null)}
           onDelete={() => setChatActionConfirm(chatCtxMenu.chat)}
           onLeave={() => setChatActionConfirm(chatCtxMenu.chat)}
+          onPin={async () => {
+            const chat = chatCtxMenu.chat;
+            const store = useChatsStore.getState();
+            // Enforce 5-chat limit on the frontend before calling API
+            if (!chat.is_pinned && store.chats.filter(c => c.is_pinned).length >= 5) return;
+            try {
+              const result = await apiPinChat(chat.id);
+              store.updateChatPatch(chat.id, result);
+            } catch { /* silently ignore */ }
+          }}
+          onMute={async () => {
+            const chat = chatCtxMenu.chat;
+            try {
+              const result = await apiMuteChat(chat.id);
+              useChatsStore.getState().updateChatPatch(chat.id, result);
+            } catch { /* silently ignore */ }
+          }}
         />
       )}
 

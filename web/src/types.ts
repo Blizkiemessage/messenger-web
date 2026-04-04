@@ -90,6 +90,9 @@ export type Chat = {
   partner_last_read_at?: number;
   creator_id?: string | null;
   is_closed?: boolean;
+  is_pinned?: boolean;
+  pin_order?: number | null;
+  is_muted?: boolean;
 };
 
 export type AuthResponse = {

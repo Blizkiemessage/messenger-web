@@ -31,8 +31,12 @@ interface ChatsState {
 
   // ── Chat list actions ──────────────────────────────────────────────────────
   setChats: (chats: Chat[]) => void;
-  /** Add a chat if it doesn't exist, or replace it if it does. */
+  /** Add a chat if it doesn't exist, or replace it if it does.
+   *  Preserves per-user fields (is_pinned, pin_order, is_muted) when the
+   *  incoming chat comes from a socket broadcast (which doesn't carry them). */
   upsertChat: (chat: Chat) => void;
+  /** Shallow-merge a partial update into a single chat (pin/mute toggles). */
+  updateChatPatch: (chatId: string, patch: Partial<Chat>) => void;
   removeChat: (chatId: string) => void;
   setActiveChatId: (id: string | null) => void;
 
@@ -112,10 +116,25 @@ export const useChatsStore = create<ChatsState>((set) => ({
 
   setChats: (chats) => set({ chats }),
 
-  upsertChat: (chat) => set(state => ({
-    chats: state.chats.some(c => c.id === chat.id)
-      ? state.chats.map(c => c.id === chat.id ? chat : c)
-      : [chat, ...state.chats],
+  upsertChat: (chat) => set(state => {
+    const existing = state.chats.find(c => c.id === chat.id);
+    // Preserve per-user pin/mute state when a socket broadcast overwrites the chat
+    // (broadcasts are sent to all members and don't carry individual user state)
+    const merged: Chat = existing ? {
+      is_pinned: existing.is_pinned,
+      pin_order: existing.pin_order,
+      is_muted:  existing.is_muted,
+      ...chat,
+    } : chat;
+    return {
+      chats: existing
+        ? state.chats.map(c => c.id === merged.id ? merged : c)
+        : [merged, ...state.chats],
+    };
+  }),
+
+  updateChatPatch: (chatId, patch) => set(state => ({
+    chats: state.chats.map(c => c.id === chatId ? { ...c, ...patch } : c),
   })),
 
   removeChat: (chatId) => set(state => ({

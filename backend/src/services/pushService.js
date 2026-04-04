@@ -26,6 +26,15 @@ function fireAndForgetPush(chatId, senderId, text, io) {
         .filter(id => !onlineUsers.has(id));
       if (offlineIds.length === 0) return;
 
+      // 3a. Skip members who have muted this chat
+      const placeholdersMute = offlineIds.map(() => '?').join(',');
+      const mutedRows = db
+        .prepare(`SELECT user_id FROM chat_members WHERE chat_id = ? AND user_id IN (${placeholdersMute}) AND is_muted = 1`)
+        .all([chatId, ...offlineIds]);
+      const mutedSet = new Set(mutedRows.map(r => r.user_id));
+      const eligibleIds = offlineIds.filter(id => !mutedSet.has(id));
+      if (eligibleIds.length === 0) return;
+
       // 3. Get sender display name
       const sender = db
         .prepare('SELECT display_name, username FROM users WHERE id = ?')
@@ -37,10 +46,10 @@ function fireAndForgetPush(chatId, senderId, text, io) {
       const payload = { title: senderName, body, chatId };
 
       // 5. Load subscriptions and send
-      const placeholders = offlineIds.map(() => '?').join(',');
+      const placeholders = eligibleIds.map(() => '?').join(',');
       const subs = db
         .prepare(`SELECT id, endpoint, p256dh, auth_key FROM push_subscriptions WHERE user_id IN (${placeholders})`)
-        .all(offlineIds);
+        .all(eligibleIds);
 
       for (const sub of subs) {
         const subscription = {

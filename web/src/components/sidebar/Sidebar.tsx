@@ -27,12 +27,19 @@ export function Sidebar() {
   const setChatFilter = useChatsStore(s => s.setChatFilter);
   const setActiveChatId = useChatsStore(s => s.setActiveChatId);
   const filteredChats = useChatsStore(useShallow(s => {
-    const byLastMsg = (a: typeof s.chats[0], b: typeof s.chats[0]) =>
-      (b.last_message?.created_at ?? b.created_at) - (a.last_message?.created_at ?? a.created_at);
-    if (s.chatFilter === 'groups') return [...s.chats.filter(c => c.type === 'group')].sort(byLastMsg);
-    if (s.chatFilter === 'direct') return [...s.chats.filter(c => c.type === 'direct')].sort(byLastMsg);
-    // 'all' — include saved chat in the list
-    return [...s.chats].sort(byLastMsg);
+    let chats = [...s.chats];
+    if (s.chatFilter === 'groups') chats = chats.filter(c => c.type === 'group');
+    else if (s.chatFilter === 'direct') chats = chats.filter(c => c.type === 'direct');
+
+    return chats.sort((a, b) => {
+      const ap = a.is_pinned ? 1 : 0;
+      const bp = b.is_pinned ? 1 : 0;
+      if (ap !== bp) return bp - ap;                              // pinned first
+      if (a.is_pinned && b.is_pinned)                            // among pinned: by pin_order asc
+        return (a.pin_order ?? 999) - (b.pin_order ?? 999);
+      // non-pinned: by last message time desc
+      return (b.last_message?.created_at ?? b.created_at) - (a.last_message?.created_at ?? a.created_at);
+    });
   }));
 
   // App store — individual selectors
