@@ -439,7 +439,7 @@ export function ChatArea() {
       const name = member?.display_name || member?.username || null;
       return name ? `${name} печатает` : 'Печатает';
     }
-    return 'Печатают';
+    return `${others.length} пользователя печатают`;
   })();
 
   if (!activeChat) return <EmptyState />;

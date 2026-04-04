@@ -46,7 +46,7 @@ export function ChatList({
           const name = member?.display_name || member?.username || null;
           typingPreview = name ? `${name} печатает` : 'Печатает';
         } else if (othersTyping.length > 1) {
-          typingPreview = 'Печатают';
+          typingPreview = `${othersTyping.length} пользователя печатают`;
         }
 
         return (
