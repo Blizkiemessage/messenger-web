@@ -1,25 +1,27 @@
 /**
  * ForwardModal.tsx
- * ✅ Full forward-message workflow:
- *   Step 1 (recipients): choose target chats / users + preview button
- *   Step 2 (preview):    review selected messages, remove, or add more
+ * ✅ Forward-message workflow:
+ *   - Search at top (fixed, above scrollable list)
+ *   - Chat list sorted by last-message time (mirrors sidebar order)
+ *   - Scrollable recipient list with sidebar-style scrollbar
+ *   - Caption textarea at bottom for optional forwarding comment
+ *   - Preview step: review/remove queued messages
  */
-import { useState, useMemo, useCallback, useEffect } from 'react';
+import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { useChatsStore } from '../../store/useChatsStore';
 import { useSearch } from '../../hooks/useSearch';
-import { forwardMessages as apiForward, createDirectChat } from '../../api/chats';
+import { forwardMessages as apiForward, createDirectChat, sendChatMessage } from '../../api/chats';
 import { Avatar } from '../ui/Avatar';
 import { chatTitle } from '../../utils/format';
 import type { Message, User } from '../../types';
 
 interface Props {
-  messages: Message[];       // messages queued for forwarding
+  messages: Message[];
   meId: string;
   onClose: () => void;
-  onAddMore: () => void;     // closes modal, returns to chat in selection mode
+  onAddMore: () => void;
 }
 
-// helper — short attachment preview label
 function attachmentLabel(m: Message): string {
   if (!m.attachment_type) return '';
   if (m.attachment_type === 'image') return '🖼 Изображение';
@@ -30,20 +32,18 @@ function attachmentLabel(m: Message): string {
 export function ForwardModal({ messages: initMessages, meId, onClose, onAddMore }: Props) {
   const chats = useChatsStore(s => s.chats);
 
-  // ── State ────────────────────────────────────────────────────────────────
-  const [step, setStep]                     = useState<'recipients' | 'preview'>('recipients');
-  const [forwardMsgs, setForwardMsgs]       = useState<Message[]>(initMessages);
-  const [selectedTargets, setSelectedTargets] = useState<Set<string>>(new Set()); // chatId or userId
-  const [sending, setSending]               = useState(false);
-  const [error, setError]                   = useState<string | null>(null);
+  const [step, setStep]                       = useState<'recipients' | 'preview'>('recipients');
+  const [forwardMsgs, setForwardMsgs]         = useState<Message[]>(initMessages);
+  const [selectedTargets, setSelectedTargets] = useState<Set<string>>(new Set());
+  const [sending, setSending]                 = useState(false);
+  const [error, setError]                     = useState<string | null>(null);
+  const [caption, setCaption]                 = useState('');
+  const captionRef = useRef<HTMLTextAreaElement>(null);
 
-  // sync if parent changes the messages list (user added more)
   useEffect(() => { setForwardMsgs(initMessages); }, [initMessages]);
 
-  // ── User search ──────────────────────────────────────────────────────────
   const { query, setQuery, results: searchResults, searching } = useSearch();
 
-  // ── Helpers ───────────────────────────────────────────────────────────────
   const toggleTarget = useCallback((id: string) => {
     setSelectedTargets(prev => {
       const next = new Set(prev);
@@ -56,26 +56,35 @@ export function ForwardModal({ messages: initMessages, meId, onClose, onAddMore 
     setForwardMsgs(prev => prev.filter(m => m.id !== msgId));
   }, []);
 
+  // Auto-grow textarea up to 3 lines
+  const handleCaptionChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    setCaption(e.target.value);
+    const el = e.target;
+    el.style.height = 'auto';
+    el.style.height = `${Math.min(el.scrollHeight, 90)}px`;
+  };
+
   // ── Send ─────────────────────────────────────────────────────────────────
   const handleSend = useCallback(async () => {
     if (selectedTargets.size === 0 || forwardMsgs.length === 0) return;
     setSending(true);
     setError(null);
     try {
-      const msgIds = forwardMsgs.map(m => m.id);
+      const msgIds      = forwardMsgs.map(m => m.id);
+      const captionText = caption.trim();
 
       for (const target of selectedTargets) {
-        let chatId = target;
-
-        // If target is a userId (from search), get-or-create a direct chat
-        const isChat = chats.some(c => c.id === target);
+        let chatId    = target;
+        const isChat  = chats.some(c => c.id === target);
         if (!isChat) {
           const chat = await createDirectChat(target);
           useChatsStore.getState().upsertChat(chat);
           chatId = chat.id;
         }
-
         await apiForward(chatId, msgIds);
+        if (captionText) {
+          await sendChatMessage(chatId, { text: captionText });
+        }
       }
       onClose();
     } catch (e: any) {
@@ -83,22 +92,33 @@ export function ForwardModal({ messages: initMessages, meId, onClose, onAddMore 
     } finally {
       setSending(false);
     }
-  }, [selectedTargets, forwardMsgs, chats, onClose]);
+  }, [selectedTargets, forwardMsgs, caption, chats, onClose]);
 
   // ── Derived lists ─────────────────────────────────────────────────────────
-  // All chats excluding self-only (but always include the saved chat)
+  // Sorted by last message time (most recent first) — same order as sidebar
   const chatList = useMemo(() =>
-    chats.filter(c => c.type === 'saved' || c.type === 'group' || c.members.some(m => m.id !== meId)),
-    [chats, meId]
+    chats
+      .filter(c => c.type === 'saved' || c.type === 'group' || c.members.some(m => m.id !== meId))
+      .sort((a, b) => (b.last_message?.created_at ?? 0) - (a.last_message?.created_at ?? 0)),
+    [chats, meId],
   );
 
-  // Search results filtered: exclude users who already have a direct chat selected
   const filteredSearch = useMemo(() =>
     searchResults.filter(u => u.id !== meId),
-    [searchResults, meId]
+    [searchResults, meId],
   );
 
-  const selectedCount = selectedTargets.size;
+  const isSearching    = query.length >= 2;
+  const selectedCount  = selectedTargets.size;
+
+  // ── Shared: fwdItem renderer ──────────────────────────────────────────────
+  function renderCheckmark() {
+    return (
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
+        <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/>
+      </svg>
+    );
+  }
 
   // ── Render: preview step ──────────────────────────────────────────────────
   if (step === 'preview') {
@@ -118,15 +138,13 @@ export function ForwardModal({ messages: initMessages, meId, onClose, onAddMore 
             {forwardMsgs.length === 0 ? (
               <div className="fwdPreviewEmpty">Нет сообщений для пересылки</div>
             ) : forwardMsgs.map(m => {
-              const sender = chats.flatMap(c => c.members).find(u => u.id === m.sender_id);
+              const sender     = chats.flatMap(c => c.members).find(u => u.id === m.sender_id);
               const senderName = sender?.display_name || sender?.username || 'Пользователь';
               return (
                 <div key={m.id} className="fwdPreviewItem">
                   <div className="fwdPreviewItemInner">
                     <div className="fwdPreviewSender">{senderName}</div>
-                    <div className="fwdPreviewText">
-                      {m.text ? m.text : attachmentLabel(m)}
-                    </div>
+                    <div className="fwdPreviewText">{m.text ? m.text : attachmentLabel(m)}</div>
                   </div>
                   <button
                     className="fwdPreviewRemove"
@@ -172,6 +190,8 @@ export function ForwardModal({ messages: initMessages, meId, onClose, onAddMore 
   return (
     <div className="modalOverlay" onClick={onClose}>
       <div className="modalCard fwdModal" onClick={e => e.stopPropagation()}>
+
+        {/* Header */}
         <div className="modalHeader">
           <span className="modalTitle">Переслать сообщения</span>
           <button className="modalClose" onClick={onClose} title="Закрыть">
@@ -181,31 +201,53 @@ export function ForwardModal({ messages: initMessages, meId, onClose, onAddMore 
           </button>
         </div>
 
-        {/* Preview button */}
+        {/* Preview trigger */}
         <div className="fwdPreviewTrigger">
           <button className="fwdPreviewToggleBtn" onClick={() => setStep('preview')}>
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
               <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
               <circle cx="12" cy="12" r="3"/>
             </svg>
-            Предпросмотр сообщений
+            Предпросмотр
             <span className="fwdPreviewBadge">{forwardMsgs.length}</span>
           </button>
         </div>
 
+        {/* Search — fixed above the scrollable list */}
+        <div className="fwdSearchBar">
+          <svg className="fwdSearchBarIcon" viewBox="0 0 20 20" fill="none">
+            <circle cx="8.5" cy="8.5" r="5.5" stroke="currentColor" strokeWidth="1.6"/>
+            <path d="M13.5 13.5L17 17" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"/>
+          </svg>
+          <input
+            className="fwdSearchBarInput"
+            value={query}
+            onChange={e => setQuery(e.target.value)}
+            placeholder="Поиск по @username…"
+            autoComplete="off"
+          />
+          {searching && <span className="fwdSearchSpin">…</span>}
+          {query && !searching && (
+            <button className="fwdSearchClear" onClick={() => setQuery('')} title="Очистить">
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round">
+                <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+              </svg>
+            </button>
+          )}
+        </div>
+
+        {/* Scrollable list */}
         <div className="fwdBody">
-          {/* My chats */}
-          {chatList.length > 0 && (
-            <>
-              <div className="fwdSectionLabel">Мои чаты</div>
+          {!isSearching ? (
+            chatList.length > 0 ? (
               <div className="fwdList">
                 {chatList.map(chat => {
-                  const selected = selectedTargets.has(chat.id);
-                  const isSaved = chat.type === 'saved';
-                  const partner = chat.type === 'direct'
+                  const selected    = selectedTargets.has(chat.id);
+                  const isSaved     = chat.type === 'saved';
+                  const partner     = chat.type === 'direct'
                     ? chat.members.find(m => m.id !== meId)
                     : null;
-                  const avatarUser = chat.type === 'group'
+                  const avatarUser  = chat.type === 'group'
                     ? { id: chat.id, display_name: chat.name, avatar_url: chat.avatar_url ?? null } as User
                     : isSaved ? null
                     : partner ?? null;
@@ -215,13 +257,7 @@ export function ForwardModal({ messages: initMessages, meId, onClose, onAddMore 
                       className={`fwdItem${selected ? ' fwdItemSelected' : ''}`}
                       onClick={() => toggleTarget(chat.id)}
                     >
-                      <div className="fwdItemCheck">
-                        {selected && (
-                          <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
-                            <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/>
-                          </svg>
-                        )}
-                      </div>
+                      <div className="fwdItemCheck">{selected && renderCheckmark()}</div>
                       {isSaved ? (
                         <div className="fwdItemAvatarSaved">
                           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
@@ -236,63 +272,59 @@ export function ForwardModal({ messages: initMessages, meId, onClose, onAddMore 
                         {chat.type === 'group' && (
                           <div className="fwdItemSub">{chat.members.length} участн.</div>
                         )}
-                        {isSaved && (
-                          <div className="fwdItemSub">Ваши заметки</div>
+                        {isSaved && <div className="fwdItemSub">Ваши заметки</div>}
+                        {chat.type === 'direct' && partner?.username && (
+                          <div className="fwdItemSub">@{partner.username}</div>
                         )}
                       </div>
                     </button>
                   );
                 })}
               </div>
-            </>
+            ) : (
+              <div className="fwdNoResults">Нет доступных чатов</div>
+            )
+          ) : (
+            /* Search results */
+            filteredSearch.length > 0 ? (
+              <div className="fwdList">
+                {filteredSearch.map(u => {
+                  const selected = selectedTargets.has(u.id);
+                  return (
+                    <button
+                      key={u.id}
+                      className={`fwdItem${selected ? ' fwdItemSelected' : ''}`}
+                      onClick={() => toggleTarget(u.id)}
+                    >
+                      <div className="fwdItemCheck">{selected && renderCheckmark()}</div>
+                      <Avatar user={u} size={36} radius={11} />
+                      <div className="fwdItemInfo">
+                        <div className="fwdItemName">{u.display_name || u.username}</div>
+                        {u.username && <div className="fwdItemSub">@{u.username}</div>}
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            ) : !searching ? (
+              <div className="fwdNoResults">Пользователи не найдены</div>
+            ) : null
           )}
+        </div>
 
-          {/* User search */}
-          <div className="fwdSectionLabel">Поиск пользователей</div>
-          <div className="fwdSearchWrap">
-            <svg className="fwdSearchIcon" viewBox="0 0 20 20" fill="none">
-              <circle cx="8.5" cy="8.5" r="5.5" stroke="currentColor" strokeWidth="1.6"/>
-              <path d="M13.5 13.5L17 17" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"/>
-            </svg>
-            <input
-              className="fwdSearchInput"
-              value={query}
-              onChange={e => setQuery(e.target.value)}
-              placeholder="Поиск по @username…"
-            />
-            {searching && <span className="fwdSearchSpin">…</span>}
-          </div>
-
-          {filteredSearch.length > 0 && (
-            <div className="fwdList">
-              {filteredSearch.map(u => {
-                const selected = selectedTargets.has(u.id);
-                return (
-                  <button
-                    key={u.id}
-                    className={`fwdItem${selected ? ' fwdItemSelected' : ''}`}
-                    onClick={() => toggleTarget(u.id)}
-                  >
-                    <div className="fwdItemCheck">
-                      {selected && (
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
-                          <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/>
-                        </svg>
-                      )}
-                    </div>
-                    <Avatar user={u} size={36} radius={11} />
-                    <div className="fwdItemInfo">
-                      <div className="fwdItemName">{u.display_name || u.username}</div>
-                      {u.username && <div className="fwdItemSub">@{u.username}</div>}
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
-          )}
-          {query.length >= 2 && !searching && filteredSearch.length === 0 && (
-            <div className="fwdNoResults">Пользователи не найдены</div>
-          )}
+        {/* Caption field */}
+        <div className="fwdCaptionWrap">
+          <svg className="fwdCaptionIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+          </svg>
+          <textarea
+            ref={captionRef}
+            className="fwdCaptionInput"
+            value={caption}
+            onChange={handleCaptionChange}
+            placeholder="Добавить комментарий…"
+            rows={1}
+          />
         </div>
 
         {error && <div className="fwdError">{error}</div>}
