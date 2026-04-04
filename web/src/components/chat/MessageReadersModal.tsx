@@ -6,10 +6,12 @@
 import { useEffect, useState } from 'react';
 import { getMessageReaders, type MessageReader } from '../../api/messages';
 import { Avatar } from '../ui/Avatar';
+import { type MessageReaction } from '../../types';
 
 interface Props {
   chatId: string;
   msgId: string;
+  reactions: MessageReaction[];
   onClose: () => void;
 }
 
@@ -33,9 +35,11 @@ function formatReadAt(ts: number): { time: string; date: string | null } {
   return { time, date };
 }
 
-export function MessageReadersModal({ chatId, msgId, onClose }: Props) {
+export function MessageReadersModal({ chatId, msgId, reactions, onClose }: Props) {
   const [readers, setReaders] = useState<MessageReader[]>([]);
   const [loading, setLoading] = useState(true);
+
+  const reactionByUser = new Map(reactions.map(r => [r.userId, r.emoji]));
 
   useEffect(() => {
     let cancelled = false;
@@ -90,6 +94,9 @@ export function MessageReadersModal({ chatId, msgId, onClose }: Props) {
                     <div className="readerUsername">@{user.username}</div>
                   )}
                 </div>
+                {reactionByUser.get(user.id) && (
+                  <span className="readerEmoji">{reactionByUser.get(user.id)}</span>
+                )}
                 <div className="readerTime">
                   <span className="readerTimeVal">{time}</span>
                   {date && <span className="readerTimeDate">{date}</span>}

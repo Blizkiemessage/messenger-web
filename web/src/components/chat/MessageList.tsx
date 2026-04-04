@@ -5,7 +5,7 @@
  * ✅ Explicit background colors as fallback for CSS var(--card).
  */
 import { useRef, useEffect, useLayoutEffect, useState, useCallback } from 'react';
-import { type Message, type Chat } from '../../types';
+import { type Message, type Chat, type MessageReaction } from '../../types';
 import { MessageBubble } from './MessageBubble';
 import { Portal } from '../ui/Portal';
 import { EmojiPicker } from '../ui/EmojiPicker';
@@ -87,7 +87,7 @@ export function MessageList({
 
   const [ctxMenu, setCtxMenu] = useState<{ x: number; y: number; msg: Message } | null>(null);
   const [emojiTarget, setEmojiTarget] = useState<{ x: number; y: number; msgId: string } | null>(null);
-  const [readersTarget, setReadersTarget] = useState<string | null>(null); // msgId
+  const [readersTarget, setReadersTarget] = useState<{ msgId: string; reactions: MessageReaction[] } | null>(null);
   const selectedTextRef = useRef<string>('');
 
   useEffect(() => {
@@ -278,7 +278,7 @@ export function MessageList({
               onViewVoters={onViewVoters}
               meUsername={meUsername}
               members={chat.members}
-              onViewReaders={isOwn && isGroup ? () => setReadersTarget(m.id) : undefined}
+              onViewReaders={isOwn && isGroup ? () => setReadersTarget({ msgId: m.id, reactions: m.reactions ?? [] }) : undefined}
             />
           </div>
         );
@@ -289,7 +289,8 @@ export function MessageList({
       {readersTarget && (
         <MessageReadersModal
           chatId={chat.id}
-          msgId={readersTarget}
+          msgId={readersTarget.msgId}
+          reactions={readersTarget.reactions}
           onClose={() => setReadersTarget(null)}
         />
       )}

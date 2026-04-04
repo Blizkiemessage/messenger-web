@@ -5248,6 +5248,12 @@ input[type="date"].psInput::-webkit-calendar-picker-indicator {
   white-space: nowrap;
   line-height: 1;
 }
+.readerEmoji {
+  font-size: 20px;
+  line-height: 1;
+  flex-shrink: 0;
+  margin-right: 4px;
+}
 .readersLoading {
   display: flex;
   justify-content: center;
@@ -5582,6 +5588,16 @@ input[type="date"].psInput::-webkit-calendar-picker-indicator {
 }
 
 .chSubTyping::after {
+  content: '';
+  display: inline-block;
+  animation: typingDots 1.4s steps(1, end) infinite;
+}
+
+.ciPreviewTyping {
+  color: var(--accent) !important;
+  font-style: italic;
+}
+.ciPreviewTyping::after {
   content: '';
   display: inline-block;
   animation: typingDots 1.4s steps(1, end) infinite;

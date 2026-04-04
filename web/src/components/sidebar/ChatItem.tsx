@@ -11,11 +11,12 @@ interface Props {
   meId: string;
   isActive: boolean;
   isOnline?: boolean;
+  typingPreview?: string | null;
   onClick: () => void;
   onContextMenu: (e: React.MouseEvent) => void;
 }
 
-export function ChatItem({ chat, meId, isActive, isOnline, onClick, onContextMenu }: Props) {
+export function ChatItem({ chat, meId, isActive, isOnline, typingPreview, onClick, onContextMenu }: Props) {
   const title = chatTitle(chat, meId);
   const isSaved = chat.type === 'saved';
 
@@ -60,8 +61,10 @@ export function ChatItem({ chat, meId, isActive, isOnline, onClick, onContextMen
           )}
         </div>
         <div className="ciBottom">
-          <span className="ciPreview">
-            {chat.last_message?.text || (chat.last_message ? 'Вложение' : 'Нет сообщений')}
+          <span className={`ciPreview${typingPreview ? ' ciPreviewTyping' : ''}`}>
+            {typingPreview
+              ? typingPreview
+              : chat.last_message?.text || (chat.last_message ? 'Вложение' : 'Нет сообщений')}
           </span>
           {typeof chat.unread_count === 'number' && chat.unread_count > 0 && (
             <span className="ciBadge">{chat.unread_count}</span>

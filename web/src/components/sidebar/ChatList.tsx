@@ -19,6 +19,7 @@ export function ChatList({
   chats, meId, activeChatId, filter, loading, error, onSelect, onContextMenu,
 }: Props) {
   const onlineUsers = useChatsStore(s => s.onlineUsers);
+  const typingUsers = useChatsStore(s => s.typingUsers);
 
   return (
     <div className="chatList">
@@ -36,6 +37,18 @@ export function ChatList({
       {chats.map(c => {
         const partner = c.type === 'direct' ? c.members.find(m => m.id !== meId) : null;
         const isOnline = partner ? onlineUsers.has(partner.id) : false;
+
+        const chatTypingIds = typingUsers.get(c.id) ?? [];
+        const othersTyping = chatTypingIds.filter(id => id !== meId);
+        let typingPreview: string | null = null;
+        if (othersTyping.length === 1) {
+          const member = c.members.find(m => m.id === othersTyping[0]);
+          const name = member?.display_name || member?.username || null;
+          typingPreview = name ? `${name} печатает` : 'Печатает';
+        } else if (othersTyping.length > 1) {
+          typingPreview = 'Печатают';
+        }
+
         return (
           <ChatItem
             key={c.id}
@@ -43,6 +56,7 @@ export function ChatList({
             meId={meId}
             isActive={c.id === activeChatId}
             isOnline={isOnline}
+            typingPreview={typingPreview}
             onClick={() => onSelect(c.id)}
             onContextMenu={e => { e.preventDefault(); onContextMenu(e, c); }}
           />

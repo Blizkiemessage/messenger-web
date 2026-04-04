@@ -434,7 +434,12 @@ export function ChatArea() {
     if (!activeChat || typingUserIds.length === 0) return '';
     const others = typingUserIds.filter(id => id !== me.id);
     if (others.length === 0) return '';
-    return others.length === 1 ? 'Печатает' : 'Печатают';
+    if (others.length === 1) {
+      const member = activeChat.members.find(m => m.id === others[0]);
+      const name = member?.display_name || member?.username || null;
+      return name ? `${name} печатает` : 'Печатает';
+    }
+    return 'Печатают';
   })();
 
   if (!activeChat) return <EmptyState />;
