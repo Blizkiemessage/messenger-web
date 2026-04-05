@@ -15,6 +15,7 @@ const express = require('express');
 const rateLimit = require('express-rate-limit');
 const { authMiddleware } = require('../middleware/auth');
 const { getChatMessages, saveMessage, toggleReaction, toggleEmojiReaction, deleteMessages, pinMessage, unpinMessage, getPinnedMessages, forwardMessages, editMessage } = require('../services/messageService');
+const { isBlocked } = require('../services/userService');
 const { getDb } = require('../config/database');
 
 const router = express.Router();
@@ -55,6 +56,19 @@ router.post('/:chatId/messages', msgLimiter, (req, res, next) => {
     const replyData = (reply && typeof reply.id === 'string') ? reply : null;
 
     const attachment = hasAttachment ? { attachment_url, attachment_type, attachment_name } : {};
+
+    // Block check: for DM chats, reject if the recipient has blocked the sender
+    const db2 = getDb();
+    const chat = db2.prepare('SELECT type FROM chats WHERE id = ?').get(req.params.chatId);
+    if (chat?.type === 'direct') {
+      const recipient = db2.prepare(
+        'SELECT user_id FROM chat_members WHERE chat_id = ? AND user_id != ?'
+      ).get([req.params.chatId, req.userId]);
+      if (recipient && isBlocked(recipient.user_id, req.userId)) {
+        return res.status(403).json({ error: 'blocked' });
+      }
+    }
+
     const msg = saveMessage(req.params.chatId, req.userId, hasText ? text.trim() : '', attachment, false, replyData);
 
     const db = getDb();

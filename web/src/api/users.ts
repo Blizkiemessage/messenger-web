@@ -50,3 +50,17 @@ export async function searchUsers(q: string): Promise<User[]> {
   return res.data;
 }
 
+export async function blockUser(id: string): Promise<{ is_blocked: boolean }> {
+  const res = await client.post<{ is_blocked: boolean }>(`/users/${id}/block`);
+  return res.data;
+}
+
+export async function setAlias(id: string, alias: string): Promise<{ alias: string }> {
+  const res = await client.post<{ alias: string }>(`/users/${id}/alias`, { alias });
+  return res.data;
+}
+
+export async function deleteAlias(id: string): Promise<{ alias: null }> {
+  const res = await client.delete<{ alias: null }>(`/users/${id}/alias`);
+  return res.data;
+}

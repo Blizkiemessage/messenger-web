@@ -173,6 +173,21 @@ function runMigrations() {
     `CREATE VIRTUAL TABLE IF NOT EXISTS messages_fts USING fts5(search_text, content=messages, content_rowid=rowid)`,
     `CREATE TRIGGER IF NOT EXISTS messages_fts_insert AFTER INSERT ON messages WHEN new.search_text IS NOT NULL BEGIN INSERT INTO messages_fts(rowid, search_text) VALUES (new.rowid, new.search_text); END`,
     `CREATE TRIGGER IF NOT EXISTS messages_fts_update AFTER UPDATE OF search_text ON messages WHEN new.search_text IS NOT NULL BEGIN INSERT INTO messages_fts(messages_fts, rowid, search_text) VALUES('delete', old.rowid, old.search_text); INSERT INTO messages_fts(rowid, search_text) VALUES(new.rowid, new.search_text); END`,
+    // ✅ NEW: blocked users list
+    `CREATE TABLE IF NOT EXISTS blocked_users (
+      blocker_id TEXT NOT NULL,
+      blocked_id TEXT NOT NULL,
+      created_at INTEGER NOT NULL DEFAULT (unixepoch()),
+      PRIMARY KEY (blocker_id, blocked_id)
+    )`,
+    // ✅ NEW: per-viewer contact alias (nickname override)
+    `CREATE TABLE IF NOT EXISTS contact_aliases (
+      user_id   TEXT NOT NULL,
+      target_id TEXT NOT NULL,
+      alias     TEXT NOT NULL,
+      created_at INTEGER NOT NULL DEFAULT (unixepoch()),
+      PRIMARY KEY (user_id, target_id)
+    )`,
   ];
 
   for (const sql of alters) {

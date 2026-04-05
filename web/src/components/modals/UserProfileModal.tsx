@@ -1,11 +1,13 @@
 /**
  * UserProfileModal — redesigned to match the sidebar popup aesthetic.
+ * ✅ Added: 3-dot menu with block/unblock + contact alias (nickname) features.
  */
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { type User } from '../../types';
 import { avatarLetter, formatBirthDate, formatLastSeen } from '../../utils/format';
 import { resolveUrl } from '../ui/Avatar';
 import { getUserById } from '../../api/users';
+import { blockUser, setAlias, deleteAlias } from '../../api/users';
 import { useChatsStore } from '../../store/useChatsStore';
 
 interface Props {
@@ -15,23 +17,101 @@ interface Props {
 }
 
 export function UserProfileModal({ userId, onClose, onStartChat }: Props) {
-  const [user,    setUser]    = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [user,            setUser]            = useState<User | null>(null);
+  const [loading,         setLoading]         = useState(true);
+  const [menuOpen,        setMenuOpen]        = useState(false);
+  const [aliasOpen,       setAliasOpen]       = useState(false);
+  const [aliasInput,      setAliasInput]      = useState('');
+  const [aliasBusy,       setAliasBusy]       = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
   const onlineUsers = useChatsStore(s => s.onlineUsers);
 
   useEffect(() => {
     setLoading(true);
     getUserById(userId)
-      .then(setUser)
+      .then(u => { setUser(u); setAliasInput(u.alias ?? ''); })
       .catch(() => setUser(null))
       .finally(() => setLoading(false));
   }, [userId]);
 
+  // Close menu on outside click
+  useEffect(() => {
+    if (!menuOpen) return;
+    const handler = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setMenuOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [menuOpen]);
+
   const isOnline = user ? onlineUsers.has(user.id) : false;
+
+  const handleBlock = async () => {
+    if (!user) return;
+    setMenuOpen(false);
+    try {
+      const result = await blockUser(user.id);
+      setUser(u => u ? { ...u, is_blocked: result.is_blocked } : u);
+    } catch { /* ignore */ }
+  };
+
+  const handleSaveAlias = async () => {
+    if (!user || !aliasInput.trim()) return;
+    setAliasBusy(true);
+    try {
+      const result = await setAlias(user.id, aliasInput.trim());
+      setUser(u => u ? { ...u, alias: result.alias, display_name: result.alias } : u);
+      setAliasOpen(false);
+    } catch { /* ignore */ }
+    finally { setAliasBusy(false); }
+  };
+
+  const handleDeleteAlias = async () => {
+    if (!user) return;
+    setMenuOpen(false);
+    try {
+      await deleteAlias(user.id);
+      // Reload to get real display_name back
+      const fresh = await getUserById(user.id);
+      setUser(fresh);
+      setAliasInput('');
+    } catch { /* ignore */ }
+  };
 
   return (
     <div className="modalOverlay" onClick={e => e.target === e.currentTarget && onClose()}>
       <div className="upCard">
+        {/* 3-dot menu button (only for other users) */}
+        {!loading && user && (
+          <div className="upMenuWrap" ref={menuRef}>
+            <button className="upMenuBtn" onClick={() => setMenuOpen(v => !v)} title="Действия">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                <circle cx="12" cy="5" r="1.8"/>
+                <circle cx="12" cy="12" r="1.8"/>
+                <circle cx="12" cy="19" r="1.8"/>
+              </svg>
+            </button>
+            {menuOpen && (
+              <div className="upMenu">
+                <button className={user.is_blocked ? 'upMenuItemDanger' : 'upMenuItem'} onClick={handleBlock}>
+                  {user.is_blocked ? 'Разблокировать' : 'Заблокировать'}
+                </button>
+                <div className="upMenuDivider" />
+                <button className="upMenuItem" onClick={() => { setMenuOpen(false); setAliasInput(user.alias ?? ''); setAliasOpen(true); }}>
+                  {user.alias ? 'Изменить псевдоним' : 'Добавить псевдоним'}
+                </button>
+                {user.alias && (
+                  <button className="upMenuItemDanger" onClick={handleDeleteAlias}>
+                    Удалить псевдоним
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Close */}
         <button className="upCloseBtn" onClick={onClose}>
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
@@ -57,13 +137,38 @@ export function UserProfileModal({ userId, onClose, onStartChat }: Props) {
               </div>
               <div className="upName">{user.display_name || user.username}</div>
               {user.username && <div className="upUsername">@{user.username}</div>}
+              {user.alias && <div className="upAliasBadge">«{user.alias}»</div>}
               <div className={`upOnlineStatus${isOnline ? ' upOnlineStatusOnline' : ''}`}>
                 {formatLastSeen(user.last_seen_at, isOnline)}
               </div>
             </div>
 
+            {/* Alias edit dialog */}
+            {aliasOpen && (
+              <div className="upAliasDialog">
+                <p className="upAliasHint">Псевдоним виден только вам</p>
+                <input
+                  className="upAliasInput"
+                  value={aliasInput}
+                  onChange={e => setAliasInput(e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Enter') handleSaveAlias(); if (e.key === 'Escape') setAliasOpen(false); }}
+                  placeholder="Введите псевдоним..."
+                  maxLength={50}
+                  autoFocus
+                />
+                <div className="upAliasActions">
+                  <button className="upAliasSave" onClick={handleSaveAlias} disabled={aliasBusy || !aliasInput.trim()}>
+                    Сохранить
+                  </button>
+                  <button className="upAliasCancel" onClick={() => setAliasOpen(false)}>
+                    Отмена
+                  </button>
+                </div>
+              </div>
+            )}
+
             {/* Info rows */}
-            {(user.email || user.bio || user.birth_date) && (
+            {!aliasOpen && (user.email || user.bio || user.birth_date) && (
               <div className="upInfoSection">
                 {user.email && (
                   <div className="upInfoRow">

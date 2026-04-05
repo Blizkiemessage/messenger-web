@@ -6,7 +6,7 @@
  */
 const { getDb } = require('../config/database');
 
-function sanitizeUser(u, { showPrivate = false, viewerId = null } = {}) {
+function sanitizeUser(u, { showPrivate = false, viewerId = null } = {}, alias = undefined) {
   if (!u) return null;
 
   // ✅ Hide avatar from others unless they're in exceptions
@@ -18,10 +18,13 @@ function sanitizeUser(u, { showPrivate = false, viewerId = null } = {}) {
     }
   }
 
+  // ✅ Apply per-viewer alias override
+  const displayName = (alias && !showPrivate) ? alias : u.display_name;
+
   return {
     id:           u.id,
     username:     u.username,
-    display_name: u.display_name,
+    display_name: displayName,
     avatar_url:   avatarUrl,
     // Hide last_seen_at from others if user has opted in to privacy
     last_seen_at: (!showPrivate && u.hide_last_seen) ? null : (u.last_seen_at ?? null),
@@ -96,4 +99,38 @@ function searchUsers(q, excludeId) {
     }));
 }
 
-module.exports = { sanitizeUser, getUserById, updateUser, searchUsers };
+function toggleBlockUser(blockerId, blockedId) {
+  const db = getDb();
+  const existing = db.prepare('SELECT 1 FROM blocked_users WHERE blocker_id = ? AND blocked_id = ?').get(blockerId, blockedId);
+  if (existing) {
+    db.prepare('DELETE FROM blocked_users WHERE blocker_id = ? AND blocked_id = ?').run(blockerId, blockedId);
+    return { is_blocked: false };
+  } else {
+    db.prepare('INSERT INTO blocked_users (blocker_id, blocked_id) VALUES (?, ?)').run(blockerId, blockedId);
+    return { is_blocked: true };
+  }
+}
+
+function isBlocked(blockerId, blockedId) {
+  return !!getDb().prepare('SELECT 1 FROM blocked_users WHERE blocker_id = ? AND blocked_id = ?').get(blockerId, blockedId);
+}
+
+function setContactAlias(userId, targetId, alias) {
+  const db = getDb();
+  db.prepare(`
+    INSERT INTO contact_aliases (user_id, target_id, alias) VALUES (?, ?, ?)
+    ON CONFLICT(user_id, target_id) DO UPDATE SET alias = excluded.alias
+  `).run(userId, targetId, alias);
+  return { alias };
+}
+
+function deleteContactAlias(userId, targetId) {
+  getDb().prepare('DELETE FROM contact_aliases WHERE user_id = ? AND target_id = ?').run(userId, targetId);
+  return { alias: null };
+}
+
+function getContactAlias(userId, targetId) {
+  return getDb().prepare('SELECT alias FROM contact_aliases WHERE user_id = ? AND target_id = ?').get(userId, targetId)?.alias ?? null;
+}
+
+module.exports = { sanitizeUser, getUserById, updateUser, searchUsers, toggleBlockUser, isBlocked, setContactAlias, deleteContactAlias, getContactAlias };

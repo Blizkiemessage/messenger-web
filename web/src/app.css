@@ -1474,6 +1474,68 @@ input { font: inherit; color: inherit; background: transparent; }
 }
 .upChatBtn:hover { opacity: .88; }
 
+/* ── UserProfileModal — 3-dot menu ──────────────────────────────────── */
+.upMenuWrap {
+  position: absolute; top: 12px; right: 48px; z-index: 3;
+}
+.upMenuBtn {
+  width: 30px; height: 30px; border-radius: 9px;
+  display: flex; align-items: center; justify-content: center;
+  color: var(--muted); transition: background .15s, color .15s;
+}
+.upMenuBtn:hover { background: var(--border); color: var(--text); }
+.upMenu {
+  position: absolute; top: 36px; right: 0;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 12px; box-shadow: 0 4px 24px rgba(0,0,0,.18);
+  min-width: 210px; padding: 6px 0; overflow: hidden;
+}
+.upMenuItem, .upMenuItemDanger {
+  display: block; width: 100%; padding: 10px 18px;
+  text-align: left; font-size: 14px; transition: background .12s;
+}
+.upMenuItem { color: var(--text); }
+.upMenuItem:hover { background: var(--hover); }
+.upMenuItemDanger { color: var(--danger, #e05252); }
+.upMenuItemDanger:hover { background: var(--hover); }
+.upMenuDivider { height: 1px; background: var(--border); margin: 4px 0; }
+.upAliasBadge {
+  color: var(--accent); font-size: 13px; margin-top: 2px;
+  font-style: italic; opacity: .9;
+}
+.upAliasDialog {
+  padding: 16px 20px; border-top: 1px solid var(--border);
+  display: flex; flex-direction: column; gap: 10px;
+}
+.upAliasHint { font-size: 12px; color: var(--muted); margin: 0; }
+.upAliasInput {
+  width: 100%; padding: 8px 12px; border-radius: 9px;
+  border: 1.5px solid var(--border); background: var(--bg);
+  color: var(--text); font-size: 14px; transition: border-color .15s;
+  box-sizing: border-box;
+}
+.upAliasInput:focus { border-color: var(--accent); outline: none; }
+.upAliasActions { display: flex; gap: 8px; }
+.upAliasSave {
+  flex: 1; padding: 8px; border-radius: 9px;
+  background: var(--accent); color: #fff;
+  font-size: 14px; font-weight: 500; transition: opacity .15s;
+}
+.upAliasSave:disabled { opacity: .5; cursor: not-allowed; }
+.upAliasSave:not(:disabled):hover { opacity: .88; }
+.upAliasCancel {
+  flex: 1; padding: 8px; border-radius: 9px;
+  background: var(--hover); color: var(--text); font-size: 14px;
+  transition: background .12s;
+}
+.upAliasCancel:hover { background: var(--border); }
+.composerBlocked {
+  display: flex; align-items: center; justify-content: center;
+  gap: 10px; padding: 18px 20px;
+  color: var(--muted); font-size: 14px;
+  background: var(--surface); border-top: 1px solid var(--border);
+}
+
 /* ── GroupInfoModal ──────────────────────────────────────────────────── */
 .groupInfoCard {
   position: relative;

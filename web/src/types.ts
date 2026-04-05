@@ -19,6 +19,9 @@ export type User = {
   created_at?: number;
   last_seen_at?: number | null;
   has_password?: boolean;
+  is_blocked?: boolean;        // viewer has blocked this user
+  blocked_by_them?: boolean;   // this user has blocked the viewer
+  alias?: string | null;       // viewer's custom nickname for this user
 };
 
 export type MessageReply = {

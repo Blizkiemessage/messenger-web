@@ -17,7 +17,7 @@
 
 const express = require('express');
 const { authMiddleware } = require('../middleware/auth');
-const { getUserById, updateUser, searchUsers, sanitizeUser } = require('../services/userService');
+const { getUserById, updateUser, searchUsers, sanitizeUser, toggleBlockUser, isBlocked, setContactAlias, deleteContactAlias, getContactAlias } = require('../services/userService');
 const { deleteAccount } = require('../services/chatService');
 const { deleteFromS3 } = require('../utils/s3Delete');
 const { initiateEmailChange, verifyEmailChange } = require('../services/authService');
@@ -139,11 +139,48 @@ router.get('/search', (req, res) => {
   res.json(searchUsers(q, req.userId));
 });
 
-// GET /users/:id — public profile
+// GET /users/:id — public profile (with block status + alias)
 router.get('/:id', (req, res) => {
   const user = getUserById(req.params.id);
   if (!user) return res.status(404).json({ error: 'User not found' });
-  res.json(sanitizeUser(user, { viewerId: req.userId }));
+  const alias = getContactAlias(req.userId, req.params.id);
+  const sanitized = sanitizeUser(user, { viewerId: req.userId }, alias);
+  sanitized.is_blocked    = isBlocked(req.userId, req.params.id);
+  sanitized.blocked_by_them = isBlocked(req.params.id, req.userId);
+  sanitized.alias = alias;
+  res.json(sanitized);
+});
+
+// POST /users/:id/block — toggle block
+router.post('/:id/block', (req, res, next) => {
+  try {
+    if (req.params.id === req.userId) return res.status(400).json({ error: 'Cannot block yourself' });
+    const result = toggleBlockUser(req.userId, req.params.id);
+    res.json(result);
+  } catch (err) { next(err); }
+});
+
+// POST /users/:id/alias — set contact alias
+router.post('/:id/alias', (req, res, next) => {
+  try {
+    const { alias } = req.body;
+    if (!alias || typeof alias !== 'string' || !alias.trim()) {
+      return res.status(400).json({ error: 'alias is required' });
+    }
+    if (alias.trim().length > 50) {
+      return res.status(400).json({ error: 'alias max 50 characters' });
+    }
+    const result = setContactAlias(req.userId, req.params.id, alias.trim());
+    res.json(result);
+  } catch (err) { next(err); }
+});
+
+// DELETE /users/:id/alias — remove contact alias
+router.delete('/:id/alias', (req, res, next) => {
+  try {
+    const result = deleteContactAlias(req.userId, req.params.id);
+    res.json(result);
+  } catch (err) { next(err); }
 });
 
 module.exports = router;

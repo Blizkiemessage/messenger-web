@@ -21,7 +21,7 @@
 
 const { v4: uuidv4 } = require('uuid');
 const { getDb } = require('../config/database');
-const { sanitizeUser } = require('./userService');
+const { sanitizeUser, getContactAlias } = require('./userService');
 const { deleteFromS3, deleteManyFromS3 } = require('../utils/s3Delete');
 const { decryptMessage, saveMessage } = require('./messageService');
 
@@ -53,7 +53,10 @@ function getChatById(chatId, userId) {
        WHERE cm.chat_id = ?`
     )
     .all(chatId)
-    .map(u => sanitizeUser(u, { viewerId: userId }));
+    .map(u => {
+      const alias = u.id !== userId ? getContactAlias(userId, u.id) : null;
+      return sanitizeUser(u, { viewerId: userId }, alias);
+    });
 
   const lastMsg = db
     .prepare(
@@ -108,7 +111,10 @@ function getUserChats(userId) {
          WHERE cm.chat_id = ?`
       )
       .all(chat.id)
-      .map(u => sanitizeUser(u, { viewerId: userId }));
+      .map(u => {
+        const alias = u.id !== userId ? getContactAlias(userId, u.id) : null;
+        return sanitizeUser(u, { viewerId: userId }, alias);
+      });
 
     const lastMsg = db
       .prepare(

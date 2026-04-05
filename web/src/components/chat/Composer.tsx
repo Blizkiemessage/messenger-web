@@ -138,6 +138,7 @@ interface Props {
   editingMessageId?: string | null;
   onCancelEdit?: () => void;
   members?: User[];
+  blockedByThem?: boolean;
 }
 
 type VoiceState = 'idle' | 'recording' | 'preview';
@@ -145,7 +146,7 @@ const LOCK_THRESHOLD = 60;
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
-export function Composer({ value, onChange, onSend, onSendAttachment, externalFile, onExternalFileConsumed, disabled, isGroup, onOpenPollCreator, onTypingStart, onTypingStop, editingMessageId, onCancelEdit, members }: Props) {
+export function Composer({ value, onChange, onSend, onSendAttachment, externalFile, onExternalFileConsumed, disabled, isGroup, onOpenPollCreator, onTypingStart, onTypingStop, editingMessageId, onCancelEdit, members, blockedByThem }: Props) {
   // File staging
   const [staged,    setStaged]    = useState<File | null>(null);
   const [caption,   setCaption]   = useState('');
@@ -445,6 +446,18 @@ export function Composer({ value, onChange, onSend, onSendAttachment, externalFi
 
   // Animated icon style driven by amplitude
   const iconScale = voiceState === 'recording' ? 1 + micAmp * 0.25 : 1;
+
+  if (blockedByThem) {
+    return (
+      <div className="composerBlocked">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <circle cx="12" cy="12" r="10"/>
+          <line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/>
+        </svg>
+        <span>Вы были заблокированы этим пользователем</span>
+      </div>
+    );
+  }
 
   return (
     <div className="composerWrap">
