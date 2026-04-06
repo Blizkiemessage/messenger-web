@@ -648,6 +648,7 @@ export function ChatArea() {
             onCancelEdit={handleCancelEdit}
             members={activeChat.type === 'group' ? (activeChat.members ?? []) : []}
             blockedByThem={activeChat.type === 'direct' && !!(activeChat.members?.find(m => m.id !== me.id) as any)?.blocked_by_them}
+            partnerName={activeChat.type === 'direct' ? (activeChat.members?.find(m => m.id !== me.id)?.display_name || activeChat.members?.find(m => m.id !== me.id)?.username) : undefined}
           />
         </>
       )}

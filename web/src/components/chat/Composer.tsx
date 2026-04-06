@@ -139,6 +139,7 @@ interface Props {
   onCancelEdit?: () => void;
   members?: User[];
   blockedByThem?: boolean;
+  partnerName?: string;
 }
 
 type VoiceState = 'idle' | 'recording' | 'preview';
@@ -146,7 +147,7 @@ const LOCK_THRESHOLD = 60;
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
-export function Composer({ value, onChange, onSend, onSendAttachment, externalFile, onExternalFileConsumed, disabled, isGroup, onOpenPollCreator, onTypingStart, onTypingStop, editingMessageId, onCancelEdit, members, blockedByThem }: Props) {
+export function Composer({ value, onChange, onSend, onSendAttachment, externalFile, onExternalFileConsumed, disabled, isGroup, onOpenPollCreator, onTypingStart, onTypingStop, editingMessageId, onCancelEdit, members, blockedByThem, partnerName }: Props) {
   // File staging
   const [staged,    setStaged]    = useState<File | null>(null);
   const [caption,   setCaption]   = useState('');
@@ -454,7 +455,7 @@ export function Composer({ value, onChange, onSend, onSendAttachment, externalFi
           <circle cx="12" cy="12" r="10"/>
           <line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/>
         </svg>
-        <span>Вы были заблокированы этим пользователем</span>
+        <span>Пользователь {partnerName || 'пользователь'} вас заблокировал</span>
       </div>
     );
   }
