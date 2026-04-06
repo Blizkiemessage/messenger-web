@@ -117,7 +117,7 @@ export function CameraOverlay({ onCapture, onClose }: Props) {
       : MediaRecorder.isTypeSupported('video/webm;codecs=vp8,opus')
       ? 'video/webm;codecs=vp8,opus'
       : 'video/webm';
-    const recorder = new MediaRecorder(stream, { mimeType, videoBitsPerSecond: 2_500_000 });
+    const recorder = new MediaRecorder(stream, { mimeType, videoBitsPerSecond: 8_000_000 });
     recorderRef.current = recorder;
     recorder.ondataavailable = e => { if (e.data.size > 0) chunksRef.current.push(e.data); };
     recorder.onstop = () => {
@@ -176,7 +176,7 @@ export function CameraOverlay({ onCapture, onClose }: Props) {
           </button>
 
           {captured.isVideo ? (
-            <video className="cameraCaptureMedia" src={captured.url} controls autoPlay loop playsInline />
+            <video className="cameraCaptureMedia" src={captured.url} autoPlay loop playsInline />
           ) : (
             <img className="cameraCaptureMedia" src={captured.url} alt="Снимок" />
           )}
@@ -259,7 +259,7 @@ export function CameraOverlay({ onCapture, onClose }: Props) {
         ) : (
           <video
             ref={videoRef}
-            className={`cameraVideo${facingMode === 'user' ? ' cameraVideoMirrored' : ''}`}
+            className="cameraVideo"
             autoPlay
             playsInline
             muted

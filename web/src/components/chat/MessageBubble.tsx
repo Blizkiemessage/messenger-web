@@ -3,7 +3,7 @@
  * ✅ FIXED: resolveUrl applied to attachment URLs so /uploads/ paths resolve
  *           to the backend (Railway) instead of the frontend (Vercel).
  */
-import { useState, useRef, useEffect, useMemo } from 'react';
+import { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import { getLinkPreview, type LinkPreview } from '../../api/linkPreview';
 import { type Message, type User, type MessageReaction } from '../../types';
 import { formatTime } from '../../utils/format';
@@ -140,60 +140,150 @@ function ImageAttachment({
   );
 }
 
-// ── Video attachment ─────────────────────────────────────────────────────────
-function VideoAttachment({
-  url, caption,
-}: { url: string; caption?: string; name?: string }) {
-  const [playing, setPlaying] = useState(false);
-  const videoRef = useRef<HTMLVideoElement>(null);
+// ── Video attachment — custom player ─────────────────────────────────────────
+function VideoAttachment({ url, caption }: { url: string; caption?: string; name?: string }) {
+  const videoRef    = useRef<HTMLVideoElement>(null);
+  const progressRef = useRef<HTMLDivElement>(null);
+  const hideRef     = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const goFullscreen = (e: React.MouseEvent) => {
+  const [started,   setStarted]   = useState(false);
+  const [playing,   setPlaying]   = useState(false);
+  const [muted,     setMuted]     = useState(false);
+  const [current,   setCurrent]   = useState(0);
+  const [duration,  setDuration]  = useState(0);
+  const [buffered,  setBuffered]  = useState(0);
+  const [ctrlVis,   setCtrlVis]   = useState(false);
+
+  const fmtT = (s: number) => {
+    if (!isFinite(s) || isNaN(s)) return '0:00';
+    const m = Math.floor(s / 60), sec = Math.floor(s % 60);
+    return `${m}:${sec.toString().padStart(2, '0')}`;
+  };
+
+  const showControls = useCallback(() => {
+    setCtrlVis(true);
+    if (hideRef.current) clearTimeout(hideRef.current);
+    hideRef.current = setTimeout(() => setCtrlVis(false), 2500);
+  }, []);
+
+  useEffect(() => () => { if (hideRef.current) clearTimeout(hideRef.current); }, []);
+
+  const togglePlay = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
+    const v = videoRef.current;
+    if (!v) return;
+    if (!started) setStarted(true);
+    if (v.paused) { v.play().catch(() => {}); }
+    else { v.pause(); }
+    showControls();
+  }, [started, showControls]);
+
+  const seek = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
+    const v = videoRef.current;
+    const bar = progressRef.current;
+    if (!v || !bar || !duration) return;
+    const rect = bar.getBoundingClientRect();
+    v.currentTime = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width)) * duration;
+    showControls();
+  }, [duration, showControls]);
+
+  const toggleMute = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
+    const v = videoRef.current;
+    if (!v) return;
+    v.muted = !v.muted;
+    setMuted(v.muted);
+    showControls();
+  }, [showControls]);
+
+  const goFullscreen = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
     const el = videoRef.current;
     if (!el) return;
     if (el.requestFullscreen) el.requestFullscreen();
     else if ((el as any).webkitRequestFullscreen) (el as any).webkitRequestFullscreen();
-  };
+  }, []);
 
-  if (playing) {
-    return (
-      <div className="bubbleAttachVideo">
-        <div className="bubbleVideoPlayer">
-          <video
-            ref={videoRef}
-            src={url}
-            controls
-            autoPlay
-            className="bubbleVideo"
-            preload="auto"
-            playsInline
-          />
-          <button className="bubbleVideoFullscreenBtn" onClick={goFullscreen} title="Полный экран">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-              <path d="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z"/>
-            </svg>
-          </button>
-        </div>
-        {caption && <div className="bubbleCaption">{caption}</div>}
-      </div>
-    );
-  }
+  const pct    = duration > 0 ? current / duration : 0;
+  const bufPct = duration > 0 ? buffered / duration : 0;
 
   return (
     <div className="bubbleAttachVideo">
-      <div className="bubbleVideoPoster" onClick={() => setPlaying(true)}>
+      <div
+        className={`bubbleVideoWrap${started && ctrlVis ? ' bvCtrl' : ''}`}
+        onClick={togglePlay}
+        onMouseMove={started ? showControls : undefined}
+        onMouseLeave={() => { if (hideRef.current) clearTimeout(hideRef.current); setCtrlVis(false); }}
+      >
         <video
+          ref={videoRef}
           src={url}
-          className="bubbleVideoThumb"
+          className="bubbleVideo"
           preload="metadata"
-          muted
           playsInline
+          onTimeUpdate={e => {
+            const v = e.currentTarget;
+            setCurrent(v.currentTime);
+            if (v.buffered.length) setBuffered(v.buffered.end(v.buffered.length - 1));
+          }}
+          onDurationChange={e => setDuration(e.currentTarget.duration)}
+          onPlay={() => setPlaying(true)}
+          onPause={() => setPlaying(false)}
+          onEnded={() => { setPlaying(false); setCtrlVis(true); }}
         />
-        <div className="bubbleVideoPlayBtn">
-          <svg width="28" height="28" viewBox="0 0 24 24" fill="currentColor">
-            <path d="M8 5v14l11-7z"/>
-          </svg>
-        </div>
+
+        {/* Poster / initial play overlay */}
+        {!started && (
+          <div className="bvPoster">
+            <div className="bvPlayCircle">
+              <svg width="26" height="26" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M8 5v14l11-7z"/>
+              </svg>
+            </div>
+            {duration > 0 && <span className="bvDurBadge">{fmtT(duration)}</span>}
+          </div>
+        )}
+
+        {/* Custom controls — fade in on hover / interaction */}
+        {started && (
+          <div className="bvControls" onClick={e => e.stopPropagation()}>
+            <div className="bvProgress" ref={progressRef} onClick={seek}>
+              <div className="bvProgressBuf"  style={{ width: `${bufPct * 100}%` }} />
+              <div className="bvProgressFill" style={{ width: `${pct    * 100}%` }} />
+              <div className="bvProgressThumb" style={{ left: `${pct   * 100}%` }} />
+            </div>
+            <div className="bvBar">
+              <button className="bvBtn" onClick={togglePlay} title={playing ? 'Пауза' : 'Воспроизвести'}>
+                {playing
+                  ? <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/></svg>
+                  : <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+                }
+              </button>
+              <span className="bvTime">{fmtT(current)} / {fmtT(duration)}</span>
+              <div className="bvBarRight">
+                <button className="bvBtn" onClick={toggleMute} title={muted ? 'Включить звук' : 'Выключить звук'}>
+                  {muted
+                    ? <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M16.5 12c0-1.77-1.02-3.29-2.5-4.03v2.21l2.45 2.45c.03-.2.05-.41.05-.63zm2.5 0c0 .94-.2 1.82-.54 2.64l1.51 1.51C20.63 14.91 21 13.5 21 12c0-4.28-2.99-7.86-7-8.77v2.06c2.89.86 5 3.54 5 6.71zM4.27 3L3 4.27 7.73 9H3v6h4l5 5v-6.73l4.25 4.25c-.67.52-1.42.93-2.25 1.18v2.06c1.38-.31 2.63-.95 3.69-1.81L19.73 21 21 19.73l-9-9L4.27 3zM12 4L9.91 6.09 12 8.18V4z"/></svg>
+                    : <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/></svg>
+                  }
+                </button>
+                <button className="bvBtn" onClick={goFullscreen} title="Полный экран">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z"/></svg>
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Play/pause flash icon on tap when already started */}
+        {started && !playing && (
+          <div className="bvPauseHint">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M8 5v14l11-7z"/>
+            </svg>
+          </div>
+        )}
       </div>
       {caption && <div className="bubbleCaption">{caption}</div>}
     </div>

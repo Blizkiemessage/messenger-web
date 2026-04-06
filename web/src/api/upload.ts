@@ -170,9 +170,13 @@ export function uploadFile(
       blob = compressed.blob;
       mime = compressed.mime;
     } else if (isVideo) {
-      const compressed = await compressVideo(file);
-      blob = compressed.blob;
-      mime = compressed.mime;
+      // Skip re-encoding if already WebM — camera recordings land here and are
+      // already at the desired bitrate; re-encoding only wastes time + degrades quality.
+      if (file.type !== 'video/webm') {
+        const compressed = await compressVideo(file);
+        blob = compressed.blob;
+        mime = compressed.mime;
+      }
     }
 
     if (controller.signal.aborted) throw new Error('Загрузка отменена');

@@ -3229,39 +3229,187 @@ input[type="date"].psInput::-webkit-calendar-picker-indicator {
 }
 .bubbleImgLink:hover .bubbleImgOverlay { opacity: 1; }
 
-/* ── Video attachment ────────────────────────────────────────────────────── */
+/* ── Video attachment — custom player ────────────────────────────────────── */
 .bubbleAttachVideo {
   margin: 0 -12px;
 }
-.bubbleVideoPlayer {
+
+/* Outer wrapper: contains video + overlays */
+.bubbleVideoWrap {
   position: relative;
-  display: inline-block;
+  cursor: pointer;
+  background: #000;
+  overflow: hidden;
+  border-radius: 12px;
+  user-select: none;
+  /* max width matches image bubbles */
   max-width: 320px;
-  width: 100%;
 }
+
 .bubbleVideo {
   display: block;
   width: 100%;
-  max-width: 320px;
-  max-height: 280px;
+  max-height: 380px;
+  object-fit: contain;
+  border-radius: 12px;
   background: #000;
-  border-radius: 0;
 }
-.bubbleVideoFullscreenBtn {
+
+/* ── Initial poster overlay (before first play) ── */
+.bvPoster {
   position: absolute;
-  bottom: 38px; /* above native controls bar */
-  right: 8px;
-  width: 28px;
-  height: 28px;
-  border-radius: 6px;
-  border: none;
-  background: rgba(0,0,0,.55);
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0,0,0,0.18);
+  border-radius: 12px;
+}
+.bvPlayCircle {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: rgba(0,0,0,0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
   color: #fff;
+  transition: transform .15s, background .15s;
+  padding-left: 3px; /* optical center for play icon */
+}
+.bubbleVideoWrap:hover .bvPlayCircle {
+  transform: scale(1.1);
+  background: rgba(0,0,0,0.72);
+}
+.bvDurBadge {
+  position: absolute;
+  bottom: 8px;
+  right: 10px;
+  background: rgba(0,0,0,0.6);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 7px;
+  border-radius: 10px;
+  pointer-events: none;
+}
+
+/* ── Controls overlay (fade on hover / showControls class) ── */
+.bvControls {
+  position: absolute;
+  bottom: 0; left: 0; right: 0;
+  padding: 28px 10px 8px;
+  background: linear-gradient(to top, rgba(0,0,0,0.72) 0%, transparent 100%);
+  border-radius: 0 0 12px 12px;
+  opacity: 0;
+  transition: opacity .2s;
+  pointer-events: none;
+}
+.bubbleVideoWrap.bvCtrl .bvControls,
+.bubbleVideoWrap:hover .bvControls {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+/* Progress bar */
+.bvProgress {
+  position: relative;
+  height: 3px;
+  border-radius: 2px;
+  background: rgba(255,255,255,0.22);
+  margin-bottom: 7px;
+  cursor: pointer;
+  transition: height .12s;
+}
+.bvProgress:hover { height: 5px; }
+.bvProgressBuf {
+  position: absolute; inset: 0;
+  width: 0;
+  background: rgba(255,255,255,0.3);
+  border-radius: 2px;
+  pointer-events: none;
+}
+.bvProgressFill {
+  position: absolute; inset: 0;
+  width: 0;
+  background: var(--accent);
+  border-radius: 2px;
+  pointer-events: none;
+}
+.bvProgressThumb {
+  position: absolute;
+  top: 50%;
+  width: 11px; height: 11px;
+  border-radius: 50%;
+  background: #fff;
+  transform: translate(-50%, -50%) scale(0);
+  transition: transform .12s;
+  pointer-events: none;
+}
+.bvProgress:hover .bvProgressThumb { transform: translate(-50%, -50%) scale(1); }
+
+/* Control bar row */
+.bvBar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.bvBtn {
+  border: none;
+  background: transparent;
+  color: #fff;
+  padding: 2px;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  backdrop-filter: blur(4px);
+  opacity: 0.88;
+  border-radius: 4px;
+  transition: opacity .12s, transform .1s;
+  flex-shrink: 0;
+}
+.bvBtn:hover { opacity: 1; transform: scale(1.12); }
+.bvTime {
+  font-size: 11px;
+  font-weight: 600;
+  color: rgba(255,255,255,0.9);
+  white-space: nowrap;
+  letter-spacing: .2px;
+}
+.bvBarRight {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+/* Paused hint (centered play icon shown when paused after first play) */
+.bvPauseHint {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+.bvPauseHint svg {
+  width: 48px; height: 48px;
+  background: rgba(0,0,0,0.45);
+  border-radius: 50%;
+  padding: 10px;
+  padding-left: 13px;
+  color: #fff;
+  opacity: 0;
+  animation: bvPauseFlash .35s ease forwards;
+}
+@keyframes bvPauseFlash {
+  0%   { opacity: .9; transform: scale(1.08); }
+  100% { opacity: 0;  transform: scale(1);    }
+}
+
+/* Legacy selectors kept for compatibility (no longer rendered) */
+.bubbleVideoFullscreenBtn {
+  display: none;
   opacity: 0;
   transition: opacity .2s;
 }
@@ -3364,46 +3512,10 @@ input[type="date"].psInput::-webkit-calendar-picker-indicator {
   background: rgba(255,255,255,.35);
 }
 
-/* ── Video poster (click-to-play) ─────────────────────────────────────────── */
-.bubbleVideoPoster {
-  position: relative;
-  cursor: pointer;
-  border-radius: 12px;
-  overflow: hidden;
-  max-width: 320px;
-  background: #000;
-}
-.bubbleVideoThumb {
-  display: block;
-  width: 100%;
-  max-width: 320px;
-  max-height: 260px;
-  min-height: 160px;
-  object-fit: cover;
-  border-radius: 12px;
-}
-.bubbleVideoPlayBtn {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-.bubbleVideoPlayBtn > svg {
-  width: 56px;
-  height: 56px;
-  background: rgba(0,0,0,.5);
-  border-radius: 50%;
-  padding: 12px;
-  color: #fff;
-  backdrop-filter: blur(6px);
-  transition: transform .15s, background .15s;
-  filter: drop-shadow(0 2px 12px rgba(0,0,0,.5));
-}
-.bubbleVideoPoster:hover .bubbleVideoPlayBtn > svg {
-  transform: scale(1.1);
-  background: rgba(0,0,0,.72);
-}
+/* Legacy poster selectors — no longer rendered, kept for safety */
+.bubbleVideoPoster { display: none; }
+.bubbleVideoThumb  { display: none; }
+.bubbleVideoPlayBtn { display: none; }
 
 /* ═══════════════════════════════════════════════════════════════════════════
    ✅ FIXES: cancel upload, group avatar overlay, chat header real avatar
