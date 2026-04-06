@@ -23,6 +23,29 @@ const VIDEO_TYPES = [
   'video/mp4','video/quicktime','video/x-msvideo',
   'video/webm','video/mov','video/mpeg','video/x-matroska',
 ];
+const DOCUMENT_TYPES = [
+  // Office documents
+  'application/pdf',
+  'application/msword',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  'application/vnd.oasis.opendocument.text',
+  'application/vnd.ms-excel',
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  'application/vnd.oasis.opendocument.spreadsheet',
+  'application/vnd.ms-powerpoint',
+  'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+  'application/vnd.oasis.opendocument.presentation',
+  // Text / code
+  'text/plain', 'text/csv', 'text/markdown', 'text/html', 'text/rtf',
+  'application/json', 'application/xml', 'text/xml',
+  // Archives
+  'application/zip', 'application/x-zip-compressed',
+  'application/x-rar-compressed', 'application/vnd.rar',
+  'application/x-7z-compressed',
+  'application/x-tar', 'application/gzip', 'application/x-bzip2',
+  // Generic binary fallback
+  'application/octet-stream',
+];
 const MAX_SIZE = 100 * 1024 * 1024;
 
 // GIF (may be animated) and SVG (already tiny text) pass through unchanged.
@@ -72,13 +95,14 @@ const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: MAX
 router.post('/', upload.single('file'), async (req, res) => {
   if (!req.file) return res.status(400).json({ error: 'No file provided' });
 
-  let mime = req.file.mimetype;
+  // Normalize audio MIME — strip codec params (e.g. "audio/webm;codecs=opus" → "audio/webm")
+  let mime = req.file.mimetype.startsWith('audio/') ? req.file.mimetype.split(';')[0] : req.file.mimetype;
   const type = IMAGE_TYPES.includes(mime) ? 'image'
              : VIDEO_TYPES.includes(mime) ? 'video'
              : AUDIO_TYPES.includes(mime) ? 'audio'
              : 'file';
 
-  // Derive extension from MIME type whitelist — never trust client-supplied filename extension
+  // Derive extension from MIME type — never trust client-supplied filename extension
   const MIME_TO_EXT = {
     'image/jpeg': '.jpg', 'image/png': '.png', 'image/gif': '.gif',
     'image/webp': '.webp', 'image/heic': '.heic', 'image/heif': '.heif',
@@ -89,6 +113,23 @@ router.post('/', upload.single('file'), async (req, res) => {
     'video/mp4': '.mp4', 'video/quicktime': '.mov', 'video/x-msvideo': '.avi',
     'video/webm': '.webm', 'video/mov': '.mov', 'video/mpeg': '.mpeg',
     'video/x-matroska': '.mkv',
+    'application/pdf': '.pdf',
+    'application/msword': '.doc',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document': '.docx',
+    'application/vnd.oasis.opendocument.text': '.odt',
+    'application/vnd.ms-excel': '.xls',
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': '.xlsx',
+    'application/vnd.oasis.opendocument.spreadsheet': '.ods',
+    'application/vnd.ms-powerpoint': '.ppt',
+    'application/vnd.openxmlformats-officedocument.presentationml.presentation': '.pptx',
+    'application/vnd.oasis.opendocument.presentation': '.odp',
+    'text/plain': '.txt', 'text/csv': '.csv', 'text/markdown': '.md',
+    'text/html': '.html', 'text/rtf': '.rtf',
+    'application/json': '.json', 'application/xml': '.xml', 'text/xml': '.xml',
+    'application/zip': '.zip', 'application/x-zip-compressed': '.zip',
+    'application/x-rar-compressed': '.rar', 'application/vnd.rar': '.rar',
+    'application/x-7z-compressed': '.7z',
+    'application/x-tar': '.tar', 'application/gzip': '.gz', 'application/x-bzip2': '.bz2',
   };
   let ext = MIME_TO_EXT[mime] || '';
 
@@ -144,11 +185,15 @@ router.post('/presign', async (req, res, next) => {
   try {
     if (!useS3) return res.json({ fallback: true });
 
-    const { mime, size, filename: origName } = req.body;
+    const { size, filename: origName } = req.body;
+    // Normalize audio MIME — strip codec params sent by MediaRecorder
+    const mime = (req.body.mime || '').startsWith('audio/')
+      ? req.body.mime.split(';')[0]
+      : req.body.mime;
     if (!mime || !size) return res.status(400).json({ error: 'mime and size required' });
     if (size > MAX_SIZE) return res.status(400).json({ error: 'File too large (max 100MB)' });
 
-    const ALLOWED = [...IMAGE_TYPES, ...VIDEO_TYPES, ...AUDIO_TYPES];
+    const ALLOWED = [...IMAGE_TYPES, ...VIDEO_TYPES, ...AUDIO_TYPES, ...DOCUMENT_TYPES];
     if (!ALLOWED.includes(mime)) return res.status(400).json({ error: 'File type not allowed' });
 
     const MIME_TO_EXT = {
@@ -161,6 +206,23 @@ router.post('/presign', async (req, res, next) => {
       'video/mp4': '.mp4', 'video/quicktime': '.mov', 'video/x-msvideo': '.avi',
       'video/webm': '.webm', 'video/mov': '.mov', 'video/mpeg': '.mpeg',
       'video/x-matroska': '.mkv',
+      'application/pdf': '.pdf',
+      'application/msword': '.doc',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document': '.docx',
+      'application/vnd.oasis.opendocument.text': '.odt',
+      'application/vnd.ms-excel': '.xls',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': '.xlsx',
+      'application/vnd.oasis.opendocument.spreadsheet': '.ods',
+      'application/vnd.ms-powerpoint': '.ppt',
+      'application/vnd.openxmlformats-officedocument.presentationml.presentation': '.pptx',
+      'application/vnd.oasis.opendocument.presentation': '.odp',
+      'text/plain': '.txt', 'text/csv': '.csv', 'text/markdown': '.md',
+      'text/html': '.html', 'text/rtf': '.rtf',
+      'application/json': '.json', 'application/xml': '.xml', 'text/xml': '.xml',
+      'application/zip': '.zip', 'application/x-zip-compressed': '.zip',
+      'application/x-rar-compressed': '.rar', 'application/vnd.rar': '.rar',
+      'application/x-7z-compressed': '.7z',
+      'application/x-tar': '.tar', 'application/gzip': '.gz', 'application/x-bzip2': '.bz2',
     };
 
     const ext = MIME_TO_EXT[mime] || '';

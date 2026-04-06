@@ -137,7 +137,9 @@ export function uploadFile(
     const isImage = file.type.startsWith('image/');
     const isVideo = file.type.startsWith('video/');
     const compressibleImage = isImage && file.type !== 'image/gif' && file.type !== 'image/svg+xml';
-    const uploadMime = compressibleImage ? 'image/webp' : isVideo ? 'video/webm' : file.type;
+    // Strip codec suffix from audio MIME: "audio/webm;codecs=opus" → "audio/webm"
+    const normalizedMime = file.type.startsWith('audio/') ? file.type.split(';')[0] : file.type;
+    const uploadMime = compressibleImage ? 'image/webp' : isVideo ? 'video/webm' : normalizedMime;
 
     // 1. Ask backend for a presigned URL
     const presignRes = await client.post<{ fallback: true } | { uploadUrl: string; fileUrl: string }>(
@@ -161,7 +163,7 @@ export function uploadFile(
     // 2b. Presigned: compress image client-side, then PUT directly to S3
     const { uploadUrl, fileUrl, contentDisposition } = presignRes.data as { uploadUrl: string; fileUrl: string; contentType: string; contentDisposition: string };
     let blob: Blob = file;
-    let mime = file.type;
+    let mime = normalizedMime; // already stripped of codec suffix for audio
 
     if (isImage) {
       const compressed = await compressImage(file);
