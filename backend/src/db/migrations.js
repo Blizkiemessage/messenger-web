@@ -177,7 +177,7 @@ function runMigrations() {
     `CREATE TABLE IF NOT EXISTS blocked_users (
       blocker_id TEXT NOT NULL,
       blocked_id TEXT NOT NULL,
-      created_at INTEGER NOT NULL DEFAULT (unixepoch()),
+      created_at INTEGER NOT NULL DEFAULT 0,
       PRIMARY KEY (blocker_id, blocked_id)
     )`,
     // ✅ NEW: per-viewer contact alias (nickname override)
@@ -185,7 +185,7 @@ function runMigrations() {
       user_id   TEXT NOT NULL,
       target_id TEXT NOT NULL,
       alias     TEXT NOT NULL,
-      created_at INTEGER NOT NULL DEFAULT (unixepoch()),
+      created_at INTEGER NOT NULL DEFAULT 0,
       PRIMARY KEY (user_id, target_id)
     )`,
   ];

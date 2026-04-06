@@ -106,7 +106,7 @@ function toggleBlockUser(blockerId, blockedId) {
     db.prepare('DELETE FROM blocked_users WHERE blocker_id = ? AND blocked_id = ?').run(blockerId, blockedId);
     return { is_blocked: false };
   } else {
-    db.prepare('INSERT INTO blocked_users (blocker_id, blocked_id) VALUES (?, ?)').run(blockerId, blockedId);
+    db.prepare('INSERT INTO blocked_users (blocker_id, blocked_id, created_at) VALUES (?, ?, ?)').run(blockerId, blockedId, Date.now());
     return { is_blocked: true };
   }
 }
@@ -118,9 +118,9 @@ function isBlocked(blockerId, blockedId) {
 function setContactAlias(userId, targetId, alias) {
   const db = getDb();
   db.prepare(`
-    INSERT INTO contact_aliases (user_id, target_id, alias) VALUES (?, ?, ?)
+    INSERT INTO contact_aliases (user_id, target_id, alias, created_at) VALUES (?, ?, ?, ?)
     ON CONFLICT(user_id, target_id) DO UPDATE SET alias = excluded.alias
-  `).run(userId, targetId, alias);
+  `).run(userId, targetId, alias, Date.now());
   return { alias };
 }
 
