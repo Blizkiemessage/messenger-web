@@ -124,6 +124,10 @@ export function useSocket() {
       } catch { /* ignore malformed token */ }
     };
 
+    const onBlockStatusChanged = ({ blockerId, blocked }: { blockerId: string; blocked: boolean }) => {
+      useChatsStore.getState().updateMemberBlockStatus(blockerId, blocked);
+    };
+
     const onMessageEdited = (msg: Message) => {
       const state = useChatsStore.getState();
       if (state.activeChatId === msg.chat_id) {
@@ -154,6 +158,7 @@ export function useSocket() {
     socket.on('poll-updated',         onPollUpdated);           // ✅
     socket.on('user-typing',          onUserTyping);            // ✅
     socket.on('user-stopped-typing',  onUserStoppedTyping);     // ✅
+    socket.on('block-status-changed', onBlockStatusChanged);   // ✅
 
     return () => {
       socket.off('new-message',          onNewMessage);
@@ -173,6 +178,7 @@ export function useSocket() {
       socket.off('poll-updated',         onPollUpdated);
       socket.off('user-typing',          onUserTyping);
       socket.off('user-stopped-typing',  onUserStoppedTyping);
+      socket.off('block-status-changed', onBlockStatusChanged);
       clearTimeout(pushTimer);
       if (_markReadTimer) clearTimeout(_markReadTimer);
       disconnectSocket();

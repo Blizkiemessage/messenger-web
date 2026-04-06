@@ -21,7 +21,7 @@
 
 const { v4: uuidv4 } = require('uuid');
 const { getDb } = require('../config/database');
-const { sanitizeUser, getContactAlias } = require('./userService');
+const { sanitizeUser, getContactAlias, isBlocked } = require('./userService');
 const { deleteFromS3, deleteManyFromS3 } = require('../utils/s3Delete');
 const { decryptMessage, saveMessage } = require('./messageService');
 
@@ -55,7 +55,11 @@ function getChatById(chatId, userId) {
     .all(chatId)
     .map(u => {
       const alias = u.id !== userId ? getContactAlias(userId, u.id) : null;
-      return sanitizeUser(u, { viewerId: userId }, alias);
+      const member = sanitizeUser(u, { viewerId: userId }, alias);
+      if (u.id !== userId) {
+        try { member.blocked_by_them = isBlocked(u.id, userId); } catch { member.blocked_by_them = false; }
+      }
+      return member;
     });
 
   const lastMsg = db
@@ -113,7 +117,11 @@ function getUserChats(userId) {
       .all(chat.id)
       .map(u => {
         const alias = u.id !== userId ? getContactAlias(userId, u.id) : null;
-        return sanitizeUser(u, { viewerId: userId }, alias);
+        const member = sanitizeUser(u, { viewerId: userId }, alias);
+        if (u.id !== userId) {
+          try { member.blocked_by_them = isBlocked(u.id, userId); } catch { member.blocked_by_them = false; }
+        }
+        return member;
       });
 
     const lastMsg = db

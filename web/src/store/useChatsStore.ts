@@ -88,6 +88,8 @@ interface ChatsState {
   handleChatRead: (chatId: string, userId: string, readAt: number, meId: string) => void;
   /** Optimistically mark a chat as read for the current user. */
   markChatRead: (chatId: string) => void;
+  /** Update blocked_by_them on direct chat members when a block event arrives. */
+  updateMemberBlockStatus: (blockerId: string, blocked: boolean) => void;
 
   // ── Scroll target (global search navigation) ───────────────────────────────
   scrollToMessageId: string | null;
@@ -239,6 +241,19 @@ export const useChatsStore = create<ChatsState>((set) => ({
       })),
     };
   }),
+
+  updateMemberBlockStatus: (blockerId, blocked) => set(state => ({
+    chats: state.chats.map(c => {
+      if (c.type !== 'direct') return c;
+      if (!c.members.some(m => m.id === blockerId)) return c;
+      return {
+        ...c,
+        members: c.members.map(m =>
+          m.id === blockerId ? { ...m, blocked_by_them: blocked } : m
+        ),
+      };
+    }),
+  })),
 
   // ── Poll updates ───────────────────────────────────────────────────────────
 

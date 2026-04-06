@@ -94,7 +94,7 @@ export function UserProfileModal({ userId, onClose, onStartChat }: Props) {
 
   const handleDeleteAlias = async () => {
     if (!user) return;
-    setMenuOpen(false);
+    setAliasOpen(false);
     setError(null);
     try {
       await deleteAlias(user.id);
@@ -159,17 +159,6 @@ export function UserProfileModal({ userId, onClose, onStartChat }: Props) {
                   Переименовать
                 </button>
 
-                {/* Delete alias — only when alias exists */}
-                {user.alias && (
-                  <button className="ctxItem ctxItemDanger" onClick={handleDeleteAlias}>
-                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <polyline points="3 6 5 6 21 6"/>
-                      <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
-                      <path d="M10 11v6M14 11v6"/>
-                    </svg>
-                    Удалить псевдоним
-                  </button>
-                )}
               </div>
             )}
           </div>
@@ -256,6 +245,17 @@ export function UserProfileModal({ userId, onClose, onStartChat }: Props) {
                     Отмена
                   </button>
                 </div>
+                {user.alias && (
+                  <button className="upAliasDelete" onClick={handleDeleteAlias}>
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <polyline points="3 6 5 6 21 6"/>
+                      <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+                      <path d="M10 11v6M14 11v6"/>
+                      <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
+                    </svg>
+                    Удалить псевдоним
+                  </button>
+                )}
               </div>
             )}
 

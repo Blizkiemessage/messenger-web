@@ -162,6 +162,14 @@ router.post('/:id/block', (req, res, next) => {
   try {
     if (req.params.id === req.userId) return res.status(400).json({ error: 'Cannot block yourself' });
     const result = toggleBlockUser(req.userId, req.params.id);
+    // Notify the blocked/unblocked user in real time
+    const io = req.app.get('io');
+    if (io) {
+      io.to(`user:${req.params.id}`).emit('block-status-changed', {
+        blockerId: req.userId,
+        blocked: result.is_blocked,
+      });
+    }
     res.json(result);
   } catch (err) { next(err); }
 });
