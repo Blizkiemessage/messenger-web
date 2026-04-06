@@ -98,14 +98,20 @@ export function CameraOverlay({ onCapture, onClose }: Props) {
     const canvas = document.createElement('canvas');
     canvas.width  = video.videoWidth  || 1280;
     canvas.height = video.videoHeight || 720;
-    canvas.getContext('2d')!.drawImage(video, 0, 0);
+    const ctx = canvas.getContext('2d')!;
+    // Mirror the snapshot for front camera — matches what the user saw in the viewfinder
+    if (facingMode === 'user') {
+      ctx.translate(canvas.width, 0);
+      ctx.scale(-1, 1);
+    }
+    ctx.drawImage(video, 0, 0);
     canvas.toBlob(blob => {
       if (!blob) return;
       stopStream();
       setCaptured({ blob, url: URL.createObjectURL(blob), isVideo: false });
       setTimeout(() => captionRef.current?.focus(), 80);
     }, 'image/webp', 0.92);
-  }, [starting, stopStream]);
+  }, [starting, stopStream, facingMode]);
 
   // ── Video recording ────────────────────────────────────────────────────────
   const startRecording = useCallback(() => {
@@ -176,7 +182,7 @@ export function CameraOverlay({ onCapture, onClose }: Props) {
           </button>
 
           {captured.isVideo ? (
-            <video className="cameraCaptureMedia" src={captured.url} autoPlay loop playsInline />
+            <video className="cameraCaptureMedia" src={captured.url} autoPlay loop playsInline muted />
           ) : (
             <img className="cameraCaptureMedia" src={captured.url} alt="Снимок" />
           )}
@@ -193,9 +199,9 @@ export function CameraOverlay({ onCapture, onClose }: Props) {
             />
             <div className="cameraCaptureRowBtns">
               <button className="cameraRetakeBtn" onClick={retake} title="Переснять">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                  <polyline points="1 4 1 10 7 10"/>
-                  <path d="M3.51 15a9 9 0 1 0 .49-3.54"/>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="19" y1="12" x2="5" y2="12"/>
+                  <polyline points="12 19 5 12 12 5"/>
                 </svg>
                 Переснять
               </button>
