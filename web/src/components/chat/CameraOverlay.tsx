@@ -259,7 +259,7 @@ export function CameraOverlay({ onCapture, onClose }: Props) {
         ) : (
           <video
             ref={videoRef}
-            className="cameraVideo"
+            className={`cameraVideo${facingMode === 'user' ? ' cameraVideoMirrored' : ''}`}
             autoPlay
             playsInline
             muted
