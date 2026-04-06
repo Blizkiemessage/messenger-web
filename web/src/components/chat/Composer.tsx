@@ -10,6 +10,7 @@ import { uploadFile } from '../../api/upload';
 import type { UploadResult } from '../../api/upload';
 import { type User } from '../../types';
 import { MentionPopup } from './MentionPopup';
+import { CameraOverlay } from './CameraOverlay';
 import Picker from '@emoji-mart/react';
 import data from '@emoji-mart/data';
 
@@ -162,6 +163,8 @@ export function Composer({ value, onChange, onSend, onSendAttachment, externalFi
 
   const [attachMenuOpen, setAttachMenuOpen] = useState(false);
   const attachMenuRef = useRef<HTMLDivElement>(null);
+
+  const [cameraOpen, setCameraOpen] = useState(false);
 
   const [emojiOpen, setEmojiOpen] = useState(false);
   const emojiWrapRef = useRef<HTMLDivElement>(null);
@@ -462,6 +465,16 @@ export function Composer({ value, onChange, onSend, onSendAttachment, externalFi
 
   return (
     <div className="composerWrap">
+      {cameraOpen && (
+        <CameraOverlay
+          onCapture={(file, cap) => {
+            setCameraOpen(false);
+            handleSendFile(file, cap);
+          }}
+          onClose={() => setCameraOpen(false)}
+        />
+      )}
+
       <input ref={fileInputRef} type="file" accept="*/*" style={{ display: 'none' }}
         onChange={e => { const f = e.target.files?.[0]; if (f) stageFile(f); e.target.value = ''; }} />
 
@@ -615,6 +628,13 @@ export function Composer({ value, onChange, onSend, onSendAttachment, externalFi
                         <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/>
                       </svg>
                       Файлы и медиа
+                    </button>
+                    <button className="composerAttachMenuItem" onClick={() => { setAttachMenuOpen(false); setCameraOpen(true); }}>
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+                        <circle cx="12" cy="13" r="4"/>
+                      </svg>
+                      Камера
                     </button>
                     {isGroup && onOpenPollCreator && (
                       <button className="composerAttachMenuItem" onClick={() => { setAttachMenuOpen(false); onOpenPollCreator(); }}>
