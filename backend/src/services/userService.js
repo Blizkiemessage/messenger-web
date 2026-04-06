@@ -101,35 +101,35 @@ function searchUsers(q, excludeId) {
 
 function toggleBlockUser(blockerId, blockedId) {
   const db = getDb();
-  const existing = db.prepare('SELECT 1 FROM blocked_users WHERE blocker_id = ? AND blocked_id = ?').get(blockerId, blockedId);
+  const existing = db.prepare('SELECT 1 FROM blocked_users WHERE blocker_id = ? AND blocked_id = ?').get([blockerId, blockedId]);
   if (existing) {
-    db.prepare('DELETE FROM blocked_users WHERE blocker_id = ? AND blocked_id = ?').run(blockerId, blockedId);
+    db.prepare('DELETE FROM blocked_users WHERE blocker_id = ? AND blocked_id = ?').run([blockerId, blockedId]);
     return { is_blocked: false };
   } else {
-    db.prepare('INSERT INTO blocked_users (blocker_id, blocked_id, created_at) VALUES (?, ?, ?)').run(blockerId, blockedId, Date.now());
+    db.prepare('INSERT INTO blocked_users (blocker_id, blocked_id, created_at) VALUES (?, ?, ?)').run([blockerId, blockedId, Date.now()]);
     return { is_blocked: true };
   }
 }
 
 function isBlocked(blockerId, blockedId) {
-  return !!getDb().prepare('SELECT 1 FROM blocked_users WHERE blocker_id = ? AND blocked_id = ?').get(blockerId, blockedId);
+  return !!getDb().prepare('SELECT 1 FROM blocked_users WHERE blocker_id = ? AND blocked_id = ?').get([blockerId, blockedId]);
 }
 
 function setContactAlias(userId, targetId, alias) {
   const db = getDb();
   // Use DELETE + INSERT for compatibility with older SQLite (avoid UPSERT syntax)
-  db.prepare('DELETE FROM contact_aliases WHERE user_id = ? AND target_id = ?').run(userId, targetId);
-  db.prepare('INSERT INTO contact_aliases (user_id, target_id, alias, created_at) VALUES (?, ?, ?, ?)').run(userId, targetId, alias, Date.now());
+  db.prepare('DELETE FROM contact_aliases WHERE user_id = ? AND target_id = ?').run([userId, targetId]);
+  db.prepare('INSERT INTO contact_aliases (user_id, target_id, alias, created_at) VALUES (?, ?, ?, ?)').run([userId, targetId, alias, Date.now()]);
   return { alias };
 }
 
 function deleteContactAlias(userId, targetId) {
-  getDb().prepare('DELETE FROM contact_aliases WHERE user_id = ? AND target_id = ?').run(userId, targetId);
+  getDb().prepare('DELETE FROM contact_aliases WHERE user_id = ? AND target_id = ?').run([userId, targetId]);
   return { alias: null };
 }
 
 function getContactAlias(userId, targetId) {
-  return getDb().prepare('SELECT alias FROM contact_aliases WHERE user_id = ? AND target_id = ?').get(userId, targetId)?.alias ?? null;
+  return getDb().prepare('SELECT alias FROM contact_aliases WHERE user_id = ? AND target_id = ?').get([userId, targetId])?.alias ?? null;
 }
 
 module.exports = { sanitizeUser, getUserById, updateUser, searchUsers, toggleBlockUser, isBlocked, setContactAlias, deleteContactAlias, getContactAlias };
