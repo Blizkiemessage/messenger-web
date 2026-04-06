@@ -2,8 +2,13 @@
  * CameraOverlay.tsx
  * Full-screen camera UI: live viewfinder → capture → preview+caption → send
  * Supports photo (WebP snapshot) and video (WebM recording via MediaRecorder).
+ *
+ * Rendered via ReactDOM.createPortal(…, document.body) so it escapes any
+ * ancestor stacking context (e.g. .composerWrap has backdrop-filter which
+ * traps position:fixed children, making them render behind the chat UI).
  */
 import { useState, useRef, useEffect, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 
 interface Props {
   onCapture: (file: File, caption: string) => void;
@@ -161,7 +166,7 @@ export function CameraOverlay({ onCapture, onClose }: Props) {
 
   // ── Preview screen ─────────────────────────────────────────────────────────
   if (captured) {
-    return (
+    return createPortal(
       <div className="cameraOverlay">
         <div className="cameraCapturePreview">
           <button className="cameraCloseBtn" onClick={handleClose} title="Закрыть">
@@ -204,12 +209,13 @@ export function CameraOverlay({ onCapture, onClose }: Props) {
             </div>
           </div>
         </div>
-      </div>
+      </div>,
+      document.body,
     );
   }
 
   // ── Viewfinder ─────────────────────────────────────────────────────────────
-  return (
+  return createPortal(
     <div className="cameraOverlay">
       <div className="cameraViewfinder">
         {/* Top bar */}
@@ -322,6 +328,7 @@ export function CameraOverlay({ onCapture, onClose }: Props) {
           </div>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
