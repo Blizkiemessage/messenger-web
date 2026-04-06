@@ -15,55 +15,6 @@ interface Props {
   onStartChat?: (u: User) => void;
 }
 
-// ── SVG icons ─────────────────────────────────────────────────────────────────
-
-function IconDots() {
-  return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
-      <circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/>
-    </svg>
-  );
-}
-
-function IconBlock() {
-  return (
-    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <circle cx="12" cy="12" r="10"/>
-      <line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/>
-    </svg>
-  );
-}
-
-function IconUnblock() {
-  return (
-    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <circle cx="12" cy="12" r="10"/>
-      <polyline points="9 12 11 14 15 10"/>
-    </svg>
-  );
-}
-
-function IconAlias() {
-  return (
-    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
-      <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
-    </svg>
-  );
-}
-
-function IconTrash() {
-  return (
-    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <polyline points="3 6 5 6 21 6"/>
-      <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
-      <path d="M10 11v6M14 11v6"/>
-    </svg>
-  );
-}
-
-// ── Component ─────────────────────────────────────────────────────────────────
-
 export function UserProfileModal({ userId, onClose, onStartChat }: Props) {
   const [user,       setUser]       = useState<User | null>(null);
   const [loading,    setLoading]    = useState(true);
@@ -73,9 +24,9 @@ export function UserProfileModal({ userId, onClose, onStartChat }: Props) {
   const [aliasBusy,  setAliasBusy]  = useState(false);
   const [blockBusy,  setBlockBusy]  = useState(false);
   const [error,      setError]      = useState<string | null>(null);
-  const menuRef = useRef<HTMLDivElement>(null);
+  const menuRef      = useRef<HTMLDivElement>(null);
   const aliasInputRef = useRef<HTMLInputElement>(null);
-  const onlineUsers = useChatsStore(s => s.onlineUsers);
+  const onlineUsers  = useChatsStore(s => s.onlineUsers);
 
   useEffect(() => {
     setLoading(true);
@@ -98,7 +49,6 @@ export function UserProfileModal({ userId, onClose, onStartChat }: Props) {
     return () => document.removeEventListener('mousedown', handler);
   }, [menuOpen]);
 
-  // Focus alias input when dialog opens
   useEffect(() => {
     if (aliasOpen) setTimeout(() => aliasInputRef.current?.focus(), 50);
   }, [aliasOpen]);
@@ -113,8 +63,8 @@ export function UserProfileModal({ userId, onClose, onStartChat }: Props) {
     try {
       const result = await blockUser(user.id);
       setUser(u => u ? { ...u, is_blocked: result.is_blocked } : u);
-    } catch {
-      setError('Не удалось выполнить действие');
+    } catch (e: any) {
+      setError(e?.response?.data?.error || 'Не удалось выполнить действие');
     } finally {
       setBlockBusy(false);
     }
@@ -135,8 +85,8 @@ export function UserProfileModal({ userId, onClose, onStartChat }: Props) {
       const result = await setAlias(user.id, aliasInput.trim());
       setUser(u => u ? { ...u, alias: result.alias, display_name: result.alias } : u);
       setAliasOpen(false);
-    } catch {
-      setError('Не удалось сохранить псевдоним');
+    } catch (e: any) {
+      setError(e?.response?.data?.error || 'Не удалось сохранить псевдоним');
     } finally {
       setAliasBusy(false);
     }
@@ -151,8 +101,8 @@ export function UserProfileModal({ userId, onClose, onStartChat }: Props) {
       const fresh = await getUserById(user.id);
       setUser(fresh);
       setAliasInput('');
-    } catch {
-      setError('Не удалось удалить псевдоним');
+    } catch (e: any) {
+      setError(e?.response?.data?.error || 'Не удалось удалить псевдоним');
     }
   };
 
@@ -160,7 +110,7 @@ export function UserProfileModal({ userId, onClose, onStartChat }: Props) {
     <div className="modalOverlay" onClick={e => e.target === e.currentTarget && onClose()}>
       <div className="upCard">
 
-        {/* 3-dot menu */}
+        {/* 3-dot menu — matches .upCloseBtn styling */}
         {!loading && user && (
           <div className="upMenuWrap" ref={menuRef}>
             <button
@@ -169,31 +119,54 @@ export function UserProfileModal({ userId, onClose, onStartChat }: Props) {
               title="Действия"
               disabled={blockBusy}
             >
-              <IconDots />
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                <circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/>
+              </svg>
             </button>
 
             {menuOpen && (
-              <div className="upMenu">
+              <div className="ctxMenu upMenuDropdown">
+                {/* Block / Unblock */}
                 <button
-                  className={`upMenuItem${user.is_blocked ? ' upMenuItemActive' : ''}`}
+                  className={`ctxItem${user.is_blocked ? '' : ' ctxItemDanger'}`}
                   onClick={handleBlock}
                 >
-                  <span className="upMenuIcon">
-                    {user.is_blocked ? <IconUnblock /> : <IconBlock />}
-                  </span>
-                  {user.is_blocked ? 'Разблокировать' : 'Заблокировать'}
+                  {user.is_blocked ? (
+                    <>
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <circle cx="12" cy="12" r="10"/><polyline points="9 12 11 14 15 10"/>
+                      </svg>
+                      Разблокировать
+                    </>
+                  ) : (
+                    <>
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/>
+                      </svg>
+                      Заблокировать
+                    </>
+                  )}
                 </button>
 
-                <div className="upMenuDivider" />
+                <div className="ctxDivider" />
 
-                <button className="upMenuItem" onClick={openAliasDialog}>
-                  <span className="upMenuIcon"><IconAlias /></span>
+                {/* Rename (alias) */}
+                <button className="ctxItem" onClick={openAliasDialog}>
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                  </svg>
                   Переименовать
                 </button>
 
+                {/* Delete alias — only when alias exists */}
                 {user.alias && (
-                  <button className="upMenuItemDanger" onClick={handleDeleteAlias}>
-                    <span className="upMenuIcon"><IconTrash /></span>
+                  <button className="ctxItem ctxItemDanger" onClick={handleDeleteAlias}>
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <polyline points="3 6 5 6 21 6"/>
+                      <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+                      <path d="M10 11v6M14 11v6"/>
+                    </svg>
                     Удалить псевдоним
                   </button>
                 )}
@@ -229,32 +202,35 @@ export function UserProfileModal({ userId, onClose, onStartChat }: Props) {
               </div>
               <div className="upName">{user.display_name || user.username}</div>
               {user.username && <div className="upUsername">@{user.username}</div>}
+
+              {/* Alias pill */}
               {user.alias && (
                 <div className="upAliasBadge">
-                  <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor" style={{ opacity: .7 }}>
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                     <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
-                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
                   </svg>
                   {user.alias}
                 </div>
               )}
+
+              {/* Blocked pill */}
               {user.is_blocked && (
                 <div className="upBlockedBadge">
-                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
                     <circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/>
                   </svg>
                   Заблокирован
                 </div>
               )}
+
               <div className={`upOnlineStatus${isOnline ? ' upOnlineStatusOnline' : ''}`}>
                 {formatLastSeen(user.last_seen_at, isOnline)}
               </div>
             </div>
 
-            {/* Error toast */}
-            {error && (
-              <div className="upErrorBar">{error}</div>
-            )}
+            {/* Error bar */}
+            {error && <div className="upErrorBar">{error}</div>}
 
             {/* Alias edit dialog */}
             {aliasOpen && (
@@ -273,11 +249,7 @@ export function UserProfileModal({ userId, onClose, onStartChat }: Props) {
                   maxLength={50}
                 />
                 <div className="upAliasActions">
-                  <button
-                    className="upAliasSave"
-                    onClick={handleSaveAlias}
-                    disabled={aliasBusy || !aliasInput.trim()}
-                  >
+                  <button className="upAliasSave" onClick={handleSaveAlias} disabled={aliasBusy || !aliasInput.trim()}>
                     {aliasBusy ? 'Сохранение…' : 'Сохранить'}
                   </button>
                   <button className="upAliasCancel" onClick={() => setAliasOpen(false)}>

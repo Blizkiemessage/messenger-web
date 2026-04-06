@@ -1474,70 +1474,54 @@ input { font: inherit; color: inherit; background: transparent; }
 }
 .upChatBtn:hover { opacity: .88; }
 
-/* ── UserProfileModal — 3-dot menu ──────────────────────────────────── */
-.upMenuWrap {
-  position: absolute; top: 12px; right: 48px; z-index: 3;
-}
+/* ── UserProfileModal — 3-dot menu trigger ───────────────────────────── */
+.upMenuWrap { position: absolute; top: 12px; right: 48px; z-index: 3; }
+
+/* Matches .upCloseBtn exactly, just positioned left of it */
 .upMenuBtn {
+  position: relative;
   width: 30px; height: 30px; border-radius: 9px;
   display: flex; align-items: center; justify-content: center;
   background: none; border: none; cursor: pointer;
   color: var(--muted); transition: background .15s, color .15s;
 }
-.upMenuBtn:hover, .upMenuBtnActive { background: var(--border) !important; color: var(--text) !important; }
+.upMenuBtn:hover, .upMenuBtnActive { background: var(--border); color: var(--text); }
 .upMenuBtn:disabled { opacity: .5; pointer-events: none; }
 
-.upMenu {
+/* Dropdown uses project's .ctxMenu — only needs position override */
+.upMenuDropdown {
   position: absolute; top: 38px; right: 0;
-  background: var(--surface); border: 1px solid var(--border);
-  border-radius: 12px; box-shadow: 0 8px 32px rgba(0,0,0,.22);
-  min-width: 216px; padding: 5px 0; overflow: hidden;
   animation: upMenuIn .12s ease;
 }
 @keyframes upMenuIn {
-  from { opacity: 0; transform: scale(.96) translateY(-4px); }
-  to   { opacity: 1; transform: scale(1) translateY(0); }
+  from { opacity: 0; transform: translateY(-6px); }
+  to   { opacity: 1; transform: translateY(0); }
 }
 
-/* ← KEY FIX: reset browser button defaults for menu items */
-.upMenuItem, .upMenuItemDanger {
-  display: flex; align-items: center; gap: 10px;
-  width: 100%; padding: 9px 16px;
-  background: none; border: none; cursor: pointer;
-  text-align: left; font-size: 13.5px; font-family: inherit;
-  transition: background .1s;
-}
-.upMenuIcon { display: flex; align-items: center; flex-shrink: 0; opacity: .7; }
-.upMenuItem { color: var(--text); }
-.upMenuItem:hover { background: var(--hover); }
-.upMenuItem.upMenuItemActive { color: var(--accent); }
-.upMenuItemDanger { color: var(--danger, #e05252); }
-.upMenuItemDanger:hover { background: rgba(224,82,82,.08); }
-.upMenuDivider { height: 1px; background: var(--border); margin: 3px 0; }
-
-/* Alias + blocked badges under name */
+/* Alias + blocked status pills under username */
 .upAliasBadge {
   display: inline-flex; align-items: center; gap: 4px;
-  color: var(--accent); font-size: 12px; margin-top: 3px;
-  background: color-mix(in srgb, var(--accent) 12%, transparent);
-  padding: 2px 8px; border-radius: 20px;
+  color: var(--accent); font-size: 12px; margin-top: 4px;
+  background: rgba(47,129,247,.12); padding: 2px 9px 2px 7px;
+  border-radius: 20px; font-weight: 500;
 }
 .upBlockedBadge {
   display: inline-flex; align-items: center; gap: 4px;
-  color: var(--danger, #e05252); font-size: 12px; margin-top: 3px;
-  background: rgba(224,82,82,.1); padding: 2px 8px; border-radius: 20px;
+  color: var(--danger, #f87171); font-size: 12px; margin-top: 4px;
+  background: rgba(248,113,113,.12); padding: 2px 9px 2px 7px;
+  border-radius: 20px; font-weight: 500;
 }
 
-/* Error bar */
+/* Inline error notification */
 .upErrorBar {
-  margin: 0 16px 4px; padding: 8px 12px; border-radius: 8px;
-  background: rgba(224,82,82,.12); color: var(--danger, #e05252);
+  margin: 0 16px 4px; padding: 7px 12px; border-radius: 8px;
+  background: rgba(248,113,113,.12); color: var(--danger, #f87171);
   font-size: 13px; text-align: center;
 }
 
-/* Alias edit dialog */
+/* Alias rename dialog */
 .upAliasDialog {
-  padding: 14px 18px 18px; border-top: 1px solid var(--border);
+  padding: 12px 16px 16px; border-top: 1px solid var(--border);
   display: flex; flex-direction: column; gap: 10px;
 }
 .upAliasHint { font-size: 12px; color: var(--muted); margin: 0; }
@@ -1550,18 +1534,19 @@ input { font: inherit; color: inherit; background: transparent; }
 .upAliasInput:focus { border-color: var(--accent); outline: none; }
 .upAliasActions { display: flex; gap: 8px; }
 .upAliasSave {
-  flex: 1; padding: 8px; border-radius: 9px;
-  background: var(--accent); color: #fff; border: none; cursor: pointer;
+  flex: 1; padding: 8px 12px; border-radius: 9px;
+  background: var(--accent); color: #fff;
+  border: none; cursor: pointer;
   font-size: 14px; font-weight: 500; font-family: inherit;
   transition: opacity .15s;
 }
 .upAliasSave:disabled { opacity: .45; cursor: not-allowed; }
 .upAliasSave:not(:disabled):hover { opacity: .86; }
 .upAliasCancel {
-  flex: 1; padding: 8px; border-radius: 9px;
+  flex: 1; padding: 8px 12px; border-radius: 9px;
   background: var(--hover); color: var(--text);
-  border: none; cursor: pointer; font-size: 14px; font-family: inherit;
-  transition: background .12s;
+  border: none; cursor: pointer;
+  font-size: 14px; font-family: inherit; transition: background .12s;
 }
 .upAliasCancel:hover { background: var(--border); }
 

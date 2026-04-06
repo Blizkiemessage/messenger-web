@@ -117,10 +117,9 @@ function isBlocked(blockerId, blockedId) {
 
 function setContactAlias(userId, targetId, alias) {
   const db = getDb();
-  db.prepare(`
-    INSERT INTO contact_aliases (user_id, target_id, alias, created_at) VALUES (?, ?, ?, ?)
-    ON CONFLICT(user_id, target_id) DO UPDATE SET alias = excluded.alias
-  `).run(userId, targetId, alias, Date.now());
+  // Use DELETE + INSERT for compatibility with older SQLite (avoid UPSERT syntax)
+  db.prepare('DELETE FROM contact_aliases WHERE user_id = ? AND target_id = ?').run(userId, targetId);
+  db.prepare('INSERT INTO contact_aliases (user_id, target_id, alias, created_at) VALUES (?, ?, ?, ?)').run(userId, targetId, alias, Date.now());
   return { alias };
 }
 
