@@ -9,8 +9,16 @@ import { ContextMenu } from '../ui/ContextMenu';
 
 // ── DeleteConfirmModal ────────────────────────────────────────────────────────
 export function DeleteConfirmModal({
-  count, onConfirm, onCancel, busy,
-}: { count: number; onConfirm: () => void; onCancel: () => void; busy: boolean }) {
+  count, forEveryone, onToggle, onConfirm, onCancel, busy,
+}: {
+  count: number;
+  forEveryone: boolean;
+  onToggle: (v: boolean) => void;
+  onConfirm: () => void;
+  onCancel: () => void;
+  busy: boolean;
+}) {
+  const n = count === 1 ? 'сообщение' : `${count} сообщ.`;
   return (
     <div className="modalOverlay" onClick={e => e.target === e.currentTarget && onCancel()}>
       <div className="confirmCard">
@@ -22,15 +30,37 @@ export function DeleteConfirmModal({
             <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
           </svg>
         </div>
-        <div className="confirmTitle">
-          Удалить {count === 1 ? 'сообщение' : `${count} сообщения`}?
+        <div className="confirmTitle">Удалить {n}?</div>
+
+        {/* Segmented scope toggle */}
+        <div className="delToggle">
+          <button
+            className={`delToggleBtn${!forEveryone ? ' delToggleActive' : ''}`}
+            onClick={() => onToggle(false)}
+            disabled={busy}
+          >
+            У себя
+          </button>
+          <button
+            className={`delToggleBtn${forEveryone ? ' delToggleActive' : ''}`}
+            onClick={() => onToggle(true)}
+            disabled={busy}
+          >
+            У всех
+          </button>
         </div>
+
         <div className="confirmText">
-          {count === 1
-            ? 'Это сообщение будет удалено для всех участников чата.'
-            : `Эти ${count} сообщения будут удалены для всех участников чата.`
+          {forEveryone
+            ? (count === 1
+                ? 'Сообщение исчезнет у всех участников чата.'
+                : `${count} сообщения исчезнут у всех участников чата.`)
+            : (count === 1
+                ? 'Сообщение исчезнет только у вас.'
+                : `${count} сообщения исчезнут только у вас.`)
           }{' '}Действие нельзя отменить.
         </div>
+
         <div className="confirmBtns">
           <button className="confirmCancel" onClick={onCancel} disabled={busy}>Отмена</button>
           <button className="confirmDelete" onClick={onConfirm} disabled={busy}>{busy ? '…' : 'Удалить'}</button>

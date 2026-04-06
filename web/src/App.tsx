@@ -68,6 +68,8 @@ export default function App() {
   const chatActionBusy = useAppStore(s => s.chatActionBusy);
   const setChatActionBusy = useAppStore(s => s.setChatActionBusy);
   const deleteBusy = useAppStore(s => s.deleteBusy);
+  const deleteForEveryone = useAppStore(s => s.deleteForEveryone);
+  const setDeleteForEveryone = useAppStore(s => s.setDeleteForEveryone);
 
   // Chats store
   const activeChat = useChatsStore(selectActiveChat);
@@ -141,6 +143,8 @@ export default function App() {
       {showDeleteConfirm && (
         <DeleteConfirmModal
           count={selectedIds.size}
+          forEveryone={deleteForEveryone}
+          onToggle={setDeleteForEveryone}
           onConfirm={deleteSelected}
           onCancel={() => setShowDeleteConfirm(false)}
           busy={deleteBusy}

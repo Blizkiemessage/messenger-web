@@ -14,7 +14,7 @@
 const express = require('express');
 const rateLimit = require('express-rate-limit');
 const { authMiddleware } = require('../middleware/auth');
-const { getChatMessages, saveMessage, toggleReaction, toggleEmojiReaction, deleteMessages, pinMessage, unpinMessage, getPinnedMessages, forwardMessages, editMessage } = require('../services/messageService');
+const { getChatMessages, saveMessage, toggleReaction, toggleEmojiReaction, deleteMessages, hideMessages, pinMessage, unpinMessage, getPinnedMessages, forwardMessages, editMessage } = require('../services/messageService');
 const { isBlocked } = require('../services/userService');
 const { getDb } = require('../config/database');
 
@@ -91,31 +91,43 @@ router.post('/:chatId/messages', msgLimiter, (req, res, next) => {
   } catch (err) { next(err); }
 });
 
-// DELETE /chats/:chatId/messages — bulk soft-delete own messages
+// DELETE /chats/:chatId/messages — delete messages for everyone or hide for self only
 router.delete('/:chatId/messages', (req, res, next) => {
   try {
-    const { messageIds } = req.body;
+    const { messageIds, forEveryone = true } = req.body;
     if (!Array.isArray(messageIds) || messageIds.length === 0) {
       return res.status(400).json({ error: 'messageIds array is required' });
     }
 
-    const deleted = deleteMessages(req.params.chatId, req.userId, messageIds);
-
     const io = req.app.get('io');
-    if (io) {
-      const db = getDb();
-      const members = db
-        .prepare('SELECT u.id FROM chat_members cm JOIN users u ON u.id = cm.user_id WHERE cm.chat_id = ?')
-        .all(req.params.chatId);
-      for (const member of members) {
-        io.to(`user:${member.id}`).emit('messages-deleted', {
+
+    if (forEveryone) {
+      // Soft-delete globally, broadcast to all chat members
+      const deleted = deleteMessages(req.params.chatId, req.userId, messageIds);
+      if (io && deleted.length > 0) {
+        const db = getDb();
+        const members = db
+          .prepare('SELECT u.id FROM chat_members cm JOIN users u ON u.id = cm.user_id WHERE cm.chat_id = ?')
+          .all(req.params.chatId);
+        for (const member of members) {
+          io.to(`user:${member.id}`).emit('messages-deleted', {
+            chatId: req.params.chatId,
+            messageIds: deleted,
+          });
+        }
+      }
+      res.json({ ok: true, deleted });
+    } else {
+      // Hide only for the requesting user, emit only to them
+      const hidden = hideMessages(req.userId, req.params.chatId, messageIds);
+      if (io && hidden.length > 0) {
+        io.to(`user:${req.userId}`).emit('messages-deleted', {
           chatId: req.params.chatId,
-          messageIds: deleted,
+          messageIds: hidden,
         });
       }
+      res.json({ ok: true, deleted: hidden });
     }
-
-    res.json({ ok: true, deleted });
   } catch (err) { next(err); }
 });
 

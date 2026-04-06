@@ -19,6 +19,7 @@ interface AppState {
   chatActionConfirm: Chat | null;
   chatActionBusy: boolean;
   deleteBusy: boolean;
+  deleteForEveryone: boolean;   // true = delete for all, false = delete for me only
 
   // ✅ Forward state
   forwardingIds: string[] | null;   // message IDs queued for forwarding (null = not in forward mode)
@@ -36,6 +37,7 @@ interface AppState {
   setChatActionConfirm: (chat: Chat | null) => void;
   setChatActionBusy: (v: boolean) => void;
   setDeleteBusy: (v: boolean) => void;
+  setDeleteForEveryone: (v: boolean) => void;
   setForwardingIds: (ids: string[] | null) => void;
   setShowForwardModal: (v: boolean) => void;
 }
@@ -57,6 +59,7 @@ export const useAppStore = create<AppState>((set) => ({
   chatActionConfirm: null,
   chatActionBusy: false,
   deleteBusy: false,
+  deleteForEveryone: true,
   forwardingIds: null,
   showForwardModal: false,
 
@@ -77,6 +80,7 @@ export const useAppStore = create<AppState>((set) => ({
   setChatActionConfirm: (chatActionConfirm) => set({ chatActionConfirm }),
   setChatActionBusy: (chatActionBusy) => set({ chatActionBusy }),
   setDeleteBusy: (deleteBusy) => set({ deleteBusy }),
+  setDeleteForEveryone: (deleteForEveryone) => set({ deleteForEveryone }),
   setForwardingIds: (forwardingIds) => set({ forwardingIds }),
   setShowForwardModal: (showForwardModal) => set({ showForwardModal }),
 }));

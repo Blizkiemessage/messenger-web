@@ -56,8 +56,8 @@ function getChatMessages(chatId, userId, { limit = 50, before = null } = {}) {
   const member = db.prepare('SELECT 1 FROM chat_members WHERE chat_id = ? AND user_id = ?').get([chatId, userId]);
   if (!member) throw Object.assign(new Error('Forbidden'), { status: 403 });
   const rows = before
-    ? db.prepare(`SELECT * FROM messages WHERE chat_id = ? AND deleted_at IS NULL AND created_at < ? ORDER BY created_at DESC LIMIT ?`).all([chatId, before, limit])
-    : db.prepare(`SELECT * FROM messages WHERE chat_id = ? AND deleted_at IS NULL ORDER BY created_at DESC LIMIT ?`).all([chatId, limit]);
+    ? db.prepare(`SELECT * FROM messages WHERE chat_id = ? AND deleted_at IS NULL AND created_at < ? AND id NOT IN (SELECT message_id FROM message_hidden WHERE user_id = ?) ORDER BY created_at DESC LIMIT ?`).all([chatId, before, userId, limit])
+    : db.prepare(`SELECT * FROM messages WHERE chat_id = ? AND deleted_at IS NULL AND id NOT IN (SELECT message_id FROM message_hidden WHERE user_id = ?) ORDER BY created_at DESC LIMIT ?`).all([chatId, userId, limit]);
   const messages = rows.reverse().map(decryptMessage);
 
   // Attach poll payloads for poll messages
@@ -120,20 +120,34 @@ function saveMessage(chatId, senderId, text, attachment = {}, isSystem = false, 
   return decryptMessage(db.prepare('SELECT * FROM messages WHERE id = ?').get(msgId));
 }
 
-function deleteMessages(chatId, senderId, messageIds) {
+function deleteMessages(chatId, userId, messageIds) {
   const db = getDb();
-  const member = db.prepare('SELECT 1 FROM chat_members WHERE chat_id = ? AND user_id = ?').get([chatId, senderId]);
+  const member = db.prepare('SELECT 1 FROM chat_members WHERE chat_id = ? AND user_id = ?').get([chatId, userId]);
   if (!member) throw Object.assign(new Error('Forbidden'), { status: 403 });
   const now = Date.now();
   const deleted = [];
   for (const msgId of messageIds) {
-    const msg = db.prepare('SELECT id, sender_id, attachment_url FROM messages WHERE id = ? AND chat_id = ?').get([msgId, chatId]);
-    if (!msg || msg.sender_id !== senderId) continue;
+    const msg = db.prepare('SELECT id, sender_id, attachment_url FROM messages WHERE id = ? AND chat_id = ? AND deleted_at IS NULL').get([msgId, chatId]);
+    if (!msg) continue; // any chat member may delete any message for everyone
     db.prepare('UPDATE messages SET deleted_at = ? WHERE id = ?').run([now, msgId]);
     deleted.push(msgId);
     if (msg.attachment_url) deleteFromS3(msg.attachment_url); // fire-and-forget
   }
   return deleted;
+}
+
+function hideMessages(userId, chatId, messageIds) {
+  const db = getDb();
+  const member = db.prepare('SELECT 1 FROM chat_members WHERE chat_id = ? AND user_id = ?').get([chatId, userId]);
+  if (!member) throw Object.assign(new Error('Forbidden'), { status: 403 });
+  const hidden = [];
+  for (const msgId of messageIds) {
+    const msg = db.prepare('SELECT id FROM messages WHERE id = ? AND chat_id = ? AND deleted_at IS NULL').get([msgId, chatId]);
+    if (!msg) continue;
+    db.prepare('INSERT OR IGNORE INTO message_hidden (user_id, message_id) VALUES (?, ?)').run([userId, msgId]);
+    hidden.push(msgId);
+  }
+  return hidden;
 }
 
 function toggleReaction(msgId, userId) {
@@ -259,4 +273,4 @@ function editMessage(chatId, msgId, senderId, newText) {
   return decryptMessage(db.prepare('SELECT * FROM messages WHERE id = ?').get(msgId));
 }
 
-module.exports = { decryptMessage, saveMessage, getChatMessages, deleteMessages, toggleReaction, toggleEmojiReaction, pinMessage, unpinMessage, getPinnedMessages, forwardMessages, editMessage };
+module.exports = { decryptMessage, saveMessage, getChatMessages, deleteMessages, hideMessages, toggleReaction, toggleEmojiReaction, pinMessage, unpinMessage, getPinnedMessages, forwardMessages, editMessage };

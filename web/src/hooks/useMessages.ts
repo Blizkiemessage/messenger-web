@@ -51,9 +51,10 @@ export function useMessages() {
   const deleteSelected = useCallback(async () => {
     const { activeChatId: chatId, selectedIds } = useChatsStore.getState();
     if (!chatId || selectedIds.size === 0) return;
+    const forEveryone = useAppStore.getState().deleteForEveryone;
     useAppStore.getState().setDeleteBusy(true);
     try {
-      const deleted = await apiDeleteMessages(chatId, [...selectedIds]);
+      const deleted = await apiDeleteMessages(chatId, [...selectedIds], forEveryone);
       useChatsStore.getState().removeBulkMessages(chatId, deleted);
       useChatsStore.getState().clearSelection();
       useAppStore.getState().setShowDeleteConfirm(false);

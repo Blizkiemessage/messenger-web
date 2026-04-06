@@ -436,8 +436,8 @@ export function MessageList({
               </button>
             )}
 
-            {/* ✅ Delete — now wired to onDeleteSingle (selects + opens confirm modal) */}
-            {ctxMenu.msg.sender_id === meId && (
+            {/* Delete — available for any message (own or others'), user chooses scope in modal */}
+            {!ctxMenu.msg.is_system && (
               <button
                 className="msgCtxItem msgCtxItemDanger"
                 onClick={() => { onDeleteSingle(ctxMenu.msg.id); setCtxMenu(null); }}

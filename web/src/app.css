@@ -1329,6 +1329,36 @@ input { font: inherit; color: inherit; background: transparent; }
 .confirmDelete:hover { opacity: .85; }
 .confirmDelete:disabled { opacity: .5; cursor: not-allowed; }
 
+/* ── Delete scope toggle (У себя / У всех) ─────────────────────────── */
+.delToggle {
+  display: flex;
+  background: var(--hover);
+  border-radius: 10px;
+  padding: 3px;
+  gap: 3px;
+  margin: 2px 0 4px;
+}
+.delToggleBtn {
+  flex: 1;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: none;
+  cursor: pointer;
+  font-size: 13px;
+  font-family: inherit;
+  font-weight: 500;
+  color: var(--muted);
+  background: none;
+  transition: background .15s, color .15s, box-shadow .15s;
+  line-height: 1;
+}
+.delToggleBtn:disabled { cursor: not-allowed; opacity: .55; }
+.delToggleActive {
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: 0 1px 4px rgba(0,0,0,.18);
+}
+
 /* ── Profile panel (sidebar bottom) — new design ────────────────────── */
 .ppTopRow { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
 .ppInfo { flex: 1; min-width: 0; }

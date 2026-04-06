@@ -56,9 +56,10 @@ export function ChatArea() {
   const hasSelection    = selectedIds.size > 0;
   const partnerReadAt   = activeChat?.partner_last_read_at ?? 0;
 
-  const setShowDeleteConfirm = useAppStore(s => s.setShowDeleteConfirm);
-  const setShowGroupInfo     = useAppStore(s => s.setShowGroupInfo);
-  const setViewUserId        = useAppStore(s => s.setViewUserId);
+  const setShowDeleteConfirm  = useAppStore(s => s.setShowDeleteConfirm);
+  const setDeleteForEveryone  = useAppStore(s => s.setDeleteForEveryone);
+  const setShowGroupInfo      = useAppStore(s => s.setShowGroupInfo);
+  const setViewUserId         = useAppStore(s => s.setViewUserId);
 
   // ── Forward state ─────────────────────────────────────────────────────────
   const forwardingIds     = useAppStore(s => s.forwardingIds);
@@ -251,16 +252,24 @@ export function ChatArea() {
     clearSelection();
   }, [activeChat, selectedIds, clearSelection]);
 
-  // ✅ Delete single message from context menu — selects it then opens confirm modal
+  // Delete single message from context menu — selects it then opens confirm modal
   const handleDeleteSingle = useCallback((msgId: string) => {
+    const allMessages = useChatsStore.getState().messages;
     if (selectedIds.size <= 1) {
-      // Single or no prior selection — select only the right-clicked message
       clearSelection();
       toggleSelect(msgId);
+      // Default scope: own message → "for all"; others' → "for me"
+      const msg = allMessages.find(m => m.id === msgId);
+      setDeleteForEveryone(msg?.sender_id === me.id);
+    } else {
+      // Multi-select: if any non-own message, default to "for me"
+      const hasOthers = Array.from(selectedIds).some(
+        id => allMessages.find(m => m.id === id)?.sender_id !== me.id
+      );
+      setDeleteForEveryone(!hasOthers);
     }
-    // Multi-selection — keep all selected; modal will delete them all
     setShowDeleteConfirm(true);
-  }, [selectedIds.size, clearSelection, toggleSelect, setShowDeleteConfirm]);
+  }, [selectedIds, clearSelection, toggleSelect, setShowDeleteConfirm, setDeleteForEveryone, me.id]);
 
   // ✅ "Add more" — close the modal and pre-select already-queued messages so user just taps extras
   const handleForwardAddMore = useCallback(() => {
@@ -541,7 +550,14 @@ export function ChatArea() {
         hasSelection={hasSelection}
         selectedCount={selectedIds.size}
         onCancelSelection={clearSelection}
-        onDeleteSelected={() => setShowDeleteConfirm(true)}
+        onDeleteSelected={() => {
+          const allMessages = useChatsStore.getState().messages;
+          const hasOthers = Array.from(selectedIds).some(
+            id => allMessages.find(m => m.id === id)?.sender_id !== me.id
+          );
+          setDeleteForEveryone(!hasOthers);
+          setShowDeleteConfirm(true);
+        }}
         onForwardSelected={handleForwardSelected}
         onPinSelected={handlePinSelected}
         onUnpinSelected={handleUnpinSelected}

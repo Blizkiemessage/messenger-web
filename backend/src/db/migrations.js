@@ -188,6 +188,12 @@ function runMigrations() {
       created_at INTEGER NOT NULL DEFAULT 0,
       PRIMARY KEY (user_id, target_id)
     )`,
+    // ✅ NEW: per-user message hide ("delete for me")
+    `CREATE TABLE IF NOT EXISTS message_hidden (
+      user_id    TEXT NOT NULL,
+      message_id TEXT NOT NULL,
+      PRIMARY KEY (user_id, message_id)
+    )`,
   ];
 
   for (const sql of alters) {

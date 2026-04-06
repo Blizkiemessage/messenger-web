@@ -70,9 +70,9 @@ export async function markChatRead(chatId: string, readUntil?: number): Promise<
   return res.data;
 }
 
-export async function deleteMessages(chatId: string, messageIds: string[]): Promise<string[]> {
+export async function deleteMessages(chatId: string, messageIds: string[], forEveryone: boolean): Promise<string[]> {
   const res = await client.delete<{ ok: boolean; deleted: string[] }>(`/chats/${chatId}/messages`, {
-    data: { messageIds },
+    data: { messageIds, forEveryone },
   });
   return res.data.deleted;
 }
