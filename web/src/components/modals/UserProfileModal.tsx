@@ -64,7 +64,7 @@ export function UserProfileModal({ userId, onClose, onStartChat }: Props) {
       const result = await blockUser(user.id);
       setUser(u => u ? { ...u, is_blocked: result.is_blocked } : u);
     } catch (e: any) {
-      setError(e?.response?.data?.error || 'Не удалось выполнить действие');
+      setError(e?.message || 'Не удалось выполнить действие');
     } finally {
       setBlockBusy(false);
     }
@@ -86,7 +86,7 @@ export function UserProfileModal({ userId, onClose, onStartChat }: Props) {
       setUser(u => u ? { ...u, alias: result.alias, display_name: result.alias } : u);
       setAliasOpen(false);
     } catch (e: any) {
-      setError(e?.response?.data?.error || 'Не удалось сохранить псевдоним');
+      setError(e?.message || 'Не удалось сохранить псевдоним');
     } finally {
       setAliasBusy(false);
     }
@@ -102,7 +102,7 @@ export function UserProfileModal({ userId, onClose, onStartChat }: Props) {
       setUser(fresh);
       setAliasInput('');
     } catch (e: any) {
-      setError(e?.response?.data?.error || 'Не удалось удалить псевдоним');
+      setError(e?.message || 'Не удалось удалить псевдоним');
     }
   };
 

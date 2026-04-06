@@ -140,15 +140,21 @@ router.get('/search', (req, res) => {
 });
 
 // GET /users/:id — public profile (with block status + alias)
-router.get('/:id', (req, res) => {
-  const user = getUserById(req.params.id);
-  if (!user) return res.status(404).json({ error: 'User not found' });
-  const alias = getContactAlias(req.userId, req.params.id);
-  const sanitized = sanitizeUser(user, { viewerId: req.userId }, alias);
-  sanitized.is_blocked    = isBlocked(req.userId, req.params.id);
-  sanitized.blocked_by_them = isBlocked(req.params.id, req.userId);
-  sanitized.alias = alias;
-  res.json(sanitized);
+router.get('/:id', (req, res, next) => {
+  try {
+    const user = getUserById(req.params.id);
+    if (!user) return res.status(404).json({ error: 'User not found' });
+    // alias / block fields are best-effort — degrade gracefully if tables not yet created
+    let alias = null, isBlk = false, blkByThem = false;
+    try { alias    = getContactAlias(req.userId, req.params.id); } catch { /* table not yet created */ }
+    try { isBlk    = isBlocked(req.userId, req.params.id); }      catch { /* table not yet created */ }
+    try { blkByThem = isBlocked(req.params.id, req.userId); }     catch { /* table not yet created */ }
+    const sanitized = sanitizeUser(user, { viewerId: req.userId }, alias);
+    sanitized.is_blocked      = isBlk;
+    sanitized.blocked_by_them = blkByThem;
+    sanitized.alias           = alias;
+    res.json(sanitized);
+  } catch (err) { next(err); }
 });
 
 // POST /users/:id/block — toggle block
