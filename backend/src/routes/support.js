@@ -43,8 +43,9 @@ router.post('/', authMiddleware, upload.single('image'), async (req, res, next) 
       userEmail: user.email || '—',
       sentAt,
       description,
-      imageBuffer: req.file?.buffer,
+      imageBuffer:   req.file?.buffer,
       imageFilename: req.file?.originalname,
+      imageMimeType: req.file?.mimetype,
     });
 
     res.json({ ok: true });

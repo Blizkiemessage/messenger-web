@@ -47,7 +47,7 @@ async function sendOtpEmail(to, otp) {
 /**
  * Send a support report email to the admin address.
  */
-async function sendSupportEmail({ subject, username, userEmail, sentAt, description, imageBuffer, imageFilename }) {
+async function sendSupportEmail({ subject, username, userEmail, sentAt, description, imageBuffer, imageFilename, imageMimeType }) {
   const to = 'blizkie.noreply@mail.ru';
   const from = process.env.SMTP_FROM || process.env.SMTP_USER;
 
@@ -55,6 +55,12 @@ async function sendSupportEmail({ subject, username, userEmail, sentAt, descript
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;');
+
+  // Embed image inline via cid so it renders directly in the email body
+  // (mail.ru and other clients sometimes hide/strip regular attachments)
+  const imageHtml = imageBuffer
+    ? `<div style="margin-top:20px"><img src="cid:support-image" style="max-width:100%;border-radius:8px;border:1px solid #e0e0e0" alt="Скриншот" /></div>`
+    : '';
 
   const html = `
     <div style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:24px">
@@ -66,10 +72,16 @@ async function sendSupportEmail({ subject, username, userEmail, sentAt, descript
       </table>
       <hr style="border:none;border-top:1px solid #ddd;margin:0 0 20px"/>
       <p style="white-space:pre-wrap;margin:0;line-height:1.6;color:#222">${escapedDesc}</p>
+      ${imageHtml}
     </div>`;
 
   const attachments = imageBuffer
-    ? [{ filename: imageFilename || 'attachment', content: imageBuffer }]
+    ? [{
+        filename:    imageFilename || 'screenshot',
+        content:     imageBuffer,
+        contentType: imageMimeType || 'image/jpeg',
+        cid:         'support-image',   // referenced by src="cid:support-image" in HTML
+      }]
     : [];
 
   if (!process.env.SMTP_HOST) {
