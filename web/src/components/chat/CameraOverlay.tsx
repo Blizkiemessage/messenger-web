@@ -10,6 +10,39 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 
+// ── Inline video preview player (for captured clip before sending) ─────────────
+function CapturedVideoPreview({ url }: { url: string }) {
+  const ref  = useRef<HTMLVideoElement>(null);
+  const [playing, setPlaying] = useState(false);
+
+  useEffect(() => {
+    // Try autoplay; show play button if browser blocks it
+    ref.current?.play().then(() => setPlaying(true)).catch(() => setPlaying(false));
+    return () => { ref.current?.pause(); }; // eslint-disable-line
+  }, [url]);
+
+  const toggle = () => {
+    const v = ref.current;
+    if (!v) return;
+    if (v.paused) { v.play().then(() => setPlaying(true)).catch(() => {}); }
+    else          { v.pause(); setPlaying(false); }
+  };
+
+  return (
+    <div className="capturedVideoWrap" onClick={toggle}>
+      <video ref={ref} className="cameraCaptureMedia" src={url} playsInline loop
+        onPlay={() => setPlaying(true)} onPause={() => setPlaying(false)} />
+      {!playing && (
+        <div className="capturedVideoPlay">
+          <svg width="32" height="32" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M8 5v14l11-7z"/>
+          </svg>
+        </div>
+      )}
+    </div>
+  );
+}
+
 interface Props {
   onCapture: (file: File, caption: string) => void;
   onClose:   () => void;
@@ -182,7 +215,7 @@ export function CameraOverlay({ onCapture, onClose }: Props) {
           </button>
 
           {captured.isVideo ? (
-            <video className="cameraCaptureMedia" src={captured.url} autoPlay loop playsInline muted />
+            <CapturedVideoPreview url={captured.url} />
           ) : (
             <img className="cameraCaptureMedia" src={captured.url} alt="Снимок" />
           )}

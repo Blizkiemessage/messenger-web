@@ -5872,6 +5872,136 @@ input[type="date"].psInput::-webkit-calendar-picker-indicator {
 .cameraSendBtn:hover { filter: brightness(1.12); }
 .cameraSendBtn:active { transform: scale(0.97); }
 
+/* Captured video preview wrapper */
+.capturedVideoWrap {
+  position: relative;
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  overflow: hidden;
+  background: #000;
+}
+.capturedVideoPlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0,0,0,0.35);
+  color: #fff;
+  pointer-events: none;
+}
+.capturedVideoPlay svg {
+  filter: drop-shadow(0 2px 6px rgba(0,0,0,0.6));
+}
+
+/* ── Permissions Tab ────────────────────────────────────────────────────────── */
+.permTab {
+  padding: 6px 0 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.permTabHint {
+  font-size: 13px;
+  color: var(--text-secondary, #8899a6);
+  line-height: 1.5;
+  margin: 0;
+}
+.permList {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.permItem {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  padding: 14px 12px;
+  border-radius: 10px;
+  background: var(--bg-tertiary, rgba(120,120,120,0.07));
+  transition: background .15s;
+}
+.permIcon {
+  flex-shrink: 0;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: var(--bg-secondary, rgba(120,120,120,0.12));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-secondary, #8899a6);
+}
+.permInfo {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.permLabel {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary, inherit);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.permDesc {
+  font-size: 12px;
+  color: var(--text-secondary, #8899a6);
+  line-height: 1.45;
+}
+.permErr {
+  font-size: 12px;
+  color: var(--danger, #e04e4e);
+  line-height: 1.4;
+  margin-top: 2px;
+}
+.permBadge {
+  font-size: 11px;
+  font-weight: 500;
+  padding: 2px 8px;
+  border-radius: 20px;
+  letter-spacing: .01em;
+}
+.permBadgeGranted {
+  background: rgba(46,160,67,0.15);
+  color: #2ea043;
+}
+.permBadgeDenied {
+  background: rgba(224,78,78,0.14);
+  color: #e04e4e;
+}
+.permBadgePrompt {
+  background: rgba(120,120,120,0.13);
+  color: var(--text-secondary, #8899a6);
+}
+.permBadgeUnknown {
+  background: rgba(120,120,120,0.1);
+  color: var(--text-secondary, #8899a6);
+}
+.permRequestBtn {
+  flex-shrink: 0;
+  align-self: center;
+  padding: 7px 16px;
+  border-radius: 8px;
+  border: none;
+  background: var(--accent, #2f81f7);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: filter .15s, transform .1s;
+  white-space: nowrap;
+}
+.permRequestBtn:hover  { filter: brightness(1.12); }
+.permRequestBtn:active { transform: scale(0.96); }
+
 /* ── Message Readers Modal ──────────────────────────────────────────────────── */
 .readersModal {
   width: min(400px, 94vw);
