@@ -177,7 +177,6 @@ export function Composer({ value, onChange, onSend, onSendAttachment, externalFi
 
   // ── Mention popup ─────────────────────────────────────────────────────────
   const [mentionQuery, setMentionQuery] = useState<string | null>(null);
-  const [mentionStart, setMentionStart] = useState(0);
   const [mentionIdx,   setMentionIdx]   = useState(0);
 
   const filteredMembers = mentionQuery !== null
@@ -729,7 +728,6 @@ export function Composer({ value, onChange, onSend, onSendAttachment, externalFi
                           }
                         }
                         setMentionQuery(match[1].toLowerCase());
-                        setMentionStart(textBefore.length - match[0].length);
                         setMentionIdx(0);
                       } else {
                         setMentionQuery(null);
