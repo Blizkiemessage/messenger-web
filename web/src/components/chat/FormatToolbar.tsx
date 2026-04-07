@@ -12,7 +12,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 
 interface Props {
-  textareaRef: React.RefObject<HTMLTextAreaElement>;
+  textareaRef: React.RefObject<HTMLTextAreaElement | null>;
   value:       string;
   onChange:    (val: string) => void;
 }
@@ -93,13 +93,13 @@ export function FormatToolbar({ textareaRef, value, onChange }: Props) {
   /** Replace the selection with `before + selectedText + after` */
   function wrapSel(before: string, after = before) {
     const newVal =
-      value.slice(0, sel.start) + before + selectedText + after + value.slice(sel.end);
+      value.slice(0, sel!.start) + before + selectedText + after + value.slice(sel!.end);
     onChange(newVal);
     done();
   }
 
   function replaceWithText(text: string, rangeOverride?: Sel) {
-    const r = rangeOverride ?? sel;
+    const r = rangeOverride ?? sel!;
     const newVal = value.slice(0, r.start) + text + value.slice(r.end);
     onChange(newVal);
     done();
@@ -164,7 +164,8 @@ export function FormatToolbar({ textareaRef, value, onChange }: Props) {
 
   function applyLink() {
     if (!linkUrl.trim()) return;
-    const range = savedSelRef.current ?? sel;
+    const range = savedSelRef.current ?? sel ?? undefined;
+    if (!range) return;
     const selText = value.slice(range.start, range.end);
     const url = /^https?:\/\//i.test(linkUrl) ? linkUrl : `https://${linkUrl}`;
     replaceWithText(`[${selText}](${url})`, range);
