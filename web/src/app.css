@@ -839,6 +839,9 @@ input { font: inherit; color: inherit; background: transparent; }
 }
 /* Ensure placeholder is always visible even though text color is transparent */
 .composerInput::placeholder { color: var(--muted); opacity: 1; }
+/* Hide raw markdown symbols even when text is selected */
+.composerInput::selection { color: transparent; background: rgba(47,129,247,0.25); }
+.composerInput::-moz-selection { color: transparent; background: rgba(47,129,247,0.25); }
 .composerSend {
   width: 42px; height: 42px;
   border-radius: 12px;
