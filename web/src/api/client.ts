@@ -16,6 +16,11 @@ client.interceptors.request.use((config) => {
     config.headers = config.headers ?? {};
     config.headers.Authorization = `Bearer ${session.token}`;
   }
+  // For FormData, remove the default application/json Content-Type so the browser
+  // can set multipart/form-data with the correct boundary automatically.
+  if (config.data instanceof FormData) {
+    delete config.headers['Content-Type'];
+  }
   return config;
 });
 
