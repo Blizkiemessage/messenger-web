@@ -1,15 +1,6 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, type ReactNode } from 'react';
 
 type PermState = 'granted' | 'denied' | 'prompt' | 'unsupported';
-
-interface PermItem {
-  key: string;
-  label: string;
-  description: string;
-  icon: JSX.Element;
-  state: PermState;
-  request: (() => Promise<void>) | null;
-}
 
 function usePermission(name: PermissionName | null): PermState {
   const [state, setState] = useState<PermState>('prompt');
@@ -89,7 +80,7 @@ export function PermissionsTab() {
     state: PermState;
     err: string | null;
     onRequest: (() => void) | null;
-    icon: JSX.Element;
+    icon: ReactNode;
   }> = [
     {
       label: 'Камера',
