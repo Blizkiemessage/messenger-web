@@ -3066,6 +3066,114 @@ input[type="date"].psInput::-webkit-calendar-picker-indicator {
   flex-shrink: 0;
 }
 
+/* ── Format Toolbar ──────────────────────────────────────────────────────── */
+.fmtToolbar {
+  background: var(--sidebar);
+  border-bottom: 1px solid var(--border);
+  animation: fmtIn .13s ease;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+@keyframes fmtIn {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.fmtRow {
+  display: flex;
+  align-items: center;
+  height: 40px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.fmtRow::-webkit-scrollbar { display: none; }
+.fmtRowLink {
+  padding: 0 4px;
+  gap: 4px;
+  height: 44px;
+}
+.fmtBtn {
+  height: 40px;
+  padding: 0 13px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text);
+  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  transition: background .1s, color .1s;
+  flex-shrink: 0;
+  border-radius: 0;
+}
+.fmtBtn:hover  { background: var(--panel); }
+.fmtBtn:active { background: rgba(47,129,247,0.1); color: var(--accent); }
+.fmtBtnIcon   { padding: 0 11px; color: var(--muted); }
+.fmtBtnBack   { color: var(--accent); }
+.fmtBtnNext   { gap: 4px; }
+.fmtBtnFmt    { padding: 0 11px; font-size: 15px; color: var(--text); }
+.fmtBtnSpoiler { color: var(--muted); }
+.fmtSep {
+  width: 1px;
+  height: 20px;
+  background: var(--border);
+  flex-shrink: 0;
+}
+.fmtLinkInput {
+  flex: 1;
+  height: 32px;
+  background: var(--panel);
+  border: 1.5px solid var(--border);
+  border-radius: 8px;
+  padding: 0 10px;
+  font-size: 13px;
+  color: var(--text);
+  outline: none;
+  min-width: 0;
+  font-family: inherit;
+}
+.fmtLinkInput:focus { border-color: var(--accent, #2f81f7); }
+.fmtBtnApply {
+  height: 32px;
+  padding: 0 14px;
+  background: var(--accent, #2f81f7);
+  color: #fff;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  flex-shrink: 0;
+  transition: filter .12s;
+}
+.fmtBtnApply:hover { filter: brightness(1.1); }
+
+/* ── Markdown in bubbles ─────────────────────────────────────────────────── */
+.bubbleText strong { font-weight: 700; }
+.bubbleText em     { font-style: italic; }
+
+.msgSpoiler {
+  background: rgba(127,127,127,0.38);
+  color: transparent;
+  border-radius: 4px;
+  cursor: pointer;
+  padding: 1px 3px;
+  user-select: none;
+  transition: color .15s, background .15s;
+}
+.msgSpoiler.revealed {
+  color: inherit;
+  background: rgba(127,127,127,0.15);
+  user-select: text;
+}
+
+.msgList {
+  margin: 4px 0 4px 18px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.msgList li { line-height: 1.5; }
+.msgListOl { list-style-type: decimal; }
+
 /* ── Override: remove border-top from .composer itself (now on .composerWrap) */
 .composer {
   display: flex;

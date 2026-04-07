@@ -7,6 +7,7 @@ import { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import { getLinkPreview, type LinkPreview } from '../../api/linkPreview';
 import { type Message, type User, type MessageReaction } from '../../types';
 import { formatTime } from '../../utils/format';
+import { renderMarkdown } from '../../utils/markdown';
 import { Avatar, resolveUrl } from '../ui/Avatar';
 import { MsgStatus } from '../ui/icons/MsgStatus';
 import { PollBubble } from './PollBubble';
@@ -290,92 +291,11 @@ function VideoAttachment({ url, caption }: { url: string; caption?: string; name
   );
 }
 
-// ── Highlight ─────────────────────────────────────────────────────────────────
-function HighlightText({ text, term }: { text: string; term: string }) {
-  if (!term || !text) return <>{text}</>;
-  const parts = text.split(new RegExp(`(${term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi'));
-  return (
-    <>
-      {parts.map((part, i) =>
-        part.toLowerCase() === term.toLowerCase()
-          ? <mark key={i} className="msgHighlight">{part}</mark>
-          : part
-      )}
-    </>
-  );
-}
-
-// ── Mention + highlight renderer ──────────────────────────────────────────────
-function MentionText({ text, term, meUsername, members, onMentionClick }: {
-  text: string;
-  term: string;
-  meUsername?: string;
-  members?: User[];
-  onMentionClick?: (userId: string) => void;
-}) {
-  const parts = text.split(/(@\w+)/g);
-  return (
-    <>
-      {parts.map((part, i) => {
-        if (/^@\w+$/.test(part)) {
-          const word = part.slice(1);
-          const isMine = !!meUsername && word.toLowerCase() === meUsername.toLowerCase();
-          const user = members?.find(m => m.username?.toLowerCase() === word.toLowerCase());
-          const clickable = !!user && !!onMentionClick;
-          return (
-            <span
-              key={i}
-              className={`${isMine ? 'mention mentionMe' : 'mention'}${clickable ? ' mentionLink' : ''}`}
-              onClick={clickable ? (e) => { e.stopPropagation(); onMentionClick!(user!.id); } : undefined}
-            >
-              {part}
-            </span>
-          );
-        }
-        return <HighlightText key={i} text={part} term={term} />;
-      })}
-    </>
-  );
-}
-
 // ── URL helpers ───────────────────────────────────────────────────────────────
-const URL_SPLIT_REGEX = /(https?:\/\/[^\s<>"']+)/gi;
-
 function extractFirstUrl(text: string | null | undefined): string | null {
   if (!text) return null;
   const m = text.match(/https?:\/\/[^\s<>"']+/i);
   return m ? m[0] : null;
-}
-
-function isUrl(part: string): boolean {
-  return /^https?:\/\//i.test(part);
-}
-
-function renderMessageText(
-  text: string,
-  term?: string,
-  mentionProps?: { meUsername?: string; members?: User[]; onMentionClick?: (id: string) => void },
-): React.ReactNode {
-  const parts = text.split(URL_SPLIT_REGEX);
-  return parts.map((part, i) => {
-    if (isUrl(part)) {
-      return (
-        <a key={i} href={part} target="_blank" rel="noopener noreferrer"
-           className="bubbleLink" onClick={e => e.stopPropagation()}>
-          {part}
-        </a>
-      );
-    }
-    if (mentionProps) {
-      return (
-        <MentionText key={i} text={part} term={term || ''}
-          meUsername={mentionProps.meUsername}
-          members={mentionProps.members}
-          onMentionClick={mentionProps.onMentionClick} />
-      );
-    }
-    return term ? <HighlightText key={i} text={part} term={term} /> : part;
-  });
 }
 
 // ── Audio player for voice messages ──────────────────────────────────────────
@@ -761,7 +681,7 @@ export function MessageBubble({
         {/* Plain text */}
         {!m.poll && pureText && (
           <div className="bubbleText">
-            {renderMessageText(pureText, highlight, { meUsername, members, onMentionClick: onViewUser })}
+            {renderMarkdown(pureText, { term: highlight, meUsername, members, onMentionClick: onViewUser })}
           </div>
         )}
 

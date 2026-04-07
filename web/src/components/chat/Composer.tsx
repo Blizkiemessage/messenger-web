@@ -9,8 +9,9 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import { uploadFile } from '../../api/upload';
 import type { UploadResult } from '../../api/upload';
 import { type User } from '../../types';
-import { MentionPopup } from './MentionPopup';
-import { CameraOverlay } from './CameraOverlay';
+import { MentionPopup }   from './MentionPopup';
+import { CameraOverlay }  from './CameraOverlay';
+import { FormatToolbar }  from './FormatToolbar';
 import Picker from '@emoji-mart/react';
 import data from '@emoji-mart/data';
 
@@ -240,6 +241,14 @@ export function Composer({ value, onChange, onSend, onSendAttachment, externalFi
       textInputRef.current.style.height = 'auto';
     }
   }, [value]);
+
+  // Recalculate textarea height when edit mode starts (value pre-filled from outside)
+  useEffect(() => {
+    const ta = textInputRef.current;
+    if (!ta || !editingMessageId) return;
+    ta.style.height = 'auto';
+    ta.style.height = Math.min(ta.scrollHeight, 150) + 'px';
+  }, [editingMessageId]);
 
   function stageFile(file: File) {
     setStaged(file); setCaption(''); setProgress(0); setUploadErr(null);
@@ -570,6 +579,15 @@ export function Composer({ value, onChange, onSend, onSendAttachment, externalFi
           filter={mentionQuery}
           activeIdx={mentionIdx}
           onSelect={selectMention}
+        />
+      )}
+
+      {/* ── Formatting toolbar (shown on text selection) ── */}
+      {!isFileMode && voiceState === 'idle' && (
+        <FormatToolbar
+          textareaRef={textInputRef}
+          value={value}
+          onChange={onChange}
         />
       )}
 
