@@ -139,7 +139,7 @@ export function FormatToolbar({ editorRef, onChange }: Props) {
 
   const nonEmptyLines = selText.split('\n').filter(l => l.trim() !== '');
   const isBoldActive    = isInTag('B');
-  const isItalicActive  = isInTag('I') && !isBoldActive;
+  const isItalicActive  = isInTag('I');
   const isSpoilerActive = isInTag('SPAN', 'composerSpoilerHint');
   const isULActive = nonEmptyLines.length > 0 && nonEmptyLines.every(l => l.startsWith('- '));
   const isOLActive = nonEmptyLines.length > 0 && nonEmptyLines.every(l => /^\d+\. /.test(l));
