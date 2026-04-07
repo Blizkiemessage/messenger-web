@@ -5,7 +5,7 @@
  * - Preview: mini player with real waveform bars + play-before-send
  * - Lock mode: drag-up to hands-free recording
  */
-import { useState, useRef, useEffect, useCallback, type ReactNode } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { uploadFile } from '../../api/upload';
 import type { UploadResult } from '../../api/upload';
 import { type User } from '../../types';
@@ -14,33 +14,7 @@ import { CameraOverlay }  from './CameraOverlay';
 import { FormatToolbar }  from './FormatToolbar';
 import Picker from '@emoji-mart/react';
 import data from '@emoji-mart/data';
-
-// ── Helpers ───────────────────────────────────────────────────────────────────
-
-/**
- * Renders inline markdown in the composer input overlay.
- * Only handles **bold**, _italic_, and ||spoiler|| — block elements (lists,
- * links) are left as raw text so line heights exactly match the textarea.
- */
-function renderComposerPreview(text: string) {
-  const PREVIEW_RE = /(\*\*(?:[^*\n]+)\*\*)|(\|\|(?:[^|\n]+)\|\|)|(_(?:[^_\n]+)_)/g;
-  const parts: ReactNode[] = [];
-  let last = 0, key = 0;
-  let m: RegExpExecArray | null;
-  while ((m = PREVIEW_RE.exec(text)) !== null) {
-    if (m.index > last) parts.push(text.slice(last, m.index));
-    const tok = m[0];
-    if (tok.startsWith('**'))
-      parts.push(<strong key={key++}>{tok.slice(2, -2)}</strong>);
-    else if (tok.startsWith('||'))
-      parts.push(<span key={key++} className="composerSpoilerHint">{tok.slice(2, -2)}</span>);
-    else
-      parts.push(<em key={key++}>{tok.slice(1, -1)}</em>);
-    last = m.index + tok.length;
-  }
-  if (last < text.length) parts.push(text.slice(last));
-  return parts.length ? parts : text;
-}
+import { mdToHtml, htmlToMd, getTextBeforeCursor } from '../../utils/richText';
 
 function formatFileSize(bytes: number): string {
   if (!bytes) return '0 B';
@@ -184,9 +158,12 @@ export function Composer({ value, onChange, onSend, onSendAttachment, externalFi
 
   const fileInputRef    = useRef<HTMLInputElement>(null);
   const captionInputRef = useRef<HTMLInputElement>(null);
-  const textInputRef    = useRef<HTMLTextAreaElement>(null);
-  const overlayRef      = useRef<HTMLDivElement>(null);
+  const editorRef       = useRef<HTMLDivElement>(null);
   const cancelRef       = useRef<(() => void) | null>(null);
+  // Track last markdown value to avoid external-value → innerHTML → onChange loops
+  const lastMdRef       = useRef(value);
+  // Track Range start for @mention detection
+  const mentionRangeRef = useRef<Range | null>(null);
 
   const [attachMenuOpen, setAttachMenuOpen] = useState(false);
   const attachMenuRef = useRef<HTMLDivElement>(null);
@@ -213,12 +190,29 @@ export function Composer({ value, onChange, onSend, onSendAttachment, externalFi
     : [];
 
   const selectMention = useCallback((username: string) => {
-    const before = value.slice(0, mentionStart);
-    const after  = value.slice(mentionStart + 1 + (mentionQuery?.length ?? 0));
-    onChange(before + '@' + username + ' ' + after);
+    const editor = editorRef.current;
+    if (!editor) return;
+    const sel = window.getSelection();
+    if (sel && sel.rangeCount > 0 && mentionRangeRef.current) {
+      try {
+        // Select from start-of-@ to current cursor and replace with @username
+        const endRange = sel.getRangeAt(0);
+        const range = document.createRange();
+        range.setStart(mentionRangeRef.current.startContainer, mentionRangeRef.current.startOffset);
+        range.setEnd(endRange.endContainer, endRange.endOffset);
+        sel.removeAllRanges();
+        sel.addRange(range);
+        document.execCommand('insertText', false, '@' + username + ' ');
+        const md = htmlToMd(editor);
+        lastMdRef.current = md;
+        onChange(md);
+      } catch { /* ignore — just close the popup */ }
+    }
     setMentionQuery(null);
-    setTimeout(() => textInputRef.current?.focus(), 0);
-  }, [value, mentionStart, mentionQuery, onChange]);
+    mentionRangeRef.current = null;
+    setMentionIdx(0);
+    setTimeout(() => editor.focus(), 0);
+  }, [mentionQuery, onChange]);
 
   useEffect(() => {
     if (!attachMenuOpen) return;
@@ -243,38 +237,36 @@ export function Composer({ value, onChange, onSend, onSendAttachment, externalFi
   }, [emojiOpen]);
 
   const insertEmoji = useCallback((native: string) => {
-    const input = textInputRef.current;
-    const start = input?.selectionStart ?? value.length;
-    const end   = input?.selectionEnd   ?? value.length;
-    const next  = value.slice(0, start) + native + value.slice(end);
-    onChange(next);
-    requestAnimationFrame(() => {
-      if (input) {
-        const pos = start + native.length;
-        input.setSelectionRange(pos, pos);
-        input.focus();
-      }
-    });
-  }, [value, onChange]);
+    const editor = editorRef.current;
+    if (!editor) return;
+    editor.focus();
+    document.execCommand('insertText', false, native);
+    const md = htmlToMd(editor);
+    lastMdRef.current = md;
+    onChange(md);
+  }, [onChange]);
 
   useEffect(() => {
     if (externalFile) { stageFile(externalFile); onExternalFileConsumed?.(); }
   }, [externalFile]); // eslint-disable-line
 
-  // Reset textarea height when value is cleared (after send)
+  // Sync external value changes → innerHTML (but not changes caused by typing)
   useEffect(() => {
-    if (!value && textInputRef.current) {
-      textInputRef.current.style.height = 'auto';
-    }
+    const editor = editorRef.current;
+    if (!editor) return;
+    if (value === lastMdRef.current) return; // came from editor input, skip
+    lastMdRef.current = value;
+    editor.innerHTML = value ? mdToHtml(value) : '';
+    // Place cursor at end
+    try {
+      const range = document.createRange();
+      range.selectNodeContents(editor);
+      range.collapse(false);
+      const sel = window.getSelection();
+      sel?.removeAllRanges();
+      sel?.addRange(range);
+    } catch { /* ignore */ }
   }, [value]);
-
-  // Recalculate textarea height when edit mode starts (value pre-filled from outside)
-  useEffect(() => {
-    const ta = textInputRef.current;
-    if (!ta || !editingMessageId) return;
-    ta.style.height = 'auto';
-    ta.style.height = Math.min(ta.scrollHeight, 150) + 'px';
-  }, [editingMessageId]);
 
   function stageFile(file: File) {
     setStaged(file); setCaption(''); setProgress(0); setUploadErr(null);
@@ -283,7 +275,7 @@ export function Composer({ value, onChange, onSend, onSendAttachment, externalFi
 
   const clearStage = useCallback(() => {
     setStaged(null); setCaption(''); setProgress(0); setUploadErr(null);
-    setTimeout(() => textInputRef.current?.focus(), 60);
+    setTimeout(() => editorRef.current?.focus(), 60);
   }, []);
 
   const handleCancelUpload = useCallback(() => {
@@ -611,8 +603,7 @@ export function Composer({ value, onChange, onSend, onSendAttachment, externalFi
       {/* ── Formatting toolbar (shown on text selection) ── */}
       {!isFileMode && voiceState === 'idle' && (
         <FormatToolbar
-          textareaRef={textInputRef}
-          value={value}
+          editorRef={editorRef}
           onChange={onChange}
         />
       )}
@@ -692,30 +683,23 @@ export function Composer({ value, onChange, onSend, onSendAttachment, externalFi
                 )}
               </div>
               <div className="composerInputWrap">
-                {/* Overlay renders formatted markdown so the user sees bold/italic/spoiler
-                    visually instead of raw ** and _ markers */}
-                {!isFileMode && (
-                  <div ref={overlayRef} className="composerInputOverlay" aria-hidden="true">
-                    {renderComposerPreview(value)}
-                  </div>
-                )}
-                <textarea
-                  ref={textInputRef}
+                <div
+                  ref={editorRef}
+                  contentEditable={!isFileMode && !disabled ? 'true' : 'false'}
+                  suppressContentEditableWarning
                   className="composerInput"
-                  rows={1}
-                  value={isFileMode ? '' : value}
+                  data-placeholder={uploading ? `Загрузка… ${progress}%` : isFileMode ? 'Файл готов к отправке' : 'Сообщение…'}
+                  dir="auto"
                   onContextMenu={e => e.preventDefault()}
-                  onScroll={() => {
-                    if (overlayRef.current && textInputRef.current)
-                      overlayRef.current.scrollTop = textInputRef.current.scrollTop;
-                  }}
-                onChange={e => {
-                  if (!isFileMode) {
-                    onChange(e.target.value);
-                    // Auto-resize: grow up to 150px, then scroll
-                    e.target.style.height = 'auto';
-                    e.target.style.height = Math.min(e.target.scrollHeight, 150) + 'px';
-                    if (e.target.value.trim()) {
+                  onInput={() => {
+                    if (isFileMode) return;
+                    const editor = editorRef.current;
+                    if (!editor) return;
+                    const md = htmlToMd(editor);
+                    lastMdRef.current = md;
+                    onChange(md);
+                    // Typing indicators
+                    if (md.trim()) {
                       if (!isTypingRef.current) { isTypingRef.current = true; onTypingStart?.(); }
                       if (typingTimerRef.current) clearTimeout(typingTimerRef.current);
                       typingTimerRef.current = setTimeout(() => {
@@ -728,64 +712,71 @@ export function Composer({ value, onChange, onSend, onSendAttachment, externalFi
                     }
                     // Mention detection
                     if (members?.length) {
-                      const cursor = e.target.selectionStart ?? e.target.value.length;
-                      const match = e.target.value.slice(0, cursor).match(/@(\w*)$/);
+                      const textBefore = getTextBeforeCursor(editor);
+                      const match = textBefore.match(/@(\w*)$/);
                       if (match) {
+                        if (mentionQuery === null) {
+                          // Save position of @ for later replacement
+                          const sel = window.getSelection();
+                          if (sel && sel.rangeCount > 0) {
+                            try {
+                              const r = sel.getRangeAt(0).cloneRange();
+                              if (r.startContainer.nodeType === Node.TEXT_NODE) {
+                                r.setStart(r.startContainer, Math.max(0, r.startOffset - match[0].length));
+                              }
+                              mentionRangeRef.current = r;
+                            } catch { /* ignore */ }
+                          }
+                        }
                         setMentionQuery(match[1].toLowerCase());
-                        setMentionStart(cursor - match[0].length);
+                        setMentionStart(textBefore.length - match[0].length);
                         setMentionIdx(0);
                       } else {
                         setMentionQuery(null);
+                        mentionRangeRef.current = null;
                       }
                     }
-                  }
-                }}
-                placeholder={uploading ? `Загрузка… ${progress}%` : isFileMode ? 'Файл готов к отправке' : 'Сообщение…'}
-                disabled={isFileMode || disabled}
-                onKeyDown={e => {
-                  // Mention popup keyboard navigation — takes priority over send
-                  if (mentionQuery !== null && filteredMembers.length > 0) {
-                    if (e.key === 'ArrowUp') {
-                      e.preventDefault();
-                      setMentionIdx(i => (i - 1 + filteredMembers.length) % filteredMembers.length);
-                      return;
+                  }}
+                  onKeyDown={e => {
+                    // Mention popup keyboard navigation
+                    if (mentionQuery !== null && filteredMembers.length > 0) {
+                      if (e.key === 'ArrowUp') { e.preventDefault(); setMentionIdx(i => (i - 1 + filteredMembers.length) % filteredMembers.length); return; }
+                      if (e.key === 'ArrowDown') { e.preventDefault(); setMentionIdx(i => (i + 1) % filteredMembers.length); return; }
+                      if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); selectMention(filteredMembers[mentionIdx]?.username ?? ''); return; }
+                      if (e.key === 'Escape') { e.preventDefault(); setMentionQuery(null); return; }
                     }
-                    if (e.key === 'ArrowDown') {
-                      e.preventDefault();
-                      setMentionIdx(i => (i + 1) % filteredMembers.length);
-                      return;
+                    const isMobile = navigator.maxTouchPoints > 0 && /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+                    if (!isFileMode && e.key === 'Enter') {
+                      if (!e.shiftKey && !isMobile) {
+                        e.preventDefault();
+                        if (value.trim()) {
+                          if (isTypingRef.current) { isTypingRef.current = false; onTypingStop?.(); }
+                          if (typingTimerRef.current) { clearTimeout(typingTimerRef.current); typingTimerRef.current = null; }
+                          onSend();
+                        }
+                      } else {
+                        // Shift+Enter or mobile: insert newline
+                        e.preventDefault();
+                        document.execCommand('insertLineBreak');
+                      }
                     }
-                    if (e.key === 'Enter' && !e.shiftKey) {
-                      e.preventDefault();
-                      selectMention(filteredMembers[mentionIdx]?.username ?? '');
-                      return;
-                    }
-                    if (e.key === 'Escape') {
-                      e.preventDefault();
-                      setMentionQuery(null);
-                      return;
-                    }
-                  }
-                  const isMobile = navigator.maxTouchPoints > 0 && /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
-                  if (!isFileMode && e.key === 'Enter' && !e.shiftKey && !isMobile) {
+                  }}
+                  onPaste={e => {
                     e.preventDefault();
-                    if (value.trim()) {
-                      if (isTypingRef.current) { isTypingRef.current = false; onTypingStop?.(); }
-                      if (typingTimerRef.current) { clearTimeout(typingTimerRef.current); typingTimerRef.current = null; }
-                      onSend();
+                    // Image paste → stage file
+                    const items = e.clipboardData?.items;
+                    if (items) {
+                      for (const item of Array.from(items)) {
+                        if (item.type.startsWith('image/')) {
+                          const file = item.getAsFile();
+                          if (file) { stageFile(file); return; }
+                        }
+                      }
                     }
-                  }
-                }}
-                onPaste={e => {
-                  const items = e.clipboardData?.items;
-                  if (!items) return;
-                  for (const item of Array.from(items)) {
-                    if (item.type.startsWith('image/')) {
-                      const file = item.getAsFile();
-                      if (file) { e.preventDefault(); stageFile(file); break; }
-                    }
-                  }
-                }}
+                    // Text paste — insert as plain text (strip HTML)
+                    const text = e.clipboardData.getData('text/plain');
+                    if (text) document.execCommand('insertText', false, text);
+                  }}
                 />
               </div>{/* composerInputWrap */}
               {/* ── Emoji picker button ── */}
