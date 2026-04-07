@@ -128,6 +128,20 @@ function renderTokens(tokens: Token[], opts: MdOptions, keyBase: string): ReactN
   });
 }
 
+/**
+ * Strip markdown syntax for chat-list previews.
+ * Spoiler content is replaced with a placeholder so recipients can't read it
+ * in the sidebar before revealing it in the chat.
+ */
+export function stripPreview(text: string): string {
+  return text
+    .replace(/\|\|([^|]*)\|\|/g, '[ скрытый текст ]')  // spoilers → placeholder
+    .replace(/\*\*([^*]*)\*\*/g, '$1')                   // **bold** → bold
+    .replace(/_([^_]+)_/g, '$1')                          // _italic_ → italic
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')              // [text](url) → text
+    .replace(/^(?:- |\d+\. )/gm, '');                     // list markers
+}
+
 export function renderMarkdown(text: string, opts: MdOptions = {}): ReactNode {
   const lines = text.split('\n');
   const result: ReactNode[] = [];

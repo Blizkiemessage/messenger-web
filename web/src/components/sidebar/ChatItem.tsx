@@ -5,6 +5,7 @@
 import { type Chat } from '../../types';
 import { chatTitle, avatarLetter, formatTime } from '../../utils/format';
 import { Avatar, resolveUrl } from '../ui/Avatar';
+import { stripPreview } from '../../utils/markdown';
 
 interface Props {
   chat: Chat;
@@ -88,7 +89,9 @@ export function ChatItem({
           <span className={`ciPreview${typingPreview ? ' ciPreviewTyping' : ''}`}>
             {typingPreview
               ? typingPreview
-              : chat.last_message?.text || (chat.last_message ? 'Вложение' : 'Нет сообщений')}
+              : chat.last_message?.text
+                ? stripPreview(chat.last_message.text)
+                : (chat.last_message ? 'Вложение' : 'Нет сообщений')}
           </span>
 
           {/* Right slot: mute icon + pin icon (if no unread) + badge */}
