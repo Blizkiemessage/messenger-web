@@ -27,6 +27,17 @@ export function UserProfileModal({ userId, onClose, onStartChat }: Props) {
   const menuRef      = useRef<HTMLDivElement>(null);
   const aliasInputRef = useRef<HTMLInputElement>(null);
   const onlineUsers  = useChatsStore(s => s.onlineUsers);
+  // Pick up last_seen_at from store chat members — updated in real-time by socket
+  // events, so it stays accurate when the viewed user goes offline after the
+  // profile was already loaded from the REST API.
+  const storeMemberLastSeen = useChatsStore(s => {
+    if (!user) return undefined;
+    for (const chat of s.chats) {
+      const member = chat.members.find(m => m.id === user.id);
+      if (member?.last_seen_at) return member.last_seen_at;
+    }
+    return undefined;
+  });
 
   useEffect(() => {
     setLoading(true);
@@ -54,6 +65,8 @@ export function UserProfileModal({ userId, onClose, onStartChat }: Props) {
   }, [aliasOpen]);
 
   const isOnline = user ? onlineUsers.has(user.id) : false;
+  // Use store's last_seen_at when available (socket-updated) over REST API value
+  const lastSeenAt = storeMemberLastSeen ?? user?.last_seen_at;
 
   const handleBlock = async () => {
     if (!user || blockBusy) return;
@@ -214,7 +227,7 @@ export function UserProfileModal({ userId, onClose, onStartChat }: Props) {
               )}
 
               <div className={`upOnlineStatus${isOnline ? ' upOnlineStatusOnline' : ''}`}>
-                {formatLastSeen(user.last_seen_at, isOnline)}
+                {formatLastSeen(lastSeenAt, isOnline)}
               </div>
             </div>
 

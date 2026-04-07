@@ -28,7 +28,7 @@ export function scheduleMarkRead(chatId: string, readUntil?: number) {
     try {
       await apiMarkChatRead(chatId, _pendingReadUntil);
     } catch { /* ignore */ }
-  }, 400);
+  }, 150);
 }
 
 export function useSocket() {
@@ -43,6 +43,19 @@ export function useSocket() {
     // Register for Web Push notifications after a short delay so the app
     // fully renders first and the permission dialog appears in context.
     const pushTimer = setTimeout(() => { registerPush(); }, 5000);
+
+    // ── Clear stale presence on (re)connect ───────────────────────────────────
+    // Socket.IO reconnects silently (network blip, camera permission prompt, etc.).
+    // The server re-emits user-online for currently-online contacts after each
+    // connection, but never sends user-offline for users who disconnected while
+    // we were away. Clearing here prevents stale "Онлайн" badges and stuck typing.
+    const onConnect = () => {
+      useChatsStore.setState({
+        onlineUsers: new Set<string>(),
+        typingUsers: new Map<string, string[]>(),
+      });
+    };
+    socket.on('connect', onConnect);
 
     const onNewMessage = (msg: Message) => {
       const { chats, loadChats, handleNewMessage } = useChatsStore.getState();
@@ -161,6 +174,7 @@ export function useSocket() {
     socket.on('block-status-changed', onBlockStatusChanged);   // ✅
 
     return () => {
+      socket.off('connect',              onConnect);
       socket.off('new-message',          onNewMessage);
       socket.off('chat-read',            onChatRead);
       socket.off('messages-deleted',     onMessagesDeleted);
