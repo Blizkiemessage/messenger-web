@@ -89,15 +89,15 @@ export function FormatToolbar({ textareaRef, value, onChange }: Props) {
 
   const selectedText = value.slice(sel.start, sel.end);
 
-  // ── Helpers ───────────────────────────────────────────────────────────────
-  /** Replace the selection with `before + selectedText + after` */
-  function wrapSel(before: string, after = before) {
-    const newVal =
-      value.slice(0, sel!.start) + before + selectedText + after + value.slice(sel!.end);
-    onChange(newVal);
-    done();
-  }
+  // ── Active-state detection ────────────────────────────────────────────────
+  const nonEmptyLines = selectedText.split('\n').filter(l => l.trim() !== '');
+  const isBoldActive    = selectedText.startsWith('**') && selectedText.endsWith('**') && selectedText.length > 4;
+  const isItalicActive  = selectedText.startsWith('_')  && selectedText.endsWith('_')  && selectedText.length > 2 && !isBoldActive;
+  const isSpoilerActive = selectedText.startsWith('||') && selectedText.endsWith('||') && selectedText.length > 4;
+  const isULActive      = nonEmptyLines.length > 0 && nonEmptyLines.every(l => l.startsWith('- '));
+  const isOLActive      = nonEmptyLines.length > 0 && nonEmptyLines.every(l => /^\d+\. /.test(l));
 
+  // ── Helpers ───────────────────────────────────────────────────────────────
   function replaceWithText(text: string, rangeOverride?: Sel) {
     const r = rangeOverride ?? sel!;
     const newVal = value.slice(0, r.start) + text + value.slice(r.end);
@@ -137,8 +137,7 @@ export function FormatToolbar({ textareaRef, value, onChange }: Props) {
   function handleSelectAll() {
     const ta = textareaRef.current;
     if (!ta) return;
-    const newSel = { start: 0, end: ta.value.length };
-    setSel(newSel);
+    setSel({ start: 0, end: ta.value.length });
     setMenu('main');
     requestAnimationFrame(() => {
       ta.focus();
@@ -146,18 +145,56 @@ export function FormatToolbar({ textareaRef, value, onChange }: Props) {
     });
   }
 
-  // ── List formatting ───────────────────────────────────────────────────────
+  // ── Inline formatting (toggle) ────────────────────────────────────────────
+  function toggleWrap(marker: string, isActive: boolean) {
+    const ml = marker.length;
+    if (isActive) {
+      replaceWithText(selectedText.slice(ml, selectedText.length - ml));
+    } else {
+      replaceWithText(marker + selectedText + marker);
+    }
+  }
+
+  // ── List formatting (toggle + mutual exclusion) ───────────────────────────
   function applyList(ordered: boolean) {
     const lines = selectedText.split('\n');
-    const formatted = ordered
-      ? lines.map((l, i) => `${i + 1}. ${l}`).join('\n')
-      : lines.map(l => `- ${l}`).join('\n');
-    replaceWithText(formatted);
+
+    if (ordered && isOLActive) {
+      // Remove OL
+      replaceWithText(lines.map(l => l.replace(/^\d+\. /, '')).join('\n'));
+    } else if (!ordered && isULActive) {
+      // Remove UL
+      replaceWithText(lines.map(l => l.replace(/^- /, '')).join('\n'));
+    } else if (ordered && isULActive) {
+      // Switch UL → OL
+      const stripped = lines.map(l => l.replace(/^- /, ''));
+      replaceWithText(stripped.map((l, i) => `${i + 1}. ${l}`).join('\n'));
+    } else if (!ordered && isOLActive) {
+      // Switch OL → UL
+      const stripped = lines.map(l => l.replace(/^\d+\. /, ''));
+      replaceWithText(stripped.map(l => `- ${l}`).join('\n'));
+    } else {
+      // Apply fresh
+      replaceWithText(ordered
+        ? lines.map((l, i) => `${i + 1}. ${l}`).join('\n')
+        : lines.map(l => `- ${l}`).join('\n'));
+    }
+  }
+
+  // ── Strip all formatting ──────────────────────────────────────────────────
+  function resetFormatting() {
+    let t = selectedText;
+    t = t.replace(/\*\*(.+?)\*\*/gs, '$1');
+    t = t.replace(/_(.+?)_/gs, '$1');
+    t = t.replace(/\|\|(.+?)\|\|/gs, '$1');
+    t = t.replace(/\[([^\]]+)\]\([^\)]+\)/g, '$1');
+    t = t.split('\n').map(l => l.replace(/^- /, '').replace(/^\d+\. /, '')).join('\n');
+    replaceWithText(t);
   }
 
   // ── Link formatting ───────────────────────────────────────────────────────
   function openLinkMenu() {
-    savedSelRef.current = sel; // save before textarea may blur
+    savedSelRef.current = sel;
     setMenu('link');
     setTimeout(() => linkRef.current?.focus(), 50);
   }
@@ -172,7 +209,6 @@ export function FormatToolbar({ textareaRef, value, onChange }: Props) {
   }
 
   // ── Prevent textarea blur when clicking toolbar buttons ───────────────────
-  // All buttons use onMouseDown + e.preventDefault() instead of onClick
   const noBlur = (e: React.MouseEvent) => e.preventDefault();
 
   // ── Render ────────────────────────────────────────────────────────────────
@@ -237,7 +273,7 @@ export function FormatToolbar({ textareaRef, value, onChange }: Props) {
         </div>
       )}
 
-      {/* ── Format: ‹ | B | I | S | UL | OL | Link ── */}
+      {/* ── Format: ‹ | B | I | S | UL | OL | Link | Reset ── */}
       {menu === 'format' && (
         <div className="fmtRow">
           <button className="fmtBtn fmtBtnIcon fmtBtnBack" onMouseDown={e => { noBlur(e); setMenu('more'); }} title="Назад">
@@ -247,17 +283,17 @@ export function FormatToolbar({ textareaRef, value, onChange }: Props) {
           </button>
           <div className="fmtSep" />
           {/* Bold */}
-          <button className="fmtBtn fmtBtnFmt" onMouseDown={e => { noBlur(e); wrapSel('**'); }} title="Жирный">
+          <button className={`fmtBtn fmtBtnFmt${isBoldActive ? ' fmtBtnActive' : ''}`} onMouseDown={e => { noBlur(e); toggleWrap('**', isBoldActive); }} title="Жирный">
             <strong>Ж</strong>
           </button>
           <div className="fmtSep" />
           {/* Italic */}
-          <button className="fmtBtn fmtBtnFmt" onMouseDown={e => { noBlur(e); wrapSel('_'); }} title="Курсив">
+          <button className={`fmtBtn fmtBtnFmt${isItalicActive ? ' fmtBtnActive' : ''}`} onMouseDown={e => { noBlur(e); toggleWrap('_', isItalicActive); }} title="Курсив">
             <em>К</em>
           </button>
           <div className="fmtSep" />
           {/* Spoiler */}
-          <button className="fmtBtn fmtBtnFmt fmtBtnSpoiler" onMouseDown={e => { noBlur(e); wrapSel('||'); }} title="Скрытый текст">
+          <button className={`fmtBtn fmtBtnFmt fmtBtnSpoiler${isSpoilerActive ? ' fmtBtnActive' : ''}`} onMouseDown={e => { noBlur(e); toggleWrap('||', isSpoilerActive); }} title="Скрытый текст">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/>
               <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/>
@@ -266,7 +302,7 @@ export function FormatToolbar({ textareaRef, value, onChange }: Props) {
           </button>
           <div className="fmtSep" />
           {/* Unordered list */}
-          <button className="fmtBtn fmtBtnFmt" onMouseDown={e => { noBlur(e); applyList(false); }} title="Список">
+          <button className={`fmtBtn fmtBtnFmt${isULActive ? ' fmtBtnActive' : ''}`} onMouseDown={e => { noBlur(e); applyList(false); }} title="Список">
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
               <line x1="9" y1="6" x2="20" y2="6"/><line x1="9" y1="12" x2="20" y2="12"/><line x1="9" y1="18" x2="20" y2="18"/>
               <circle cx="4" cy="6" r="1.5" fill="currentColor" stroke="none"/>
@@ -276,7 +312,7 @@ export function FormatToolbar({ textareaRef, value, onChange }: Props) {
           </button>
           <div className="fmtSep" />
           {/* Ordered list */}
-          <button className="fmtBtn fmtBtnFmt" onMouseDown={e => { noBlur(e); applyList(true); }} title="Нумерованный список">
+          <button className={`fmtBtn fmtBtnFmt${isOLActive ? ' fmtBtnActive' : ''}`} onMouseDown={e => { noBlur(e); applyList(true); }} title="Нумерованный список">
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
               <line x1="10" y1="6" x2="21" y2="6"/><line x1="10" y1="12" x2="21" y2="12"/><line x1="10" y1="18" x2="21" y2="18"/>
               <path d="M4 4.5h1.5v4H4" /><path d="M4 9.5h2"/>
@@ -291,6 +327,11 @@ export function FormatToolbar({ textareaRef, value, onChange }: Props) {
               <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
               <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
             </svg>
+          </button>
+          <div className="fmtSep" />
+          {/* Reset formatting */}
+          <button className="fmtBtn fmtBtnFmt fmtBtnReset" onMouseDown={e => { noBlur(e); resetFormatting(); }} title="Сбросить форматирование">
+            Сбросить
           </button>
         </div>
       )}
