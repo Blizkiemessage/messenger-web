@@ -780,23 +780,65 @@ input { font: inherit; color: inherit; background: transparent; }
   backdrop-filter: blur(10px);
   flex-shrink: 0;
 }
-.composerInput {
+/* ── Composer input wrapper — provides background/border and stacking context ── */
+.composerInputWrap {
   flex: 1;
+  position: relative;
+  min-width: 0;
   background: var(--panel);
   border: 1.5px solid var(--border);
   border-radius: 14px;
+  transition: border-color .15s;
+}
+.composerInputWrap:focus-within { border-color: rgba(47,129,247,.4); }
+
+/* Overlay: formatted markdown rendered on top of the transparent textarea text.
+   pointer-events:none so all clicks still reach the textarea below. */
+.composerInputOverlay {
+  position: absolute;
+  inset: 0;
+  padding: 11px 16px;
+  font-size: 14px;
+  line-height: 1.45;
+  font-family: inherit;
+  white-space: pre-wrap;
+  word-break: break-word;
+  overflow: hidden;
+  pointer-events: none;
+  color: var(--text);
+  z-index: 0;
+  border-radius: 14px;
+}
+/* Spoiler markers in the composer preview: subtle tint (text stays readable while editing) */
+.composerSpoilerHint {
+  background: rgba(127,127,127,0.22);
+  border-radius: 3px;
+  padding: 0 2px;
+}
+
+.composerInput {
+  /* flex/background/border/border-radius moved to .composerInputWrap */
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  /* text is transparent — the overlay shows the formatted version instead */
+  color: transparent;
+  caret-color: var(--text);
   padding: 11px 16px;
   outline: none;
   font-size: 14px;
-  transition: border-color .15s;
   resize: none;
   overflow-y: auto;
   max-height: 150px;
   line-height: 1.45;
   font-family: inherit;
-  -webkit-touch-callout: none; /* suppress iOS long-press callout */
+  -webkit-touch-callout: none;
 }
-.composerInput:focus { border-color: rgba(47,129,247,.4); }
+/* Ensure placeholder is always visible even though text color is transparent */
+.composerInput::placeholder { color: var(--muted); opacity: 1; }
 .composerSend {
   width: 42px; height: 42px;
   border-radius: 12px;
@@ -4994,7 +5036,8 @@ input[type="date"].psInput::-webkit-calendar-picker-indicator {
     padding: 8px 10px 10px;
     gap: 7px;
   }
-  .composerInput {
+  .composerInput,
+  .composerInputOverlay {
     padding: 10px 12px;
     font-size: 14px;
   }

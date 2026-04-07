@@ -5,7 +5,7 @@
  * - Preview: mini player with real waveform bars + play-before-send
  * - Lock mode: drag-up to hands-free recording
  */
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect, useCallback, type ReactNode } from 'react';
 import { uploadFile } from '../../api/upload';
 import type { UploadResult } from '../../api/upload';
 import { type User } from '../../types';
@@ -16,6 +16,31 @@ import Picker from '@emoji-mart/react';
 import data from '@emoji-mart/data';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
+
+/**
+ * Renders inline markdown in the composer input overlay.
+ * Only handles **bold**, _italic_, and ||spoiler|| — block elements (lists,
+ * links) are left as raw text so line heights exactly match the textarea.
+ */
+function renderComposerPreview(text: string) {
+  const PREVIEW_RE = /(\*\*(?:[^*\n]+)\*\*)|(\|\|(?:[^|\n]+)\|\|)|(_(?:[^_\n]+)_)/g;
+  const parts: ReactNode[] = [];
+  let last = 0, key = 0;
+  let m: RegExpExecArray | null;
+  while ((m = PREVIEW_RE.exec(text)) !== null) {
+    if (m.index > last) parts.push(text.slice(last, m.index));
+    const tok = m[0];
+    if (tok.startsWith('**'))
+      parts.push(<strong key={key++}>{tok.slice(2, -2)}</strong>);
+    else if (tok.startsWith('||'))
+      parts.push(<span key={key++} className="composerSpoilerHint">{tok.slice(2, -2)}</span>);
+    else
+      parts.push(<em key={key++}>{tok.slice(1, -1)}</em>);
+    last = m.index + tok.length;
+  }
+  if (last < text.length) parts.push(text.slice(last));
+  return parts.length ? parts : text;
+}
 
 function formatFileSize(bytes: number): string {
   if (!bytes) return '0 B';
@@ -160,6 +185,7 @@ export function Composer({ value, onChange, onSend, onSendAttachment, externalFi
   const fileInputRef    = useRef<HTMLInputElement>(null);
   const captionInputRef = useRef<HTMLInputElement>(null);
   const textInputRef    = useRef<HTMLTextAreaElement>(null);
+  const overlayRef      = useRef<HTMLDivElement>(null);
   const cancelRef       = useRef<(() => void) | null>(null);
 
   const [attachMenuOpen, setAttachMenuOpen] = useState(false);
@@ -665,12 +691,24 @@ export function Composer({ value, onChange, onSend, onSendAttachment, externalFi
                   </div>
                 )}
               </div>
-              <textarea
-                ref={textInputRef}
-                className="composerInput"
-                rows={1}
-                value={isFileMode ? '' : value}
-                onContextMenu={e => e.preventDefault()}
+              <div className="composerInputWrap">
+                {/* Overlay renders formatted markdown so the user sees bold/italic/spoiler
+                    visually instead of raw ** and _ markers */}
+                {!isFileMode && (
+                  <div ref={overlayRef} className="composerInputOverlay" aria-hidden="true">
+                    {renderComposerPreview(value)}
+                  </div>
+                )}
+                <textarea
+                  ref={textInputRef}
+                  className="composerInput"
+                  rows={1}
+                  value={isFileMode ? '' : value}
+                  onContextMenu={e => e.preventDefault()}
+                  onScroll={() => {
+                    if (overlayRef.current && textInputRef.current)
+                      overlayRef.current.scrollTop = textInputRef.current.scrollTop;
+                  }}
                 onChange={e => {
                   if (!isFileMode) {
                     onChange(e.target.value);
@@ -748,7 +786,8 @@ export function Composer({ value, onChange, onSend, onSendAttachment, externalFi
                     }
                   }
                 }}
-              />
+                />
+              </div>{/* composerInputWrap */}
               {/* ── Emoji picker button ── */}
               {!isFileMode && voiceState === 'idle' && (
                 <div className="composerEmojiWrap" ref={emojiWrapRef}>

@@ -78,13 +78,25 @@ export function FormatToolbar({ textareaRef, value, onChange }: Props) {
     if (!ta) return;
     const onUp  = () => setTimeout(readSel, 20);
     const onKey = () => setTimeout(readSel, 20);
-    ta.addEventListener('mouseup', onUp);
-    ta.addEventListener('keyup',   onKey);
-    ta.addEventListener('select',  readSel);
+    // pointerup covers touch drag-selection on mobile (mouseup does not fire for touch)
+    const onPtrUp = (e: PointerEvent) => {
+      if (e.pointerType !== 'mouse') setTimeout(readSel, 50);
+    };
+    // selectionchange fires reliably on mobile when selection handles are moved
+    const onSelChange = () => {
+      if (document.activeElement === ta) setTimeout(readSel, 20);
+    };
+    ta.addEventListener('mouseup',  onUp);
+    ta.addEventListener('keyup',    onKey);
+    ta.addEventListener('select',   readSel);
+    ta.addEventListener('pointerup', onPtrUp);
+    document.addEventListener('selectionchange', onSelChange);
     return () => {
-      ta.removeEventListener('mouseup', onUp);
-      ta.removeEventListener('keyup',   onKey);
-      ta.removeEventListener('select',  readSel);
+      ta.removeEventListener('mouseup',  onUp);
+      ta.removeEventListener('keyup',    onKey);
+      ta.removeEventListener('select',   readSel);
+      ta.removeEventListener('pointerup', onPtrUp);
+      document.removeEventListener('selectionchange', onSelChange);
     };
   }, [textareaRef, readSel]);
 
