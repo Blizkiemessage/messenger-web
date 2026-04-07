@@ -129,11 +129,30 @@ export function FormatToolbar({ textareaRef, value, onChange }: Props) {
   const isOLActive      = nonEmptyLines.length > 0 && nonEmptyLines.every(l => /^\d+\. /.test(l));
 
   // ── Helpers ───────────────────────────────────────────────────────────────
-  function replaceWithText(text: string, rangeOverride?: Sel) {
+  // keepOpen=true: toolbar stays in current menu with the new text selected
+  //   (used by formatting ops so the user can stack/edit formats without
+  //    reopening the menu).
+  // keepOpen=false (default): closes the toolbar (used by clipboard ops).
+  function replaceWithText(text: string, rangeOverride?: Sel, keepOpen = false) {
     const r = rangeOverride ?? sel!;
     const newVal = value.slice(0, r.start) + text + value.slice(r.end);
     onChange(newVal);
-    done();
+    if (keepOpen) {
+      const newSel = { start: r.start, end: r.start + text.length };
+      setSel(newSel);
+      // Extend freeze so readSel doesn't collapse the toolbar while we
+      // programmatically restore the selection after the re-render.
+      freezeUntil.current = Date.now() + 500;
+      requestAnimationFrame(() => {
+        const ta = textareaRef.current;
+        if (ta) {
+          ta.focus();
+          ta.setSelectionRange(newSel.start, newSel.end);
+        }
+      });
+    } else {
+      done();
+    }
   }
 
   function done() {
@@ -182,9 +201,9 @@ export function FormatToolbar({ textareaRef, value, onChange }: Props) {
   function toggleWrap(marker: string, isActive: boolean) {
     const ml = marker.length;
     if (isActive) {
-      replaceWithText(selectedText.slice(ml, selectedText.length - ml));
+      replaceWithText(selectedText.slice(ml, selectedText.length - ml), undefined, true);
     } else {
-      replaceWithText(marker + selectedText + marker);
+      replaceWithText(marker + selectedText + marker, undefined, true);
     }
   }
 
@@ -193,19 +212,19 @@ export function FormatToolbar({ textareaRef, value, onChange }: Props) {
     const lines = selectedText.split('\n');
 
     if (ordered && isOLActive) {
-      replaceWithText(lines.map(l => l.replace(/^\d+\. /, '')).join('\n'));
+      replaceWithText(lines.map(l => l.replace(/^\d+\. /, '')).join('\n'), undefined, true);
     } else if (!ordered && isULActive) {
-      replaceWithText(lines.map(l => l.replace(/^- /, '')).join('\n'));
+      replaceWithText(lines.map(l => l.replace(/^- /, '')).join('\n'), undefined, true);
     } else if (ordered && isULActive) {
       const stripped = lines.map(l => l.replace(/^- /, ''));
-      replaceWithText(stripped.map((l, i) => `${i + 1}. ${l}`).join('\n'));
+      replaceWithText(stripped.map((l, i) => `${i + 1}. ${l}`).join('\n'), undefined, true);
     } else if (!ordered && isOLActive) {
       const stripped = lines.map(l => l.replace(/^\d+\. /, ''));
-      replaceWithText(stripped.map(l => `- ${l}`).join('\n'));
+      replaceWithText(stripped.map(l => `- ${l}`).join('\n'), undefined, true);
     } else {
       replaceWithText(ordered
         ? lines.map((l, i) => `${i + 1}. ${l}`).join('\n')
-        : lines.map(l => `- ${l}`).join('\n'));
+        : lines.map(l => `- ${l}`).join('\n'), undefined, true);
     }
   }
 
@@ -217,7 +236,7 @@ export function FormatToolbar({ textareaRef, value, onChange }: Props) {
     t = t.replace(/\|\|(.+?)\|\|/gs, '$1');
     t = t.replace(/\[([^\]]+)\]\([^\)]+\)/g, '$1');
     t = t.split('\n').map(l => l.replace(/^- /, '').replace(/^\d+\. /, '')).join('\n');
-    replaceWithText(t);
+    replaceWithText(t, undefined, true);
   }
 
   // ── Link formatting ───────────────────────────────────────────────────────
