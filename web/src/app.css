@@ -725,8 +725,7 @@ input { font: inherit; color: inherit; background: transparent; }
 /* ── Clickable URLs inside message text ─────────────────────────────────── */
 .bubbleLink {
   color: var(--accent);
-  text-decoration: underline;
-  text-underline-offset: 2px;
+  text-decoration: none;
   word-break: break-all;
 }
 .bubbleLink:hover { opacity: .8; }
