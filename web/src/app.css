@@ -1827,7 +1827,7 @@ input { font: inherit; color: inherit; background: transparent; }
 
 /* ── ProfileSettingsModal ─────────────────────────────────────────────── */
 .psCard {
-  width: min(480px, 100%);
+  width: min(440px, 100%);
   max-height: 90vh;
   background: var(--sidebar);
   border: 1px solid var(--border);
@@ -1841,44 +1841,143 @@ input { font: inherit; color: inherit; background: transparent; }
 .psHeader {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  padding: 20px 24px 0;
-  flex-shrink: 0;
-}
-.psTitle { font-size: 18px; font-weight: 700; }
-.psTabs {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
-  padding: 14px 24px 0;
+  gap: 8px;
+  padding: 18px 20px 14px;
   border-bottom: 1px solid var(--border);
   flex-shrink: 0;
 }
-.psTab {
-  padding: 8px 12px;
-  border-radius: 10px 10px 0 0;
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--muted);
-  transition: color .15s, background .15s;
-  border-bottom: 2px solid transparent;
-  margin-bottom: -1px;
+.psBackBtn {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-secondary, var(--muted));
+  transition: background .15s, color .15s;
+  flex-shrink: 0;
 }
-.psTab.active {
-  color: var(--accent);
-  border-bottom-color: var(--accent);
-}
-.psTab:hover:not(.active) { color: var(--text); background: var(--panel); }
+.psBackBtn:hover { background: var(--panel); color: var(--text); }
+.psTitle { font-size: 17px; font-weight: 700; flex: 1; }
 .psBody {
   overflow-y: auto;
   flex: 1;
-  padding: 20px 24px 24px;
+  padding: 16px 20px 20px;
   display: flex;
   flex-direction: column;
   gap: 14px;
 }
 .psBody::-webkit-scrollbar { width: 4px; }
 .psBody::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+
+/* Hub screen */
+.psHub {
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  flex: 1;
+}
+.psHub::-webkit-scrollbar { width: 4px; }
+.psHub::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+
+/* Mini profile card at top of hub */
+.psHubProfile {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 18px 20px;
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+  transition: background .15s;
+  flex-shrink: 0;
+}
+.psHubProfile:hover { background: var(--panel); }
+.psHubAvatar {
+  width: 52px;
+  height: 52px;
+  border-radius: 16px;
+  overflow: hidden;
+  flex-shrink: 0;
+  background: var(--accent-dim, rgba(47,129,247,0.15));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.psHubAvatarImg { width: 100%; height: 100%; object-fit: cover; display: block; }
+.psHubAvatarLetter {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--accent, #2f81f7);
+  line-height: 1;
+}
+.psHubProfileInfo { flex: 1; min-width: 0; }
+.psHubName {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.psHubUsername {
+  font-size: 13px;
+  color: var(--muted);
+  margin-top: 2px;
+}
+.psHubChevron { color: var(--muted); flex-shrink: 0; }
+
+/* Menu items list */
+.psHubMenu {
+  padding: 8px 0;
+  display: flex;
+  flex-direction: column;
+}
+.psHubItem {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 20px;
+  text-align: left;
+  transition: background .12s;
+}
+.psHubItem:hover { background: var(--panel); }
+.psHubItemIcon {
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: filter .15s;
+}
+.psHubItem:hover .psHubItemIcon { filter: brightness(1.1); }
+.psHubItemText {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.psHubItemLabel {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+}
+.psHubItemDesc {
+  font-size: 12px;
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Hub footer with danger action */
+.psHubFooter {
+  padding: 8px 20px 20px;
+  border-top: 1px solid var(--border);
+  margin-top: auto;
+}
 
 /* Avatar section */
 .psAvatarSection {
@@ -4833,16 +4932,12 @@ input[type="date"].psInput::-webkit-calendar-picker-indicator {
     to   { transform: translateY(0);    opacity: 1; }
   }
 
-  /* ── Profile settings tabs: scrollable row ─────────────────────────── */
-  .psTabs {
-    padding: 10px 16px 0;
-    overflow-x: auto;
-    flex-wrap: nowrap;
-  }
-  .psTabs::-webkit-scrollbar { display: none; }
   .psBody {
-    padding: 16px 16px 20px;
+    padding: 14px 14px 18px;
   }
+  .psHubProfile { padding: 14px 16px; }
+  .psHubItem    { padding: 11px 16px; }
+  .psHubFooter  { padding: 8px 16px 18px; }
   .psHeader {
     padding: 16px 16px 0;
   }
