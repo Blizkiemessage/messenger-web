@@ -29,30 +29,29 @@ export function FormatToolbar({ textareaRef, value, onChange }: Props) {
   const [linkUrl,  setLinkUrl]  = useState('');
 
   // Refs to avoid stale closures in event handlers
-  const menuRef     = useRef<FmtMenu>('main');
-  const linkOpenRef = useRef(false);
+  const linkOpenRef   = useRef(false);
+  // Suppress readSel for one tick after a toolbar button click
+  // (prevents the select event fired during mousedown from resetting the menu)
+  const skipReadSelRef = useRef(false);
   // Save selection before link input steals focus
   const savedSelRef = useRef<Sel | null>(null);
   const tbRef       = useRef<HTMLDivElement>(null);
   const linkRef     = useRef<HTMLInputElement>(null);
 
-  useEffect(() => { menuRef.current = menu; }, [menu]);
   useEffect(() => { linkOpenRef.current = linkOpen; }, [linkOpen]);
 
   // ── Read selection from textarea ──────────────────────────────────────────
   const readSel = useCallback(() => {
     // Don't override while user is typing in the link input
     if (linkOpenRef.current) return;
+    // Skip one call after a toolbar button click to avoid resetting the menu
+    if (skipReadSelRef.current) { skipReadSelRef.current = false; return; }
     const ta = textareaRef.current;
     if (!ta) return;
     const { selectionStart: s, selectionEnd: e } = ta;
     if (typeof s === 'number' && typeof e === 'number' && s !== e) {
       setSel({ start: s, end: e });
       setVisible(true);
-      // Only stay in submenu if toolbar was already open at that submenu
-      if (menuRef.current !== 'more' && menuRef.current !== 'format') {
-        setMenu('main');
-      }
     } else {
       setVisible(false);
       setSel(null);
@@ -220,8 +219,11 @@ export function FormatToolbar({ textareaRef, value, onChange }: Props) {
     replaceWithText(`[${selText}](${url})`, range);
   }
 
-  // ── Prevent textarea blur when clicking toolbar buttons ───────────────────
-  const noBlur = (e: React.MouseEvent) => e.preventDefault();
+  // ── Prevent textarea blur + suppress next readSel when clicking toolbar ──
+  const noBlur = (e: React.MouseEvent) => {
+    e.preventDefault();
+    skipReadSelRef.current = true;
+  };
 
   // ── Render ────────────────────────────────────────────────────────────────
   return (
