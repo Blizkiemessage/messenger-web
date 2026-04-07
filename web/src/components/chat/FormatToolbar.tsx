@@ -29,36 +29,49 @@ export function FormatToolbar({ textareaRef, value, onChange }: Props) {
   const [linkUrl,  setLinkUrl]  = useState('');
 
   // Refs to avoid stale closures in event handlers
-  const linkOpenRef   = useRef(false);
-  // Suppress readSel for one tick after a toolbar button click
-  // (prevents the select event fired during mousedown from resetting the menu)
-  const skipReadSelRef = useRef(false);
+  const linkOpenRef  = useRef(false);
+  // menuRef mirrors menu state but updated synchronously so readSel sees
+  // the correct value even before React re-renders + runs useEffect
+  const menuRef      = useRef<FmtMenu>('main');
+  // After any toolbar button press, freeze readSel for 120ms so that
+  // spurious select/mouseup events don't collapse or reset the toolbar
+  const freezeUntil  = useRef(0);
   // Save selection before link input steals focus
-  const savedSelRef = useRef<Sel | null>(null);
-  const tbRef       = useRef<HTMLDivElement>(null);
-  const linkRef     = useRef<HTMLInputElement>(null);
+  const savedSelRef  = useRef<Sel | null>(null);
+  const tbRef        = useRef<HTMLDivElement>(null);
+  const linkRef      = useRef<HTMLInputElement>(null);
 
   useEffect(() => { linkOpenRef.current = linkOpen; }, [linkOpen]);
+
+  // Wrapper: update menuRef synchronously then queue React state update
+  const changeMenu = useCallback((m: FmtMenu) => {
+    menuRef.current = m;
+    setMenu(m);
+  }, []);
 
   // ── Read selection from textarea ──────────────────────────────────────────
   const readSel = useCallback(() => {
     // Don't override while user is typing in the link input
     if (linkOpenRef.current) return;
-    // Skip one call after a toolbar button click to avoid resetting the menu
-    if (skipReadSelRef.current) { skipReadSelRef.current = false; return; }
+    // Freeze window after toolbar button click — ignore all spurious events
+    if (Date.now() < freezeUntil.current) return;
     const ta = textareaRef.current;
     if (!ta) return;
     const { selectionStart: s, selectionEnd: e } = ta;
     if (typeof s === 'number' && typeof e === 'number' && s !== e) {
       setSel({ start: s, end: e });
       setVisible(true);
+      // Preserve submenu if already navigated into one
+      if (menuRef.current !== 'more' && menuRef.current !== 'format') {
+        changeMenu('main');
+      }
     } else {
       setVisible(false);
       setSel(null);
-      setMenu('main');
+      changeMenu('main');
       setLinkOpen(false);
     }
-  }, [textareaRef]);
+  }, [textareaRef, changeMenu]);
 
   useEffect(() => {
     const ta = textareaRef.current;
@@ -83,7 +96,7 @@ export function FormatToolbar({ textareaRef, value, onChange }: Props) {
       if (e.target === textareaRef.current) return;
       setVisible(false);
       setSel(null);
-      setMenu('main');
+      changeMenu('main');
       setLinkOpen(false);
       setLinkUrl('');
     };
@@ -114,7 +127,7 @@ export function FormatToolbar({ textareaRef, value, onChange }: Props) {
   function done() {
     setVisible(false);
     setSel(null);
-    setMenu('main');
+    changeMenu('main');
     setLinkOpen(false);
     savedSelRef.current = null;
     setLinkUrl('');
@@ -146,7 +159,7 @@ export function FormatToolbar({ textareaRef, value, onChange }: Props) {
     const ta = textareaRef.current;
     if (!ta) return;
     setSel({ start: 0, end: ta.value.length });
-    setMenu('main');
+    changeMenu('main');
     requestAnimationFrame(() => {
       ta.focus();
       ta.setSelectionRange(0, ta.value.length);
@@ -219,10 +232,10 @@ export function FormatToolbar({ textareaRef, value, onChange }: Props) {
     replaceWithText(`[${selText}](${url})`, range);
   }
 
-  // ── Prevent textarea blur + suppress next readSel when clicking toolbar ──
+  // ── Prevent textarea blur + freeze readSel when clicking toolbar ─────────
   const noBlur = (e: React.MouseEvent) => {
     e.preventDefault();
-    skipReadSelRef.current = true;
+    freezeUntil.current = Date.now() + 120;
   };
 
   // ── Render ────────────────────────────────────────────────────────────────
@@ -257,7 +270,7 @@ export function FormatToolbar({ textareaRef, value, onChange }: Props) {
             Вставить
           </button>
           <div className="fmtSep" />
-          <button className="fmtBtn fmtBtnIcon" onMouseDown={e => { noBlur(e); setMenu('more'); }} title="Ещё">
+          <button className="fmtBtn fmtBtnIcon" onMouseDown={e => { noBlur(e); changeMenu('more'); }} title="Ещё">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
               <circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/>
             </svg>
@@ -268,7 +281,7 @@ export function FormatToolbar({ textareaRef, value, onChange }: Props) {
       {/* ── More: ‹ | Выделить всё | Форматирование › ── */}
       {menu === 'more' && (
         <div className="fmtRow">
-          <button className="fmtBtn fmtBtnIcon fmtBtnBack" onMouseDown={e => { noBlur(e); setMenu('main'); }} title="Назад">
+          <button className="fmtBtn fmtBtnIcon fmtBtnBack" onMouseDown={e => { noBlur(e); changeMenu('main'); }} title="Назад">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
               <polyline points="15 18 9 12 15 6"/>
             </svg>
@@ -278,7 +291,7 @@ export function FormatToolbar({ textareaRef, value, onChange }: Props) {
             Выделить всё
           </button>
           <div className="fmtSep" />
-          <button className="fmtBtn fmtBtnNext" onMouseDown={e => { noBlur(e); setMenu('format'); }}>
+          <button className="fmtBtn fmtBtnNext" onMouseDown={e => { noBlur(e); changeMenu('format'); }}>
             Форматирование
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
               <polyline points="9 18 15 12 9 6"/>
@@ -291,7 +304,7 @@ export function FormatToolbar({ textareaRef, value, onChange }: Props) {
       {menu === 'format' && (
         <>
           <div className="fmtRow">
-            <button className="fmtBtn fmtBtnIcon fmtBtnBack" onMouseDown={e => { noBlur(e); setMenu('more'); closeLinkMenu(); }} title="Назад">
+            <button className="fmtBtn fmtBtnIcon fmtBtnBack" onMouseDown={e => { noBlur(e); changeMenu('more'); closeLinkMenu(); }} title="Назад">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                 <polyline points="15 18 9 12 15 6"/>
               </svg>
