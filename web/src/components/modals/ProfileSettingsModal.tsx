@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { type User } from '../../types';
 import { avatarLetter } from '../../utils/format';
 import { resolveUrl }   from '../ui/Avatar';
@@ -24,7 +24,7 @@ interface MenuItem {
   label: string;
   description: string;
   color: string;
-  icon: JSX.Element;
+  icon: ReactNode;
 }
 
 const MENU_ITEMS: MenuItem[] = [
