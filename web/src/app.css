@@ -792,56 +792,39 @@ input { font: inherit; color: inherit; background: transparent; }
 }
 .composerInputWrap:focus-within { border-color: rgba(47,129,247,.4); }
 
-/* Overlay: formatted markdown rendered on top of the transparent textarea text.
-   pointer-events:none so all clicks still reach the textarea below. */
-.composerInputOverlay {
-  position: absolute;
-  inset: 0;
-  padding: 11px 16px;
-  font-size: 14px;
-  line-height: 1.45;
-  font-family: inherit;
-  white-space: pre-wrap;
-  word-break: break-word;
-  overflow: hidden;
-  pointer-events: none;
-  color: var(--text);
-  z-index: 0;
-  border-radius: 14px;
-}
-/* Spoiler markers in the composer preview: subtle tint (text stays readable while editing) */
+/* Spoiler hint inside the contenteditable composer */
 .composerSpoilerHint {
   background: rgba(127,127,127,0.22);
   border-radius: 3px;
   padding: 0 2px;
 }
 
+/* Contenteditable composer input */
 .composerInput {
-  /* flex/background/border/border-radius moved to .composerInputWrap */
-  position: relative;
-  z-index: 1;
   width: 100%;
-  background: transparent;
-  border: none;
-  border-radius: 0;
-  /* text is transparent — the overlay shows the formatted version instead */
-  color: transparent;
-  caret-color: var(--text);
+  color: var(--text);
   padding: 11px 16px;
   outline: none;
   font-size: 14px;
-  resize: none;
-  overflow-y: auto;
-  max-height: 150px;
   line-height: 1.45;
   font-family: inherit;
+  min-height: 42px;
+  max-height: 150px;
+  overflow-y: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+  box-sizing: border-box;
   -webkit-touch-callout: none;
 }
-/* Ensure placeholder is always visible even though text color is transparent */
-.composerInput::placeholder { color: var(--muted); opacity: 1; }
-/* Hide raw markdown symbols even when text is selected */
-.composerInput::selection { color: transparent; background: rgba(47,129,247,0.25); }
-.composerInput::-moz-selection { color: transparent; background: rgba(47,129,247,0.25); }
+/* Placeholder for contenteditable */
+.composerInput[contenteditable]:empty::before {
+  content: attr(data-placeholder);
+  color: var(--muted);
+  pointer-events: none;
+  display: block;
+}
+/* Links inside the composer look like regular text while editing */
+.composerInput a { color: var(--accent); text-decoration: underline; }
 .composerSend {
   width: 42px; height: 42px;
   border-radius: 12px;
@@ -5039,8 +5022,7 @@ input[type="date"].psInput::-webkit-calendar-picker-indicator {
     padding: 8px 10px 10px;
     gap: 7px;
   }
-  .composerInput,
-  .composerInputOverlay {
+  .composerInput {
     padding: 10px 12px;
     font-size: 14px;
   }
