@@ -670,6 +670,7 @@ export function Composer({ value, onChange, onSend, onSendAttachment, externalFi
                 className="composerInput"
                 rows={1}
                 value={isFileMode ? '' : value}
+                onContextMenu={e => e.preventDefault()}
                 onChange={e => {
                   if (!isFileMode) {
                     onChange(e.target.value);

@@ -794,6 +794,7 @@ input { font: inherit; color: inherit; background: transparent; }
   max-height: 150px;
   line-height: 1.45;
   font-family: inherit;
+  -webkit-touch-callout: none; /* suppress iOS long-press callout */
 }
 .composerInput:focus { border-color: rgba(47,129,247,.4); }
 .composerSend {
@@ -3148,8 +3149,16 @@ input[type="date"].psInput::-webkit-calendar-picker-indicator {
 .fmtBtnApply:hover { filter: brightness(1.1); }
 
 /* ── Markdown in bubbles ─────────────────────────────────────────────────── */
+.bubbleText {
+  font-synthesis: weight style; /* allow synthetic bold/italic on devices lacking font variants */
+  -webkit-font-smoothing: antialiased;
+}
 .bubbleText strong { font-weight: 700; }
 .bubbleText em     { font-style: italic; }
+
+/* Explicit styles for the Ж (Bold) and К (Italic) format buttons */
+.fmtBtnFmt strong { font-weight: 700; }
+.fmtBtnFmt em     { font-style: italic; }
 
 .msgSpoiler {
   background: rgba(127,127,127,0.38);
