@@ -825,6 +825,11 @@ input { font: inherit; color: inherit; background: transparent; }
 }
 /* Links inside the composer look like regular text while editing */
 .composerInput a { color: var(--accent); text-decoration: underline; }
+/* Ensure bold/italic are always visible inside the editor (needed on some mobile browsers) */
+.composerInput b, .composerInput strong { font-weight: 700; }
+.composerInput i, .composerInput em { font-style: italic; font-synthesis: style; }
+/* Allow synthetic bold/italic on mobile devices lacking real font variants */
+.composerInput { font-synthesis: weight style; }
 .composerSend {
   width: 42px; height: 42px;
   border-radius: 12px;

@@ -68,9 +68,9 @@ function renderTokens(tokens: Token[], opts: MdOptions, keyBase: string): ReactN
     const k = `${keyBase}_${i}`;
     switch (tok.type) {
       case 'bold':
-        return <strong key={k}>{tok.content}</strong>;
+        return <strong key={k}>{renderTokens(tokenizeLine(tok.content!), opts, k)}</strong>;
       case 'italic':
-        return <em key={k}>{tok.content}</em>;
+        return <em key={k}>{renderTokens(tokenizeLine(tok.content!), opts, k)}</em>;
       case 'spoiler':
         return (
           <span
@@ -81,7 +81,7 @@ function renderTokens(tokens: Token[], opts: MdOptions, keyBase: string): ReactN
               (e.currentTarget as HTMLElement).classList.toggle('revealed');
             }}
           >
-            {tok.content}
+            {renderTokens(tokenizeLine(tok.content!), opts, k)}
           </span>
         );
       case 'link': {
