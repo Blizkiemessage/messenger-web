@@ -911,12 +911,24 @@ export function Composer({ value, onChange, onSend, onSendAttachment, externalFi
                 <path d="M3.51 15a9 9 0 0 0 14.85 3.36L23 14"/>
               </svg>
             </button>
-            {/* Hint below circle */}
-            <div className="videoNoteModalHint">
-              {videoLocked
-                ? '🔒 Зафиксировано — нажмите кнопку для остановки'
-                : 'Отпустите для завершения · Потяните вверх для фиксации'}
-            </div>
+            {/* Send button — appears when recording is locked (hands-free mode) */}
+            {videoLocked ? (
+              <button
+                className="videoNoteModalSendBtn"
+                onClick={stopVideoRecording}
+                title="Готово — перейти к предпросмотру"
+              >
+                <svg viewBox="0 0 24 24" fill="none" width="22" height="22">
+                  <path d="M22 2L11 13" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"/>
+                  <path d="M22 2L15 22L11 13L2 9L22 2Z" stroke="currentColor" strokeWidth="2.2"
+                        strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+              </button>
+            ) : (
+              <div className="videoNoteModalHint">
+                Отпустите для завершения · Потяните вверх для фиксации
+              </div>
+            )}
           </div>
         </div>,
         document.body

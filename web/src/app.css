@@ -7036,7 +7036,7 @@ input[type="date"].psInput::-webkit-calendar-picker-indicator {
 .videoNoteFlipBtn:hover  { background: rgba(0,0,0,.7); transform: rotate(20deg); }
 .videoNoteFlipBtn:active { transform: rotate(180deg); transition: transform .35s; }
 
-/* Hint text below circle */
+/* Hint text below circle (shown while not locked) */
 .videoNoteModalHint {
   font-size: 13px;
   color: rgba(255,255,255,.75);
@@ -7045,6 +7045,25 @@ input[type="date"].psInput::-webkit-calendar-picker-indicator {
   pointer-events: none;
   max-width: 280px;
 }
+
+/* Send button — shown when recording is locked */
+.videoNoteModalSendBtn {
+  width: 62px; height: 62px;
+  border-radius: 50%;
+  border: none;
+  background: var(--accent);
+  color: #fff;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 4px 20px color-mix(in srgb, var(--accent) 55%, transparent);
+  transition: transform .15s, opacity .15s, box-shadow .15s;
+  animation: videoNoteIn .22s cubic-bezier(.34,1.5,.64,1);
+}
+.videoNoteModalSendBtn:hover {
+  transform: scale(1.08);
+  box-shadow: 0 6px 28px color-mix(in srgb, var(--accent) 65%, transparent);
+}
+.videoNoteModalSendBtn:active { transform: scale(.95); opacity: .9; }
 
 /* ── Video note PREVIEW card (before sending) ── */
 .videoNotePreviewCard {
@@ -7097,39 +7116,28 @@ input[type="date"].psInput::-webkit-calendar-picker-indicator {
   width: 240px;
   height: 240px;
   border-radius: 50%;
-  overflow: visible; /* let ring/thumb slightly overflow */
+  overflow: visible; /* let ring + thumb extend slightly past border */
   position: relative;
-  background: #000;
   cursor: pointer;
   flex-shrink: 0;
   margin: 2px 0;
   user-select: none;
-}
-/* Inner clip for video */
-.videoNoteMsg::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  border-radius: 50%;
-  overflow: hidden;
-  z-index: 0;
 }
 .videoNoteVideo {
   width: 100%;
   height: 100%;
   object-fit: cover;
   display: block;
-  border-radius: 50%;
+  border-radius: 50%;  /* circular clip on the video itself */
   position: relative;
   z-index: 1;
 }
 
-/* Progress ring SVG overlay */
+/* Progress ring SVG overlay — purely visual, no pointer events */
 .videoNoteRing {
   position: absolute;
-  top: -4px; left: -4px;
-  width: calc(100% + 8px);
-  height: calc(100% + 8px);
+  inset: 0;
+  width: 100%; height: 100%;
   pointer-events: none;
   z-index: 2;
   overflow: visible;
@@ -7139,19 +7147,28 @@ input[type="date"].psInput::-webkit-calendar-picker-indicator {
 }
 .videoNoteRingFill {
   stroke: var(--accent);
-  transition: stroke-dashoffset .2s linear;
+  /* no CSS transition — updates are driven by JS at 60fps during drag */
 }
-.videoNoteThumb {
+/* Visual-only thumb dot in SVG */
+.videoNoteThumbDot {
   fill: var(--accent);
-  cursor: grab;
-  pointer-events: all;
-  filter: drop-shadow(0 1px 4px rgba(0,0,0,.55));
-  transform-box: fill-box;
-  transform-origin: center;
-  transition: transform .1s;
+  pointer-events: none;
+  filter: drop-shadow(0 1px 3px rgba(0,0,0,.5));
 }
-.videoNoteThumb:hover  { transform: scale(1.35); }
-.videoNoteThumb:active { cursor: grabbing; transform: scale(1.5); }
+
+/* HTML drag handle — large touch target, positioned at thumb */
+.videoNoteThumb {
+  position: absolute;
+  width: 28px; height: 28px;
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  cursor: grab;
+  z-index: 4;
+  /* transparent background = invisible, but catches all pointer events */
+  background: transparent;
+  touch-action: none;
+}
+.videoNoteThumb:active { cursor: grabbing; }
 
 /* Play button overlay (shown when paused) */
 .videoNotePlayBtn {

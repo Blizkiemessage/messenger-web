@@ -293,10 +293,10 @@ function VideoAttachment({ url, caption }: { url: string; caption?: string; name
 
 // ── Video note player (circular, Telegram-style) ──────────────────────────────
 function VideoNotePlayer({ url }: { url: string }) {
-  const videoRef   = useRef<HTMLVideoElement>(null);
-  const svgRef     = useRef<SVGSVGElement>(null);
+  const videoRef    = useRef<HTMLVideoElement>(null);
+  const msgRef      = useRef<HTMLDivElement>(null);   // root div for coordinate base
   const draggingRef = useRef(false);
-  const movedRef   = useRef(false);
+  const movedRef    = useRef(false);
 
   const [playing,  setPlaying]  = useState(false);
   const [current,  setCurrent]  = useState(0);
@@ -308,31 +308,32 @@ function VideoNotePlayer({ url }: { url: string }) {
     return `${m}:${sec.toString().padStart(2, '0')}`;
   };
 
-  // Scrub to the angle corresponding to screen position
+  // Scrub: map pointer screen-coords → angle → video time
   const scrubToPoint = useCallback((clientX: number, clientY: number) => {
     const v = videoRef.current;
-    const svg = svgRef.current;
-    if (!v || !svg || !duration) return;
-    const rect = svg.getBoundingClientRect();
-    const svgX = ((clientX - rect.left) / rect.width) * 100;
-    const svgY = ((clientY - rect.top)  / rect.height) * 100;
-    let angle = Math.atan2(svgY - 50, svgX - 50) + Math.PI / 2;
+    const el = msgRef.current;
+    if (!v || !el || !duration) return;
+    const rect = el.getBoundingClientRect();
+    const cx = rect.left + rect.width  / 2;
+    const cy = rect.top  + rect.height / 2;
+    let angle = Math.atan2(clientY - cy, clientX - cx) + Math.PI / 2;
     if (angle < 0) angle += 2 * Math.PI;
-    const newPct = angle / (2 * Math.PI);
-    const t = newPct * duration;
+    const t = (angle / (2 * Math.PI)) * duration;
     v.currentTime = t;
     setCurrent(t);
   }, [duration]);
 
   const onThumbDown = useCallback((e: React.PointerEvent) => {
+    e.preventDefault();
     e.stopPropagation();
     draggingRef.current = true;
     movedRef.current = false;
-    (e.currentTarget as SVGElement).setPointerCapture(e.pointerId);
+    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
   }, []);
 
   const onThumbMove = useCallback((e: React.PointerEvent) => {
     if (!draggingRef.current) return;
+    e.preventDefault();
     e.stopPropagation();
     movedRef.current = true;
     scrubToPoint(e.clientX, e.clientY);
@@ -346,6 +347,7 @@ function VideoNotePlayer({ url }: { url: string }) {
   const toggle = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
     if (movedRef.current) { movedRef.current = false; return; }
+    if (draggingRef.current) return;
     const v = videoRef.current;
     if (!v) return;
     if (v.paused) { v.play().catch(() => {}); }
@@ -353,15 +355,17 @@ function VideoNotePlayer({ url }: { url: string }) {
   }, []);
 
   const pct  = duration > 0 ? Math.min(1, current / duration) : 0;
-  const R    = 45;
+  const R    = 45; // in SVG 0–100 units
   const circ = 2 * Math.PI * R;
-  // Thumb position (12 o'clock = 0, clockwise)
+
+  // Thumb position in SVG units (0–100) → CSS percentages
   const thumbAngle = pct * 2 * Math.PI - Math.PI / 2;
-  const thumbX = 50 + R * Math.cos(thumbAngle);
-  const thumbY = 50 + R * Math.sin(thumbAngle);
+  const thumbSvgX  = 50 + R * Math.cos(thumbAngle); // 0–100
+  const thumbSvgY  = 50 + R * Math.sin(thumbAngle);
 
   return (
-    <div className="videoNoteMsg" onClick={toggle} title={playing ? 'Пауза' : 'Воспроизвести'}>
+    <div ref={msgRef} className="videoNoteMsg" onClick={toggle}
+         title={playing ? 'Пауза' : 'Воспроизвести'}>
       <video
         ref={videoRef}
         src={url}
@@ -372,11 +376,13 @@ function VideoNotePlayer({ url }: { url: string }) {
         onPlay={() => setPlaying(true)}
         onPause={() => setPlaying(false)}
         onEnded={() => setPlaying(false)}
-        onTimeUpdate={e => setCurrent(e.currentTarget.currentTime)}
+        // Skip updates while user is scrubbing to prevent jumpy ring
+        onTimeUpdate={e => { if (!draggingRef.current) setCurrent(e.currentTarget.currentTime); }}
         onDurationChange={e => setDuration(e.currentTarget.duration)}
       />
-      {/* Progress ring + draggable thumb */}
-      <svg ref={svgRef} className="videoNoteRing" viewBox="0 0 100 100">
+
+      {/* Progress ring — purely visual, no pointer events */}
+      <svg className="videoNoteRing" viewBox="0 0 100 100" aria-hidden>
         <circle cx="50" cy="50" r={R} fill="none" strokeWidth="1.5"
           className="videoNoteRingBg" />
         <circle cx="50" cy="50" r={R} fill="none" strokeWidth="1.5"
@@ -385,16 +391,24 @@ function VideoNotePlayer({ url }: { url: string }) {
           strokeDashoffset={circ * (1 - pct)}
           style={{ transform: 'rotate(-90deg)', transformOrigin: '50% 50%' }}
         />
-        {/* Draggable thumb ball */}
-        <circle
-          cx={thumbX} cy={thumbY} r={3.5}
-          className="videoNoteThumb"
-          onPointerDown={onThumbDown}
-          onPointerMove={onThumbMove}
-          onPointerUp={onThumbUp}
-          onPointerCancel={onThumbUp}
-        />
+        {/* Visual-only thumb dot */}
+        <circle cx={thumbSvgX} cy={thumbSvgY} r={2.8}
+          className="videoNoteThumbDot" />
       </svg>
+
+      {/* HTML drag handle — reliable touch target, positioned at thumb */}
+      <div
+        className="videoNoteThumb"
+        style={{
+          left: `${thumbSvgX}%`,
+          top:  `${thumbSvgY}%`,
+        }}
+        onPointerDown={onThumbDown}
+        onPointerMove={onThumbMove}
+        onPointerUp={onThumbUp}
+        onPointerCancel={onThumbUp}
+      />
+
       {/* Play / Pause overlay */}
       {!playing && (
         <div className="videoNotePlayBtn">
@@ -403,7 +417,8 @@ function VideoNotePlayer({ url }: { url: string }) {
           </svg>
         </div>
       )}
-      {/* Duration / position badge */}
+
+      {/* Duration / current time badge */}
       <div className="videoNoteDur">
         {playing ? fmtT(current) : fmtT(duration)}
       </div>
