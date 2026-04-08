@@ -293,9 +293,13 @@ function VideoAttachment({ url, caption }: { url: string; caption?: string; name
 
 // ── Video note player (circular, Telegram-style) ──────────────────────────────
 function VideoNotePlayer({ url }: { url: string }) {
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const [playing, setPlaying] = useState(false);
-  const [current, setCurrent] = useState(0);
+  const videoRef   = useRef<HTMLVideoElement>(null);
+  const svgRef     = useRef<SVGSVGElement>(null);
+  const draggingRef = useRef(false);
+  const movedRef   = useRef(false);
+
+  const [playing,  setPlaying]  = useState(false);
+  const [current,  setCurrent]  = useState(0);
   const [duration, setDuration] = useState(0);
 
   const fmtT = (s: number) => {
@@ -304,17 +308,57 @@ function VideoNotePlayer({ url }: { url: string }) {
     return `${m}:${sec.toString().padStart(2, '0')}`;
   };
 
+  // Scrub to the angle corresponding to screen position
+  const scrubToPoint = useCallback((clientX: number, clientY: number) => {
+    const v = videoRef.current;
+    const svg = svgRef.current;
+    if (!v || !svg || !duration) return;
+    const rect = svg.getBoundingClientRect();
+    const svgX = ((clientX - rect.left) / rect.width) * 100;
+    const svgY = ((clientY - rect.top)  / rect.height) * 100;
+    let angle = Math.atan2(svgY - 50, svgX - 50) + Math.PI / 2;
+    if (angle < 0) angle += 2 * Math.PI;
+    const newPct = angle / (2 * Math.PI);
+    const t = newPct * duration;
+    v.currentTime = t;
+    setCurrent(t);
+  }, [duration]);
+
+  const onThumbDown = useCallback((e: React.PointerEvent) => {
+    e.stopPropagation();
+    draggingRef.current = true;
+    movedRef.current = false;
+    (e.currentTarget as SVGElement).setPointerCapture(e.pointerId);
+  }, []);
+
+  const onThumbMove = useCallback((e: React.PointerEvent) => {
+    if (!draggingRef.current) return;
+    e.stopPropagation();
+    movedRef.current = true;
+    scrubToPoint(e.clientX, e.clientY);
+  }, [scrubToPoint]);
+
+  const onThumbUp = useCallback((e: React.PointerEvent) => {
+    e.stopPropagation();
+    draggingRef.current = false;
+  }, []);
+
   const toggle = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
+    if (movedRef.current) { movedRef.current = false; return; }
     const v = videoRef.current;
     if (!v) return;
     if (v.paused) { v.play().catch(() => {}); }
     else { v.pause(); }
   }, []);
 
-  const pct = duration > 0 ? current / duration : 0;
-  const r = 46; // SVG circle radius
-  const circ = 2 * Math.PI * r;
+  const pct  = duration > 0 ? Math.min(1, current / duration) : 0;
+  const R    = 45;
+  const circ = 2 * Math.PI * R;
+  // Thumb position (12 o'clock = 0, clockwise)
+  const thumbAngle = pct * 2 * Math.PI - Math.PI / 2;
+  const thumbX = 50 + R * Math.cos(thumbAngle);
+  const thumbY = 50 + R * Math.sin(thumbAngle);
 
   return (
     <div className="videoNoteMsg" onClick={toggle} title={playing ? 'Пауза' : 'Воспроизвести'}>
@@ -331,26 +375,35 @@ function VideoNotePlayer({ url }: { url: string }) {
         onTimeUpdate={e => setCurrent(e.currentTarget.currentTime)}
         onDurationChange={e => setDuration(e.currentTarget.duration)}
       />
-      {/* Progress ring */}
-      <svg className="videoNoteRing" viewBox="0 0 100 100">
-        <circle cx="50" cy="50" r={r} fill="none" strokeWidth="3"
+      {/* Progress ring + draggable thumb */}
+      <svg ref={svgRef} className="videoNoteRing" viewBox="0 0 100 100">
+        <circle cx="50" cy="50" r={R} fill="none" strokeWidth="1.5"
           className="videoNoteRingBg" />
-        <circle cx="50" cy="50" r={r} fill="none" strokeWidth="3"
+        <circle cx="50" cy="50" r={R} fill="none" strokeWidth="1.5"
           className="videoNoteRingFill"
           strokeDasharray={circ}
           strokeDashoffset={circ * (1 - pct)}
           style={{ transform: 'rotate(-90deg)', transformOrigin: '50% 50%' }}
         />
+        {/* Draggable thumb ball */}
+        <circle
+          cx={thumbX} cy={thumbY} r={3.5}
+          className="videoNoteThumb"
+          onPointerDown={onThumbDown}
+          onPointerMove={onThumbMove}
+          onPointerUp={onThumbUp}
+          onPointerCancel={onThumbUp}
+        />
       </svg>
       {/* Play / Pause overlay */}
       {!playing && (
         <div className="videoNotePlayBtn">
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
             <path d="M8 5v14l11-7z"/>
           </svg>
         </div>
       )}
-      {/* Duration badge */}
+      {/* Duration / position badge */}
       <div className="videoNoteDur">
         {playing ? fmtT(current) : fmtT(duration)}
       </div>
@@ -639,7 +692,11 @@ export function MessageBubble({
         </div>
       )}
 
-      <div className={`bubble${hasAttachment ? ' bubbleWithAttach' : ''}`}>
+      <div className={[
+        'bubble',
+        hasAttachment && !isVideoNote ? 'bubbleWithAttach' : '',
+        isVideoNote ? 'bubbleVideoNote' : '',
+      ].filter(Boolean).join(' ')}>
         {/* ✅ Pin indicator — thumbtack icon */}
         {m.is_pinned && !isSelected && (
           <div className="msgPinBadge" title="Закреплённое сообщение">

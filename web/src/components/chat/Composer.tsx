@@ -6,6 +6,7 @@
  * - Lock mode: drag-up to hands-free recording
  */
 import { useState, useRef, useEffect, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { uploadFile } from '../../api/upload';
 import type { UploadResult } from '../../api/upload';
 import { type User } from '../../types';
@@ -881,33 +882,44 @@ export function Composer({ value, onChange, onSend, onSendAttachment, externalFi
         </div>
       )}
 
-      {/* ── Video note RECORDING overlay (circular viewfinder) ── */}
-      {videoState === 'recording' && (
-        <div className="videoNoteOverlay">
-          <div className="videoNoteViewfinderWrap">
-            <video
-              ref={videoViewfinderRef}
-              className={`videoNoteViewfinder${videoFacing === 'user' ? ' videoNoteViewfinderMirrored' : ''}`}
-              autoPlay
-              muted
-              playsInline
-            />
+      {/* ── Video note RECORDING overlay — portal, centered on screen ── */}
+      {videoState === 'recording' && createPortal(
+        <div className="videoNoteModal">
+          <div className="videoNoteModalBackdrop" onClick={cancelVideo} />
+          <div className="videoNoteModalContent">
+            {/* Circular viewfinder */}
+            <div className="videoNoteViewfinderWrap">
+              <video
+                ref={videoViewfinderRef}
+                className={`videoNoteViewfinder${videoFacing === 'user' ? ' videoNoteViewfinderMirrored' : ''}`}
+                autoPlay
+                muted
+                playsInline
+              />
+            </div>
+            {/* REC badge — top-left of circle */}
+            <div className="videoNoteRecBadge">
+              <span className="videoNoteRecDot" />
+              <span>{fmt(videoRecSeconds)}</span>
+            </div>
+            {/* Flip camera — top-right of circle */}
+            <button className="videoNoteFlipBtn" onClick={flipVideoCamera} title="Переключить камеру">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M1 4v6h6"/>
+                <path d="M23 20v-6h-6"/>
+                <path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10"/>
+                <path d="M3.51 15a9 9 0 0 0 14.85 3.36L23 14"/>
+              </svg>
+            </button>
+            {/* Hint below circle */}
+            <div className="videoNoteModalHint">
+              {videoLocked
+                ? '🔒 Зафиксировано — нажмите кнопку для остановки'
+                : 'Отпустите для завершения · Потяните вверх для фиксации'}
+            </div>
           </div>
-          {/* REC badge */}
-          <div className="videoNoteRecBadge">
-            <span className="videoNoteRecDot" />
-            <span>{fmt(videoRecSeconds)}</span>
-          </div>
-          {/* Flip camera */}
-          <button className="videoNoteFlipBtn" onClick={flipVideoCamera} title="Переключить камеру">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M1 4v6h6"/>
-              <path d="M23 20v-6h-6"/>
-              <path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10"/>
-              <path d="M3.51 15a9 9 0 0 0 14.85 3.36L23 14"/>
-            </svg>
-          </button>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* ── Mention popup ── */}
