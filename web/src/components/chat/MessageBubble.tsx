@@ -291,6 +291,73 @@ function VideoAttachment({ url, caption }: { url: string; caption?: string; name
   );
 }
 
+// ── Video note player (circular, Telegram-style) ──────────────────────────────
+function VideoNotePlayer({ url }: { url: string }) {
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const [playing, setPlaying] = useState(false);
+  const [current, setCurrent] = useState(0);
+  const [duration, setDuration] = useState(0);
+
+  const fmtT = (s: number) => {
+    if (!isFinite(s) || isNaN(s)) return '0:00';
+    const m = Math.floor(s / 60), sec = Math.floor(s % 60);
+    return `${m}:${sec.toString().padStart(2, '0')}`;
+  };
+
+  const toggle = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
+    const v = videoRef.current;
+    if (!v) return;
+    if (v.paused) { v.play().catch(() => {}); }
+    else { v.pause(); }
+  }, []);
+
+  const pct = duration > 0 ? current / duration : 0;
+  const r = 46; // SVG circle radius
+  const circ = 2 * Math.PI * r;
+
+  return (
+    <div className="videoNoteMsg" onClick={toggle} title={playing ? 'Пауза' : 'Воспроизвести'}>
+      <video
+        ref={videoRef}
+        src={url}
+        className="videoNoteVideo"
+        playsInline
+        preload="metadata"
+        loop
+        onPlay={() => setPlaying(true)}
+        onPause={() => setPlaying(false)}
+        onEnded={() => setPlaying(false)}
+        onTimeUpdate={e => setCurrent(e.currentTarget.currentTime)}
+        onDurationChange={e => setDuration(e.currentTarget.duration)}
+      />
+      {/* Progress ring */}
+      <svg className="videoNoteRing" viewBox="0 0 100 100">
+        <circle cx="50" cy="50" r={r} fill="none" strokeWidth="3"
+          className="videoNoteRingBg" />
+        <circle cx="50" cy="50" r={r} fill="none" strokeWidth="3"
+          className="videoNoteRingFill"
+          strokeDasharray={circ}
+          strokeDashoffset={circ * (1 - pct)}
+          style={{ transform: 'rotate(-90deg)', transformOrigin: '50% 50%' }}
+        />
+      </svg>
+      {/* Play / Pause overlay */}
+      {!playing && (
+        <div className="videoNotePlayBtn">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M8 5v14l11-7z"/>
+          </svg>
+        </div>
+      )}
+      {/* Duration badge */}
+      <div className="videoNoteDur">
+        {playing ? fmtT(current) : fmtT(duration)}
+      </div>
+    </div>
+  );
+}
+
 // ── URL helpers ───────────────────────────────────────────────────────────────
 function extractFirstUrl(text: string | null | undefined): string | null {
   if (!text) return null;
@@ -522,10 +589,11 @@ export function MessageBubble({
   onReact, onScrollToMessage, onVote, onRetract, onViewVoters, meUsername, members, onViewReaders,
 }: Props) {
   const hasAttachment = !!m.attachment_url;
-  const isImage = m.attachment_type === 'image';
-  const isVideo = m.attachment_type === 'video';
-  const isAudio = m.attachment_type === 'audio';
-  const isFile  = hasAttachment && !isImage && !isVideo && !isAudio;
+  const isImage     = m.attachment_type === 'image';
+  const isVideo     = m.attachment_type === 'video';
+  const isAudio     = m.attachment_type === 'audio';
+  const isVideoNote = m.attachment_type === 'video_note';
+  const isFile      = hasAttachment && !isImage && !isVideo && !isAudio && !isVideoNote;
 
   // Link preview
   const firstUrl = useMemo(() => extractFirstUrl(m.text), [m.text]);
@@ -638,6 +706,9 @@ export function MessageBubble({
         )}
 
         {/* ── Attachments (all use resolved URL) ── */}
+        {isVideoNote && (
+          <VideoNotePlayer url={attachmentUrl} />
+        )}
         {isAudio && (
           <AudioPlayer url={attachmentUrl} isOwn={isOwn} isRead={isRead} sendTime={m.created_at} />
         )}
@@ -705,7 +776,7 @@ export function MessageBubble({
           </a>
         )}
 
-        {!isAudio && (
+        {!isAudio && !isVideoNote && (
           <div className="bubbleFooter">
             {(m.reactions?.length ?? 0) > 0 && (
               <ReactionBar

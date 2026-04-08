@@ -95,6 +95,13 @@ export function ChatArea() {
 
   const [scrollTargetId, setScrollTargetId] = useState<string | null>(null);
 
+  // ── Clear stale input state on chat switch ────────────────────────────────
+  useEffect(() => {
+    setMessageText('');
+    setEditingId(null);
+    setReplyTo(null);
+  }, [activeChatId]); // eslint-disable-line
+
   // ── Global search scroll target ───────────────────────────────────────────
   const scrollToMessageId    = useChatsStore(s => s.scrollToMessageId);
   const setScrollToMessageId = useChatsStore(s => s.setScrollToMessageId);

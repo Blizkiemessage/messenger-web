@@ -73,6 +73,17 @@ function WaveformIcon({ size = 22 }: { size?: number }) {
   );
 }
 
+// ── Video note icon (camera circle) ───────────────────────────────────────────
+function VideoNoteIcon({ size = 22 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor"
+         strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="10"/>
+      <polygon points="10 8 16 12 10 16 10 8" fill="currentColor" stroke="none"/>
+    </svg>
+  );
+}
+
 // ── Preview mini-player (inside composer before sending) ──────────────────────
 function PreviewPlayer({ blob, duration }: { blob: Blob; duration: number }) {
   const audioRef  = useRef<HTMLAudioElement>(null);
@@ -300,6 +311,9 @@ export function Composer({ value, onChange, onSend, onSendAttachment, externalFi
     }
   }, [staged, caption, uploading, onSendAttachment, clearStage]);
 
+  // ── Recording mode: audio | video ─────────────────────────────────────────
+  const [recordMode, setRecordMode] = useState<'audio' | 'video'>('audio');
+
   // Voice recording
   const [voiceState,   setVoiceState]   = useState<VoiceState>('idle');
   const [locked,       setLocked]       = useState(false);
@@ -325,7 +339,31 @@ export function Composer({ value, onChange, onSend, onSendAttachment, externalFi
   // Animated mic icon: amplitude drives the icon's bars while recording
   const [micAmp, setMicAmp] = useState(0);
 
-  useEffect(() => () => { stopCleanup(); }, []); // eslint-disable-line
+  // ── Video note recording state ─────────────────────────────────────────────
+  const [videoState,        setVideoState]        = useState<VoiceState>('idle');
+  const [videoLocked,       setVideoLocked]       = useState(false);
+  const [videoLockProgress, setVideoLockProgress] = useState(0);
+  const [videoRecSeconds,   setVideoRecSeconds]   = useState(0);
+  const [videoBlob,         setVideoBlob]         = useState<Blob | null>(null);
+  const [videoPreviewUrl,   setVideoPreviewUrl]   = useState<string | null>(null);
+  const [videoPreviewSecs,  setVideoPreviewSecs]  = useState(0);
+  const [videoSending,      setVideoSending]      = useState(false);
+  const [videoFacing,       setVideoFacing]       = useState<'user' | 'environment'>('user');
+
+  const videoStreamRef      = useRef<MediaStream | null>(null);
+  const videoAudioStreamRef = useRef<MediaStream | null>(null);
+  const videoRecorderRef    = useRef<MediaRecorder | null>(null);
+  const videoChunksRef      = useRef<Blob[]>([]);
+  const videoCanvasRef      = useRef<HTMLCanvasElement | null>(null); // off-screen canvas, created programmatically
+  const videoViewfinderRef  = useRef<HTMLVideoElement | null>(null);  // visible <video> element in DOM
+  const videoDrawElemRef    = useRef<HTMLVideoElement | null>(null);  // hidden video element for canvas draw loop
+  const videoDrawRafRef     = useRef<number>(0);
+  const videoTimerRef       = useRef<ReturnType<typeof setInterval> | null>(null);
+  const videoRecSecondsRef  = useRef(0);
+  const videoFacingRef      = useRef<'user' | 'environment'>('user');
+  const videoLockedRef      = useRef(false);
+
+  useEffect(() => () => { stopCleanup(); stopVideoCleanup(); }, []); // eslint-disable-line
 
   function stopCleanup() {
     cancelAnimationFrame(rafRef.current);
@@ -438,6 +476,195 @@ export function Composer({ value, onChange, onSend, onSendAttachment, externalFi
     cancelVoice();
   }, [voiceBlob, voiceSending, handleSendFile, cancelVoice]);
 
+  // ── Video note recording functions ────────────────────────────────────────
+
+  function stopVideoCleanup() {
+    cancelAnimationFrame(videoDrawRafRef.current);
+    if (videoTimerRef.current) { clearInterval(videoTimerRef.current); videoTimerRef.current = null; }
+    videoStreamRef.current?.getTracks().forEach(t => t.stop());
+    videoAudioStreamRef.current?.getTracks().forEach(t => t.stop());
+    videoStreamRef.current = null;
+    videoAudioStreamRef.current = null;
+    if (videoDrawElemRef.current) {
+      videoDrawElemRef.current.srcObject = null;
+      videoDrawElemRef.current = null;
+    }
+  }
+
+  const startVideoRecording = useCallback(async () => {
+    if (videoState !== 'idle' || voiceState !== 'idle' || staged) return;
+    try {
+      // Get camera + audio as separate streams so we can switch camera without losing audio
+      const cameraStream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: videoFacingRef.current, width: { ideal: 512 }, height: { ideal: 512 } },
+        audio: false,
+      });
+      const audioStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+      videoStreamRef.current = cameraStream;
+      videoAudioStreamRef.current = audioStream;
+
+      // Create off-screen canvas programmatically (not DOM-dependent)
+      const canvas = document.createElement('canvas');
+      canvas.width  = 512;
+      canvas.height = 512;
+      videoCanvasRef.current = canvas;
+      const ctx = canvas.getContext('2d')!;
+
+      // Hidden video element feeds the draw loop
+      const vid = document.createElement('video');
+      vid.srcObject = cameraStream;
+      vid.muted = true;
+      vid.playsInline = true;
+      await vid.play().catch(() => {});
+      videoDrawElemRef.current = vid;
+
+      // Also connect viewfinder if already in DOM
+      if (videoViewfinderRef.current) {
+        videoViewfinderRef.current.srcObject = cameraStream;
+        await videoViewfinderRef.current.play().catch(() => {});
+      }
+
+      // RAF draw loop: camera → canvas (mirrored for front cam)
+      const draw = () => {
+        if (!videoDrawElemRef.current || !videoCanvasRef.current) return;
+        ctx.save();
+        if (videoFacingRef.current === 'user') {
+          ctx.translate(512, 0);
+          ctx.scale(-1, 1);
+        }
+        ctx.drawImage(videoDrawElemRef.current, 0, 0, 512, 512);
+        ctx.restore();
+        videoDrawRafRef.current = requestAnimationFrame(draw);
+      };
+      videoDrawRafRef.current = requestAnimationFrame(draw);
+
+      // Canvas capture stream + audio track
+      const canvasStream = (canvas as any).captureStream(30) as MediaStream;
+      audioStream.getAudioTracks().forEach(t => canvasStream.addTrack(t));
+
+      // MediaRecorder on canvas stream
+      const mimeType = MediaRecorder.isTypeSupported('video/webm;codecs=vp9,opus')
+        ? 'video/webm;codecs=vp9,opus'
+        : MediaRecorder.isTypeSupported('video/webm;codecs=vp8,opus')
+        ? 'video/webm;codecs=vp8,opus'
+        : 'video/webm';
+      const recorder = new MediaRecorder(canvasStream, { mimeType, videoBitsPerSecond: 2_000_000 });
+      videoRecorderRef.current = recorder;
+      videoChunksRef.current = [];
+
+      recorder.ondataavailable = e => { if (e.data.size > 0) videoChunksRef.current.push(e.data); };
+      recorder.onstop = () => {
+        const blob = new Blob(videoChunksRef.current, { type: 'video/webm' });
+        const url  = URL.createObjectURL(blob);
+        setVideoBlob(blob);
+        setVideoPreviewUrl(url);
+        setVideoPreviewSecs(videoRecSecondsRef.current);
+        setVideoState('preview');
+        setVideoLocked(false);
+        setVideoLockProgress(0);
+        videoLockedRef.current = false;
+        stopVideoCleanup();
+      };
+
+      recorder.start(80);
+      videoRecSecondsRef.current = 0;
+      setVideoRecSeconds(0);
+      setVideoState('recording');
+
+      videoTimerRef.current = setInterval(() => {
+        videoRecSecondsRef.current += 1;
+        setVideoRecSeconds(videoRecSecondsRef.current);
+      }, 1000);
+
+    } catch { /* camera/mic denied */ }
+  }, [videoState, voiceState, staged]); // eslint-disable-line
+
+  const stopVideoRecording = useCallback(() => {
+    if (videoState !== 'recording') return;
+    if (videoTimerRef.current) { clearInterval(videoTimerRef.current); videoTimerRef.current = null; }
+    cancelAnimationFrame(videoDrawRafRef.current);
+    videoRecorderRef.current?.stop();
+    videoStreamRef.current?.getTracks().forEach(t => t.stop());
+  }, [videoState]);
+
+  const cancelVideo = useCallback(() => {
+    if (videoState === 'recording') {
+      if (videoTimerRef.current) clearInterval(videoTimerRef.current);
+      cancelAnimationFrame(videoDrawRafRef.current);
+      if (videoRecorderRef.current?.state !== 'inactive') {
+        videoRecorderRef.current!.onstop = null;
+        videoRecorderRef.current!.stop();
+      }
+      stopVideoCleanup();
+    }
+    if (videoPreviewUrl) { URL.revokeObjectURL(videoPreviewUrl); }
+    setVideoState('idle');
+    setVideoBlob(null);
+    setVideoPreviewUrl(null);
+    setVideoRecSeconds(0);
+    setVideoPreviewSecs(0);
+    setVideoLocked(false);
+    setVideoLockProgress(0);
+    videoLockedRef.current = false;
+    videoRecSecondsRef.current = 0;
+  }, [videoState, videoPreviewUrl]); // eslint-disable-line
+
+  const sendVideo = useCallback(async () => {
+    if (!videoBlob || videoSending) return;
+    setVideoSending(true);
+    const file = new File([videoBlob], `video_note_${Date.now()}.webm`, { type: 'video/webm' });
+    try {
+      const task = uploadFile(file, () => {});
+      const result = await task.promise;
+      await onSendAttachment({ ...result, type: 'video_note' }, '');
+      if (videoPreviewUrl) URL.revokeObjectURL(videoPreviewUrl);
+      setVideoSending(false);
+      setVideoState('idle');
+      setVideoBlob(null);
+      setVideoPreviewUrl(null);
+      setVideoPreviewSecs(0);
+      videoRecSecondsRef.current = 0;
+    } catch {
+      setVideoSending(false);
+    }
+  }, [videoBlob, videoSending, videoPreviewUrl, onSendAttachment]);
+
+  const flipVideoCamera = useCallback(async () => {
+    const newFacing = videoFacingRef.current === 'user' ? 'environment' : 'user';
+    videoFacingRef.current = newFacing;
+    setVideoFacing(newFacing);
+    // Stop current camera stream
+    videoStreamRef.current?.getTracks().forEach(t => t.stop());
+    try {
+      const newStream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: newFacing, width: { ideal: 512 }, height: { ideal: 512 } },
+        audio: false,
+      });
+      videoStreamRef.current = newStream;
+      // Update both the hidden draw element and the visible viewfinder
+      if (videoDrawElemRef.current) {
+        videoDrawElemRef.current.srcObject = newStream;
+        await videoDrawElemRef.current.play().catch(() => {});
+      }
+      if (videoViewfinderRef.current) {
+        videoViewfinderRef.current.srcObject = newStream;
+        await videoViewfinderRef.current.play().catch(() => {});
+      }
+    } catch { /* camera switch failed, continue with existing */ }
+  }, []);
+
+  const isFileMode = !!staged;
+  const canSend    = isFileMode ? !uploading : (!!value.trim() && !disabled);
+
+  // When videoState becomes 'recording', the overlay mounts and the viewfinder <video> element appears.
+  // Connect the camera stream to the viewfinder at that point.
+  useEffect(() => {
+    if (videoState === 'recording' && videoViewfinderRef.current && videoStreamRef.current) {
+      videoViewfinderRef.current.srcObject = videoStreamRef.current;
+      videoViewfinderRef.current.play().catch(() => {});
+    }
+  }, [videoState]);
+
   // Pointer hold + lock drag
   const micDelayRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const micHoldRef  = useRef(false);
@@ -448,31 +675,51 @@ export function Composer({ value, onChange, onSend, onSendAttachment, externalFi
     micHoldRef.current = true;
     micStartYRef.current = e.clientY;
     micLockedRef.current = false;
+    videoLockedRef.current = false;
     micDelayRef.current = setTimeout(() => {
-      if (micHoldRef.current) startRecording();
+      if (micHoldRef.current) {
+        if (recordMode === 'audio') startRecording();
+        else startVideoRecording();
+      }
     }, 100);
-  }, [startRecording]);
+  }, [recordMode, startRecording, startVideoRecording]);
 
   const onMicMove = useCallback((e: React.PointerEvent) => {
-    if (voiceState !== 'recording' || micLockedRef.current) return;
-    const dy = micStartYRef.current - e.clientY;
-    const p = Math.min(1, Math.max(0, dy / LOCK_THRESHOLD));
-    setLockProgress(p);
-    if (dy >= LOCK_THRESHOLD) {
-      micLockedRef.current = true;
-      setLocked(true);
-      setLockProgress(1);
+    if (voiceState === 'recording' && !micLockedRef.current) {
+      const dy = micStartYRef.current - e.clientY;
+      const p = Math.min(1, Math.max(0, dy / LOCK_THRESHOLD));
+      setLockProgress(p);
+      if (dy >= LOCK_THRESHOLD) {
+        micLockedRef.current = true;
+        setLocked(true);
+        setLockProgress(1);
+      }
     }
-  }, [voiceState]);
+    if (videoState === 'recording' && !videoLockedRef.current) {
+      const dy = micStartYRef.current - e.clientY;
+      const p = Math.min(1, Math.max(0, dy / LOCK_THRESHOLD));
+      setVideoLockProgress(p);
+      if (dy >= LOCK_THRESHOLD) {
+        videoLockedRef.current = true;
+        setVideoLocked(true);
+        setVideoLockProgress(1);
+      }
+    }
+  }, [voiceState, videoState]);
 
   const onMicUp = useCallback(() => {
+    const wasHolding = micHoldRef.current;
     micHoldRef.current = false;
+    const timerWasPending = micDelayRef.current !== null;
     if (micDelayRef.current) { clearTimeout(micDelayRef.current); micDelayRef.current = null; }
+    // Quick tap (timer hadn't fired yet) and currently idle → toggle mode
+    if (wasHolding && timerWasPending && voiceState === 'idle' && videoState === 'idle' && !canSend) {
+      setRecordMode(m => m === 'audio' ? 'video' : 'audio');
+      return;
+    }
     if (!micLockedRef.current) stopRecording();
-  }, [stopRecording]);
-
-  const isFileMode = !!staged;
-  const canSend    = isFileMode ? !uploading : (!!value.trim() && !disabled);
+    if (!videoLockedRef.current) stopVideoRecording();
+  }, [voiceState, videoState, canSend, stopRecording, stopVideoRecording]);
 
   // Animated icon style driven by amplitude
   const iconScale = voiceState === 'recording' ? 1 + micAmp * 0.25 : 1;
@@ -589,6 +836,80 @@ export function Composer({ value, onChange, onSend, onSendAttachment, externalFi
         </div>
       )}
 
+      {/* ── Video note PREVIEW card ── */}
+      {videoState === 'preview' && videoPreviewUrl && (
+        <div className="videoNotePreviewCard">
+          <div className="videoNotePreviewCardTop">
+            <span className="voicePreviewLabel">Видеосообщение</span>
+            <span className="voicePreviewDurLabel">{fmt(videoPreviewSecs)}</span>
+          </div>
+          <div className="videoNotePreviewVideoWrap">
+            <video
+              src={videoPreviewUrl}
+              className="videoNotePreviewVideo"
+              playsInline
+              controls
+              loop
+            />
+          </div>
+          <div className="voicePreviewCardActions">
+            <button className="voicePreviewDeleteBtn" onClick={cancelVideo} title="Удалить">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="3 6 5 6 21 6"/>
+                <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+                <path d="M10 11v6M14 11v6"/>
+                <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
+              </svg>
+              Удалить
+            </button>
+            <button className="voicePreviewSendBtn" onClick={sendVideo} disabled={videoSending} title="Отправить">
+              {videoSending ? (
+                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" className="composerSpinner">
+                  <path d="M21 12a9 9 0 1 1-6.219-8.56"/>
+                </svg>
+              ) : (
+                <>
+                  <svg viewBox="0 0 24 24" fill="none" width="16" height="16">
+                    <path d="M22 2L11 13" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+                    <path d="M22 2L15 22L11 13L2 9L22 2Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                  Отправить
+                </>
+              )}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ── Video note RECORDING overlay (circular viewfinder) ── */}
+      {videoState === 'recording' && (
+        <div className="videoNoteOverlay">
+          <div className="videoNoteViewfinderWrap">
+            <video
+              ref={videoViewfinderRef}
+              className={`videoNoteViewfinder${videoFacing === 'user' ? ' videoNoteViewfinderMirrored' : ''}`}
+              autoPlay
+              muted
+              playsInline
+            />
+          </div>
+          {/* REC badge */}
+          <div className="videoNoteRecBadge">
+            <span className="videoNoteRecDot" />
+            <span>{fmt(videoRecSeconds)}</span>
+          </div>
+          {/* Flip camera */}
+          <button className="videoNoteFlipBtn" onClick={flipVideoCamera} title="Переключить камеру">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M1 4v6h6"/>
+              <path d="M23 20v-6h-6"/>
+              <path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10"/>
+              <path d="M3.51 15a9 9 0 0 0 14.85 3.36L23 14"/>
+            </svg>
+          </button>
+        </div>
+      )}
+
       {/* ── Mention popup ── */}
       {mentionQuery !== null && filteredMembers.length > 0 && (
         <MentionPopup
@@ -600,7 +921,7 @@ export function Composer({ value, onChange, onSend, onSendAttachment, externalFi
       )}
 
       {/* ── Formatting toolbar (shown on text selection) ── */}
-      {!isFileMode && voiceState === 'idle' && (
+      {!isFileMode && voiceState === 'idle' && videoState === 'idle' && (
         <FormatToolbar
           editorRef={editorRef}
           onChange={onChange}
@@ -624,10 +945,10 @@ export function Composer({ value, onChange, onSend, onSendAttachment, externalFi
       )}
 
       {/* ── Normal composer row ── */}
-      {voiceState !== 'preview' && (
+      {voiceState !== 'preview' && videoState !== 'preview' && (
         <div className="composer">
           {voiceState === 'recording' ? (
-            /* Recording mode: minimal — trash | big timer + dot | mic-stop */
+            /* Voice recording mode: minimal — trash | big timer + dot | mic-stop */
             <div className="voiceRecordingBar">
               <button className="voiceRecCancelBtn" onClick={cancelVoice} title="Отменить">
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -642,6 +963,23 @@ export function Composer({ value, onChange, onSend, onSendAttachment, externalFi
                 <span className="voiceRecTimer">{fmt(recSeconds)}</span>
               </div>
               <span className="voiceRecHint">{locked ? '🔒 Зафиксировано' : 'Потяните вверх для фиксации'}</span>
+            </div>
+          ) : videoState === 'recording' ? (
+            /* Video recording mode: minimal bar below circular viewfinder */
+            <div className="voiceRecordingBar">
+              <button className="voiceRecCancelBtn" onClick={cancelVideo} title="Отменить">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="3 6 5 6 21 6"/>
+                  <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+                  <path d="M10 11v6M14 11v6"/>
+                  <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
+                </svg>
+              </button>
+              <div className="voiceRecCenter">
+                <span className="voiceRecDot voiceRecDotVideo" />
+                <span className="voiceRecTimer">{fmt(videoRecSeconds)}</span>
+              </div>
+              <span className="voiceRecHint">{videoLocked ? '🔒 Зафиксировано' : 'Потяните вверх для фиксации'}</span>
             </div>
           ) : (
             <>
@@ -778,7 +1116,7 @@ export function Composer({ value, onChange, onSend, onSendAttachment, externalFi
                 />
               </div>{/* composerInputWrap */}
               {/* ── Emoji picker button ── */}
-              {!isFileMode && voiceState === 'idle' && (
+              {!isFileMode && voiceState === 'idle' && videoState === 'idle' && (
                 <div className="composerEmojiWrap" ref={emojiWrapRef}>
                   <button
                     className={`composerEmojiBtn${emojiOpen ? ' active' : ''}`}
@@ -812,10 +1150,10 @@ export function Composer({ value, onChange, onSend, onSendAttachment, externalFi
             </>
           )}
 
-          {/* Waveform icon button (replaces mic) */}
+          {/* Waveform / Video-note icon button */}
           {!isFileMode && (
             <div className="composerMicWrap">
-              {/* Lock track */}
+              {/* Voice lock track */}
               {voiceState === 'recording' && !locked && (
                 <div className="voiceLockTrack">
                   <div className="voiceLockIcon" style={{
@@ -839,8 +1177,32 @@ export function Composer({ value, onChange, onSend, onSendAttachment, externalFi
                   </svg>
                 </div>
               )}
+              {/* Video lock track */}
+              {videoState === 'recording' && !videoLocked && (
+                <div className="voiceLockTrack">
+                  <div className="voiceLockIcon" style={{
+                    transform: `translateY(${-(videoLockProgress * 28)}px)`,
+                    opacity: 0.45 + videoLockProgress * 0.55,
+                  }}>
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
+                      <rect x="3" y="11" width="18" height="11" rx="2"/>
+                      <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                    </svg>
+                  </div>
+                  <svg className="voiceLockArrow" width="10" height="16" viewBox="0 0 10 16">
+                    <path d="M5 14 L5 2 M2 4 L5 1 L8 4" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" fill="none" opacity="0.45"/>
+                  </svg>
+                </div>
+              )}
+              {videoState === 'recording' && videoLocked && (
+                <div className="voiceLockedBadge" onClick={stopVideoRecording} title="Нажмите для завершения">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M18 8h-1V6A5 5 0 0 0 7 6v2H6a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V10a2 2 0 0 0-2-2zm-6 9a2 2 0 1 1 0-4 2 2 0 0 1 0 4zm3.1-9H8.9V6a3.1 3.1 0 1 1 6.2 0v2z"/>
+                  </svg>
+                </div>
+              )}
 
-              {canSend && voiceState === 'idle' ? (
+              {canSend && voiceState === 'idle' && videoState === 'idle' ? (
                 /* ── Send button (replaces mic when text is entered) ── */
                 <button
                   className="composerMic composerMicSend"
@@ -859,24 +1221,42 @@ export function Composer({ value, onChange, onSend, onSendAttachment, externalFi
                   )}
                 </button>
               ) : (
-                /* ── Voice button ── */
-                <button
-                  className={`composerMic${voiceState === 'recording' ? (locked ? ' composerMicLocked' : ' composerMicActive') : ''}`}
-                  style={{ transform: `scale(${iconScale})` }}
-                  onPointerDown={onMicDown}
-                  onPointerMove={onMicMove}
-                  onPointerUp={onMicUp}
-                  onPointerCancel={onMicUp}
-                  title={voiceState === 'recording' ? (locked ? 'Нажмите для остановки' : 'Отпустите или потяните вверх') : 'Зажмите для записи'}
-                >
-                  {voiceState === 'recording' && locked ? (
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                      <rect x="4" y="4" width="16" height="16" rx="3"/>
-                    </svg>
-                  ) : (
-                    <WaveformIcon size={20} />
+                /* ── Voice / Video-note button ── */
+                <div className="composerMicGroup">
+                  <button
+                    className={[
+                      'composerMic',
+                      voiceState === 'recording' ? (locked ? 'composerMicLocked' : 'composerMicActive') : '',
+                      videoState === 'recording' ? (videoLocked ? 'composerMicLocked' : 'composerMicActive') : '',
+                      recordMode === 'video' && voiceState === 'idle' && videoState === 'idle' ? 'composerMicVideo' : '',
+                    ].filter(Boolean).join(' ')}
+                    style={{ transform: `scale(${iconScale})` }}
+                    onPointerDown={onMicDown}
+                    onPointerMove={onMicMove}
+                    onPointerUp={onMicUp}
+                    onPointerCancel={onMicUp}
+                    title={
+                      voiceState === 'recording' ? (locked ? 'Нажмите для остановки' : 'Отпустите или потяните вверх') :
+                      videoState === 'recording' ? (videoLocked ? 'Нажмите для остановки' : 'Отпустите или потяните вверх') :
+                      recordMode === 'video' ? 'Зажмите для видеосообщения · Нажмите для смены режима' :
+                      'Зажмите для записи · Нажмите для видео'
+                    }
+                  >
+                    {(voiceState === 'recording' && locked) || (videoState === 'recording' && videoLocked) ? (
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                        <rect x="4" y="4" width="16" height="16" rx="3"/>
+                      </svg>
+                    ) : recordMode === 'video' && voiceState === 'idle' && videoState === 'idle' ? (
+                      <VideoNoteIcon size={20} />
+                    ) : (
+                      <WaveformIcon size={20} />
+                    )}
+                  </button>
+                  {/* Mode indicator dot */}
+                  {voiceState === 'idle' && videoState === 'idle' && (
+                    <span className={`composerMicModeDot${recordMode === 'video' ? ' composerMicModeDotVideo' : ''}`} />
                   )}
-                </button>
+                </div>
               )}
             </div>
           )}

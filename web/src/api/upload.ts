@@ -13,7 +13,7 @@ import client from './client';
 
 export interface UploadResult {
   url:  string;
-  type: 'image' | 'video' | 'audio' | 'file';
+  type: 'image' | 'video' | 'audio' | 'file' | 'video_note';
   name: string;
   size: number;
 }
