@@ -22,6 +22,8 @@ import type { Message } from '../../types';
 import { ForwardModal } from '../modals/ForwardModal';
 import { PollCreatorModal } from './PollCreatorModal';
 import { PollVotersModal } from './PollVotersModal';
+import { MediaPlayerProvider } from '../../contexts/MediaPlayerContext';
+import { MiniPlayer } from './MiniPlayer';
 
 // ── Max chars per message — split at last word boundary ──────────────────────
 const MAX_MSG_CHARS = 4000;
@@ -475,6 +477,7 @@ export function ChatArea() {
   const isAddingMore = forwardingIds !== null && !showForwardModal;
 
   return (
+    <MediaPlayerProvider clearKey={activeChatId ?? ''}>
     <div
       className="chatAreaInner"
       onDragEnter={handleDragEnter}
@@ -589,6 +592,9 @@ export function ChatArea() {
         typingText={typingText}
       />
 
+      {/* Mini player — appears below header while audio/video is playing */}
+      <MiniPlayer />
+
       <MessageList
         messages={messages}
         chat={activeChat}
@@ -676,5 +682,6 @@ export function ChatArea() {
         </>
       )}
     </div>
+    </MediaPlayerProvider>
   );
 }

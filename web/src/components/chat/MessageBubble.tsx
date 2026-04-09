@@ -11,6 +11,7 @@ import { renderMarkdown } from '../../utils/markdown';
 import { Avatar, resolveUrl } from '../ui/Avatar';
 import { MsgStatus } from '../ui/icons/MsgStatus';
 import { PollBubble } from './PollBubble';
+import { useMediaPlayer } from '../../contexts/MediaPlayerContext';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -294,7 +295,7 @@ function VideoAttachment({ url, caption }: { url: string; caption?: string; name
 // ── Video note player (circular, Telegram-style) ──────────────────────────────
 function VideoNotePlayer({
   url, msgId, isActive, onActivate, onEnded,
-  isOwn, isRead, sendTime, isGroup, onViewReaders,
+  isOwn, isRead, sendTime, isGroup, onViewReaders, senderName,
 }: {
   url: string;
   msgId: string;
@@ -306,11 +307,13 @@ function VideoNotePlayer({
   sendTime: number;
   isGroup: boolean;
   onViewReaders?: () => void;
+  senderName: string;
 }) {
   const videoRef    = useRef<HTMLVideoElement>(null);
   const msgRef      = useRef<HTMLDivElement>(null);   // root div for coordinate base
   const draggingRef = useRef(false);
   const movedRef    = useRef(false);
+  const mediaCtx    = useMediaPlayer();
 
   const [playing,  setPlaying]  = useState(false);
   const [current,  setCurrent]  = useState(0);
@@ -378,12 +381,13 @@ function VideoNotePlayer({
     const v = videoRef.current;
     if (!v) return;
     if (v.paused) {
-      onActivate(msgId);   // claim audio focus
+      onActivate(msgId);   // claim circle-scale focus
+      mediaCtx.activate(v, { msgId, type: 'video_note', senderName }); // claim mini-player focus
       v.play().catch(() => {});
     } else {
       v.pause();
     }
-  }, [msgId, onActivate]);
+  }, [msgId, onActivate, senderName]); // eslint-disable-line
 
   const pct  = duration > 0 ? Math.min(1, current / duration) : 0;
   const R    = 45; // in SVG 0–100 units
@@ -485,11 +489,12 @@ function extractFirstUrl(text: string | null | undefined): string | null {
 
 // ── Audio player for voice messages ──────────────────────────────────────────
 function AudioPlayer({
-  url, isOwn, isRead, sendTime,
-}: { url: string; isOwn: boolean; isRead: boolean; sendTime: number }) {
+  url, isOwn, isRead, sendTime, msgId, senderName,
+}: { url: string; isOwn: boolean; isRead: boolean; sendTime: number; msgId: string; senderName: string }) {
   const audioRef    = useRef<HTMLAudioElement>(null);
   const trackRef    = useRef<HTMLDivElement>(null);
   const draggingRef = useRef(false);
+  const mediaCtx    = useMediaPlayer();
 
   const [playing,  setPlaying]  = useState(false);
   const [current,  setCurrent]  = useState(0);
@@ -526,8 +531,12 @@ function AudioPlayer({
   const toggle = () => {
     const a = audioRef.current;
     if (!a) return;
-    if (playing) { a.pause(); setPlaying(false); }
-    else { a.play().catch(() => {}); setPlaying(true); }
+    if (playing) {
+      a.pause();
+    } else {
+      mediaCtx.activate(a, { msgId, type: 'audio', senderName });
+      a.play().catch(() => {});
+    }
   };
 
   const progress = duration > 0 ? Math.min(1, current / duration) : 0;
@@ -561,6 +570,8 @@ function AudioPlayer({
     <div className={`voiceMsgPlayer${isOwn ? ' voiceMsgPlayerOwn' : ''}`}>
       <audio
         ref={audioRef} src={url} preload="auto"
+        onPlay={() => setPlaying(true)}
+        onPause={() => setPlaying(false)}
         onTimeUpdate={e => setCurrent(e.currentTarget.currentTime)}
         onLoadedMetadata={handleMeta}
         onDurationChange={handleMeta}
@@ -717,6 +728,11 @@ export function MessageBubble({
   const isVideoNote = m.attachment_type === 'video_note';
   const isFile      = hasAttachment && !isImage && !isVideo && !isAudio && !isVideoNote;
 
+  // Display name used in the mini player bar
+  const playerSenderName = isOwn
+    ? 'Вы'
+    : (sender?.display_name ?? sender?.username ?? 'Пользователь');
+
   // Link preview
   const firstUrl = useMemo(() => extractFirstUrl(m.text), [m.text]);
   const [preview, setPreview] = useState<LinkPreview | null>(null);
@@ -844,10 +860,18 @@ export function MessageBubble({
             sendTime={m.created_at}
             isGroup={isGroup}
             onViewReaders={onViewReaders}
+            senderName={playerSenderName}
           />
         )}
         {isAudio && (
-          <AudioPlayer url={attachmentUrl} isOwn={isOwn} isRead={isRead} sendTime={m.created_at} />
+          <AudioPlayer
+            url={attachmentUrl}
+            isOwn={isOwn}
+            isRead={isRead}
+            sendTime={m.created_at}
+            msgId={m.id}
+            senderName={playerSenderName}
+          />
         )}
         {isImage && (
           <ImageAttachment
