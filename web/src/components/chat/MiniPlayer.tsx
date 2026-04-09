@@ -42,11 +42,11 @@ export function MiniPlayer() {
   // Sync durationRef whenever duration state changes
   useEffect(() => { durationRef.current = duration; }, [duration]);
 
-  // When context reports a decoded duration (audio/webm fix), update local state
+  // When context reports a decoded duration (audio/webm fix), update local state.
+  // No durationRef guard — activeDuration is always authoritative when positive
+  // (native el.duration for video; Web Audio decoded value for webm audio).
   useEffect(() => {
-    if (activeDuration > 0 && durationRef.current === 0) {
-      setDuration(activeDuration);
-    }
+    if (activeDuration > 0) setDuration(activeDuration);
   }, [activeDuration]);
 
   // Attach DOM listeners to the active media element whenever it changes
