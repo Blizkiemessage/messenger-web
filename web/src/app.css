@@ -716,21 +716,24 @@ input { font: inherit; color: inherit; background: transparent; }
   to   { transform: translateY(0);    opacity: 1; }
 }
 
-/* Type icon badge */
-.miniPlayerIcon {
-  width: 30px; height: 30px;
-  border-radius: 8px;
-  display: flex; align-items: center; justify-content: center;
-  flex-shrink: 0;
-}
-.miniPlayerIconAudio {
+/* Jump-to-message button (replaces type icon) */
+.miniPlayerJumpBtn {
+  width: 32px; height: 32px;
+  border-radius: 50%;
+  border: none;
   background: var(--accent-dim);
   color: var(--accent);
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+  transition: background .15s, color .15s, transform .15s;
 }
-.miniPlayerIconVideo {
-  background: rgba(63,185,80,.13);
-  color: var(--success);
+.miniPlayerJumpBtn:hover {
+  background: var(--accent);
+  color: #fff;
+  transform: scale(1.08);
 }
+.miniPlayerJumpBtn:active { transform: scale(.92); }
 
 /* Sender name + type label */
 .miniPlayerInfo {

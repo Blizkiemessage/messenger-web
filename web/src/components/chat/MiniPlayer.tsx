@@ -19,28 +19,6 @@ function fmtT(s: number): string {
   return `${m}:${sec.toString().padStart(2, '0')}`;
 }
 
-// ── icons ─────────────────────────────────────────────────────────────────────
-
-function AudioIcon() {
-  return (
-    <svg width="15" height="15" viewBox="0 0 24 24" fill="none"
-         stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M3 18v-6a9 9 0 0 1 18 0v6"/>
-      <path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3zM3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z"/>
-    </svg>
-  );
-}
-
-function VideoIcon() {
-  return (
-    <svg width="15" height="15" viewBox="0 0 24 24" fill="none"
-         stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <circle cx="12" cy="12" r="10"/>
-      <polygon points="10 8 16 12 10 16 10 8" fill="currentColor" stroke="none"/>
-    </svg>
-  );
-}
-
 // ── component ─────────────────────────────────────────────────────────────────
 
 export function MiniPlayer() {
@@ -98,6 +76,13 @@ export function MiniPlayer() {
     }
   }, [activeMedia?.type]); // eslint-disable-line
 
+  const jumpToMessage = useCallback(() => {
+    const msgId = activeMedia?.msgId;
+    if (!msgId) return;
+    const el = document.querySelector(`[data-msg-id="${msgId}"]`) as HTMLElement | null;
+    el?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }, [activeMedia?.msgId]); // eslint-disable-line
+
   const seekBy = useCallback((delta: number) => {
     const el = mediaElRef.current;
     if (!el) return;
@@ -133,15 +118,29 @@ export function MiniPlayer() {
   if (!activeMedia) return null;
 
   const progress = duration > 0 ? Math.min(1, current / duration) : 0;
-  const isAudio  = activeMedia.type === 'audio';
+  const isAudio  = activeMedia.type === 'audio'; // used for type label
 
   return (
     <div className="miniPlayer" role="region" aria-label="Мини-плеер">
 
-      {/* ── Left: type icon + sender info ── */}
-      <div className={`miniPlayerIcon${isAudio ? ' miniPlayerIconAudio' : ' miniPlayerIconVideo'}`}>
-        {isAudio ? <AudioIcon /> : <VideoIcon />}
-      </div>
+      {/* ── Left: jump-to-message button ── */}
+      <button
+        className="miniPlayerJumpBtn"
+        onClick={jumpToMessage}
+        title="Перейти к сообщению"
+        aria-label="Перейти к сообщению"
+      >
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none"
+             stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          {/* Locate / GPS crosshair icon */}
+          <circle cx="12" cy="12" r="4"/>
+          <circle cx="12" cy="12" r="9"/>
+          <line x1="12" y1="2"  x2="12" y2="5"/>
+          <line x1="12" y1="19" x2="12" y2="22"/>
+          <line x1="2"  y1="12" x2="5"  y2="12"/>
+          <line x1="19" y1="12" x2="22" y2="12"/>
+        </svg>
+      </button>
       <div className="miniPlayerInfo">
         <span className="miniPlayerSender">{activeMedia.senderName}</span>
         <span className="miniPlayerType">
