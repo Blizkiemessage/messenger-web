@@ -322,9 +322,12 @@ function VideoNotePlayer({
   const [blobUrl,     setBlobUrl]     = useState<string | null>(null);
   const [downloading, setDownloading] = useState(true);
 
-  // Download full file to blob URL — enables reliable random-access scrubbing
+  // Download full file to blob URL — enables reliable random-access scrubbing.
+  // Skipped for cross-origin URLs (S3/CDN) where fetch() is blocked by CORS;
+  // <video> handles those natively and duration comes from attachment_duration.
   useEffect(() => {
     if (!url) return;
+    if (!isSameOrigin(url)) { setDownloading(false); return; }
     let cancelled = false;
     let objectUrl: string | null = null;
     (async () => {
@@ -518,7 +521,16 @@ function VideoNotePlayer({
   );
 }
 
-// ── URL helpers ───────────────────────────────────────────────────────────────
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
+/** Returns true only for same-origin URLs (relative paths or matching origin).
+ *  Cross-origin URLs (e.g. S3) cannot be fetched without CORS headers,
+ *  but <audio>/<video> elements handle them natively in opaque mode. */
+function isSameOrigin(url: string): boolean {
+  if (url.startsWith('/')) return true;
+  try { return new URL(url).origin === window.location.origin; } catch { return false; }
+}
+
 function extractFirstUrl(text: string | null | undefined): string | null {
   if (!text) return null;
   const m = text.match(/https?:\/\/[^\s<>"']+/i);
@@ -549,8 +561,11 @@ function AudioPlayer({
 
   // Download full file to blob URL — enables reliable random-access scrubbing.
   // Reuses the same ArrayBuffer to both decode accurate duration and create the blob.
+  // Skipped for cross-origin URLs (S3/CDN) where fetch() is blocked by CORS;
+  // <audio> handles those natively and duration comes from attachment_duration.
   useEffect(() => {
     if (!url) return;
+    if (!isSameOrigin(url)) { setDownloading(false); return; }
     let cancelled = false;
     let objectUrl: string | null = null;
     (async () => {
