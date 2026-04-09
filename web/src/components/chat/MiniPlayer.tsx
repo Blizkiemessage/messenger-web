@@ -6,6 +6,12 @@
  *
  * Lives inside <MediaPlayerProvider>. Reads the active media element via the
  * context ref and attaches its own DOM event listeners to track playback state.
+ *
+ * Duration handling:
+ *   HTMLAudioElement.duration returns Infinity for WebM voice messages. The
+ *   context's activeDuration is populated by AudioPlayer via notifyDuration()
+ *   after a Web Audio decode. MiniPlayer uses activeDuration as fallback so that
+ *   the progress bar, scrubbing and time display all work for audio too.
  */
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useMediaPlayer } from '../../contexts/MediaPlayerContext';
@@ -22,14 +28,26 @@ function fmtT(s: number): string {
 // ── component ─────────────────────────────────────────────────────────────────
 
 export function MiniPlayer() {
-  const { activeMedia, mediaElRef, deactivate } = useMediaPlayer();
+  const { activeMedia, mediaElRef, activeDuration, deactivate } = useMediaPlayer();
 
   const [current,  setCurrent]  = useState(0);
   const [duration, setDuration] = useState(0);
   const [playing,  setPlaying]  = useState(false);
 
-  const trackRef    = useRef<HTMLDivElement>(null);
-  const draggingRef = useRef(false);
+  const trackRef         = useRef<HTMLDivElement>(null);
+  const draggingRef      = useRef(false);
+  // Keep a stable ref to the best-known duration to avoid stale closures in callbacks
+  const durationRef      = useRef(0);
+
+  // Sync durationRef whenever duration state changes
+  useEffect(() => { durationRef.current = duration; }, [duration]);
+
+  // When context reports a decoded duration (audio/webm fix), update local state
+  useEffect(() => {
+    if (activeDuration > 0 && durationRef.current === 0) {
+      setDuration(activeDuration);
+    }
+  }, [activeDuration]);
 
   // Attach DOM listeners to the active media element whenever it changes
   useEffect(() => {
@@ -39,11 +57,14 @@ export function MiniPlayer() {
       return;
     }
 
-    const onTime     = () => setCurrent(el.currentTime);
-    const onDur      = () => { if (isFinite(el.duration) && el.duration > 0) setDuration(el.duration); };
-    const onPlay     = () => setPlaying(true);
-    const onPause    = () => setPlaying(false);
-    const onEnded    = () => { setPlaying(false); setCurrent(0); };
+    const onTime  = () => setCurrent(el.currentTime);
+    const onDur   = () => {
+      // Only trust native duration if it is finite (videos are fine; webm audio returns Infinity)
+      if (isFinite(el.duration) && el.duration > 0) setDuration(el.duration);
+    };
+    const onPlay  = () => setPlaying(true);
+    const onPause = () => setPlaying(false);
+    const onEnded = () => { setPlaying(false); setCurrent(0); };
 
     el.addEventListener('timeupdate',     onTime);
     el.addEventListener('durationchange', onDur);
@@ -53,7 +74,9 @@ export function MiniPlayer() {
 
     // Initialise from current element state
     setCurrent(el.currentTime);
-    if (isFinite(el.duration) && el.duration > 0) setDuration(el.duration);
+    const nativeDur = isFinite(el.duration) && el.duration > 0 ? el.duration : 0;
+    // Prefer activeDuration (Web Audio decoded) over native when native is missing
+    setDuration(nativeDur > 0 ? nativeDur : activeDuration);
     setPlaying(!el.paused);
 
     return () => {
@@ -84,17 +107,20 @@ export function MiniPlayer() {
   }, [activeMedia?.msgId]); // eslint-disable-line
 
   const seekBy = useCallback((delta: number) => {
-    const el = mediaElRef.current;
+    const el  = mediaElRef.current;
     if (!el) return;
-    el.currentTime = Math.max(0, Math.min(el.duration || 0, el.currentTime + delta));
+    // Use best-known duration because el.duration may be Infinity for webm audio
+    const dur = isFinite(el.duration) && el.duration > 0 ? el.duration : durationRef.current;
+    el.currentTime = Math.max(0, Math.min(dur, el.currentTime + delta));
   }, []); // eslint-disable-line
 
   const scrubFromX = useCallback((clientX: number) => {
     const el    = mediaElRef.current;
     const track = trackRef.current;
     if (!el || !track) return;
-    const dur = el.duration;
-    if (!isFinite(dur) || dur <= 0) return;
+    // Use best-known duration; native may be Infinity for webm audio
+    const dur = isFinite(el.duration) && el.duration > 0 ? el.duration : durationRef.current;
+    if (dur <= 0) return;
     const rect = track.getBoundingClientRect();
     const p    = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
     el.currentTime = p * dur;
@@ -118,7 +144,7 @@ export function MiniPlayer() {
   if (!activeMedia) return null;
 
   const progress = duration > 0 ? Math.min(1, current / duration) : 0;
-  const isAudio  = activeMedia.type === 'audio'; // used for type label
+  const isAudio  = activeMedia.type === 'audio';
 
   return (
     <div className="miniPlayer" role="region" aria-label="Мини-плеер">
@@ -141,6 +167,8 @@ export function MiniPlayer() {
           <line x1="19" y1="12" x2="22" y2="12"/>
         </svg>
       </button>
+
+      {/* ── Sender name + type label ── */}
       <div className="miniPlayerInfo">
         <span className="miniPlayerSender">{activeMedia.senderName}</span>
         <span className="miniPlayerType">

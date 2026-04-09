@@ -500,7 +500,8 @@ function AudioPlayer({
   const [current,  setCurrent]  = useState(0);
   const [duration, setDuration] = useState(0);
 
-  // Decode duration via Web Audio for accuracy (HTMLAudio can return Infinity for webm)
+  // Decode duration via Web Audio for accuracy (HTMLAudio can return Infinity for webm).
+  // Also reports the real duration to the mini player context so it can scrub correctly.
   useEffect(() => {
     if (!url) return;
     let cancelled = false;
@@ -511,11 +512,14 @@ function AudioPlayer({
         const actx = new AudioContext();
         const dec  = await actx.decodeAudioData(buf);
         actx.close();
-        if (!cancelled && dec.duration > 0) setDuration(dec.duration);
+        if (!cancelled && dec.duration > 0) {
+          setDuration(dec.duration);
+          mediaCtx.notifyDuration(msgId, dec.duration);
+        }
       } catch { /* fallback to onLoadedMetadata */ }
     })();
     return () => { cancelled = true; };
-  }, [url]);
+  }, [url]); // eslint-disable-line
 
   const handleMeta = (e: React.SyntheticEvent<HTMLAudioElement>) => {
     const d = e.currentTarget.duration;
