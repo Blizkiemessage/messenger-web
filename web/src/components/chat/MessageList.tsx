@@ -85,6 +85,35 @@ export function MessageList({
     setAtBottom(true);
   }, [chat.id]);
 
+  // ── Video note active-circle state ──────────────────────────────────────────
+  const [activeVideoNoteId, setActiveVideoNoteId] = useState<string | null>(null);
+
+  // Reset active circle when switching chats
+  useEffect(() => { setActiveVideoNoteId(null); }, [chat.id]);
+
+  const handleVideoNoteActivate = useCallback((msgId: string) => {
+    setActiveVideoNoteId(msgId);
+    requestAnimationFrame(() => {
+      const el = document.querySelector(`[data-msg-id="${msgId}"]`) as HTMLElement | null;
+      el?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    });
+  }, []);
+
+  const handleVideoNoteEnded = useCallback((msgId: string) => {
+    const idx = messages.findIndex(m => m.id === msgId);
+    if (idx === -1) { setActiveVideoNoteId(null); return; }
+    const next = messages[idx + 1];
+    if (next?.attachment_type === 'video_note') {
+      setActiveVideoNoteId(next.id);
+      requestAnimationFrame(() => {
+        const el = document.querySelector(`[data-msg-id="${next.id}"]`) as HTMLElement | null;
+        el?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      });
+    } else {
+      setActiveVideoNoteId(null);
+    }
+  }, [messages]);
+
   const [ctxMenu, setCtxMenu] = useState<{ x: number; y: number; msg: Message } | null>(null);
   const [emojiTarget, setEmojiTarget] = useState<{ x: number; y: number; msgId: string } | null>(null);
   const [readersTarget, setReadersTarget] = useState<{ msgId: string; reactions: MessageReaction[] } | null>(null);
@@ -279,6 +308,9 @@ export function MessageList({
               meUsername={meUsername}
               members={chat.members}
               onViewReaders={isOwn && isGroup ? () => setReadersTarget({ msgId: m.id, reactions: m.reactions ?? [] }) : undefined}
+              activeVideoNoteId={activeVideoNoteId}
+              onVideoNoteActivate={handleVideoNoteActivate}
+              onVideoNoteEnded={handleVideoNoteEnded}
             />
           </div>
         );

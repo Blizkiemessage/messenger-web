@@ -350,6 +350,8 @@ export function Composer({ value, onChange, onSend, onSendAttachment, externalFi
   const [videoPreviewSecs,  setVideoPreviewSecs]  = useState(0);
   const [videoSending,      setVideoSending]      = useState(false);
   const [videoFacing,       setVideoFacing]       = useState<'user' | 'environment'>('user');
+  const [previewPlaying,    setPreviewPlaying]    = useState(false);
+  const previewVideoRef = useRef<HTMLVideoElement | null>(null);
 
   const videoStreamRef      = useRef<MediaStream | null>(null);
   const videoAudioStreamRef = useRef<MediaStream | null>(null);
@@ -606,6 +608,7 @@ export function Composer({ value, onChange, onSend, onSendAttachment, externalFi
     setVideoPreviewSecs(0);
     setVideoLocked(false);
     setVideoLockProgress(0);
+    setPreviewPlaying(false);
     videoLockedRef.current = false;
     videoRecSecondsRef.current = 0;
   }, [videoState, videoPreviewUrl]); // eslint-disable-line
@@ -624,6 +627,7 @@ export function Composer({ value, onChange, onSend, onSendAttachment, externalFi
       setVideoBlob(null);
       setVideoPreviewUrl(null);
       setVideoPreviewSecs(0);
+      setPreviewPlaying(false);
       videoRecSecondsRef.current = 0;
     } catch {
       setVideoSending(false);
@@ -844,14 +848,28 @@ export function Composer({ value, onChange, onSend, onSendAttachment, externalFi
             <span className="voicePreviewLabel">Видеосообщение</span>
             <span className="voicePreviewDurLabel">{fmt(videoPreviewSecs)}</span>
           </div>
-          <div className="videoNotePreviewVideoWrap">
+          <div className="videoNotePreviewVideoWrap" onClick={() => {
+              const v = previewVideoRef.current;
+              if (!v) return;
+              v.paused ? v.play().catch(() => {}) : v.pause();
+            }}>
             <video
+              ref={previewVideoRef}
               src={videoPreviewUrl}
               className="videoNotePreviewVideo"
               playsInline
-              controls
               loop
+              onPlay={() => setPreviewPlaying(true)}
+              onPause={() => setPreviewPlaying(false)}
+              onEnded={() => setPreviewPlaying(false)}
             />
+            {!previewPlaying && (
+              <div className="videoNotePreviewPlayBtn">
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M8 5v14l11-7z"/>
+                </svg>
+              </div>
+            )}
           </div>
           <div className="voicePreviewCardActions">
             <button className="voicePreviewDeleteBtn" onClick={cancelVideo} title="Удалить">

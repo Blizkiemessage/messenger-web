@@ -292,7 +292,21 @@ function VideoAttachment({ url, caption }: { url: string; caption?: string; name
 }
 
 // ── Video note player (circular, Telegram-style) ──────────────────────────────
-function VideoNotePlayer({ url }: { url: string }) {
+function VideoNotePlayer({
+  url, msgId, isActive, onActivate, onEnded,
+  isOwn, isRead, sendTime, isGroup, onViewReaders,
+}: {
+  url: string;
+  msgId: string;
+  isActive: boolean;
+  onActivate: (id: string) => void;
+  onEnded: (id: string) => void;
+  isOwn: boolean;
+  isRead: boolean;
+  sendTime: number;
+  isGroup: boolean;
+  onViewReaders?: () => void;
+}) {
   const videoRef    = useRef<HTMLVideoElement>(null);
   const msgRef      = useRef<HTMLDivElement>(null);   // root div for coordinate base
   const draggingRef = useRef(false);
@@ -304,9 +318,22 @@ function VideoNotePlayer({ url }: { url: string }) {
 
   const fmtT = (s: number) => {
     if (!isFinite(s) || isNaN(s)) return '0:00';
-    const m = Math.floor(s / 60), sec = Math.floor(s % 60);
-    return `${m}:${sec.toString().padStart(2, '0')}`;
+    const mm = Math.floor(s / 60), sec = Math.floor(s % 60);
+    return `${mm}:${sec.toString().padStart(2, '0')}`;
   };
+
+  // When isActive changes: play/unmute or pause/mute
+  useEffect(() => {
+    const v = videoRef.current;
+    if (!v) return;
+    if (isActive) {
+      v.muted = false;
+      if (v.paused) v.play().catch(() => {});
+    } else {
+      v.muted = true;
+      if (!v.paused) v.pause();
+    }
+  }, [isActive]); // eslint-disable-line
 
   // Scrub: map pointer screen-coords → angle → video time
   const scrubToPoint = useCallback((clientX: number, clientY: number) => {
@@ -350,9 +377,13 @@ function VideoNotePlayer({ url }: { url: string }) {
     if (draggingRef.current) return;
     const v = videoRef.current;
     if (!v) return;
-    if (v.paused) { v.play().catch(() => {}); }
-    else { v.pause(); }
-  }, []);
+    if (v.paused) {
+      onActivate(msgId);   // claim audio focus
+      v.play().catch(() => {});
+    } else {
+      v.pause();
+    }
+  }, [msgId, onActivate]);
 
   const pct  = duration > 0 ? Math.min(1, current / duration) : 0;
   const R    = 45; // in SVG 0–100 units
@@ -364,7 +395,9 @@ function VideoNotePlayer({ url }: { url: string }) {
   const thumbSvgY  = 50 + R * Math.sin(thumbAngle);
 
   return (
-    <div ref={msgRef} className="videoNoteMsg" onClick={toggle}
+    <div ref={msgRef}
+         className={`videoNoteMsg${isActive ? ' videoNoteActive' : ''}`}
+         onClick={toggle}
          title={playing ? 'Пауза' : 'Воспроизвести'}>
       <video
         ref={videoRef}
@@ -372,10 +405,11 @@ function VideoNotePlayer({ url }: { url: string }) {
         className="videoNoteVideo"
         playsInline
         preload="metadata"
-        loop
+        loop={false}
+        muted                              // start muted; unmuted when active
         onPlay={() => setPlaying(true)}
         onPause={() => setPlaying(false)}
-        onEnded={() => setPlaying(false)}
+        onEnded={() => { setPlaying(false); onEnded(msgId); }}
         // Skip updates while user is scrubbing to prevent jumpy ring
         onTimeUpdate={e => { if (!draggingRef.current) setCurrent(e.currentTarget.currentTime); }}
         onDurationChange={e => setDuration(e.currentTarget.duration)}
@@ -412,7 +446,7 @@ function VideoNotePlayer({ url }: { url: string }) {
       {/* Play / Pause overlay */}
       {!playing && (
         <div className="videoNotePlayBtn">
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+          <svg width="26" height="26" viewBox="0 0 24 24" fill="currentColor">
             <path d="M8 5v14l11-7z"/>
           </svg>
         </div>
@@ -422,6 +456,22 @@ function VideoNotePlayer({ url }: { url: string }) {
       <div className="videoNoteDur">
         {playing ? fmtT(current) : fmtT(duration)}
       </div>
+
+      {/* Read receipt — time + status badge below the circle */}
+      {isOwn && (
+        <div className="videoNoteFooter">
+          <span className="videoNoteFooterTime">{formatTime(sendTime)}</span>
+          {isGroup && onViewReaders
+            ? <button className="bubbleReadersBtn" onClick={e => { e.stopPropagation(); onViewReaders(); }}>
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                  <circle cx="12" cy="12" r="3"/>
+                </svg>
+              </button>
+            : <MsgStatus isRead={isRead} />
+          }
+        </div>
+      )}
     </div>
   );
 }
@@ -647,6 +697,9 @@ interface Props {
   meUsername?: string;
   members?: User[];
   onViewReaders?: () => void;
+  activeVideoNoteId?: string | null;
+  onVideoNoteActivate?: (msgId: string) => void;
+  onVideoNoteEnded?: (msgId: string) => void;
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
@@ -655,6 +708,7 @@ export function MessageBubble({
   showAvatar, showName, hasSelection, highlight, isSearchMatch,
   meId, onContextMenu, onClick, onViewUser, onForwardedSenderClick,
   onReact, onScrollToMessage, onVote, onRetract, onViewVoters, meUsername, members, onViewReaders,
+  activeVideoNoteId, onVideoNoteActivate, onVideoNoteEnded,
 }: Props) {
   const hasAttachment = !!m.attachment_url;
   const isImage     = m.attachment_type === 'image';
@@ -779,7 +833,18 @@ export function MessageBubble({
 
         {/* ── Attachments (all use resolved URL) ── */}
         {isVideoNote && (
-          <VideoNotePlayer url={attachmentUrl} />
+          <VideoNotePlayer
+            url={attachmentUrl}
+            msgId={m.id}
+            isActive={activeVideoNoteId === m.id}
+            onActivate={onVideoNoteActivate ?? (() => {})}
+            onEnded={onVideoNoteEnded ?? (() => {})}
+            isOwn={isOwn}
+            isRead={isRead}
+            sendTime={m.created_at}
+            isGroup={isGroup}
+            onViewReaders={onViewReaders}
+          />
         )}
         {isAudio && (
           <AudioPlayer url={attachmentUrl} isOwn={isOwn} isRead={isRead} sendTime={m.created_at} />
