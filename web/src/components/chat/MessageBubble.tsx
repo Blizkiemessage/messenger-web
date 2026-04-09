@@ -539,6 +539,7 @@ function AudioPlayer({
       a.pause();
     } else {
       mediaCtx.activate(a, { msgId, type: 'audio', senderName });
+      if (duration > 0) mediaCtx.notifyDuration(msgId, duration);
       a.play().catch(() => {});
     }
   };
