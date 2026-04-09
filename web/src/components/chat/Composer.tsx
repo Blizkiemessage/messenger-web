@@ -294,7 +294,7 @@ export function Composer({ value, onChange, onSend, onSendAttachment, externalFi
     setUploading(false); clearStage();
   }, [clearStage]);
 
-  const handleSendFile = useCallback(async (fileOverride?: File, captionOverride?: string) => {
+  const handleSendFile = useCallback(async (fileOverride?: File, captionOverride?: string, durationHint?: number) => {
     const f = fileOverride ?? staged;
     const c = captionOverride !== undefined ? captionOverride : caption;
     if (!f || uploading) return;
@@ -303,7 +303,7 @@ export function Composer({ value, onChange, onSend, onSendAttachment, externalFi
     cancelRef.current = task.cancel;
     try {
       const result = await task.promise;
-      await onSendAttachment(result, c);
+      await onSendAttachment(durationHint ? { ...result, duration: durationHint } : result, c);
       clearStage();
     } catch (e: any) {
       if (e?.message !== 'Загрузка отменена') { setUploadErr(e?.message ?? 'Ошибка загрузки'); setProgress(0); }
@@ -472,9 +472,20 @@ export function Composer({ value, onChange, onSend, onSendAttachment, externalFi
   const sendVoice = useCallback(async () => {
     if (!voiceBlob || voiceSending) return;
     setVoiceSending(true);
+    // Decode precise duration from the blob (already in memory) before uploading
+    let voiceDuration: number | undefined;
+    try {
+      const buf = await voiceBlob.arrayBuffer();
+      const actx = new AudioContext();
+      const dec = await actx.decodeAudioData(buf);
+      actx.close();
+      voiceDuration = dec.duration > 0 ? dec.duration : undefined;
+    } catch {
+      voiceDuration = recSecondsRef.current > 0 ? recSecondsRef.current : undefined;
+    }
     const ext = voiceBlob.type.includes('ogg') ? 'ogg' : 'webm';
     const file = new File([voiceBlob], `voice_${Date.now()}.${ext}`, { type: voiceBlob.type });
-    await handleSendFile(file, '');
+    await handleSendFile(file, '', voiceDuration);
     setVoiceSending(false);
     cancelVoice();
   }, [voiceBlob, voiceSending, handleSendFile, cancelVoice]);
@@ -620,7 +631,8 @@ export function Composer({ value, onChange, onSend, onSendAttachment, externalFi
     try {
       const task = uploadFile(file, () => {});
       const result = await task.promise;
-      await onSendAttachment({ ...result, type: 'video_note' }, '');
+      const videoDuration = videoRecSecondsRef.current > 0 ? videoRecSecondsRef.current : undefined;
+      await onSendAttachment({ ...result, type: 'video_note', duration: videoDuration }, '');
       if (videoPreviewUrl) URL.revokeObjectURL(videoPreviewUrl);
       setVideoSending(false);
       setVideoState('idle');

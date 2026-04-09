@@ -69,6 +69,7 @@ export type Message = {
   attachment_type?: string | null;
   attachment_name?: string | null;
   attachment_size?: number | null;
+  attachment_duration?: number | null;
   liked_by?: string[];
   reactions?: MessageReaction[];
   is_system?: boolean;

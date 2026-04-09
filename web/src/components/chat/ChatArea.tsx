@@ -386,10 +386,11 @@ export function ChatArea() {
     if (!chatId) return;
     await sendChatMessage(chatId, {
       text: caption.trim() || '',
-      attachment_url:  result.url,
-      attachment_type: result.type,
-      attachment_name: result.name,
-      attachment_size: result.size,
+      attachment_url:      result.url,
+      attachment_type:     result.type,
+      attachment_name:     result.name,
+      attachment_size:     result.size,
+      attachment_duration: result.duration ?? null,
     });
   }, []);
 

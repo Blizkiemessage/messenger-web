@@ -194,6 +194,8 @@ function runMigrations() {
       message_id TEXT NOT NULL,
       PRIMARY KEY (user_id, message_id)
     )`,
+    // ✅ NEW: audio/video attachment duration (seconds) — avoids client-side re-decode on every load
+    'ALTER TABLE messages ADD COLUMN attachment_duration REAL',
   ];
 
   for (const sql of alters) {

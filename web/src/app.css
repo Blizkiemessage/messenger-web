@@ -5024,8 +5024,18 @@ input[type="date"].psInput::-webkit-calendar-picker-indicator {
   box-shadow: 0 2px 8px color-mix(in srgb, var(--accent) 35%, transparent);
   align-self: center;
 }
-.voiceMsgPlay:hover { opacity: .88; transform: scale(1.06); }
+.voiceMsgPlay:hover:not(:disabled) { opacity: .88; transform: scale(1.06); }
+.voiceMsgPlay:disabled { cursor: default; }
 .voiceMsgPlayerOwn .voiceMsgPlay { background: rgba(255,255,255,.22); box-shadow: none; }
+
+/* Spinner inside the voice message play button */
+.voiceMsgSpinner {
+  animation: voiceMsgSpin 0.9s linear infinite;
+}
+@keyframes voiceMsgSpin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
 
 .voiceMsgRight {
   flex: 1;
@@ -7408,4 +7418,24 @@ input[type="date"].psInput::-webkit-calendar-picker-indicator {
 }
 
 .videoNoteMsg:hover .videoNotePlayBtn { opacity: .9; }
+
+/* Loading overlay while video note downloads */
+.videoNoteLoading {
+  position: absolute;
+  top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+  width: 48px; height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 4;
+}
+.videoNoteSpinner {
+  width: 44px; height: 44px;
+  animation: videoNoteSpin 0.9s linear infinite;
+}
+@keyframes videoNoteSpin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
 

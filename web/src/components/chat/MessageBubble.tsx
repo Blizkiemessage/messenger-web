@@ -295,7 +295,7 @@ function VideoAttachment({ url, caption }: { url: string; caption?: string; name
 // ── Video note player (circular, Telegram-style) ──────────────────────────────
 function VideoNotePlayer({
   url, msgId, isActive, onActivate, onEnded,
-  isOwn, isRead, sendTime, isGroup, onViewReaders, senderName,
+  isOwn, isRead, sendTime, isGroup, onViewReaders, senderName, initialDuration,
 }: {
   url: string;
   msgId: string;
@@ -308,6 +308,7 @@ function VideoNotePlayer({
   isGroup: boolean;
   onViewReaders?: () => void;
   senderName: string;
+  initialDuration?: number;
 }) {
   const videoRef    = useRef<HTMLVideoElement>(null);
   const msgRef      = useRef<HTMLDivElement>(null);   // root div for coordinate base
@@ -315,9 +316,33 @@ function VideoNotePlayer({
   const movedRef    = useRef(false);
   const mediaCtx    = useMediaPlayer();
 
-  const [playing,  setPlaying]  = useState(false);
-  const [current,  setCurrent]  = useState(0);
-  const [duration, setDuration] = useState(0);
+  const [playing,     setPlaying]     = useState(false);
+  const [current,     setCurrent]     = useState(0);
+  const [duration,    setDuration]    = useState(initialDuration ?? 0);
+  const [blobUrl,     setBlobUrl]     = useState<string | null>(null);
+  const [downloading, setDownloading] = useState(true);
+
+  // Download full file to blob URL — enables reliable random-access scrubbing
+  useEffect(() => {
+    if (!url) return;
+    let cancelled = false;
+    let objectUrl: string | null = null;
+    (async () => {
+      try {
+        const res = await fetch(url);
+        const buf = await res.arrayBuffer();
+        if (cancelled) return;
+        objectUrl = URL.createObjectURL(new Blob([buf], { type: 'video/webm' }));
+        if (!cancelled) { setBlobUrl(objectUrl); setDownloading(false); }
+      } catch {
+        if (!cancelled) setDownloading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+    };
+  }, [url]); // eslint-disable-line
 
   const fmtT = (s: number) => {
     if (!isFinite(s) || isNaN(s)) return '0:00';
@@ -377,7 +402,7 @@ function VideoNotePlayer({
   const toggle = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
     if (movedRef.current) { movedRef.current = false; return; }
-    if (draggingRef.current) return;
+    if (draggingRef.current || downloading) return;
     const v = videoRef.current;
     if (!v) return;
     if (v.paused) {
@@ -387,7 +412,7 @@ function VideoNotePlayer({
     } else {
       v.pause();
     }
-  }, [msgId, onActivate, senderName]); // eslint-disable-line
+  }, [msgId, onActivate, senderName, downloading]); // eslint-disable-line
 
   const pct  = duration > 0 ? Math.min(1, current / duration) : 0;
   const R    = 45; // in SVG 0–100 units
@@ -405,10 +430,10 @@ function VideoNotePlayer({
          title={playing ? 'Пауза' : 'Воспроизвести'}>
       <video
         ref={videoRef}
-        src={url}
+        src={blobUrl ?? undefined}
         className="videoNoteVideo"
         playsInline
-        preload="metadata"
+        preload={blobUrl ? 'auto' : 'none'}
         loop={false}
         muted                              // start muted; unmuted when active
         onPlay={() => setPlaying(true)}
@@ -416,7 +441,7 @@ function VideoNotePlayer({
         onEnded={() => { setPlaying(false); onEnded(msgId); }}
         // Skip updates while user is scrubbing to prevent jumpy ring
         onTimeUpdate={e => { if (!draggingRef.current) setCurrent(e.currentTarget.currentTime); }}
-        onDurationChange={e => setDuration(e.currentTarget.duration)}
+        onDurationChange={e => { const d = e.currentTarget.duration; if (isFinite(d) && d > 0) setDuration(d); }}
       />
 
       {/* Progress ring — purely visual, no pointer events */}
@@ -447,8 +472,21 @@ function VideoNotePlayer({
         onPointerCancel={onThumbUp}
       />
 
+      {/* Loading overlay while file downloads */}
+      {downloading && (
+        <div className="videoNoteLoading">
+          <svg className="videoNoteSpinner" viewBox="0 0 36 36" fill="none">
+            <circle cx="18" cy="18" r="14" strokeWidth="3" stroke="rgba(255,255,255,0.25)" />
+            <circle cx="18" cy="18" r="14" strokeWidth="3" stroke="white"
+              strokeDasharray="44 44" strokeLinecap="round"
+              style={{ transform: 'rotate(-90deg)', transformOrigin: '50% 50%' }}
+            />
+          </svg>
+        </div>
+      )}
+
       {/* Play / Pause overlay */}
-      {!playing && (
+      {!playing && !downloading && (
         <div className="videoNotePlayBtn">
           <svg width="26" height="26" viewBox="0 0 24 24" fill="currentColor">
             <path d="M8 5v14l11-7z"/>
@@ -489,42 +527,61 @@ function extractFirstUrl(text: string | null | undefined): string | null {
 
 // ── Audio player for voice messages ──────────────────────────────────────────
 function AudioPlayer({
-  url, isOwn, isRead, sendTime, msgId, senderName,
-}: { url: string; isOwn: boolean; isRead: boolean; sendTime: number; msgId: string; senderName: string }) {
+  url, isOwn, isRead, sendTime, msgId, senderName, initialDuration,
+}: { url: string; isOwn: boolean; isRead: boolean; sendTime: number; msgId: string; senderName: string; initialDuration?: number }) {
   const audioRef    = useRef<HTMLAudioElement>(null);
   const trackRef    = useRef<HTMLDivElement>(null);
   const draggingRef = useRef(false);
   const mediaCtx    = useMediaPlayer();
 
-  const [playing,  setPlaying]  = useState(false);
-  const [current,  setCurrent]  = useState(0);
-  const [duration, setDuration] = useState(0);
+  const [playing,     setPlaying]     = useState(false);
+  const [current,     setCurrent]     = useState(0);
+  const [duration,    setDuration]    = useState(initialDuration ?? 0);
+  const [blobUrl,     setBlobUrl]     = useState<string | null>(null);
+  const [downloading, setDownloading] = useState(true);
 
-  // Decode duration via Web Audio for accuracy (HTMLAudio can return Infinity for webm).
-  // Also reports the real duration to the mini player context so it can scrub correctly.
+  // Notify mini-player of stored duration immediately (before download completes)
+  useEffect(() => {
+    if (initialDuration && initialDuration > 0) {
+      mediaCtx.notifyDuration(msgId, initialDuration);
+    }
+  }, []); // eslint-disable-line
+
+  // Download full file to blob URL — enables reliable random-access scrubbing.
+  // Reuses the same ArrayBuffer to both decode accurate duration and create the blob.
   useEffect(() => {
     if (!url) return;
     let cancelled = false;
+    let objectUrl: string | null = null;
     (async () => {
       try {
-        const res  = await fetch(url);
-        const buf  = await res.arrayBuffer();
-        const actx = new AudioContext();
-        const dec  = await actx.decodeAudioData(buf);
-        actx.close();
-        if (!cancelled && dec.duration > 0) {
-          setDuration(dec.duration);
-          mediaCtx.notifyDuration(msgId, dec.duration);
-        }
-      } catch { /* fallback to onLoadedMetadata */ }
+        const res = await fetch(url);
+        const buf = await res.arrayBuffer();
+        if (cancelled) return;
+        // Decode accurate duration (WebM streams return Infinity from HTMLAudioElement)
+        try {
+          const actx = new AudioContext();
+          const dec  = await actx.decodeAudioData(buf.slice(0));
+          actx.close();
+          if (!cancelled && dec.duration > 0) {
+            setDuration(dec.duration);
+            mediaCtx.notifyDuration(msgId, dec.duration);
+          }
+        } catch { /* keep initialDuration */ }
+        if (cancelled) return;
+        const mime = url.toLowerCase().includes('.ogg') ? 'audio/ogg' : 'audio/webm';
+        objectUrl = URL.createObjectURL(new Blob([buf], { type: mime }));
+        setBlobUrl(objectUrl);
+        setDownloading(false);
+      } catch {
+        if (!cancelled) setDownloading(false);
+      }
     })();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+    };
   }, [url]); // eslint-disable-line
-
-  const handleMeta = (e: React.SyntheticEvent<HTMLAudioElement>) => {
-    const d = e.currentTarget.duration;
-    if (isFinite(d) && d > 0) setDuration(prev => prev > 0 ? prev : d);
-  };
 
   const fmtT = (s: number) => {
     if (!isFinite(s) || isNaN(s) || s < 0) return '0:00';
@@ -534,7 +591,7 @@ function AudioPlayer({
 
   const toggle = () => {
     const a = audioRef.current;
-    if (!a) return;
+    if (!a || downloading) return;
     if (playing) {
       a.pause();
     } else {
@@ -558,6 +615,7 @@ function AudioPlayer({
   };
 
   const onPointerDown = (e: React.PointerEvent) => {
+    if (downloading) return;
     draggingRef.current = true;
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
     scrubFromClientX(e.clientX);
@@ -574,18 +632,24 @@ function AudioPlayer({
   return (
     <div className={`voiceMsgPlayer${isOwn ? ' voiceMsgPlayerOwn' : ''}`}>
       <audio
-        ref={audioRef} src={url} preload="auto"
+        ref={audioRef} src={blobUrl ?? undefined} preload={blobUrl ? 'auto' : 'none'}
         onPlay={() => setPlaying(true)}
         onPause={() => setPlaying(false)}
         onTimeUpdate={e => setCurrent(e.currentTarget.currentTime)}
-        onLoadedMetadata={handleMeta}
-        onDurationChange={handleMeta}
         onEnded={() => { setPlaying(false); setCurrent(0); }}
       />
 
-      {/* Play / Pause button */}
-      <button className="voiceMsgPlay" onClick={toggle} aria-label={playing ? 'Пауза' : 'Воспроизвести'}>
-        {playing ? (
+      {/* Play / Pause / Loading button */}
+      <button className="voiceMsgPlay" onClick={toggle} aria-label={downloading ? 'Загрузка…' : playing ? 'Пауза' : 'Воспроизвести'} disabled={downloading}>
+        {downloading ? (
+          <svg className="voiceMsgSpinner" viewBox="0 0 24 24" fill="none" width="16" height="16">
+            <circle cx="12" cy="12" r="9" strokeWidth="2.5" stroke="currentColor" strokeOpacity="0.25" />
+            <circle cx="12" cy="12" r="9" strokeWidth="2.5" stroke="currentColor"
+              strokeDasharray="14 42" strokeLinecap="round"
+              style={{ transform: 'rotate(-90deg)', transformOrigin: '50% 50%' }}
+            />
+          </svg>
+        ) : playing ? (
           <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor">
             <rect x="5" y="4" width="4" height="16" rx="1"/>
             <rect x="15" y="4" width="4" height="16" rx="1"/>
@@ -866,6 +930,7 @@ export function MessageBubble({
             isGroup={isGroup}
             onViewReaders={onViewReaders}
             senderName={playerSenderName}
+            initialDuration={m.attachment_duration ?? undefined}
           />
         )}
         {isAudio && (
@@ -876,6 +941,7 @@ export function MessageBubble({
             sendTime={m.created_at}
             msgId={m.id}
             senderName={playerSenderName}
+            initialDuration={m.attachment_duration ?? undefined}
           />
         )}
         {isImage && (
