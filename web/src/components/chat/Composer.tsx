@@ -562,7 +562,7 @@ export function Composer({ value, onChange, onSend, onSendAttachment, externalFi
         : MediaRecorder.isTypeSupported('video/webm;codecs=vp8,opus')
         ? 'video/webm;codecs=vp8,opus'
         : 'video/webm';
-      const recorder = new MediaRecorder(canvasStream, { mimeType, videoBitsPerSecond: 2_000_000 });
+      const recorder = new MediaRecorder(canvasStream, { mimeType, videoBitsPerSecond: 800_000, audioBitsPerSecond: 64_000 });
       videoRecorderRef.current = recorder;
       videoChunksRef.current = [];
 
