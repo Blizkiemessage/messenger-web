@@ -402,7 +402,7 @@ function VideoNotePlayer({
   const toggle = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
     if (movedRef.current) { movedRef.current = false; return; }
-    if (draggingRef.current || downloading) return;
+    if (draggingRef.current || (downloading && !blobUrl)) return;
     const v = videoRef.current;
     if (!v) return;
     if (v.paused) {
@@ -430,10 +430,10 @@ function VideoNotePlayer({
          title={playing ? 'Пауза' : 'Воспроизвести'}>
       <video
         ref={videoRef}
-        src={blobUrl ?? undefined}
+        src={blobUrl ?? url}
         className="videoNoteVideo"
         playsInline
-        preload={blobUrl ? 'auto' : 'none'}
+        preload={downloading ? 'none' : 'auto'}
         loop={false}
         muted                              // start muted; unmuted when active
         onPlay={() => setPlaying(true)}
@@ -591,7 +591,8 @@ function AudioPlayer({
 
   const toggle = () => {
     const a = audioRef.current;
-    if (!a || downloading) return;
+    // Block play only while actively downloading (not on failure — fall back to streaming)
+    if (!a || (downloading && !blobUrl)) return;
     if (playing) {
       a.pause();
     } else {
@@ -615,7 +616,7 @@ function AudioPlayer({
   };
 
   const onPointerDown = (e: React.PointerEvent) => {
-    if (downloading) return;
+    if (downloading && !blobUrl) return;
     draggingRef.current = true;
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
     scrubFromClientX(e.clientX);
@@ -632,7 +633,7 @@ function AudioPlayer({
   return (
     <div className={`voiceMsgPlayer${isOwn ? ' voiceMsgPlayerOwn' : ''}`}>
       <audio
-        ref={audioRef} src={blobUrl ?? undefined} preload={blobUrl ? 'auto' : 'none'}
+        ref={audioRef} src={blobUrl ?? url} preload={downloading ? 'none' : 'auto'}
         onPlay={() => setPlaying(true)}
         onPause={() => setPlaying(false)}
         onTimeUpdate={e => setCurrent(e.currentTarget.currentTime)}
