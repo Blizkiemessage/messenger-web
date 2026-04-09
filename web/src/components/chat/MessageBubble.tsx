@@ -322,6 +322,13 @@ function VideoNotePlayer({
   const [blobUrl,     setBlobUrl]     = useState<string | null>(null);
   const [downloading, setDownloading] = useState(true);
 
+  // Notify mini-player of stored duration immediately
+  useEffect(() => {
+    if (initialDuration && initialDuration > 0) {
+      mediaCtx.notifyDuration(msgId, initialDuration);
+    }
+  }, []); // eslint-disable-line
+
   // Download full file to blob URL — enables reliable random-access scrubbing.
   // Skipped for cross-origin URLs (S3/CDN) where fetch() is blocked by CORS;
   // <video> handles those natively and duration comes from attachment_duration.
@@ -409,8 +416,9 @@ function VideoNotePlayer({
     const v = videoRef.current;
     if (!v) return;
     if (v.paused) {
-      onActivate(msgId);   // claim circle-scale focus
-      mediaCtx.activate(v, { msgId, type: 'video_note', senderName }); // claim mini-player focus
+      onActivate(msgId);
+      mediaCtx.activate(v, { msgId, type: 'video_note', senderName });
+      if (duration > 0) mediaCtx.notifyDuration(msgId, duration);
       v.play().catch(() => {});
     } else {
       v.pause();
@@ -444,7 +452,7 @@ function VideoNotePlayer({
         onEnded={() => { setPlaying(false); onEnded(msgId); }}
         // Skip updates while user is scrubbing to prevent jumpy ring
         onTimeUpdate={e => { if (!draggingRef.current) setCurrent(e.currentTarget.currentTime); }}
-        onDurationChange={e => { const d = e.currentTarget.duration; if (isFinite(d) && d > 0) setDuration(d); }}
+        onDurationChange={e => { const d = e.currentTarget.duration; if (isFinite(d) && d > 0) { setDuration(d); mediaCtx.notifyDuration(msgId, d); } }}
       />
 
       {/* Progress ring — purely visual, no pointer events */}
