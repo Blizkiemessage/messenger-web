@@ -2853,13 +2853,10 @@ input[type="date"].psInput::-webkit-calendar-picker-indicator {
 .giCard {
   width: min(420px, 100%);
   max-height: 85vh;
-  overflow-y: auto;
-  scroll-behavior: smooth;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
-.giCard::-webkit-scrollbar { width: 5px; }
-.giCard::-webkit-scrollbar-track { background: transparent; }
-.giCard::-webkit-scrollbar-thumb { background: var(--border); border-radius: 5px; }
-.giCard::-webkit-scrollbar-thumb:hover { background: var(--muted); }
 
 .giMembersSection { padding-bottom: 8px; }
 .giDescToggle {
@@ -7441,5 +7438,259 @@ input[type="date"].psInput::-webkit-calendar-picker-indicator {
 @keyframes videoNoteSpin {
   from { transform: rotate(0deg); }
   to   { transform: rotate(360deg); }
+}
+
+/* ── Tab system (GroupInfoModal + UserProfileModal) ──────────────────────── */
+
+/* Scrollable header section (avatar, name, info rows) */
+.giCardHead {
+  flex-shrink: 0;
+  overflow-y: auto;
+  max-height: 55vh;
+}
+.giCardHead::-webkit-scrollbar { width: 4px; }
+.giCardHead::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+
+/* Tab bar */
+.giTabs {
+  display: flex;
+  flex-shrink: 0;
+  border-bottom: 1px solid var(--border);
+  padding: 0 16px;
+  background: var(--card);
+}
+.giTab {
+  flex: 1;
+  padding: 11px 4px 10px;
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--muted);
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+  transition: color .15s, border-color .15s;
+  white-space: nowrap;
+}
+.giTab:hover { color: var(--text); }
+.giTabActive {
+  color: var(--accent) !important;
+  border-bottom-color: var(--accent) !important;
+  font-weight: 600;
+}
+
+/* Scrollable content area */
+.giTabContent {
+  flex: 1;
+  overflow-y: auto;
+  min-height: 0;
+}
+.giTabContent::-webkit-scrollbar { width: 5px; }
+.giTabContent::-webkit-scrollbar-thumb { background: var(--border); border-radius: 5px; }
+
+.giTabSection { padding: 4px 0 12px; }
+.giDateLabel {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--muted);
+  letter-spacing: .05em;
+  text-transform: uppercase;
+  padding: 10px 18px 6px;
+}
+
+/* Media grid */
+.giMediaGrid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 2px;
+  padding: 0 0 4px;
+}
+.giMediaThumb {
+  aspect-ratio: 1;
+  overflow: hidden;
+  background: var(--surface);
+  display: block;
+  position: relative;
+}
+.giMediaThumb img,
+.giMediaThumb video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform .2s;
+  display: block;
+}
+.giMediaThumb:hover img,
+.giMediaThumb:hover video { transform: scale(1.04); }
+.giVideoOverlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0,0,0,.3);
+}
+
+/* File items */
+.giFileItem {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 18px;
+  text-decoration: none;
+  color: inherit;
+  transition: background .12s;
+}
+.giFileItem:hover { background: var(--surface); }
+.giFileIcon {
+  width: 42px;
+  height: 42px;
+  border-radius: 10px;
+  border: 1px solid;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: .02em;
+}
+.giFileInfo { flex: 1; min-width: 0; }
+.giFileName {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.giFileMeta { font-size: 11.5px; color: var(--muted); margin-top: 2px; }
+.giFileDownload {
+  color: var(--muted);
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+}
+
+/* Voice items */
+.giVoiceItem {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 9px 18px;
+  transition: background .12s;
+}
+.giVoiceItem:hover { background: var(--surface); }
+.giVoicePlayBtn {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  border: none;
+  background: var(--accent-dim);
+  color: var(--accent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background .15s, transform .1s;
+}
+.giVoicePlayBtn:hover {
+  background: color-mix(in srgb, var(--accent) 25%, transparent);
+  transform: scale(1.05);
+}
+.giVoicePlayBtnActive {
+  background: var(--accent) !important;
+  color: #fff !important;
+}
+.giVoiceInfo { flex: 1; min-width: 0; }
+.giVoiceDate { font-size: 13px; font-weight: 500; color: var(--text); }
+.giVoiceMeta { font-size: 11.5px; color: var(--muted); margin-top: 2px; }
+
+/* Link items */
+.giLinkItem {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 10px 18px;
+  text-decoration: none;
+  color: inherit;
+  transition: background .12s;
+}
+.giLinkItem:hover { background: var(--surface); }
+.giLinkIcon {
+  width: 36px;
+  height: 36px;
+  border-radius: 9px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--accent);
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+.giLinkInfo { flex: 1; min-width: 0; }
+.giLinkDomain { font-size: 13px; font-weight: 600; color: var(--accent); }
+.giLinkUrl {
+  font-size: 11.5px;
+  color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  margin-top: 1px;
+}
+.giLinkDate { font-size: 11px; color: var(--muted); margin-top: 3px; opacity: .7; }
+
+/* Empty state / spinner / load more */
+.giTabEmpty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 40px 20px;
+  color: var(--muted);
+  font-size: 13px;
+}
+.giTabSpinner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 0;
+}
+.giSpinner {
+  width: 26px;
+  height: 26px;
+  border: 2.5px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.75s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.giLoadMore {
+  display: block;
+  width: calc(100% - 36px);
+  margin: 8px 18px 4px;
+  padding: 10px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  color: var(--accent);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background .15s;
+}
+.giLoadMore:hover:not(:disabled) { background: var(--accent-dim); }
+.giLoadMore:disabled { opacity: .5; cursor: default; }
+
+/* UserProfileModal with tabs — flex column to host giTabs + giTabContent */
+.upCardTabs {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  max-height: 85vh;
 }
 
