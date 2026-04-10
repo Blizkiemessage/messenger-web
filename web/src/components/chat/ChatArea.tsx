@@ -2,7 +2,7 @@
  * ChatArea.tsx
  * ✅ Added: pin/unpin messages, pin navigation, long message auto-split.
  */
-import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
+import { useState, useCallback, useMemo, useRef, useEffect, useLayoutEffect } from 'react';
 import { useChatsStore, selectActiveChat } from '../../store/useChatsStore';
 import { useSessionStore } from '../../store/useSessionStore';
 import { useAppStore } from '../../store/useAppStore';
@@ -104,8 +104,9 @@ export function ChatArea() {
   const scrollToBottomFnRef                 = useRef<() => void>(() => {});
 
   // Sync composer height to CSS var --composer-h on chatAreaInner via ResizeObserver.
-  // Bypasses React state so the button repositions synchronously before the next paint.
-  useEffect(() => {
+  // useLayoutEffect + activeChatId dep: re-runs whenever a chat is selected so refs
+  // are guaranteed to be populated. Synchronous update prevents any paint delay.
+  useLayoutEffect(() => {
     const el = bottomAreaRef.current;
     const container = chatAreaInnerRef.current;
     if (!el || !container) return;
@@ -114,7 +115,7 @@ export function ChatArea() {
     ro.observe(el);
     update();
     return () => ro.disconnect();
-  }, []);
+  }, [activeChatId]);
 
   // ── Clear stale input state on chat switch ────────────────────────────────
   useEffect(() => {
