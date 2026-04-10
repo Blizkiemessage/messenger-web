@@ -5572,9 +5572,12 @@ input[type="date"].psInput::-webkit-calendar-picker-indicator {
 }
 
 /* ── Scroll-to-bottom button ─────────────────────────────────────────────── */
+/* bottom is overridden via inline style (composerOffset + 8 px) so the button
+   always clears the composer even when the keyboard is open on mobile.
+   The value here is a static fallback only. */
 .scrollToBottomBtn {
   position: fixed;
-  bottom: 76px;
+  bottom: 78px;
   right: 24px;
   width: 38px;
   height: 38px;

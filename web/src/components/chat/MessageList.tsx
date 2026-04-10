@@ -44,6 +44,9 @@ interface Props {
   meUsername?: string;
   unreadCount?: number;
   onMarkRead?: (readUntil: number) => void;
+  /** Height of the bottom area (composer + banners) in px — used to keep the
+   *  scroll-to-bottom button above the input field even when the keyboard is open. */
+  composerOffset?: number;
 }
 
 const CTX_WIDTH  = 200;
@@ -57,6 +60,7 @@ export function MessageList({
   searchQuery, matchedIds, currentMatchId, pinnedFocusId,
   hasMoreMessages, loadingMore, onLoadMore,
   onVote, onRetract, onViewVoters, onEdit, meUsername, unreadCount, onMarkRead,
+  composerOffset,
 }: Props) {
   const bottomRef      = useRef<HTMLDivElement | null>(null);
   const matchRef       = useRef<HTMLDivElement | null>(null);
@@ -492,6 +496,7 @@ export function MessageList({
         <Portal>
           <button
             className="scrollToBottomBtn"
+            style={composerOffset !== undefined ? { bottom: composerOffset + 8 } : undefined}
             onClick={() => bottomRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' })}
             title="Перейти к последним сообщениям"
           >

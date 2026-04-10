@@ -97,6 +97,19 @@ export function ChatArea() {
 
   const [scrollTargetId, setScrollTargetId] = useState<string | null>(null);
 
+  // ── Composer area height — drives scroll-to-bottom button placement ──────
+  const bottomAreaRef    = useRef<HTMLDivElement | null>(null);
+  const [composerOffset, setComposerOffset] = useState<number>(70);
+
+  useEffect(() => {
+    const el = bottomAreaRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver(() => setComposerOffset(el.offsetHeight));
+    ro.observe(el);
+    setComposerOffset(el.offsetHeight); // initial measurement
+    return () => ro.disconnect();
+  }, []);
+
   // ── Clear stale input state on chat switch ────────────────────────────────
   useEffect(() => {
     setMessageText('');
@@ -629,8 +642,10 @@ export function ChatArea() {
         meUsername={me.username ?? undefined}
         unreadCount={activeChat?.unread_count ?? 0}
         onMarkRead={handleMarkRead}
+        composerOffset={composerOffset}
       />
 
+      <div ref={bottomAreaRef}>
       {isGroupClosed ? (
         <div className="groupClosedBanner">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
@@ -682,6 +697,7 @@ export function ChatArea() {
           />
         </>
       )}
+      </div>
     </div>
     </MediaPlayerProvider>
   );
