@@ -5572,11 +5572,11 @@ input[type="date"].psInput::-webkit-calendar-picker-indicator {
 }
 
 /* ── Scroll-to-bottom button ─────────────────────────────────────────────── */
-/* bottom is overridden via inline style (composerOffset + 8 px) so the button
-   always clears the composer even when the keyboard is open on mobile.
-   The value here is a static fallback only. */
+/* position:absolute inside .chatAreaInner (position:relative) so the button
+   tracks the chat area — not the layout viewport. This fixes the keyboard
+   overlap on iOS, Android, and Windows. bottom is set via inline style. */
 .scrollToBottomBtn {
-  position: fixed;
+  position: absolute;
   bottom: 78px;
   right: 24px;
   width: 38px;

@@ -44,9 +44,10 @@ interface Props {
   meUsername?: string;
   unreadCount?: number;
   onMarkRead?: (readUntil: number) => void;
-  /** Height of the bottom area (composer + banners) in px — used to keep the
-   *  scroll-to-bottom button above the input field even when the keyboard is open. */
-  composerOffset?: number;
+  /** Called whenever the list scrolls to/from the bottom (drives the scroll button in ChatArea). */
+  onAtBottomChange?: (atBottom: boolean) => void;
+  /** Called once on mount; provides an imperative scroll-to-bottom function to the parent. */
+  onScrollToBottomRef?: (fn: () => void) => void;
 }
 
 const CTX_WIDTH  = 200;
@@ -60,7 +61,7 @@ export function MessageList({
   searchQuery, matchedIds, currentMatchId, pinnedFocusId,
   hasMoreMessages, loadingMore, onLoadMore,
   onVote, onRetract, onViewVoters, onEdit, meUsername, unreadCount, onMarkRead,
-  composerOffset,
+  onAtBottomChange, onScrollToBottomRef,
 }: Props) {
   const bottomRef      = useRef<HTMLDivElement | null>(null);
   const matchRef       = useRef<HTMLDivElement | null>(null);
@@ -88,6 +89,16 @@ export function MessageList({
     atBottomRef.current = true;
     setAtBottom(true);
   }, [chat.id]);
+
+  // Notify parent whenever atBottom changes (drives scroll button visibility in ChatArea)
+  useEffect(() => { onAtBottomChange?.(atBottom); }, [atBottom, onAtBottomChange]);
+
+  // Register imperative scroll-to-bottom fn for parent to invoke on button click
+  useEffect(() => {
+    onScrollToBottomRef?.(() =>
+      bottomRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' })
+    );
+  }, [onScrollToBottomRef]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Video note active-circle state ──────────────────────────────────────────
   const [activeVideoNoteId, setActiveVideoNoteId] = useState<string | null>(null);
@@ -491,21 +502,6 @@ export function MessageList({
         </Portal>
       )}
 
-      {/* Scroll-to-bottom button — Portal so it's fixed above composer */}
-      {!atBottom && (
-        <Portal>
-          <button
-            className="scrollToBottomBtn"
-            style={composerOffset !== undefined ? { bottom: composerOffset + 8 } : undefined}
-            onClick={() => bottomRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' })}
-            title="Перейти к последним сообщениям"
-          >
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <polyline points="6 9 12 15 18 9"/>
-            </svg>
-          </button>
-        </Portal>
-      )}
     </div>
   );
 }
