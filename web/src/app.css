@@ -5573,11 +5573,12 @@ input[type="date"].psInput::-webkit-calendar-picker-indicator {
 
 /* ── Scroll-to-bottom button ─────────────────────────────────────────────── */
 /* position:absolute inside .chatAreaInner (position:relative) so the button
-   tracks the chat area — not the layout viewport. This fixes the keyboard
-   overlap on iOS, Android, and Windows. bottom is set via inline style. */
+   tracks the chat area, not the layout viewport — fixes keyboard overlap on
+   iOS/Android/Win. --composer-h is set synchronously via ResizeObserver so
+   the button follows the growing textarea without React re-render delay. */
 .scrollToBottomBtn {
   position: absolute;
-  bottom: 78px;
+  bottom: calc(var(--composer-h, 70px) + 8px);
   right: 24px;
   width: 38px;
   height: 38px;

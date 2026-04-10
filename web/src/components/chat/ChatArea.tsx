@@ -99,16 +99,20 @@ export function ChatArea() {
 
   // ── Composer area height + scroll-to-bottom button state ────────────────
   const bottomAreaRef      = useRef<HTMLDivElement | null>(null);
-  const [composerOffset, setComposerOffset] = useState<number>(70);
+  const chatAreaInnerRef   = useRef<HTMLDivElement | null>(null);
   const [chatAtBottom, setChatAtBottom]     = useState(true);
   const scrollToBottomFnRef                 = useRef<() => void>(() => {});
 
+  // Sync composer height to CSS var --composer-h on chatAreaInner via ResizeObserver.
+  // Bypasses React state so the button repositions synchronously before the next paint.
   useEffect(() => {
     const el = bottomAreaRef.current;
-    if (!el) return;
-    const ro = new ResizeObserver(() => setComposerOffset(el.offsetHeight));
+    const container = chatAreaInnerRef.current;
+    if (!el || !container) return;
+    const update = () => container.style.setProperty('--composer-h', `${el.offsetHeight}px`);
+    const ro = new ResizeObserver(update);
     ro.observe(el);
-    setComposerOffset(el.offsetHeight); // initial measurement
+    update();
     return () => ro.disconnect();
   }, []);
 
@@ -495,6 +499,7 @@ export function ChatArea() {
   return (
     <MediaPlayerProvider clearKey={activeChatId ?? ''}>
     <div
+      ref={chatAreaInnerRef}
       className="chatAreaInner"
       onDragEnter={handleDragEnter}
       onDragLeave={handleDragLeave}
@@ -649,11 +654,10 @@ export function ChatArea() {
       />
 
       {/* Scroll-to-bottom button — position:absolute inside chatAreaInner (position:relative).
-          Avoids the iOS/Android/Win fixed-vs-visual-viewport problem entirely. */}
+          bottom is driven by CSS var --composer-h (set synchronously via ResizeObserver). */}
       {!chatAtBottom && (
         <button
           className="scrollToBottomBtn"
-          style={{ bottom: composerOffset + 8 }}
           onClick={() => scrollToBottomFnRef.current?.()}
           title="Перейти к последним сообщениям"
         >
