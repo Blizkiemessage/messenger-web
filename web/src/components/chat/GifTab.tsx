@@ -3,6 +3,7 @@ import { fetchTrendingGifs, searchGifs } from '../../api/gif';
 import { type GifResult } from '../../types';
 
 const PAGE_SIZE = 20;
+const SCROLL_THRESHOLD = 150; // px from bottom to trigger next load
 
 interface Props {
   onSendGif: (url: string) => void;
@@ -11,98 +12,92 @@ interface Props {
 export function GifTab({ onSendGif }: Props) {
   const [query,       setQuery]       = useState('');
   const [gifs,        setGifs]        = useState<GifResult[]>([]);
-  const [offset,      setOffset]      = useState(0);
-  const [hasMore,     setHasMore]     = useState(true);
   const [loading,     setLoading]     = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
   const [error,       setError]       = useState('');
 
+  const gridRef      = useRef<HTMLDivElement>(null);
   const debounceRef  = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const sentinelRef  = useRef<HTMLDivElement>(null);
-  // Keep latest query/offset in refs so the IntersectionObserver closure stays fresh
-  const queryRef     = useRef(query);
-  const offsetRef    = useRef(offset);
-  const hasMoreRef   = useRef(hasMore);
-  const loadingRef   = useRef(false);
+  const offsetRef    = useRef(0);
+  const hasMoreRef   = useRef(true);
+  const busyRef      = useRef(false);   // prevents concurrent fetches
+  const isMounted    = useRef(false);   // skip debounce on first render
 
-  queryRef.current   = query;
-  offsetRef.current  = offset;
-  hasMoreRef.current = hasMore;
-
-  // ── Initial / query-change load ──────────────────────────────────────────
+  // ── Load first page (resets grid) ────────────────────────────────────────
   const loadFirst = useCallback(async (q: string) => {
+    if (busyRef.current) return;
+    busyRef.current = true;
+    offsetRef.current = 0;
+    hasMoreRef.current = true;
     setLoading(true);
     setError('');
     setGifs([]);
-    setOffset(0);
-    setHasMore(true);
-    loadingRef.current = true;
     try {
       const page = q
         ? await searchGifs(q, PAGE_SIZE, 0)
         : await fetchTrendingGifs(PAGE_SIZE, 0);
       setGifs(page.results);
-      const nextOffset = PAGE_SIZE;
-      setOffset(nextOffset);
-      setHasMore(page.results.length === PAGE_SIZE);
+      offsetRef.current = PAGE_SIZE;
+      hasMoreRef.current = page.results.length === PAGE_SIZE;
     } catch {
       setError(q ? 'Ошибка поиска' : 'Не удалось загрузить GIF');
     } finally {
       setLoading(false);
-      loadingRef.current = false;
+      busyRef.current = false;
     }
   }, []);
 
-  // ── Load next page ────────────────────────────────────────────────────────
-  const loadMore = useCallback(async () => {
-    if (loadingRef.current || !hasMoreRef.current) return;
-    loadingRef.current = true;
+  // ── Load next page (appends) ──────────────────────────────────────────────
+  const loadMore = useCallback(async (q: string) => {
+    if (busyRef.current || !hasMoreRef.current) return;
+    busyRef.current = true;
     setLoadingMore(true);
-    const q   = queryRef.current.trim();
     const off = offsetRef.current;
     try {
       const page = q
         ? await searchGifs(q, PAGE_SIZE, off)
         : await fetchTrendingGifs(PAGE_SIZE, off);
-      if (page.results.length === 0) {
-        setHasMore(false);
-      } else {
+      if (page.results.length > 0) {
         setGifs(prev => [...prev, ...page.results]);
-        setOffset(off + PAGE_SIZE);
-        setHasMore(page.results.length === PAGE_SIZE);
+        offsetRef.current = off + PAGE_SIZE;
+        hasMoreRef.current = page.results.length === PAGE_SIZE;
+      } else {
+        hasMoreRef.current = false;
       }
-    } catch { /* silently ignore pagination errors */ }
+    } catch { /* ignore pagination errors */ }
     finally {
       setLoadingMore(false);
-      loadingRef.current = false;
+      busyRef.current = false;
     }
   }, []);
 
   // ── Load trending on mount ────────────────────────────────────────────────
-  useEffect(() => { loadFirst(''); }, [loadFirst]);
-
-  // ── Debounced search ──────────────────────────────────────────────────────
   useEffect(() => {
+    isMounted.current = true;
+    loadFirst('');
+  }, [loadFirst]);
+
+  // ── Debounced search (skip initial render) ────────────────────────────────
+  useEffect(() => {
+    if (!isMounted.current) return;
     if (debounceRef.current) clearTimeout(debounceRef.current);
-    // Skip the very first render (handled by mount effect above)
-    debounceRef.current = setTimeout(() => {
-      loadFirst(query.trim());
-    }, 300);
+    debounceRef.current = setTimeout(() => loadFirst(query.trim()), 300);
     return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [query]);
 
-  // ── IntersectionObserver for infinite scroll ──────────────────────────────
+  // ── Scroll-based infinite scroll ──────────────────────────────────────────
   useEffect(() => {
-    const el = sentinelRef.current;
-    if (!el) return;
-    const observer = new IntersectionObserver(
-      (entries) => { if (entries[0].isIntersecting) loadMore(); },
-      { threshold: 0.1 },
-    );
-    observer.observe(el);
-    return () => observer.disconnect();
-  }, [loadMore]);
+    const grid = gridRef.current;
+    if (!grid) return;
+    const onScroll = () => {
+      if (grid.scrollHeight - grid.scrollTop - grid.clientHeight < SCROLL_THRESHOLD) {
+        loadMore(query);
+      }
+    };
+    grid.addEventListener('scroll', onScroll, { passive: true });
+    return () => grid.removeEventListener('scroll', onScroll);
+  }, [loadMore, query]);
 
   return (
     <div className="gifTabRoot">
@@ -136,28 +131,19 @@ export function GifTab({ onSendGif }: Props) {
       </div>
 
       {/* Grid */}
-      <div className="gifGrid">
-        {/* Initial loading */}
+      <div className="gifGrid" ref={gridRef}>
         {loading && (
-          <div className="gifLoading">
-            <div className="gifSpinner" />
-          </div>
+          <div className="gifLoading"><div className="gifSpinner" /></div>
         )}
-
-        {/* Error */}
         {!loading && error && (
           <div className="gifError">
             <span>{error}</span>
             <button onClick={() => loadFirst(query.trim())}>Повторить</button>
           </div>
         )}
-
-        {/* Empty */}
         {!loading && !error && gifs.length === 0 && (
           <div className="gifEmpty">Ничего не найдено</div>
         )}
-
-        {/* GIF items */}
         {gifs.map(gif => (
           <div
             key={gif.id}
@@ -165,22 +151,11 @@ export function GifTab({ onSendGif }: Props) {
             onClick={() => onSendGif(gif.url)}
             title={gif.title || 'GIF'}
           >
-            <img
-              src={gif.preview}
-              alt={gif.title || 'GIF'}
-              loading="lazy"
-            />
+            <img src={gif.preview} alt={gif.title || 'GIF'} loading="lazy" />
           </div>
         ))}
-
-        {/* Sentinel — triggers loadMore when it enters the viewport */}
-        {!loading && !error && <div ref={sentinelRef} className="gifSentinel" />}
-
-        {/* Pagination spinner */}
         {loadingMore && (
-          <div className="gifLoadingMore">
-            <div className="gifSpinner" />
-          </div>
+          <div className="gifLoadingMore"><div className="gifSpinner" /></div>
         )}
       </div>
 
