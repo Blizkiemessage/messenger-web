@@ -7891,7 +7891,18 @@ input[type="date"].psInput::-webkit-calendar-picker-indicator {
   font-size: 12px;
 }
 
-/* Tenor attribution */
+/* Invisible sentinel that triggers infinite scroll */
+.gifSentinel { height: 1px; }
+
+/* Spinner row at bottom while loading next page */
+.gifLoadingMore {
+  column-span: all;
+  display: flex;
+  justify-content: center;
+  padding: 8px 0 4px;
+}
+
+/* Giphy attribution */
 .gifAttribution {
   display: flex;
   justify-content: flex-end;

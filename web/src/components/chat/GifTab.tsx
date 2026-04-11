@@ -2,57 +2,107 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { fetchTrendingGifs, searchGifs } from '../../api/gif';
 import { type GifResult } from '../../types';
 
+const PAGE_SIZE = 20;
+
 interface Props {
   onSendGif: (url: string) => void;
 }
 
 export function GifTab({ onSendGif }: Props) {
-  const [query,   setQuery]   = useState('');
-  const [gifs,    setGifs]    = useState<GifResult[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [error,   setError]   = useState('');
-  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [query,       setQuery]       = useState('');
+  const [gifs,        setGifs]        = useState<GifResult[]>([]);
+  const [offset,      setOffset]      = useState(0);
+  const [hasMore,     setHasMore]     = useState(true);
+  const [loading,     setLoading]     = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [error,       setError]       = useState('');
 
-  const loadTrending = useCallback(async () => {
+  const debounceRef  = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const sentinelRef  = useRef<HTMLDivElement>(null);
+  // Keep latest query/offset in refs so the IntersectionObserver closure stays fresh
+  const queryRef     = useRef(query);
+  const offsetRef    = useRef(offset);
+  const hasMoreRef   = useRef(hasMore);
+  const loadingRef   = useRef(false);
+
+  queryRef.current   = query;
+  offsetRef.current  = offset;
+  hasMoreRef.current = hasMore;
+
+  // ── Initial / query-change load ──────────────────────────────────────────
+  const loadFirst = useCallback(async (q: string) => {
     setLoading(true);
     setError('');
+    setGifs([]);
+    setOffset(0);
+    setHasMore(true);
+    loadingRef.current = true;
     try {
-      const page = await fetchTrendingGifs(20, 0);
+      const page = q
+        ? await searchGifs(q, PAGE_SIZE, 0)
+        : await fetchTrendingGifs(PAGE_SIZE, 0);
       setGifs(page.results);
+      const nextOffset = PAGE_SIZE;
+      setOffset(nextOffset);
+      setHasMore(page.results.length === PAGE_SIZE);
     } catch {
-      setError('Не удалось загрузить GIF');
+      setError(q ? 'Ошибка поиска' : 'Не удалось загрузить GIF');
     } finally {
       setLoading(false);
+      loadingRef.current = false;
     }
   }, []);
 
-  // Load trending on mount
-  useEffect(() => { loadTrending(); }, [loadTrending]);
+  // ── Load next page ────────────────────────────────────────────────────────
+  const loadMore = useCallback(async () => {
+    if (loadingRef.current || !hasMoreRef.current) return;
+    loadingRef.current = true;
+    setLoadingMore(true);
+    const q   = queryRef.current.trim();
+    const off = offsetRef.current;
+    try {
+      const page = q
+        ? await searchGifs(q, PAGE_SIZE, off)
+        : await fetchTrendingGifs(PAGE_SIZE, off);
+      if (page.results.length === 0) {
+        setHasMore(false);
+      } else {
+        setGifs(prev => [...prev, ...page.results]);
+        setOffset(off + PAGE_SIZE);
+        setHasMore(page.results.length === PAGE_SIZE);
+      }
+    } catch { /* silently ignore pagination errors */ }
+    finally {
+      setLoadingMore(false);
+      loadingRef.current = false;
+    }
+  }, []);
 
-  // Debounced search
+  // ── Load trending on mount ────────────────────────────────────────────────
+  useEffect(() => { loadFirst(''); }, [loadFirst]);
+
+  // ── Debounced search ──────────────────────────────────────────────────────
   useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
-    const q = query.trim();
-    if (!q) {
-      loadTrending();
-      return;
-    }
-    debounceRef.current = setTimeout(async () => {
-      setLoading(true);
-      setError('');
-      try {
-        const page = await searchGifs(q, 20, 0);
-        setGifs(page.results);
-      } catch {
-        setError('Ошибка поиска');
-      } finally {
-        setLoading(false);
-      }
+    // Skip the very first render (handled by mount effect above)
+    debounceRef.current = setTimeout(() => {
+      loadFirst(query.trim());
     }, 300);
-    return () => {
-      if (debounceRef.current) clearTimeout(debounceRef.current);
-    };
-  }, [query, loadTrending]);
+    return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [query]);
+
+  // ── IntersectionObserver for infinite scroll ──────────────────────────────
+  useEffect(() => {
+    const el = sentinelRef.current;
+    if (!el) return;
+    const observer = new IntersectionObserver(
+      (entries) => { if (entries[0].isIntersecting) loadMore(); },
+      { threshold: 0.1 },
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [loadMore]);
 
   return (
     <div className="gifTabRoot">
@@ -87,21 +137,28 @@ export function GifTab({ onSendGif }: Props) {
 
       {/* Grid */}
       <div className="gifGrid">
+        {/* Initial loading */}
         {loading && (
           <div className="gifLoading">
             <div className="gifSpinner" />
           </div>
         )}
+
+        {/* Error */}
         {!loading && error && (
           <div className="gifError">
             <span>{error}</span>
-            <button onClick={loadTrending}>Повторить</button>
+            <button onClick={() => loadFirst(query.trim())}>Повторить</button>
           </div>
         )}
+
+        {/* Empty */}
         {!loading && !error && gifs.length === 0 && (
           <div className="gifEmpty">Ничего не найдено</div>
         )}
-        {!loading && gifs.map(gif => (
+
+        {/* GIF items */}
+        {gifs.map(gif => (
           <div
             key={gif.id}
             className="gifItem"
@@ -115,6 +172,16 @@ export function GifTab({ onSendGif }: Props) {
             />
           </div>
         ))}
+
+        {/* Sentinel — triggers loadMore when it enters the viewport */}
+        {!loading && !error && <div ref={sentinelRef} className="gifSentinel" />}
+
+        {/* Pagination spinner */}
+        {loadingMore && (
+          <div className="gifLoadingMore">
+            <div className="gifSpinner" />
+          </div>
+        )}
       </div>
 
       {/* Giphy attribution — required by Giphy ToS */}
