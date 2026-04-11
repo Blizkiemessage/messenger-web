@@ -10,6 +10,8 @@ import { resolveUrl } from '../ui/Avatar';
 import { getUserById, blockUser, setAlias, deleteAlias } from '../../api/users';
 import { useChatsStore } from '../../store/useChatsStore';
 import { getChatMessages } from '../../api/chats';
+import { Portal } from '../ui/Portal';
+import { ContextMenu } from '../ui/ContextMenu';
 
 // ── Tab helpers ───────────────────────────────────────────────────────────────
 type UpTab = 'media' | 'files' | 'voice' | 'links';
@@ -68,9 +70,10 @@ interface Props {
   userId: string;
   onClose: () => void;
   onStartChat?: (u: User) => void;
+  onJumpToMessage?: (msgId: string) => void;
 }
 
-export function UserProfileModal({ userId, onClose, onStartChat }: Props) {
+export function UserProfileModal({ userId, onClose, onStartChat, onJumpToMessage }: Props) {
   const [user,       setUser]       = useState<User | null>(null);
   const [loading,    setLoading]    = useState(true);
   const [menuOpen,   setMenuOpen]   = useState(false);
@@ -98,6 +101,25 @@ export function UserProfileModal({ userId, onClose, onStartChat }: Props) {
   // Voice player
   const [playingId, setPlayingId]   = useState<string | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  // Item context menu (right-click / long-press → jump to message)
+  const [itemCtx, setItemCtx] = useState<{ x: number; y: number; msgId: string } | null>(null);
+  const lpTimer  = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lpFired  = useRef(false);
+
+  function itemEvents(msg: Message) {
+    const open = (x: number, y: number) => setItemCtx({ x, y, msgId: msg.id });
+    return {
+      onContextMenu: (e: React.MouseEvent) => { e.preventDefault(); open(e.clientX, e.clientY); },
+      onTouchStart:  (e: React.TouchEvent) => {
+        lpFired.current = false;
+        const { clientX, clientY } = e.touches[0];
+        lpTimer.current = setTimeout(() => { lpFired.current = true; open(clientX, clientY); }, 500);
+      },
+      onTouchEnd:  (e: React.TouchEvent)  => { if (lpTimer.current) clearTimeout(lpTimer.current); if (lpFired.current) e.preventDefault(); },
+      onTouchMove: ()                      => { if (lpTimer.current) clearTimeout(lpTimer.current); },
+    };
+  }
 
   // Pick up last_seen_at from store chat members — updated in real-time by socket events
   const storeMemberLastSeen = useChatsStore(s => {
@@ -504,7 +526,7 @@ export function UserProfileModal({ userId, onClose, onStartChat }: Props) {
                               <div className="giDateLabel">{group.label}</div>
                               <div className="giMediaGrid">
                                 {group.items.map(m => (
-                                  <a key={m.id} className="giMediaThumb" href={m.attachment_url!} target="_blank" rel="noreferrer">
+                                  <a key={m.id} className="giMediaThumb" href={m.attachment_url!} target="_blank" rel="noreferrer" {...itemEvents(m)}>
                                     {m.attachment_type === 'image' ? (
                                       <img src={m.attachment_url!} alt="" loading="lazy" />
                                     ) : (
@@ -556,6 +578,7 @@ export function UserProfileModal({ userId, onClose, onStartChat }: Props) {
                                   <a key={m.id} className="giFileItem"
                                     href={m.attachment_url!} target="_blank" rel="noreferrer"
                                     download={m.attachment_name || true}
+                                    {...itemEvents(m)}
                                   >
                                     <div className="giFileIcon" style={{ background: color + '22', borderColor: color + '44', color }}>
                                       <span>{label}</span>
@@ -613,7 +636,7 @@ export function UserProfileModal({ userId, onClose, onStartChat }: Props) {
                               {group.items.map(m => {
                                 const isPlaying = playingId === m.id;
                                 return (
-                                  <div key={m.id} className="giVoiceItem">
+                                  <div key={m.id} className="giVoiceItem" {...itemEvents(m)}>
                                     <button
                                       className={`giVoicePlayBtn${isPlaying ? ' giVoicePlayBtnActive' : ''}`}
                                       onClick={() => togglePlay(m)}
@@ -668,7 +691,7 @@ export function UserProfileModal({ userId, onClose, onStartChat }: Props) {
                       ) : (
                         <>
                           {linkItems.map(({ msg, url }, i) => (
-                            <a key={`${msg.id}-${i}`} className="giLinkItem" href={url} target="_blank" rel="noreferrer">
+                            <a key={`${msg.id}-${i}`} className="giLinkItem" href={url} target="_blank" rel="noreferrer" {...itemEvents(msg)}>
                               <div className="giLinkIcon">
                                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
                                   <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
@@ -699,5 +722,18 @@ export function UserProfileModal({ userId, onClose, onStartChat }: Props) {
         )}
       </div>
     </div>
+
+    {itemCtx && onJumpToMessage && (
+      <Portal>
+        <ContextMenu x={itemCtx.x} y={itemCtx.y} onClose={() => setItemCtx(null)} zIndex={10200}>
+          <button className="ctxItem ctxItemJump" onClick={() => { setItemCtx(null); onJumpToMessage(itemCtx.msgId); }}>
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="9 10 4 15 9 20"/><path d="M20 4v7a4 4 0 0 1-4 4H4"/>
+            </svg>
+            Перейти к сообщению
+          </button>
+        </ContextMenu>
+      </Portal>
+    )}
   );
 }
