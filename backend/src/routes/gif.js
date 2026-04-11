@@ -11,8 +11,8 @@ const GIPHY_BASE = 'https://api.giphy.com/v1/gifs';
  */
 function mapGiphyResult(r) {
   const images = r.images || {};
-  const full    = images.fixed_width         || images.downsized    || {};
-  const preview = images.fixed_width_small   || images.fixed_width  || {};
+  const full    = images.downsized           || images.fixed_width  || {};
+  const preview = images.fixed_width         || images.downsized    || {};
   return {
     id:      r.id,
     url:     full.url     || '',
