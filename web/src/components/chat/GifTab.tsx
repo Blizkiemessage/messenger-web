@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { fetchTrendingGifs, searchGifs } from '../../api/gif';
-import { type TenorGif } from '../../types';
+import { type GifResult } from '../../types';
 
 interface Props {
   onSendGif: (url: string) => void;
@@ -8,7 +8,7 @@ interface Props {
 
 export function GifTab({ onSendGif }: Props) {
   const [query,   setQuery]   = useState('');
-  const [gifs,    setGifs]    = useState<TenorGif[]>([]);
+  const [gifs,    setGifs]    = useState<GifResult[]>([]);
   const [loading, setLoading] = useState(false);
   const [error,   setError]   = useState('');
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -17,7 +17,7 @@ export function GifTab({ onSendGif }: Props) {
     setLoading(true);
     setError('');
     try {
-      const page = await fetchTrendingGifs(20);
+      const page = await fetchTrendingGifs(20, 0);
       setGifs(page.results);
     } catch {
       setError('Не удалось загрузить GIF');
@@ -41,7 +41,7 @@ export function GifTab({ onSendGif }: Props) {
       setLoading(true);
       setError('');
       try {
-        const page = await searchGifs(q, 20);
+        const page = await searchGifs(q, 20, 0);
         setGifs(page.results);
       } catch {
         setError('Ошибка поиска');
@@ -117,10 +117,10 @@ export function GifTab({ onSendGif }: Props) {
         ))}
       </div>
 
-      {/* Tenor attribution (required by Tenor ToS) */}
+      {/* Giphy attribution — required by Giphy ToS */}
       <div className="gifAttribution">
-        <svg width="48" height="16" viewBox="0 0 120 40" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <text x="0" y="30" fontSize="28" fontWeight="bold" fill="currentColor">tenor</text>
+        <svg width="56" height="14" viewBox="0 0 200 50" xmlns="http://www.w3.org/2000/svg">
+          <text x="0" y="38" fontSize="38" fontWeight="900" fontFamily="Arial,sans-serif" fill="currentColor" letterSpacing="-1">GIPHY</text>
         </svg>
       </div>
     </div>

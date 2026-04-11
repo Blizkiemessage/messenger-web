@@ -180,7 +180,7 @@ export type Purchase = {
   created_at: number;
 };
 
-export type TenorGif = {
+export type GifResult = {
   id: string;
   url: string;
   preview: string;

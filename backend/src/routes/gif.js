@@ -2,83 +2,82 @@ const express = require('express');
 const router = express.Router();
 const { requireAuth } = require('../middleware/auth');
 
-const TENOR_BASE = 'https://tenor.googleapis.com/v2';
+const GIPHY_BASE = 'https://api.giphy.com/v1/gifs';
 
 /**
- * Map a single Tenor result object to our TenorGif shape.
- * Tenor v2 returns `media_formats` (object keyed by format name).
+ * Map a single Giphy result object to our GifResult shape.
+ * We send fixed_width (200px) in chat — small enough to be fast, good enough quality.
+ * Grid preview uses fixed_width_small (100px) for fast loading.
  */
-function mapTenorResult(r) {
-  const fmt = r.media_formats || {};
-  const gif = fmt.gif || {};
-  const tiny = fmt.tinygif || fmt.nanogif || fmt.gif || {};
+function mapGiphyResult(r) {
+  const images = r.images || {};
+  const full    = images.fixed_width         || images.downsized    || {};
+  const preview = images.fixed_width_small   || images.fixed_width  || {};
   return {
-    id: r.id,
-    url: gif.url || '',
-    preview: tiny.url || gif.url || '',
-    width: (gif.dims && gif.dims[0]) || 0,
-    height: (gif.dims && gif.dims[1]) || 0,
-    title: r.title || '',
+    id:      r.id,
+    url:     full.url     || '',
+    preview: preview.url  || full.url || '',
+    width:   Number(full.width)  || 0,
+    height:  Number(full.height) || 0,
+    title:   r.title || '',
   };
 }
 
-async function tenorFetch(path, params) {
-  const key = process.env.TENOR_API_KEY;
+async function giphyFetch(path, params) {
+  const key = process.env.GIPHY_API_KEY;
   if (!key) {
-    throw Object.assign(new Error('TENOR_API_KEY not configured'), { status: 503 });
+    throw Object.assign(new Error('GIPHY_API_KEY not configured'), { status: 503 });
   }
 
-  const qs = new URLSearchParams({ key, ...params }).toString();
-  const url = `${TENOR_BASE}${path}?${qs}`;
+  const qs = new URLSearchParams({ api_key: key, ...params }).toString();
+  const url = `${GIPHY_BASE}${path}?${qs}`;
 
   const resp = await fetch(url);
   if (!resp.ok) {
     const text = await resp.text().catch(() => '');
-    throw Object.assign(new Error(`Tenor API error ${resp.status}: ${text}`), { status: 502 });
+    throw Object.assign(new Error(`Giphy API error ${resp.status}: ${text}`), { status: 502 });
   }
   return resp.json();
 }
 
-// GET /gif/trending?limit=20&pos=
+// GET /gif/trending?limit=20&offset=0
 router.get('/trending', requireAuth, async (req, res) => {
   try {
-    const limit = Math.min(Number(req.query.limit) || 20, 50);
-    const pos   = req.query.pos   || '';
-    const data  = await tenorFetch('/featured', {
-      limit: String(limit),
-      pos,
-      media_filter: 'gif',
-      contentfilter: 'medium',
-      locale: 'ru_RU',
+    const limit  = Math.min(Number(req.query.limit)  || 20, 50);
+    const offset = Math.max(Number(req.query.offset) || 0,  0);
+    const data   = await giphyFetch('/trending', {
+      limit:  String(limit),
+      offset: String(offset),
+      rating: 'g',
+      lang:   'ru',
     });
     res.json({
-      results: (data.results || []).map(mapTenorResult),
-      next: data.next || '',
+      results: (data.data || []).map(mapGiphyResult),
+      next:    String(offset + limit),
     });
   } catch (err) {
     res.status(err.status || 500).json({ error: err.message });
   }
 });
 
-// GET /gif/search?q=cats&limit=20&pos=
+// GET /gif/search?q=cats&limit=20&offset=0
 router.get('/search', requireAuth, async (req, res) => {
   try {
-    const q     = String(req.query.q || '').trim();
-    const limit = Math.min(Number(req.query.limit) || 20, 50);
-    const pos   = req.query.pos || '';
+    const q      = String(req.query.q || '').trim();
+    const limit  = Math.min(Number(req.query.limit)  || 20, 50);
+    const offset = Math.max(Number(req.query.offset) || 0,  0);
     if (!q) return res.status(400).json({ error: 'q is required' });
 
-    const data = await tenorFetch('/search', {
+    const data = await giphyFetch('/search', {
       q,
-      limit: String(limit),
-      pos,
-      media_filter: 'gif',
-      contentfilter: 'medium',
-      locale: 'ru_RU',
+      limit:  String(limit),
+      offset: String(offset),
+      rating: 'g',
+      lang:   'ru',
     });
     res.json({
-      results: (data.results || []).map(mapTenorResult),
-      next: data.next || '',
+      results: (data.data || []).map(mapGiphyResult),
+      next:    String(offset + limit),
     });
   } catch (err) {
     res.status(err.status || 500).json({ error: err.message });
@@ -96,9 +95,9 @@ router.get('/my', requireAuth, async (req, res) => {
     ).all([userId]);
     res.json(rows.map(r => ({
       ...r,
-      is_public: !!r.is_public,
+      is_public:  !!r.is_public,
       is_deleted: !!r.is_deleted,
-      keywords: r.keywords ? JSON.parse(r.keywords) : null,
+      keywords:   r.keywords ? JSON.parse(r.keywords) : null,
     })));
   } catch (err) {
     res.status(500).json({ error: err.message });
