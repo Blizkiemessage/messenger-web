@@ -3455,6 +3455,7 @@ input[type="date"].psInput::-webkit-calendar-picker-indicator {
   overflow: hidden;
   box-shadow: var(--shadow);
   border: 1px solid var(--border);
+  background: var(--panel);
   animation: slideUp .2s ease;
 }
 @media (max-width: 600px) {
@@ -7734,12 +7735,12 @@ input[type="date"].psInput::-webkit-calendar-picker-indicator {
   display: flex;
   flex-direction: column;
   width: 352px;
-  background: var(--surface);
+  background: var(--panel);
 }
 .espTabs {
   display: flex;
   border-bottom: 1px solid var(--border);
-  background: var(--surface);
+  background: var(--panel);
   flex-shrink: 0;
 }
 .espTab {
@@ -7765,7 +7766,7 @@ input[type="date"].psInput::-webkit-calendar-picker-indicator {
   display: flex;
   flex-direction: column;
   height: 400px;
-  background: var(--surface);
+  background: var(--panel);
 }
 .gifSearchWrap {
   position: relative;
@@ -7828,11 +7829,10 @@ input[type="date"].psInput::-webkit-calendar-picker-indicator {
   color: var(--text-muted);
 }
 
-/* GIF grid */
+/* GIF grid — masonry via CSS columns (natural proportions, like Telegram) */
 .gifGrid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 3px;
+  columns: 2;
+  column-gap: 4px;
   padding: 0 6px 6px;
   overflow-y: auto;
   flex: 1;
@@ -7841,18 +7841,22 @@ input[type="date"].psInput::-webkit-calendar-picker-indicator {
 .gifGrid::-webkit-scrollbar { width: 4px; }
 .gifGrid::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
 .gifItem {
+  break-inside: avoid;
   cursor: pointer;
   border-radius: 6px;
   overflow: hidden;
   background: var(--bg);
+  margin-bottom: 4px;
+  display: block;
 }
 .gifItem img {
   width: 100%;
   height: auto;
   display: block;
+  border-radius: 6px;
   transition: opacity .15s;
 }
-.gifItem:hover img { opacity: .85; }
+.gifItem:hover img { opacity: .82; }
 
 /* Loading / error / empty states */
 .gifLoading,
