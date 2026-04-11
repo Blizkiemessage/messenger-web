@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { requireAuth } = require('../middleware/auth');
+const { authMiddleware } = require('../middleware/auth');
 
 const GIPHY_BASE = 'https://api.giphy.com/v1/gifs';
 
@@ -41,7 +41,7 @@ async function giphyFetch(path, params) {
 }
 
 // GET /gif/trending?limit=20&offset=0
-router.get('/trending', requireAuth, async (req, res) => {
+router.get('/trending', authMiddleware, async (req, res) => {
   try {
     const limit  = Math.min(Number(req.query.limit)  || 20, 50);
     const offset = Math.max(Number(req.query.offset) || 0,  0);
@@ -61,7 +61,7 @@ router.get('/trending', requireAuth, async (req, res) => {
 });
 
 // GET /gif/search?q=cats&limit=20&offset=0
-router.get('/search', requireAuth, async (req, res) => {
+router.get('/search', authMiddleware, async (req, res) => {
   try {
     const q      = String(req.query.q || '').trim();
     const limit  = Math.min(Number(req.query.limit)  || 20, 50);
@@ -85,7 +85,7 @@ router.get('/search', requireAuth, async (req, res) => {
 });
 
 // GET /gif/my — personal GIFs (stub until Stage 6)
-router.get('/my', requireAuth, async (req, res) => {
+router.get('/my', authMiddleware, async (req, res) => {
   const { getDb } = require('../config/database');
   const db = getDb();
   const userId = req.user.id;
