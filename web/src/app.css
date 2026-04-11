@@ -7728,3 +7728,180 @@ input[type="date"].psInput::-webkit-calendar-picker-indicator {
 .upCardTabs .giCardScroll::-webkit-scrollbar { width: 5px; }
 .upCardTabs .giCardScroll::-webkit-scrollbar-thumb { background: var(--border); border-radius: 5px; }
 
+
+/* ── EmojiStickerPanel ───────────────────────────────────────────────────── */
+.espRoot {
+  display: flex;
+  flex-direction: column;
+  width: 352px;
+}
+.espTabs {
+  display: flex;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+  flex-shrink: 0;
+}
+.espTab {
+  flex: 1;
+  padding: 9px 0 8px;
+  font-size: 13px;
+  font-weight: 500;
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+  color: var(--text-muted);
+  transition: color .15s, border-color .15s;
+}
+.espTab:hover { color: var(--text); }
+.espTab.active {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+}
+
+/* ── GifTab ──────────────────────────────────────────────────────────────── */
+.gifTabRoot {
+  display: flex;
+  flex-direction: column;
+  height: 400px;
+  background: var(--surface);
+}
+.gifSearchWrap {
+  position: relative;
+  padding: 8px 8px 6px;
+  flex-shrink: 0;
+}
+.gifSearchIcon {
+  position: absolute;
+  left: 16px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-muted);
+  pointer-events: none;
+}
+.gifSearch {
+  width: 100%;
+  padding: 7px 28px 7px 30px;
+  background: var(--input-bg, var(--bg));
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  color: var(--text);
+  font-size: 13px;
+  outline: none;
+  box-sizing: border-box;
+  transition: border-color .15s;
+}
+.gifSearch:focus { border-color: var(--accent); }
+.gifSearchClear {
+  position: absolute;
+  right: 16px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  padding: 2px;
+}
+.gifSearchClear:hover { color: var(--text); }
+
+/* My GIFs section (empty placeholder) */
+.gifMySection {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 10px 6px;
+  flex-shrink: 0;
+}
+.gifMySectionLabel {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  color: var(--accent);
+}
+.gifMySectionHint {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+/* GIF grid */
+.gifGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 3px;
+  padding: 0 6px 6px;
+  overflow-y: auto;
+  flex: 1;
+  min-height: 0;
+}
+.gifGrid::-webkit-scrollbar { width: 4px; }
+.gifGrid::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+.gifItem {
+  cursor: pointer;
+  border-radius: 6px;
+  overflow: hidden;
+  background: var(--bg);
+  aspect-ratio: 16/9;
+}
+.gifItem img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  transition: opacity .15s;
+}
+.gifItem:hover img { opacity: .85; }
+
+/* Loading / error / empty states */
+.gifLoading,
+.gifError,
+.gifEmpty {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 32px 0;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+.gifSpinner {
+  width: 24px;
+  height: 24px;
+  border: 2px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: gifSpin .6s linear infinite;
+}
+@keyframes gifSpin { to { transform: rotate(360deg); } }
+.gifError button {
+  padding: 5px 14px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: none;
+  color: var(--text);
+  cursor: pointer;
+  font-size: 12px;
+}
+
+/* Tenor attribution */
+.gifAttribution {
+  display: flex;
+  justify-content: flex-end;
+  padding: 4px 10px 5px;
+  flex-shrink: 0;
+  color: var(--text-muted);
+  opacity: .5;
+}
+
+/* ── GIF in chat bubble ──────────────────────────────────────────────────── */
+.bubbleGif {
+  max-width: 280px;
+  width: 100%;
+  border-radius: 10px;
+  display: block;
+}

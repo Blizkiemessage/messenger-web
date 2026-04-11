@@ -414,6 +414,18 @@ export function ChatArea() {
     });
   }, []);
 
+  // ── Send GIF (Tenor) ──────────────────────────────────────────────────────
+  const handleSendGif = useCallback(async (url: string) => {
+    const chatId = useChatsStore.getState().activeChatId;
+    if (!chatId) return;
+    await sendChatMessage(chatId, {
+      text: '',
+      attachment_url:  url,
+      attachment_type: 'gif_tenor',
+      attachment_name: 'gif',
+    });
+  }, []);
+
   // ── Drag & drop ───────────────────────────────────────────────────────────
   const [dragOver,     setDragOver]     = useState(false);
   const [droppedFile,  setDroppedFile]  = useState<File | null>(null);
@@ -706,6 +718,7 @@ export function ChatArea() {
             onChange={setMessageText}
             onSend={handleSend}
             onSendAttachment={handleSendAttachment}
+            onSendGif={handleSendGif}
             externalFile={droppedFile}
             onExternalFileConsumed={() => setDroppedFile(null)}
             isGroup={activeChat.type === 'group'}

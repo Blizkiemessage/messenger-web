@@ -21,6 +21,7 @@ const pushRoutes        = require('./routes/push');
 const searchRoutes      = require('./routes/search');
 const sessionsRoutes    = require('./routes/sessions');
 const linkPreviewRoutes = require('./routes/linkPreview');
+const gifRoutes         = require('./routes/gif');
 const path = require('path');
 
 const app = express();
@@ -75,6 +76,7 @@ app.use('/push',         pushRoutes);
 app.use('/search',       searchRoutes);
 app.use('/sessions',     sessionsRoutes);
 app.use('/link-preview', linkPreviewRoutes);
+app.use('/gif',          gifRoutes);
 
 app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 app.use('/admin', express.static(path.join(__dirname, '../public/admin')));

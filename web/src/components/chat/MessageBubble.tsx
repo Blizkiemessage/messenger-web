@@ -819,7 +819,8 @@ export function MessageBubble({
   const isVideo     = m.attachment_type === 'video';
   const isAudio     = m.attachment_type === 'audio';
   const isVideoNote = m.attachment_type === 'video_note';
-  const isFile      = hasAttachment && !isImage && !isVideo && !isAudio && !isVideoNote;
+  const isGifTenor  = m.attachment_type === 'gif_tenor';
+  const isFile      = hasAttachment && !isImage && !isVideo && !isAudio && !isVideoNote && !isGifTenor;
 
   // Display name used in the mini player bar
   const playerSenderName = isOwn
@@ -872,7 +873,7 @@ export function MessageBubble({
 
       <div className={[
         'bubble',
-        hasAttachment && !isVideoNote ? 'bubbleWithAttach' : '',
+        hasAttachment && !isVideoNote && !isGifTenor ? 'bubbleWithAttach' : '',
         isVideoNote ? 'bubbleVideoNote' : '',
       ].filter(Boolean).join(' ')}>
         {/* ✅ Pin indicator — thumbtack icon */}
@@ -982,6 +983,14 @@ export function MessageBubble({
             url={attachmentUrl}
             caption={caption}
             name={m.attachment_name || undefined}
+          />
+        )}
+        {isGifTenor && (
+          <img
+            className="bubbleGif"
+            src={attachmentUrl}
+            alt="GIF"
+            loading="lazy"
           />
         )}
         {isFile && (

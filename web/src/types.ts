@@ -107,3 +107,84 @@ export type AuthResponse = {
 
 /** @deprecated use AuthResponse */
 export type AuthVerifyResponse = AuthResponse;
+
+// ── Stickers & GIF types ─────────────────────────────────────────────────────
+
+export type StickerPack = {
+  id: string;
+  owner_id: string | null;
+  type: 'sticker' | 'emoji';
+  name: string;
+  description?: string | null;
+  cover_url?: string | null;
+  is_public: boolean;
+  is_animated: boolean;
+  price: number;
+  is_deleted: boolean;
+  created_at: number;
+  updated_at: number;
+};
+
+export type StickerPackItem = {
+  id: string;
+  pack_id: string;
+  file_url: string;
+  thumb_url?: string | null;
+  emoji_hint?: string | null;
+  keywords?: string[] | null;
+  sort_order: number;
+  created_at: number;
+};
+
+export type UserGif = {
+  id: string;
+  owner_id: string;
+  file_url: string;
+  thumb_url: string;
+  title?: string | null;
+  keywords?: string[] | null;
+  is_public: boolean;
+  is_deleted: boolean;
+  width?: number | null;
+  height?: number | null;
+  duration_ms?: number | null;
+  created_at: number;
+};
+
+export type ContentReport = {
+  id: string;
+  reporter_id: string | null;
+  content_type: 'sticker_pack' | 'user_gif';
+  content_id: string;
+  reason?: string | null;
+  resolved: boolean;
+  created_at: number;
+};
+
+export type UserCreationQuota = {
+  user_id: string;
+  packs_created: number;
+  gifs_created: number;
+  free_packs_limit: number;
+  free_gifs_limit: number;
+  extra_packs: number;
+  extra_gifs: number;
+};
+
+export type Purchase = {
+  id: string;
+  user_id: string | null;
+  type: 'pack' | 'quota_packs' | 'quota_gifs';
+  pack_id?: string | null;
+  amount: number;
+  created_at: number;
+};
+
+export type TenorGif = {
+  id: string;
+  url: string;
+  preview: string;
+  width: number;
+  height: number;
+  title?: string;
+};

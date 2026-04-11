@@ -196,6 +196,91 @@ function runMigrations() {
     )`,
     // ✅ NEW: audio/video attachment duration (seconds) — avoids client-side re-decode on every load
     'ALTER TABLE messages ADD COLUMN attachment_duration REAL',
+    // ✅ NEW: attachment meta (JSON string for stickers, GIF, custom emoji)
+    'ALTER TABLE messages ADD COLUMN attachment_meta TEXT',
+    // ✅ NEW: sticker packs (sticker and custom emoji packs)
+    `CREATE TABLE IF NOT EXISTS sticker_packs (
+      id TEXT PRIMARY KEY,
+      owner_id TEXT REFERENCES users(id) ON DELETE SET NULL,
+      type TEXT NOT NULL CHECK (type IN ('sticker','emoji')),
+      name TEXT NOT NULL,
+      description TEXT,
+      cover_url TEXT,
+      is_public INTEGER NOT NULL DEFAULT 0,
+      is_animated INTEGER NOT NULL DEFAULT 0,
+      price INTEGER NOT NULL DEFAULT 0,
+      is_deleted INTEGER NOT NULL DEFAULT 0,
+      created_at INTEGER NOT NULL DEFAULT 0,
+      updated_at INTEGER NOT NULL DEFAULT 0
+    )`,
+    `CREATE INDEX IF NOT EXISTS idx_sticker_packs_public ON sticker_packs(is_public, is_deleted)`,
+    // ✅ NEW: items inside a sticker/emoji pack
+    `CREATE TABLE IF NOT EXISTS sticker_pack_items (
+      id TEXT PRIMARY KEY,
+      pack_id TEXT NOT NULL REFERENCES sticker_packs(id) ON DELETE CASCADE,
+      file_url TEXT NOT NULL,
+      thumb_url TEXT,
+      emoji_hint TEXT,
+      keywords TEXT,
+      sort_order INTEGER NOT NULL DEFAULT 0,
+      created_at INTEGER NOT NULL DEFAULT 0
+    )`,
+    `CREATE INDEX IF NOT EXISTS idx_sticker_pack_items_pack ON sticker_pack_items(pack_id, sort_order)`,
+    // ✅ NEW: packs installed by each user
+    `CREATE TABLE IF NOT EXISTS user_sticker_packs (
+      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      pack_id TEXT NOT NULL REFERENCES sticker_packs(id) ON DELETE CASCADE,
+      installed_at INTEGER NOT NULL DEFAULT 0,
+      sort_order INTEGER NOT NULL DEFAULT 0,
+      PRIMARY KEY (user_id, pack_id)
+    )`,
+    // ✅ NEW: user-created GIF
+    `CREATE TABLE IF NOT EXISTS user_gifs (
+      id TEXT PRIMARY KEY,
+      owner_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      file_url TEXT NOT NULL,
+      thumb_url TEXT NOT NULL,
+      title TEXT,
+      keywords TEXT,
+      is_public INTEGER NOT NULL DEFAULT 0,
+      is_deleted INTEGER NOT NULL DEFAULT 0,
+      width INTEGER,
+      height INTEGER,
+      duration_ms INTEGER,
+      created_at INTEGER NOT NULL DEFAULT 0
+    )`,
+    `CREATE INDEX IF NOT EXISTS idx_user_gifs_public ON user_gifs(is_public, is_deleted)`,
+    `CREATE INDEX IF NOT EXISTS idx_user_gifs_owner ON user_gifs(owner_id)`,
+    // ✅ NEW: content reports / complaints
+    `CREATE TABLE IF NOT EXISTS content_reports (
+      id TEXT PRIMARY KEY,
+      reporter_id TEXT REFERENCES users(id) ON DELETE SET NULL,
+      content_type TEXT NOT NULL CHECK (content_type IN ('sticker_pack','user_gif')),
+      content_id TEXT NOT NULL,
+      reason TEXT,
+      resolved INTEGER NOT NULL DEFAULT 0,
+      created_at INTEGER NOT NULL DEFAULT 0
+    )`,
+    `CREATE INDEX IF NOT EXISTS idx_content_reports_unresolved ON content_reports(resolved, created_at)`,
+    // ✅ NEW: creation quota per user (free limits + purchased extras)
+    `CREATE TABLE IF NOT EXISTS user_creation_quota (
+      user_id TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+      packs_created INTEGER NOT NULL DEFAULT 0,
+      gifs_created INTEGER NOT NULL DEFAULT 0,
+      free_packs_limit INTEGER NOT NULL DEFAULT 3,
+      free_gifs_limit INTEGER NOT NULL DEFAULT 10,
+      extra_packs INTEGER NOT NULL DEFAULT 0,
+      extra_gifs INTEGER NOT NULL DEFAULT 0
+    )`,
+    // ✅ NEW: purchases of packs and quota slots
+    `CREATE TABLE IF NOT EXISTS purchases (
+      id TEXT PRIMARY KEY,
+      user_id TEXT REFERENCES users(id) ON DELETE SET NULL,
+      type TEXT NOT NULL CHECK (type IN ('pack','quota_packs','quota_gifs')),
+      pack_id TEXT REFERENCES sticker_packs(id) ON DELETE SET NULL,
+      amount INTEGER NOT NULL,
+      created_at INTEGER NOT NULL DEFAULT 0
+    )`,
   ];
 
   for (const sql of alters) {

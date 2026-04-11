@@ -13,9 +13,8 @@ import { type User } from '../../types';
 import { MentionPopup }   from './MentionPopup';
 import { CameraOverlay }  from './CameraOverlay';
 import { FormatToolbar }  from './FormatToolbar';
-import Picker from '@emoji-mart/react';
-import data from '@emoji-mart/data';
 import { mdToHtml, htmlToMd, getTextBeforeCursor } from '../../utils/richText';
+import { EmojiStickerPanel } from './EmojiStickerPanel';
 
 function formatFileSize(bytes: number): string {
   if (!bytes) return '0 B';
@@ -141,6 +140,7 @@ interface Props {
   onChange: (v: string) => void;
   onSend: () => void;
   onSendAttachment: (result: UploadResult, caption: string) => Promise<void>;
+  onSendGif?: (url: string) => Promise<void>;
   externalFile?: File | null;
   onExternalFileConsumed?: () => void;
   disabled?: boolean;
@@ -160,7 +160,7 @@ const LOCK_THRESHOLD = 60;
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
-export function Composer({ value, onChange, onSend, onSendAttachment, externalFile, onExternalFileConsumed, disabled, isGroup, onOpenPollCreator, onTypingStart, onTypingStop, editingMessageId, onCancelEdit, members, blockedByThem, partnerName }: Props) {
+export function Composer({ value, onChange, onSend, onSendAttachment, onSendGif, externalFile, onExternalFileConsumed, disabled, isGroup, onOpenPollCreator, onTypingStart, onTypingStop, editingMessageId, onCancelEdit, members, blockedByThem, partnerName }: Props) {
   // File staging
   const [staged,    setStaged]    = useState<File | null>(null);
   const [caption,   setCaption]   = useState('');
@@ -1187,15 +1187,10 @@ export function Composer({ value, onChange, onSend, onSendAttachment, externalFi
                   </button>
                   {emojiOpen && (
                     <div className="composerEmojiPanel">
-                      <Picker
-                        data={data}
+                      <EmojiStickerPanel
                         onEmojiSelect={(e: { native: string }) => insertEmoji(e.native)}
+                        onSendGif={async (url) => { await onSendGif?.(url); setEmojiOpen(false); }}
                         theme={document.documentElement.dataset.theme === 'light' ? 'light' : 'dark'}
-                        locale="ru"
-                        previewPosition="none"
-                        skinTonePosition="none"
-                        maxFrequentRows={2}
-                        noCountryFlags={false}
                       />
                     </div>
                   )}
