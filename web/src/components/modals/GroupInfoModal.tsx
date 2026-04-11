@@ -405,7 +405,6 @@ export function GroupInfoModal({
               </div>
             </div>
           )}
-        </div>
 
         {/* ── Tab bar (sticky) ───────────────────────────────────────────── */}
         {!editing && (
