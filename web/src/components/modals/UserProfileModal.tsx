@@ -278,6 +278,7 @@ export function UserProfileModal({ userId, onClose, onStartChat, onJumpToMessage
   // ── JSX ──────────────────────────────────────────────────────────────────────
 
   return (
+    <>
     <div className="modalOverlay" onClick={e => e.target === e.currentTarget && onClose()}>
       <div className={`upCard${directChatId ? ' upCardTabs' : ''}`}>
 
@@ -735,5 +736,6 @@ export function UserProfileModal({ userId, onClose, onStartChat, onJumpToMessage
         </ContextMenu>
       </Portal>
     )}
+    </>
   );
 }
