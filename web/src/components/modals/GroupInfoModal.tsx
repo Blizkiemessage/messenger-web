@@ -306,9 +306,9 @@ export function GroupInfoModal({
           </svg>
         </button>
 
-        {/* ── Static header ──────────────────────────────────────────────── */}
-        <div className="giCardHead">
-          <div className="upHeader">
+        {/* ── Single unified scroll area ─────────────────────────────────── */}
+        <div className="giCardScroll">
+        <div className="upHeader">
             <div className="upAvatarRing">
               <div className="upAvatar"
                 style={{ position: 'relative', cursor: isCreator ? 'pointer' : 'default' }}
@@ -407,7 +407,7 @@ export function GroupInfoModal({
           )}
         </div>
 
-        {/* ── Tab bar ────────────────────────────────────────────────────── */}
+        {/* ── Tab bar (sticky) ───────────────────────────────────────────── */}
         {!editing && (
           <div className="giTabs">
             {TABS.map(tab => (
@@ -422,7 +422,7 @@ export function GroupInfoModal({
           </div>
         )}
 
-        {/* ── Scrollable tab content ──────────────────────────────────────── */}
+        {/* ── Tab content ────────────────────────────────────────────────── */}
         <div className="giTabContent">
 
           {/* MEMBERS (also shown when editing) */}
@@ -692,6 +692,7 @@ export function GroupInfoModal({
           )}
 
         </div>{/* /giTabContent */}
+        </div>{/* /giCardScroll */}
       </div>
     </div>
 

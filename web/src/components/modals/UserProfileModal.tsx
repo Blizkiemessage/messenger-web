@@ -325,8 +325,8 @@ export function UserProfileModal({ userId, onClose, onStartChat }: Props) {
           <div className="upLoading">Пользователь не найден</div>
         ) : (
           <>
-            {/* ── Static head (scrolls away only when card has tabs) ── */}
-            <div className={directChatId ? 'giCardHead' : undefined}>
+            {/* ── Single unified scroll area ── */}
+            <div className={directChatId ? 'giCardScroll' : undefined}>
 
               {/* Header */}
               <div className="upHeader">
@@ -467,24 +467,21 @@ export function UserProfileModal({ userId, onClose, onStartChat }: Props) {
                 </div>
               )}
 
-            </div>{/* /giCardHead */}
-
             {/* ── Tabs (only when direct chat exists) ───────────────── */}
-            {directChatId && (
-              <>
-                <div className="giTabs">
-                  {UP_TABS.map(tab => (
-                    <button
-                      key={tab}
-                      className={`giTab${activeTab === tab ? ' giTabActive' : ''}`}
-                      onClick={() => setActiveTab(tab)}
-                    >
-                      {UP_TAB_LABELS[tab]}
-                    </button>
-                  ))}
-                </div>
+            {directChatId && <>
+              <div className="giTabs">
+                {UP_TABS.map(tab => (
+                  <button
+                    key={tab}
+                    className={`giTab${activeTab === tab ? ' giTabActive' : ''}`}
+                    onClick={() => setActiveTab(tab)}
+                  >
+                    {UP_TAB_LABELS[tab]}
+                  </button>
+                ))}
+              </div>
 
-                <div className="giTabContent">
+              <div className="giTabContent">
 
                   {/* MEDIA */}
                   {activeTab === 'media' && (
@@ -695,9 +692,9 @@ export function UserProfileModal({ userId, onClose, onStartChat }: Props) {
                     </div>
                   )}
 
-                </div>{/* /giTabContent */}
-              </>
-            )}
+              </div>{/* /giTabContent */}
+            </>}
+            </div>{/* /giCardScroll */}
           </>
         )}
       </div>

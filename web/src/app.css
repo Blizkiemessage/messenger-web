@@ -7452,22 +7452,24 @@ input[type="date"].psInput::-webkit-calendar-picker-indicator {
 
 /* ── Tab system (GroupInfoModal + UserProfileModal) ──────────────────────── */
 
-/* Scrollable header section (avatar, name, info rows) */
-.giCardHead {
-  flex-shrink: 0;
+/* Single unified scroll container — wraps header + tabs + content */
+.giCardScroll {
+  flex: 1;
   overflow-y: auto;
-  max-height: 40%;
+  min-height: 0;
 }
-.giCardHead::-webkit-scrollbar { width: 4px; }
-.giCardHead::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+.giCardScroll::-webkit-scrollbar { width: 5px; }
+.giCardScroll::-webkit-scrollbar-thumb { background: var(--border); border-radius: 5px; }
 
-/* Tab bar */
+/* Tab bar — sticky so it stays at top when scrolling past header */
 .giTabs {
   display: flex;
-  flex-shrink: 0;
+  position: sticky;
+  top: 0;
+  z-index: 2;
   border-bottom: 1px solid var(--border);
   padding: 0 16px;
-  background: var(--card);
+  background: var(--sidebar);
 }
 .giTab {
   flex: 1;
@@ -7489,14 +7491,8 @@ input[type="date"].psInput::-webkit-calendar-picker-indicator {
   font-weight: 600;
 }
 
-/* Scrollable content area */
-.giTabContent {
-  flex: 1;
-  overflow-y: auto;
-  min-height: 0;
-}
-.giTabContent::-webkit-scrollbar { width: 5px; }
-.giTabContent::-webkit-scrollbar-thumb { background: var(--border); border-radius: 5px; }
+/* Tab content — natural flow inside the single scroll */
+.giTabContent {}
 
 .giTabSection { padding: 4px 0 12px; }
 .giDateLabel {
@@ -7696,11 +7692,18 @@ input[type="date"].psInput::-webkit-calendar-picker-indicator {
 .giLoadMore:hover:not(:disabled) { background: var(--accent-dim); }
 .giLoadMore:disabled { opacity: .5; cursor: default; }
 
-/* UserProfileModal with tabs — flex column to host giTabs + giTabContent */
+/* UserProfileModal with tabs — same fixed height as giCard, single scroll inside */
 .upCardTabs {
   display: flex;
   flex-direction: column;
   overflow: hidden;
   height: min(92dvh, 780px);
 }
+.upCardTabs .giCardScroll {
+  flex: 1;
+  overflow-y: auto;
+  min-height: 0;
+}
+.upCardTabs .giCardScroll::-webkit-scrollbar { width: 5px; }
+.upCardTabs .giCardScroll::-webkit-scrollbar-thumb { background: var(--border); border-radius: 5px; }
 
