@@ -147,7 +147,7 @@ export function UserProfileModal({ userId, onClose, onStartChat }: Props) {
         if (cancelled) return;
         setTabMsgs(msgs);
         setTabHasMore(msgs.length >= 50);
-        if (msgs.length > 0) setTabOldest(msgs[msgs.length - 1].created_at);
+        if (msgs.length > 0) setTabOldest(msgs[0].created_at);
       })
       .catch(() => {})
       .finally(() => { if (!cancelled) setTabLoading(false); });
@@ -218,9 +218,9 @@ export function UserProfileModal({ userId, onClose, onStartChat }: Props) {
     setTabLoading(true);
     try {
       const msgs = await getChatMessages(directChatId, tabOldest);
-      setTabMsgs(prev => [...prev, ...msgs]);
+      setTabMsgs(prev => [...msgs, ...prev]);
       setTabHasMore(msgs.length >= 50);
-      if (msgs.length > 0) setTabOldest(msgs[msgs.length - 1].created_at);
+      if (msgs.length > 0) setTabOldest(msgs[0].created_at);
     } catch { /**/ }
     finally { setTabLoading(false); }
   }
