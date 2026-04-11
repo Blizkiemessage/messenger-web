@@ -303,18 +303,21 @@ function runMigrations() {
     ).all();
     if (rows.length > 0) {
       const update = db.prepare(`UPDATE messages SET search_text = ? WHERE id = ?`);
-      const backfill = db.transaction(() => {
-        let count = 0;
+      let count = 0;
+      db.exec('BEGIN');
+      try {
         for (const row of rows) {
           try {
             const text = decrypt({ ciphertext: row.ciphertext, iv: row.iv, authTag: row.auth_tag }).trim();
             if (text) { update.run([text, row.id]); count++; }
           } catch { /* skip undecryptable rows */ }
         }
-        return count;
-      });
-      const filled = backfill();
-      console.log(`[DB] Backfilled search_text for ${filled} old messages`);
+        db.exec('COMMIT');
+      } catch (e) {
+        db.exec('ROLLBACK');
+        throw e;
+      }
+      console.log(`[DB] Backfilled search_text for ${count} old messages`);
     }
   } catch (err) { console.error('[DB] search_text backfill failed:', err.message); }
 
