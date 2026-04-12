@@ -57,7 +57,7 @@ export function StickerStudioModal({ onClose }: Props) {
 
   useEffect(() => {
     Promise.all([getMyPacks(), getMyQuota()])
-      .then(([packs, q]) => { setMyPacks(packs); setQuota(q); })
+      .then(([packs, q]) => { setMyPacks((packs || []).filter(p => p?.id)); setQuota(q); })
       .catch(e => setError(e.message))
       .finally(() => setLoading(false));
   }, []);
@@ -76,15 +76,20 @@ export function StickerStudioModal({ onClose }: Props) {
     setError('');
     try {
       const pack = await createPack({ name: packName.trim(), description: packDesc.trim() || undefined, type: packType, is_public: isPublic });
+      // The axios interceptor strips `.response` from errors and uses `.message` directly.
+      // Validate that the server returned a proper pack object with an id.
+      if (!pack?.id) throw new Error('Сервер вернул некорректный ответ. Попробуй ещё раз.');
       setCreatedPack(pack);
-      setMyPacks(p => [pack, ...p]);
+      setMyPacks(p => [pack, ...p.filter(x => x?.id && x.id !== pack.id)]);
       setQuota(q => q ? { ...q, packs_created: q.packs_created + 1 } : q);
       setStep(2);
     } catch (e: any) {
-      if (e?.response?.data?.error === 'quota_exceeded') {
+      // Interceptor transforms errors: e.response is stripped, use e.message directly.
+      const msg: string = e?.message || 'Ошибка создания';
+      if (msg === 'quota_exceeded') {
         setError('Достигнут лимит паков. Удали старый или купи дополнительный слот.');
       } else {
-        setError(e.message || 'Ошибка создания');
+        setError(msg);
       }
     } finally {
       setCreating(false);
@@ -156,14 +161,14 @@ export function StickerStudioModal({ onClose }: Props) {
       await updatePack(createdPack.id, updates);
       // Refresh installed packs so the new pack shows in the sticker panel
       useStickerStore.getState().fetchInstalledPacks();
-      // Reset wizard
+      // Refresh my packs list BEFORE switching tabs to avoid rendering stale undefined entries
+      const packs = await getMyPacks();
+      setMyPacks(packs.filter(p => p?.id));
+      // Reset wizard and navigate
       setStep(1);
       setPackName(''); setPackDesc(''); setPackType('sticker'); setIsPublic(false);
       setCreatedPack(null); setPendingItems([]); setCoverItemId(null);
       setTab('my-packs');
-      // Refresh my packs list
-      const packs = await getMyPacks();
-      setMyPacks(packs);
     } catch (e: any) {
       setError(e.message || 'Ошибка публикации');
     } finally {
@@ -242,7 +247,7 @@ export function StickerStudioModal({ onClose }: Props) {
                   <button className="studioBtnPrimary" onClick={() => setTab('create')}>Создать первый пак</button>
                 </div>
               )}
-              {myPacks.map(pack => (
+              {myPacks.filter(p => p?.id).map(pack => (
                 <div key={pack.id} className="studioPackRow">
                   <div className="studioPackThumb">
                     {pack.cover_url

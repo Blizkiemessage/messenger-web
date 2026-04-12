@@ -44,8 +44,8 @@ export function EmojiStickerPanel({ onEmojiSelect, onSendGif, onSendSticker, onO
           GIF
         </button>
         <button
-          className="espTab"
-          onClick={handleStudioClick}
+          className={`espTab${tab === 'studio' ? ' active' : ''}`}
+          onClick={() => { setTab('studio'); handleStudioClick(); }}
         >
           Студия
         </button>

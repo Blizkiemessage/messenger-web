@@ -7760,8 +7760,7 @@ input[type="date"].psInput::-webkit-calendar-picker-indicator {
 
 .espTabs {
   display: flex;
-  gap: 2px;
-  padding: 6px 8px 0;
+  padding: 6px 0 0;
   border-bottom: 1px solid var(--border);
   background: var(--panel);
   flex-shrink: 0;
@@ -7770,8 +7769,10 @@ input[type="date"].psInput::-webkit-calendar-picker-indicator {
 .espTab {
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 5px;
-  padding: 6px 10px;
+  flex: 1;
+  padding: 6px 4px;
   border: none;
   background: none;
   border-radius: 8px 8px 0 0;
