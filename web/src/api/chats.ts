@@ -42,6 +42,7 @@ export async function sendChatMessage(
     attachment_name?: string;
     attachment_size?: number | null;
     attachment_duration?: number | null;
+    attachment_meta?: string | null;
     reply?: {
       id: string;
       sender_id?: string | null;

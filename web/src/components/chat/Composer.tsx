@@ -146,6 +146,8 @@ interface Props {
   disabled?: boolean;
   isGroup?: boolean;
   onOpenPollCreator?: () => void;
+  onSendSticker?: (url: string, itemId: string, packId: string) => Promise<void>;
+  onOpenStudio?: () => void;
   onTypingStart?: () => void;
   onTypingStop?: () => void;
   editingMessageId?: string | null;
@@ -160,7 +162,7 @@ const LOCK_THRESHOLD = 60;
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
-export function Composer({ value, onChange, onSend, onSendAttachment, onSendGif, externalFile, onExternalFileConsumed, disabled, isGroup, onOpenPollCreator, onTypingStart, onTypingStop, editingMessageId, onCancelEdit, members, blockedByThem, partnerName }: Props) {
+export function Composer({ value, onChange, onSend, onSendAttachment, externalFile, onExternalFileConsumed, disabled, isGroup, onOpenPollCreator, onSendGif, onSendSticker, onOpenStudio, onTypingStart, onTypingStop, editingMessageId, onCancelEdit, members, blockedByThem, partnerName }: Props) {
   // File staging
   const [staged,    setStaged]    = useState<File | null>(null);
   const [caption,   setCaption]   = useState('');
@@ -1190,6 +1192,8 @@ export function Composer({ value, onChange, onSend, onSendAttachment, onSendGif,
                       <EmojiStickerPanel
                         onEmojiSelect={(e: { native: string }) => insertEmoji(e.native)}
                         onSendGif={async (url) => { await onSendGif?.(url); setEmojiOpen(false); }}
+                        onSendSticker={async (url, itemId, packId) => { await onSendSticker?.(url, itemId, packId); setEmojiOpen(false); }}
+                        onOpenStudio={() => { setEmojiOpen(false); onOpenStudio?.(); }}
                         theme={document.documentElement.dataset.theme === 'light' ? 'light' : 'dark'}
                       />
                     </div>

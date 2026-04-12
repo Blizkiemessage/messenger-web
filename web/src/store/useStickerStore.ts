@@ -40,13 +40,14 @@ export const useStickerStore = create<StickerStore>((set, get) => ({
 
   fetchInstalledPacks: async () => {
     const res = await client.get<StickerPack[]>('/sticker-packs/installed');
-    set({ installedPacks: res.data });
+    set({ installedPacks: Array.isArray(res.data) ? res.data.filter(p => p?.id) : [] });
   },
 
   fetchPackItems: async (packId: string) => {
     if (get().packItems[packId]) return; // already cached
     const res = await client.get<StickerPackItem[]>(`/sticker-packs/${packId}/items`);
-    set(state => ({ packItems: { ...state.packItems, [packId]: res.data } }));
+    const items = Array.isArray(res.data) ? res.data.filter(it => it?.id) : [];
+    set(state => ({ packItems: { ...state.packItems, [packId]: items } }));
   },
 
   installPack: async (packId: string) => {

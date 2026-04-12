@@ -12,6 +12,7 @@ import { MessageList } from './MessageList';
 import { Composer } from './Composer';
 import { EmptyState } from './EmptyState';
 import { ReplyPreviewBar } from './ReplyPreviewBar';
+import { StickerStudioModal } from '../modals/StickerStudioModal';
 import { sendChatMessage, getPinnedMessages, pinMessage as apiPin, unpinMessage as apiUnpin, reactToMessage, editMessage as apiEditMessage } from '../../api/chats';
 import { createPoll, votePoll, retractVote } from '../../api/polls';
 import { emitTypingStart, emitTypingStop } from '../../socket/socketClient';
@@ -414,17 +415,29 @@ export function ChatArea() {
     });
   }, []);
 
-  // ── Send GIF (Tenor) ──────────────────────────────────────────────────────
+  // ── Send GIF ─────────────────────────────────────────────────────────────
   const handleSendGif = useCallback(async (url: string) => {
+    const chatId = useChatsStore.getState().activeChatId;
+    if (!chatId) return;
+    await sendChatMessage(chatId, { text: '', attachment_url: url, attachment_type: 'gif_tenor', attachment_name: 'gif' });
+  }, []);
+
+  // ── Send sticker ─────────────────────────────────────────────────────────
+  const handleSendSticker = useCallback(async (url: string, itemId: string, packId: string) => {
     const chatId = useChatsStore.getState().activeChatId;
     if (!chatId) return;
     await sendChatMessage(chatId, {
       text: '',
       attachment_url:  url,
-      attachment_type: 'gif_tenor',
-      attachment_name: 'gif',
+      attachment_type: 'sticker',
+      attachment_name: 'sticker',
+      attachment_meta: JSON.stringify({ itemId, packId }),
     });
   }, []);
+
+  // ── Studio modal ──────────────────────────────────────────────────────────
+  const [showStudio, setShowStudio] = useState(false);
+
 
   // ── Drag & drop ───────────────────────────────────────────────────────────
   const [dragOver,     setDragOver]     = useState(false);
@@ -723,6 +736,8 @@ export function ChatArea() {
             onExternalFileConsumed={() => setDroppedFile(null)}
             isGroup={activeChat.type === 'group'}
             onOpenPollCreator={() => setShowPollCreator(true)}
+            onSendSticker={handleSendSticker}
+            onOpenStudio={() => setShowStudio(true)}
             onTypingStart={() => activeChatId && emitTypingStart(activeChatId)}
             onTypingStop={() => activeChatId && emitTypingStop(activeChatId)}
             editingMessageId={editingId}
@@ -731,6 +746,7 @@ export function ChatArea() {
             blockedByThem={activeChat.type === 'direct' && !!(activeChat.members?.find(m => m.id !== me.id) as any)?.blocked_by_them}
             partnerName={activeChat.type === 'direct' ? (activeChat.members?.find(m => m.id !== me.id)?.display_name || activeChat.members?.find(m => m.id !== me.id)?.username || undefined) : undefined}
           />
+          {showStudio && <StickerStudioModal onClose={() => setShowStudio(false)} />}
         </>
       )}
       </div>
