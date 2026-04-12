@@ -146,7 +146,6 @@ interface Props {
   disabled?: boolean;
   isGroup?: boolean;
   onOpenPollCreator?: () => void;
-  onSendGif?: (url: string) => Promise<void>;
   onSendSticker?: (url: string, itemId: string, packId: string) => Promise<void>;
   onOpenStudio?: () => void;
   onTypingStart?: () => void;

@@ -736,7 +736,6 @@ export function ChatArea() {
             onExternalFileConsumed={() => setDroppedFile(null)}
             isGroup={activeChat.type === 'group'}
             onOpenPollCreator={() => setShowPollCreator(true)}
-            onSendGif={handleSendGif}
             onSendSticker={handleSendSticker}
             onOpenStudio={() => setShowStudio(true)}
             onTypingStart={() => activeChatId && emitTypingStart(activeChatId)}
