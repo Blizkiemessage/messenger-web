@@ -26,6 +26,7 @@ function authMiddleware(req, res, next) {
   }
 
   req.userId = payload.sub;
+  req.user = { id: payload.sub }; // alias used by sticker-packs routes
   req.sessionId = payload.jti;
 
   // Update last_used_at (non-blocking)
