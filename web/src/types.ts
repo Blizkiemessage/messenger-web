@@ -115,23 +115,27 @@ export type StickerPack = {
   owner_id: string | null;
   type: 'sticker' | 'emoji';
   name: string;
-  description?: string | null;
-  cover_url?: string | null;
+  description: string | null;
+  cover_url: string | null;
   is_public: boolean;
   is_animated: boolean;
   price: number;
   is_deleted: boolean;
   created_at: number;
   updated_at: number;
+  // joined fields
+  item_count?: number;
+  user_sort_order?: number;
+  installed_at?: number;
 };
 
 export type StickerPackItem = {
   id: string;
   pack_id: string;
   file_url: string;
-  thumb_url?: string | null;
-  emoji_hint?: string | null;
-  keywords?: string[] | null;
+  thumb_url: string | null;
+  emoji_hint: string | null;
+  keywords: string[] | null;
   sort_order: number;
   created_at: number;
 };
@@ -141,13 +145,13 @@ export type UserGif = {
   owner_id: string;
   file_url: string;
   thumb_url: string;
-  title?: string | null;
-  keywords?: string[] | null;
+  title: string | null;
+  keywords: string[] | null;
   is_public: boolean;
   is_deleted: boolean;
-  width?: number | null;
-  height?: number | null;
-  duration_ms?: number | null;
+  width: number | null;
+  height: number | null;
+  duration_ms: number | null;
   created_at: number;
 };
 
@@ -180,11 +184,13 @@ export type Purchase = {
   created_at: number;
 };
 
+// ── GIF (Giphy) ───────────────────────────────────────────────────────────────
+
 export type GifResult = {
   id: string;
   url: string;
   preview: string;
   width: number;
   height: number;
-  title?: string;
+  title: string;
 };

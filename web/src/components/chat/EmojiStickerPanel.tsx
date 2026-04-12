@@ -2,17 +2,24 @@ import { useState } from 'react';
 import Picker from '@emoji-mart/react';
 import data from '@emoji-mart/data';
 import { GifTab } from './GifTab';
+import { StickersTab } from './StickersTab';
 
-type Tab = 'emoji' | 'gif';
+type Tab = 'emoji' | 'sticker' | 'gif' | 'studio';
 
 interface Props {
   onEmojiSelect: (emoji: { native: string }) => void;
   onSendGif: (url: string) => void;
+  onSendSticker: (url: string, itemId: string, packId: string) => void;
+  onOpenStudio: () => void;
   theme: 'dark' | 'light';
 }
 
-export function EmojiStickerPanel({ onEmojiSelect, onSendGif, theme }: Props) {
+export function EmojiStickerPanel({ onEmojiSelect, onSendGif, onSendSticker, onOpenStudio, theme }: Props) {
   const [tab, setTab] = useState<Tab>('emoji');
+
+  function handleStudioClick() {
+    onOpenStudio();
+  }
 
   return (
     <div className="espRoot">
@@ -25,10 +32,22 @@ export function EmojiStickerPanel({ onEmojiSelect, onSendGif, theme }: Props) {
           Эмодзи
         </button>
         <button
+          className={`espTab${tab === 'sticker' ? ' active' : ''}`}
+          onClick={() => setTab('sticker')}
+        >
+          Стикеры
+        </button>
+        <button
           className={`espTab${tab === 'gif' ? ' active' : ''}`}
           onClick={() => setTab('gif')}
         >
           GIF
+        </button>
+        <button
+          className="espTab"
+          onClick={handleStudioClick}
+        >
+          Студия
         </button>
       </div>
 
@@ -44,6 +63,10 @@ export function EmojiStickerPanel({ onEmojiSelect, onSendGif, theme }: Props) {
           maxFrequentRows={2}
           noCountryFlags={false}
         />
+      )}
+
+      {tab === 'sticker' && (
+        <StickersTab onSendSticker={onSendSticker} onOpenStudio={onOpenStudio} />
       )}
 
       {tab === 'gif' && (
