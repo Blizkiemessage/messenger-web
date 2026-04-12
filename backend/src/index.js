@@ -1,4 +1,15 @@
 require('dotenv').config();
+
+// ─── Global crash handlers (must be first) ────────────────────────────────
+process.on('uncaughtException', (err) => {
+  console.error('[CRASH] Uncaught exception:', err);
+  process.exit(1);
+});
+process.on('unhandledRejection', (reason) => {
+  console.error('[CRASH] Unhandled promise rejection:', reason);
+  process.exit(1);
+});
+
 const http = require('http');
 const express = require('express');
 const cors = require('cors');
