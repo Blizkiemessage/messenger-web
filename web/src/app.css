@@ -3446,27 +3446,7 @@ input[type="date"].psInput::-webkit-calendar-picker-indicator {
 }
 .composerEmojiBtn:hover,
 .composerEmojiBtn.active { color: var(--accent); background: var(--accent-dim); }
-.composerEmojiPanel {
-  position: absolute;
-  bottom: calc(100% + 10px);
-  right: 0;
-  z-index: 200;
-  border-radius: 16px;
-  overflow: hidden;
-  box-shadow: var(--shadow);
-  border: 1px solid var(--border);
-  background: var(--panel);
-  animation: slideUp .2s ease;
-}
-@media (max-width: 600px) {
-  .composerEmojiPanel {
-    position: fixed;
-    bottom: 70px;
-    left: 50%;
-    right: auto;
-    transform: translateX(-50%);
-  }
-}
+/* .composerEmojiPanel is defined in the sticker/GIF section below */
 
 /* ── Spinner animation for upload send button ────────────────────────────── */
 .composerSpinner {
@@ -7747,6 +7727,18 @@ input[type="date"].psInput::-webkit-calendar-picker-indicator {
   max-height: 480px;
   display: flex;
   flex-direction: column;
+}
+@media (max-width: 600px) {
+  .composerEmojiPanel {
+    position: fixed;
+    bottom: 70px;
+    left: 50%;
+    right: auto;
+    width: min(360px, 96vw);
+    max-height: 55vh;
+    transform: translateX(-50%);
+    border-radius: 16px;
+  }
 }
 
 .espRoot {
