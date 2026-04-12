@@ -57,7 +57,7 @@ export function StickersTab({ onSendSticker, onOpenStudio }: Props) {
           </svg>
         </button>
 
-        {installedPacks.map(pack => (
+        {installedPacks.filter(p => p?.id).map(pack => (
           <button
             key={pack.id}
             className={`stickerPackIcon${activePackId === pack.id ? ' active' : ''}`}
@@ -99,7 +99,7 @@ export function StickersTab({ onSendSticker, onOpenStudio }: Props) {
           </div>
         )}
 
-        {!loading && items.map(item => (
+        {!loading && items.filter(it => it?.id).map(item => (
           <button
             key={item.id}
             className="stickerItem"

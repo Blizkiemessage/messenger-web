@@ -8,7 +8,11 @@ const RECENT_MAX = 24;
 function loadRecent(): StickerPackItem[] {
   try {
     const raw = localStorage.getItem(RECENT_KEY);
-    return raw ? (JSON.parse(raw) as StickerPackItem[]) : [];
+    const parsed = raw ? (JSON.parse(raw) as unknown[]) : [];
+    // Sanitize: drop any elements that are not proper StickerPackItem objects
+    return Array.isArray(parsed)
+      ? (parsed.filter((r): r is StickerPackItem => !!r && typeof r === 'object' && typeof (r as StickerPackItem).id === 'string'))
+      : [];
   } catch {
     return [];
   }
@@ -33,10 +37,17 @@ interface StickerStore {
   addRecent: (item: StickerPackItem) => void;
 }
 
+// Ensure corrupted localStorage is cleaned up immediately on first load
+const _initialRecent = loadRecent();
+if (_initialRecent.length === 0) {
+  // loadRecent already sanitized; if it was corrupted and returned [], persist the clean state
+  try { localStorage.setItem(RECENT_KEY, '[]'); } catch { /* ignore */ }
+}
+
 export const useStickerStore = create<StickerStore>((set, get) => ({
   installedPacks: [],
   packItems: {},
-  recentStickers: loadRecent(),
+  recentStickers: _initialRecent,
 
   fetchInstalledPacks: async () => {
     const res = await client.get<StickerPack[]>('/sticker-packs/installed');
@@ -72,7 +83,8 @@ export const useStickerStore = create<StickerStore>((set, get) => ({
   },
 
   addRecent: (item: StickerPackItem) => {
-    const prev = get().recentStickers.filter(r => r.id !== item.id);
+    if (!item?.id) return;
+    const prev = get().recentStickers.filter(r => r?.id && r.id !== item.id);
     const next = [item, ...prev].slice(0, RECENT_MAX);
     saveRecent(next);
     set({ recentStickers: next });
