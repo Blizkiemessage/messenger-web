@@ -10,25 +10,26 @@ interface Props {
   onOpenStudio: () => void;
 }
 
-type Mode = 'browse' | 'grid';
+type Mode = 'grid' | 'browse' | 'manage';
 
 export function StickersTab({ onSendSticker, onOpenStudio }: Props) {
   const { installedPacks, packItems, recentStickers, fetchInstalledPacks, fetchPackItems } =
     useStickerStore();
 
-  const [mode, setMode] = useState<Mode>('grid');
+  const [mode, setMode]               = useState<Mode>('grid');
   const [activePackId, setActivePackId] = useState<'recent' | string>('recent');
-  const [items, setItems] = useState<StickerPackItem[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [items, setItems]             = useState<StickerPackItem[]>([]);
+  const [loading, setLoading]         = useState(false);
+  const [removingId, setRemovingId]   = useState<string | null>(null);
 
   // Browse state
-  const [browseQuery, setBrowseQuery]     = useState('');
-  const [browseResults, setBrowseResults] = useState<(StickerPack & { is_installed: boolean })[]>([]);
-  const [browsing, setBrowsing]           = useState(false);
+  const [browseQuery, setBrowseQuery]         = useState('');
+  const [browseResults, setBrowseResults]     = useState<(StickerPack & { is_installed: boolean })[]>([]);
+  const [browsing, setBrowsing]               = useState(false);
   const [browsePreviewPack, setBrowsePreviewPack] = useState<StickerPack | null>(null);
   const [browsePreviewItems, setBrowsePreviewItems] = useState<StickerPackItem[]>([]);
-  const [previewLoading, setPreviewLoading] = useState(false);
-  const [installingId, setInstallingId]   = useState<string | null>(null);
+  const [previewLoading, setPreviewLoading]   = useState(false);
+  const [installingId, setInstallingId]       = useState<string | null>(null);
   const searchTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   useEffect(() => {
@@ -63,6 +64,19 @@ export function StickersTab({ onSendSticker, onOpenStudio }: Props) {
     onSendSticker(item.file_url, item.id, item.pack_id);
   }
 
+  // ── Remove pack from collection ──────────────────────────────────────────
+  async function handleRemovePack(packId: string) {
+    setRemovingId(packId);
+    try {
+      await uninstallPack(packId);
+      if (activePackId === packId) setActivePackId('recent');
+      await fetchInstalledPacks();
+    } catch { /* ignore */ } finally {
+      setRemovingId(null);
+    }
+  }
+
+  // ── Browse helpers ────────────────────────────────────────────────────────
   const runBrowse = useCallback(async (q: string) => {
     setBrowsing(true);
     try {
@@ -132,7 +146,6 @@ export function StickersTab({ onSendSticker, onOpenStudio }: Props) {
         </div>
 
         {browsePreviewPack ? (
-          /* Pack preview */
           <div className="stickerBrowsePreview">
             <div className="stickerBrowsePreviewHeader">
               <button className="stickerBrowseBack" onClick={() => setBrowsePreviewPack(null)}>
@@ -171,7 +184,6 @@ export function StickersTab({ onSendSticker, onOpenStudio }: Props) {
             </div>
           </div>
         ) : (
-          /* Browse results */
           <div className="stickerBrowseList">
             {browsing && <div className="stickerLoading"><div className="gifSpinner" /></div>}
             {!browsing && browseResults.length === 0 && (
@@ -201,6 +213,59 @@ export function StickersTab({ onSendSticker, onOpenStudio }: Props) {
     );
   }
 
+  // ── Manage mode ───────────────────────────────────────────────────────────
+  if (mode === 'manage') {
+    return (
+      <div className="stickersTabRoot">
+        {/* Header */}
+        <div className="stickerManageHeader">
+          <span className="stickerManageTitle">Мои паки</span>
+          <button className="stickerManageDone" onClick={() => setMode('grid')}>Готово</button>
+        </div>
+
+        <div className="stickerManageList">
+          {installedPacks.length === 0 && (
+            <div className="stickerEmpty">
+              <span>Нет добавленных паков</span>
+              <button className="stickerEmptyStudioBtn" onClick={() => setMode('browse')}>
+                Найти паки →
+              </button>
+            </div>
+          )}
+          {installedPacks.filter(p => p?.id).map(pack => (
+            <div key={pack.id} className="stickerManageRow">
+              <div className="stickerManageThumb">
+                <PackCover url={pack.cover_url} name={pack.name} />
+              </div>
+              <div className="stickerManageInfo">
+                <div className="stickerManageName">{pack.name}</div>
+                <div className="stickerManageMeta">
+                  {(pack as any).item_count ?? '…'} стикеров
+                  {pack.is_public ? '' : ' · Приватный'}
+                </div>
+              </div>
+              <button
+                className="stickerManageRemoveBtn"
+                disabled={removingId === pack.id}
+                onClick={() => handleRemovePack(pack.id)}
+                title="Убрать из коллекции"
+              >
+                {removingId === pack.id
+                  ? <div className="gifSpinner" style={{ width: 14, height: 14 }} />
+                  : (
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
+                      <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                    </svg>
+                  )
+                }
+              </button>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
   // ── Grid mode ─────────────────────────────────────────────────────────────
   return (
     <div className="stickersTabRoot">
@@ -219,27 +284,56 @@ export function StickersTab({ onSendSticker, onOpenStudio }: Props) {
         </button>
 
         {installedPacks.filter(p => p?.id).map(pack => (
-          <button key={pack.id}
-            className={`stickerPackIcon${activePackId === pack.id ? ' active' : ''}`}
-            onClick={() => setActivePackId(pack.id)}
-            title={pack.name}
-          >
-            <PackCover url={pack.cover_url} name={pack.name} />
-          </button>
+          <div key={pack.id} className="stickerPackIconWrap">
+            <button
+              className={`stickerPackIcon${activePackId === pack.id ? ' active' : ''}`}
+              onClick={() => setActivePackId(pack.id)}
+              title={pack.name}
+            >
+              <PackCover url={pack.cover_url} name={pack.name} />
+            </button>
+            <button
+              className="stickerPackStripRemove"
+              onClick={e => { e.stopPropagation(); handleRemovePack(pack.id); }}
+              title="Убрать из коллекции"
+              disabled={removingId === pack.id}
+            >
+              ×
+            </button>
+          </div>
         ))}
 
-        {/* Browse button */}
-        <button
-          className="stickerPackIcon stickerPackIconBtn"
-          onClick={() => setMode('browse')}
-          title="Найти паки"
-          style={{ marginLeft: 'auto' }}
-        >
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <circle cx="11" cy="11" r="8"/>
-            <line x1="21" y1="21" x2="16.65" y2="16.65"/>
-          </svg>
-        </button>
+        {/* Right side controls */}
+        <div style={{ marginLeft: 'auto', display: 'flex', gap: 2 }}>
+          {/* Manage button */}
+          {installedPacks.length > 0 && (
+            <button
+              className="stickerPackIcon stickerPackIconBtn"
+              onClick={() => setMode('manage')}
+              title="Управление паками"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="8" y1="6" x2="21" y2="6"/>
+                <line x1="8" y1="12" x2="21" y2="12"/>
+                <line x1="8" y1="18" x2="21" y2="18"/>
+                <line x1="3" y1="6" x2="3.01" y2="6"/>
+                <line x1="3" y1="12" x2="3.01" y2="12"/>
+                <line x1="3" y1="18" x2="3.01" y2="18"/>
+              </svg>
+            </button>
+          )}
+          {/* Browse button */}
+          <button
+            className="stickerPackIcon stickerPackIconBtn"
+            onClick={() => setMode('browse')}
+            title="Найти паки"
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="11" cy="11" r="8"/>
+              <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+            </svg>
+          </button>
+        </div>
       </div>
 
       {/* Grid */}

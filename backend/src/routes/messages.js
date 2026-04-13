@@ -42,7 +42,7 @@ router.get('/:chatId/messages', (req, res, next) => {
 // POST /chats/:chatId/messages
 router.post('/:chatId/messages', msgLimiter, (req, res, next) => {
   try {
-    const { text, attachment_url, attachment_type, attachment_name, attachment_duration, reply } = req.body;
+    const { text, attachment_url, attachment_type, attachment_name, attachment_meta, attachment_duration, reply } = req.body;
     const hasText = text && typeof text === 'string' && text.trim();
     const hasAttachment = attachment_url && attachment_type;
     if (!hasText && !hasAttachment) {
@@ -57,6 +57,7 @@ router.post('/:chatId/messages', msgLimiter, (req, res, next) => {
 
     const attachment = hasAttachment ? {
       attachment_url, attachment_type, attachment_name,
+      attachment_meta: typeof attachment_meta === 'string' ? attachment_meta : null,
       attachment_duration: typeof attachment_duration === 'number' && attachment_duration > 0 ? attachment_duration : null,
     } : {};
 

@@ -38,7 +38,8 @@ function decryptMessage(msg) {
     id: msg.id, chat_id: msg.chat_id, sender_id: msg.sender_id, text,
     created_at: msg.created_at, deleted_at: msg.deleted_at || null,
     attachment_url: msg.attachment_url || null, attachment_type: msg.attachment_type || null,
-    attachment_name: msg.attachment_name || null, attachment_size: msg.attachment_size || null,
+    attachment_name: msg.attachment_name || null, attachment_meta: msg.attachment_meta || null,
+    attachment_size: msg.attachment_size || null,
     attachment_duration: msg.attachment_duration != null ? msg.attachment_duration : null,
     liked_by: JSON.parse(msg.liked_by || '[]'),
     reactions: JSON.parse(msg.reactions || '[]'),
@@ -105,13 +106,14 @@ function saveMessage(chatId, senderId, text, attachment = {}, isSystem = false, 
 
   db.prepare(
     `INSERT INTO messages (id, chat_id, sender_id, ciphertext, iv, auth_tag, created_at,
-       attachment_url, attachment_type, attachment_name, attachment_size, attachment_duration, is_system,
+       attachment_url, attachment_type, attachment_name, attachment_meta, attachment_size, attachment_duration, is_system,
        reply_to_id, reply_to_sender_id, reply_to_sender_username,
        reply_to_ciphertext, reply_to_iv, reply_to_auth_tag, poll_id, search_text)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
   ).run([msgId, chatId, senderId, ciphertext, iv, authTag, now,
     attachment.attachment_url || null, attachment.attachment_type || null,
-    attachment.attachment_name || null, attachment.attachment_size || null,
+    attachment.attachment_name || null, attachment.attachment_meta || null,
+    attachment.attachment_size || null,
     attachment.attachment_duration != null ? attachment.attachment_duration : null,
     isSystem ? 1 : 0,
     replyToId, replyToSenderId, replyToSenderUsername,

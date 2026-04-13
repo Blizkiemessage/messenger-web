@@ -8480,6 +8480,123 @@ input[type="date"].psInput::-webkit-calendar-picker-indicator {
 .stickerBrowsePreviewName { font-size: 13px; font-weight: 600; color: var(--text); }
 .stickerBrowsePreviewDesc { font-size: 11px; color: var(--text-muted, var(--muted)); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
+/* ── Pack strip: wrap + hover-remove button ── */
+.stickerPackIconWrap {
+  position: relative;
+  flex-shrink: 0;
+}
+.stickerPackIconWrap .stickerPackIcon {
+  display: block;
+}
+.stickerPackStripRemove {
+  position: absolute;
+  top: -5px; right: -5px;
+  width: 15px; height: 15px;
+  background: #e74c3c;
+  color: #fff;
+  border: 2px solid var(--panel, #1a1f2e);
+  border-radius: 50%;
+  font-size: 11px;
+  line-height: 1;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer;
+  opacity: 0;
+  transform: scale(.7);
+  transition: opacity .15s, transform .15s;
+  z-index: 2;
+  padding: 0;
+}
+.stickerPackIconWrap:hover .stickerPackStripRemove {
+  opacity: 1;
+  transform: scale(1);
+}
+.stickerPackStripRemove:disabled { opacity: .4; cursor: default; }
+
+/* ── Manage packs mode ── */
+.stickerManageHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px 6px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.stickerManageTitle {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+}
+.stickerManageDone {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--accent);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 2px 4px;
+  border-radius: 4px;
+  transition: opacity .15s;
+}
+.stickerManageDone:hover { opacity: .75; }
+
+.stickerManageList {
+  flex: 1;
+  overflow-y: auto;
+  padding: 4px 0;
+}
+.stickerManageList::-webkit-scrollbar { width: 4px; }
+.stickerManageList::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+
+.stickerManageRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 12px;
+  transition: background .12s;
+}
+.stickerManageRow:hover { background: var(--accent-dim); }
+
+.stickerManageThumb {
+  width: 40px; height: 40px;
+  border-radius: 9px;
+  overflow: hidden;
+  background: var(--accent-dim);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 18px; font-weight: 700; color: var(--accent);
+  flex-shrink: 0;
+}
+
+.stickerManageInfo { flex: 1; min-width: 0; }
+.stickerManageName {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.stickerManageMeta {
+  font-size: 11px;
+  color: var(--text-muted, var(--muted));
+  margin-top: 1px;
+}
+
+.stickerManageRemoveBtn {
+  width: 28px; height: 28px;
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer;
+  color: var(--text-muted, var(--muted));
+  transition: background .12s, border-color .12s, color .12s;
+  flex-shrink: 0;
+}
+.stickerManageRemoveBtn:hover:not(:disabled) {
+  background: #e74c3c18;
+  border-color: #e74c3c66;
+  color: #e74c3c;
+}
+.stickerManageRemoveBtn:disabled { opacity: .4; cursor: default; }
+
 /* ── Pack cover fallback letter ── */
 .packCoverFallback {
   font-size: 16px; font-weight: 700; color: var(--accent);
