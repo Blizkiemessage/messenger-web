@@ -68,6 +68,7 @@ export type Message = {
   attachment_url?: string | null;
   attachment_type?: string | null;
   attachment_name?: string | null;
+  attachment_meta?: string | null;
   attachment_size?: number | null;
   attachment_duration?: number | null;
   liked_by?: string[];
