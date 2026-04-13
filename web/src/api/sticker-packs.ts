@@ -3,6 +3,18 @@ import { type StickerPack, type StickerPackItem, type UserCreationQuota } from '
 
 // ── Browse / install ─────────────────────────────────────────────────────────
 
+export async function browsePublicPacks(params?: {
+  q?: string;
+  limit?: number;
+  offset?: number;
+}): Promise<(StickerPack & { is_installed: boolean })[]> {
+  const res = await client.get<(StickerPack & { is_installed: boolean })[]>(
+    '/sticker-packs/browse',
+    { params },
+  );
+  return res.data;
+}
+
 export async function getInstalledPacks(): Promise<StickerPack[]> {
   const res = await client.get<StickerPack[]>('/sticker-packs/installed');
   return res.data;

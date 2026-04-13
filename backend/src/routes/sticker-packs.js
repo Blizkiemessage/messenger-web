@@ -31,10 +31,17 @@ if (useS3) {
   });
 }
 
+const MIME_EXT = {
+  'image/gif': '.gif', 'image/apng': '.apng', 'image/png': '.png',
+  'image/jpeg': '.jpg', 'image/jpg': '.jpg', 'image/webp': '.webp',
+  'image/svg+xml': '.svg', 'image/avif': '.avif', 'image/bmp': '.bmp',
+  'image/tiff': '.tiff', 'image/heic': '.heic', 'image/heif': '.heif',
+  'video/mp4': '.mp4', 'video/webm': '.webm', 'video/quicktime': '.mov',
+  'video/x-msvideo': '.avi', 'video/mpeg': '.mpeg', 'video/3gpp': '.3gp',
+};
+
 async function saveFile(buffer, mime, prefix) {
-  const ext = mime === 'image/gif' ? '.gif'
-            : mime === 'image/png' ? '.png'
-            : '.webp';
+  const ext = MIME_EXT[mime] || '.bin';
   const filename = `${prefix}-${uuidv4()}${ext}`;
 
   if (useS3) {
@@ -55,12 +62,18 @@ async function saveFile(buffer, mime, prefix) {
   }
 }
 
-// ── Multer: memory storage, 50 MB limit, sticker formats only ───────────────
+// ── Multer: memory storage, 50 MB limit, all sticker-compatible formats ──────
 const STICKER_TYPES = [
-  'image/png', 'image/webp', 'image/gif',
-  'image/jpeg', 'image/jpg', 'image/svg+xml',
-  'image/avif', 'image/bmp', 'image/tiff',
+  // Raster static
+  'image/png', 'image/jpeg', 'image/jpg', 'image/webp',
+  'image/bmp', 'image/tiff', 'image/avif', 'image/heic', 'image/heif',
+  // Animated raster
+  'image/gif', 'image/apng',
+  // Vector
+  'image/svg+xml',
+  // Video
   'video/mp4', 'video/webm', 'video/quicktime',
+  'video/x-msvideo', 'video/mpeg', 'video/3gpp',
 ];
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -126,6 +139,33 @@ router.get('/my', (req, res) => {
       ORDER BY sp.created_at DESC
     `).all([req.user.id]);
     res.json(rows.map(mapPack));
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// GET /sticker-packs/browse?q=&limit=&offset= — public packs discovery
+router.get('/browse', (req, res) => {
+  const db = getDb();
+  const q      = String(req.query.q || '').trim();
+  const limit  = Math.min(Math.max(parseInt(String(req.query.limit  || '20')), 1), 50);
+  const offset = Math.max(parseInt(String(req.query.offset || '0')), 0);
+  try {
+    const baseSelect = `
+      SELECT sp.*,
+        (SELECT COUNT(*) FROM sticker_pack_items WHERE pack_id = sp.id) AS item_count,
+        EXISTS(SELECT 1 FROM user_sticker_packs WHERE user_id = ? AND pack_id = sp.id) AS is_installed
+      FROM sticker_packs sp
+      WHERE sp.is_public = 1 AND sp.is_deleted = 0
+    `;
+    const rows = q
+      ? db.prepare(`${baseSelect} AND (LOWER(sp.name) LIKE LOWER(?) OR LOWER(COALESCE(sp.description,'')) LIKE LOWER(?))
+          ORDER BY sp.created_at DESC LIMIT ? OFFSET ?`
+        ).all([req.user.id, `%${q}%`, `%${q}%`, limit, offset])
+      : db.prepare(`${baseSelect} ORDER BY sp.created_at DESC LIMIT ? OFFSET ?`
+        ).all([req.user.id, limit, offset]);
+
+    res.json(rows.map(r => ({ ...mapPack(r), is_installed: !!r.is_installed })));
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -284,6 +324,10 @@ router.delete('/:id', (req, res) => {
 
     db.prepare('UPDATE sticker_packs SET is_deleted = 1, updated_at = ? WHERE id = ?')
       .run([Date.now(), req.params.id]);
+    // Decrement quota counter so the user gets the slot back
+    db.prepare(
+      'UPDATE user_creation_quota SET packs_created = MAX(0, packs_created - 1) WHERE user_id = ?'
+    ).run([req.user.id]);
     res.json({ ok: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -303,30 +347,60 @@ router.post('/:id/items', upload.single('file'), async (req, res) => {
     if (pack.owner_id !== req.user.id) return res.status(403).json({ error: 'Forbidden' });
 
     const mime = req.file.mimetype;
-    const isAnimated = mime === 'image/gif';
+    const isVideo  = mime.startsWith('video/');
+    const isGif    = mime === 'image/gif' || mime === 'image/apng';
+    const isSvg    = mime === 'image/svg+xml';
+
+    // Detect animated WebP via sharp metadata
+    let isAnimatedWebP = false;
+    if (mime === 'image/webp') {
+      try {
+        const meta = await sharp(req.file.buffer, { animated: true }).metadata();
+        isAnimatedWebP = (meta.pages ?? 1) > 1;
+      } catch { /* treat as static */ }
+    }
+
+    // ── Enforce 100-sticker limit per pack ───────────────────────────────────
+    const itemCount = db.prepare(
+      'SELECT COUNT(*) AS n FROM sticker_pack_items WHERE pack_id = ?'
+    ).get([req.params.id]).n;
+    if (itemCount >= 100) {
+      return res.status(400).json({ error: 'pack_item_limit', message: 'Максимум 100 стикеров на пак' });
+    }
 
     // ── Process full-size sticker ────────────────────────────────────────────
     let fileBuffer, fileMime;
-    if (isAnimated) {
-      // Animated GIF: pass through (sharp doesn't reliably handle animated GIFs)
+    if (isGif || isAnimatedWebP || isVideo || isSvg) {
+      // Pass through: animated GIF/WebP/APNG, video, SVG — no recompression
       fileBuffer = req.file.buffer;
-      fileMime   = 'image/gif';
+      fileMime   = mime;
     } else {
-      // Static PNG/WebP → resize max 512×512, convert to WebP
-      fileBuffer = await sharp(req.file.buffer)
-        .resize({ width: 512, height: 512, fit: 'inside', withoutEnlargement: true })
-        .webp({ quality: 90 })
-        .toBuffer();
-      fileMime = 'image/webp';
+      // Static raster → resize max 512×512, convert to WebP
+      try {
+        fileBuffer = await sharp(req.file.buffer)
+          .resize({ width: 512, height: 512, fit: 'inside', withoutEnlargement: true })
+          .webp({ quality: 90 })
+          .toBuffer();
+        fileMime = 'image/webp';
+      } catch {
+        // Fallback: pass through original if sharp can't handle the format
+        fileBuffer = req.file.buffer;
+        fileMime   = mime;
+      }
     }
     const fileUrl = await saveFile(fileBuffer, fileMime, 'stk');
 
-    // ── Thumbnail (always static, 100×100 cover) ─────────────────────────────
-    const thumbBuffer = await sharp(req.file.buffer, { pages: 1 })
-      .resize({ width: 100, height: 100, fit: 'cover' })
-      .webp({ quality: 80 })
-      .toBuffer();
-    const thumbUrl = await saveFile(thumbBuffer, 'image/webp', 'stk-thumb');
+    // ── Thumbnail (always static 100×100 WebP, skip for video/SVG) ──────────
+    let thumbUrl = null;
+    if (!isVideo && !isSvg) {
+      try {
+        const thumbBuffer = await sharp(req.file.buffer, { pages: 1 })
+          .resize({ width: 100, height: 100, fit: 'cover' })
+          .webp({ quality: 80 })
+          .toBuffer();
+        thumbUrl = await saveFile(thumbBuffer, 'image/webp', 'stk-thumb');
+      } catch { /* no thumb */ }
+    }
 
     // ── Persist ───────────────────────────────────────────────────────────────
     const itemId     = uuidv4();
@@ -344,6 +418,7 @@ router.post('/:id/items', upload.single('file'), async (req, res) => {
     ).run([itemId, req.params.id, fileUrl, thumbUrl, emojiHint, keywords, maxOrder + 1, Date.now()]);
 
     // Mark pack as animated if needed
+    const isAnimated = isGif || isAnimatedWebP;
     if (isAnimated && !pack.is_animated) {
       db.prepare('UPDATE sticker_packs SET is_animated = 1, updated_at = ? WHERE id = ?')
         .run([Date.now(), req.params.id]);
