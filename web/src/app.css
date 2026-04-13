@@ -8485,7 +8485,7 @@ input[type="date"].psInput::-webkit-calendar-picker-indicator {
 .trimmerModal {
   background: var(--panel);
   border-radius: 16px;
-  width: min(480px, 96vw);
+  width: min(560px, 96vw);
   max-height: 90dvh;
   display: flex;
   flex-direction: column;
@@ -8496,50 +8496,168 @@ input[type="date"].psInput::-webkit-calendar-picker-indicator {
 .trimmerBody {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 14px;
   padding: 16px 20px;
   overflow-y: auto;
 }
 
 .trimmerPreview {
+  position: relative;
   display: flex;
   justify-content: center;
+  align-items: center;
   background: #000;
   border-radius: 8px;
   overflow: hidden;
-  max-height: 240px;
+  max-height: 220px;
+  min-height: 100px;
 }
 
 .trimmerMedia {
   max-width: 100%;
-  max-height: 240px;
+  max-height: 220px;
   object-fit: contain;
   display: block;
 }
 
-.trimmerInfo {
+.trimmerPlayBtn {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0,0,0,.25);
+  border: none;
+  cursor: pointer;
+  color: #fff;
+  opacity: 0;
+  transition: opacity .15s;
+}
+.trimmerPreview:hover .trimmerPlayBtn { opacity: 1; }
+.trimmerPlayBtn svg { filter: drop-shadow(0 1px 3px rgba(0,0,0,.5)); }
+
+/* Time info row */
+.trimmerTimeBar {
   display: flex;
   justify-content: space-between;
-  font-size: 13px;
-  color: var(--text);
+  align-items: center;
+  font-size: 12px;
+  color: var(--text-muted, var(--muted));
+  font-variant-numeric: tabular-nums;
+}
+.trimmerTimeLabel { font-size: 12px; color: var(--text-muted, var(--muted)); }
+.trimmerDuration { font-size: 13px; font-weight: 700; }
+.trimmerOk   { color: #27ae60; }
+.trimmerOver { color: #e74c3c; }
+
+/* Timeline strip */
+.trimmerTimeline {
+  position: relative;
+  height: 52px;
+  background: var(--input-bg, var(--surface));
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+  cursor: crosshair;
+  user-select: none;
 }
 
-.trimmerOk  { color: #27ae60; font-weight: 600; }
-.trimmerOver { color: #e74c3c; font-weight: 600; }
+/* Dark overlay for out-of-range areas */
+.trimmerDimLeft, .trimmerDimRight {
+  position: absolute;
+  top: 0; bottom: 0;
+  background: rgba(0,0,0,.45);
+  pointer-events: none;
+  z-index: 1;
+}
+.trimmerDimLeft  { left: 0; }
+.trimmerDimRight { right: 0; }
 
-.trimmerSliders { display: flex; flex-direction: column; gap: 10px; }
+/* Selected range bar */
+.trimmerRange {
+  position: absolute;
+  top: 0; bottom: 0;
+  background: var(--accent);
+  opacity: .22;
+  pointer-events: none;
+  z-index: 2;
+}
 
-.trimmerLabel {
+/* Playhead line */
+.trimmerPlayhead {
+  position: absolute;
+  top: 0; bottom: 0;
+  width: 2px;
+  background: #fff;
+  transform: translateX(-50%);
+  pointer-events: none;
+  z-index: 4;
+  box-shadow: 0 0 4px rgba(0,0,0,.5);
+}
+
+/* IN / OUT handles */
+.trimmerHandle {
+  position: absolute;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 5;
+  cursor: ew-resize;
+  color: var(--accent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 36px;
+  filter: drop-shadow(0 1px 3px rgba(0,0,0,.4));
+}
+.trimmerHandleIn  { transform: translate(-100%, -50%); }
+.trimmerHandleOut { transform: translate(0%,  -50%); }
+
+/* Time ticks */
+.trimmerTick {
+  position: absolute;
+  top: 0; bottom: 0;
+  width: 1px;
+  background: rgba(255,255,255,.12);
+  pointer-events: none;
+  z-index: 0;
+}
+.trimmerTickLabel {
+  position: absolute;
+  bottom: 3px;
+  left: 3px;
+  font-size: 9px;
+  color: rgba(255,255,255,.4);
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+/* Fine-tune inputs */
+.trimmerInputRow {
+  display: flex;
+  gap: 12px;
+}
+.trimmerInputGroup {
+  flex: 1;
   display: flex;
   flex-direction: column;
   gap: 4px;
   font-size: 12px;
   color: var(--text-muted, var(--muted));
 }
-
-.trimmerRange {
+.trimmerInput {
   width: 100%;
-  accent-color: var(--accent);
-  cursor: pointer;
+  background: var(--input-bg, var(--surface));
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 5px 8px;
+  font-size: 13px;
+  color: var(--text);
+  outline: none;
+  font-variant-numeric: tabular-nums;
+  box-sizing: border-box;
+  transition: border-color .15s;
 }
+.trimmerInput:focus { border-color: var(--accent); }
+.trimmerInput:read-only { opacity: .5; cursor: default; }
 

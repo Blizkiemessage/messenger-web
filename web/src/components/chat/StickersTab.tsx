@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { useStickerStore } from '../../store/useStickerStore';
 import { browsePublicPacks, installPack, uninstallPack, getPackItems } from '../../api/sticker-packs';
+import { resolveUrl } from '../ui/Avatar';
 import { type StickerPack, type StickerPackItem } from '../../types';
 
 interface Props {
@@ -165,7 +166,7 @@ export function StickersTab({ onSendSticker, onOpenStudio }: Props) {
                 <button key={item.id} className="stickerItem"
                   title={item.emoji_hint || 'Стикер'}
                   onClick={() => (browsePreviewPack as any).is_installed && handleSend(item)}>
-                  <img src={item.thumb_url || item.file_url} alt={item.emoji_hint || 'Стикер'} loading="lazy" />
+                  <img src={resolveUrl(item.file_url) ?? item.file_url} alt={item.emoji_hint || 'Стикер'} loading="lazy" />
                 </button>
               ))}
             </div>
@@ -280,7 +281,8 @@ export function StickersTab({ onSendSticker, onOpenStudio }: Props) {
         {!loading && items.filter(it => it?.id).map(item => (
           <button key={item.id} className="stickerItem" onClick={() => handleSend(item)}
             title={item.emoji_hint || 'Стикер'}>
-            <img src={item.thumb_url || item.file_url} alt={item.emoji_hint || 'Стикер'} loading="lazy" />
+            {/* file_url preserves animation; thumb_url is static first-frame WebP */}
+            <img src={resolveUrl(item.file_url) ?? item.file_url} alt={item.emoji_hint || 'Стикер'} loading="lazy" />
           </button>
         ))}
       </div>
