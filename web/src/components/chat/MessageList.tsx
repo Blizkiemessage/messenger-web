@@ -10,6 +10,8 @@ import { MessageBubble } from './MessageBubble';
 import { Portal } from '../ui/Portal';
 import { EmojiPicker } from '../ui/EmojiPicker';
 import { MessageReadersModal } from './MessageReadersModal';
+import { StickerPackPreviewModal } from '../modals/StickerPackPreviewModal';
+import { getPackById } from '../../api/sticker-packs';
 
 interface Props {
   messages: Message[];
@@ -128,6 +130,16 @@ export function MessageList({
       setActiveVideoNoteId(null);
     }
   }, [messages]);
+
+  // ── Sticker pack preview ────────────────────────────────────────────────────
+  const [stickerPreviewPackId, setStickerPreviewPackId] = useState<string | null>(null);
+
+  const handleStickerPackClick = useCallback(async (packId: string) => {
+    try {
+      const pack = await getPackById(packId);
+      if (pack?.is_public) setStickerPreviewPackId(packId);
+    } catch { /* private or not found — do nothing */ }
+  }, []);
 
   const [ctxMenu, setCtxMenu] = useState<{ x: number; y: number; msg: Message } | null>(null);
   const [emojiTarget, setEmojiTarget] = useState<{ x: number; y: number; msgId: string } | null>(null);
@@ -326,6 +338,7 @@ export function MessageList({
               activeVideoNoteId={activeVideoNoteId}
               onVideoNoteActivate={handleVideoNoteActivate}
               onVideoNoteEnded={handleVideoNoteEnded}
+              onStickerPackClick={handleStickerPackClick}
             />
           </div>
         );
@@ -339,6 +352,13 @@ export function MessageList({
           msgId={readersTarget.msgId}
           reactions={readersTarget.reactions}
           onClose={() => setReadersTarget(null)}
+        />
+      )}
+
+      {stickerPreviewPackId && (
+        <StickerPackPreviewModal
+          packId={stickerPreviewPackId}
+          onClose={() => setStickerPreviewPackId(null)}
         />
       )}
 

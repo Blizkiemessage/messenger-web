@@ -171,6 +171,27 @@ router.get('/browse', (req, res) => {
   }
 });
 
+// GET /sticker-packs/:id — get single pack (public or owner)
+router.get('/:id', (req, res) => {
+  const db = getDb();
+  try {
+    const pack = db.prepare(`
+      SELECT sp.*,
+        (SELECT COUNT(*) FROM sticker_pack_items WHERE pack_id = sp.id) AS item_count,
+        EXISTS(SELECT 1 FROM user_sticker_packs WHERE user_id = ? AND pack_id = sp.id) AS is_installed
+      FROM sticker_packs sp
+      WHERE sp.id = ? AND sp.is_deleted = 0
+    `).get([req.user.id, req.params.id]);
+    if (!pack) return res.status(404).json({ error: 'Not found' });
+    if (!pack.is_public && pack.owner_id !== req.user.id) {
+      return res.status(403).json({ error: 'Forbidden' });
+    }
+    res.json({ ...mapPack(pack), is_installed: !!pack.is_installed });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // GET /sticker-packs/:id/items — items for a pack
 router.get('/:id/items', (req, res) => {
   const db = getDb();
@@ -309,6 +330,46 @@ router.patch('/:id', (req, res) => {
 
     db.prepare(`UPDATE sticker_packs SET ${fields.join(', ')} WHERE id = ?`).run(values);
     res.json(mapPack(db.prepare('SELECT * FROM sticker_packs WHERE id = ?').get([req.params.id])));
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /sticker-packs/:id/logo — upload pack logo (image/gif/video ≤5 s enforced client-side)
+router.post('/:id/logo', upload.single('file'), async (req, res) => {
+  const db = getDb();
+  if (!req.file) return res.status(400).json({ error: 'No file or unsupported format' });
+  try {
+    const pack = db.prepare('SELECT * FROM sticker_packs WHERE id = ? AND is_deleted = 0').get([req.params.id]);
+    if (!pack) return res.status(404).json({ error: 'Pack not found' });
+    if (pack.owner_id !== req.user.id) return res.status(403).json({ error: 'Forbidden' });
+
+    const mime     = req.file.mimetype;
+    const isVideo  = mime.startsWith('video/');
+    const isGif    = mime === 'image/gif' || mime === 'image/apng';
+    const isSvg    = mime === 'image/svg+xml';
+
+    let fileBuffer, fileMime;
+    if (isGif || isVideo || isSvg) {
+      fileBuffer = req.file.buffer;
+      fileMime   = mime;
+    } else {
+      try {
+        fileBuffer = await sharp(req.file.buffer)
+          .resize({ width: 160, height: 160, fit: 'cover', position: 'centre' })
+          .webp({ quality: 90 })
+          .toBuffer();
+        fileMime = 'image/webp';
+      } catch {
+        fileBuffer = req.file.buffer;
+        fileMime   = mime;
+      }
+    }
+
+    const logoUrl = await saveFile(fileBuffer, fileMime, 'pack-logo');
+    db.prepare('UPDATE sticker_packs SET cover_url = ?, updated_at = ? WHERE id = ?')
+      .run([logoUrl, Date.now(), req.params.id]);
+    res.json({ cover_url: logoUrl });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

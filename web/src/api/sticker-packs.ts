@@ -90,3 +90,17 @@ export async function getMyQuota(): Promise<UserCreationQuota> {
   const res = await client.get<UserCreationQuota>('/quota/my');
   return res.data;
 }
+
+export async function getPackById(packId: string): Promise<StickerPack & { is_installed: boolean }> {
+  const res = await client.get<StickerPack & { is_installed: boolean }>(`/sticker-packs/${packId}`);
+  return res.data;
+}
+
+export async function uploadPackLogo(packId: string, file: File): Promise<{ cover_url: string }> {
+  const form = new FormData();
+  form.append('file', file);
+  const res = await client.post<{ cover_url: string }>(`/sticker-packs/${packId}/logo`, form, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  });
+  return res.data;
+}

@@ -805,6 +805,7 @@ interface Props {
   activeVideoNoteId?: string | null;
   onVideoNoteActivate?: (msgId: string) => void;
   onVideoNoteEnded?: (msgId: string) => void;
+  onStickerPackClick?: (packId: string) => void;
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
@@ -813,7 +814,7 @@ export function MessageBubble({
   showAvatar, showName, hasSelection, highlight, isSearchMatch,
   meId, onContextMenu, onClick, onViewUser, onForwardedSenderClick,
   onReact, onScrollToMessage, onVote, onRetract, onViewVoters, meUsername, members, onViewReaders,
-  activeVideoNoteId, onVideoNoteActivate, onVideoNoteEnded,
+  activeVideoNoteId, onVideoNoteActivate, onVideoNoteEnded, onStickerPackClick,
 }: Props) {
   const hasAttachment = !!m.attachment_url;
   const isImage     = m.attachment_type === 'image';
@@ -1005,14 +1006,28 @@ export function MessageBubble({
             caption={caption}
           />
         )}
-        {isSticker && (
-          <StickerMedia
-            fileUrl={attachmentUrl}
-            thumbUrl={null}
-            alt="Стикер"
-            className="bubbleSticker"
-          />
-        )}
+        {isSticker && (() => {
+          let packId: string | null = null;
+          try { packId = JSON.parse(m.attachment_meta || '{}').packId ?? null; } catch {}
+          return (
+            <button
+              className={`bubbleStickerBtn${packId && onStickerPackClick ? ' bubbleStickerBtnClickable' : ''}`}
+              onClick={e => {
+                if (!packId || !onStickerPackClick) return;
+                e.stopPropagation();
+                onStickerPackClick(packId);
+              }}
+              title={packId && onStickerPackClick ? 'Просмотреть стикерпак' : undefined}
+            >
+              <StickerMedia
+                fileUrl={attachmentUrl}
+                thumbUrl={null}
+                alt="Стикер"
+                className="bubbleSticker"
+              />
+            </button>
+          );
+        })()}
 
         {/* Poll bubble */}
         {m.poll && (

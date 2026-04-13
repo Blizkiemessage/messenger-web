@@ -8480,6 +8480,225 @@ input[type="date"].psInput::-webkit-calendar-picker-indicator {
 .stickerBrowsePreviewName { font-size: 13px; font-weight: 600; color: var(--text); }
 .stickerBrowsePreviewDesc { font-size: 11px; color: var(--text-muted, var(--muted)); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
+/* ── Pack cover fallback letter ── */
+.packCoverFallback {
+  font-size: 16px; font-weight: 700; color: var(--accent);
+  display: flex; align-items: center; justify-content: center;
+  width: 100%; height: 100%;
+}
+
+/* ── Studio: logo upload ── */
+.studioLogoRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.studioLogoBtn {
+  position: relative;
+  width: 64px; height: 64px;
+  border-radius: 14px;
+  overflow: hidden;
+  background: var(--accent-dim);
+  border: 2px dashed var(--border);
+  cursor: pointer;
+  flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  transition: border-color .15s;
+  padding: 0;
+}
+.studioLogoBtn:hover { border-color: var(--accent); }
+.studioLogoBtn:hover .studioLogoBtnOverlay { opacity: 1; }
+.studioLogoBtn:focus-visible { outline: 2px solid var(--accent); }
+
+.studioLogoPlaceholder {
+  display: flex; align-items: center; justify-content: center;
+  color: var(--text-muted, var(--muted));
+}
+
+.studioLogoBtnOverlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, .45);
+  display: flex; align-items: center; justify-content: center;
+  color: #fff;
+  opacity: 0;
+  transition: opacity .15s;
+  border-radius: 12px;
+}
+
+.studioLogoBtnLoading {
+  cursor: default;
+  border-style: solid;
+}
+
+.studioLogoHint {
+  font-size: 13px;
+  color: var(--text);
+  line-height: 1.4;
+}
+.studioLogoHint small {
+  font-size: 11px;
+  color: var(--text-muted, var(--muted));
+}
+
+/* ── Sticker button in chat (clickable pack preview) ── */
+.bubbleStickerBtn {
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: default;
+  display: inline-block;
+  line-height: 0;
+  border-radius: 8px;
+}
+.bubbleStickerBtnClickable {
+  cursor: pointer;
+}
+.bubbleStickerBtnClickable:hover .bubbleSticker {
+  filter: brightness(.92);
+}
+
+/* ── Sticker Pack Preview Modal ── */
+.packPreviewOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, .55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1100;
+  padding: 16px;
+}
+
+.packPreviewModal {
+  background: var(--panel);
+  border-radius: 16px;
+  width: min(420px, 96vw);
+  max-height: min(640px, 90dvh);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-shadow: 0 16px 48px rgba(0, 0, 0, .4);
+}
+
+.packPreviewHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px 12px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.packPreviewTitle {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+}
+.packPreviewClose {
+  width: 28px; height: 28px;
+  background: none; border: none; cursor: pointer;
+  border-radius: 6px;
+  display: flex; align-items: center; justify-content: center;
+  color: var(--text-muted, var(--muted));
+  transition: background .15s, color .15s;
+}
+.packPreviewClose:hover { background: var(--accent-dim); color: var(--accent); }
+
+.packPreviewLoading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 48px;
+}
+
+.packPreviewIdentity {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.packPreviewLogo {
+  width: 56px; height: 56px;
+  border-radius: 12px;
+  overflow: hidden;
+  background: var(--accent-dim);
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+  font-size: 22px; font-weight: 700; color: var(--accent);
+}
+
+.packPreviewInfo { flex: 1; min-width: 0; }
+.packPreviewName {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.packPreviewDesc {
+  font-size: 12px;
+  color: var(--text-muted, var(--muted));
+  margin-top: 2px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.packPreviewCount {
+  font-size: 11px;
+  color: var(--text-muted, var(--muted));
+  margin-top: 4px;
+}
+
+.packPreviewGrid {
+  flex: 1;
+  overflow-y: auto;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
+  padding: 12px;
+}
+.packPreviewGrid::-webkit-scrollbar { width: 5px; }
+.packPreviewGrid::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+
+.packPreviewCell {
+  aspect-ratio: 1;
+  border-radius: 8px;
+  overflow: hidden;
+  background: var(--accent-dim);
+  display: flex; align-items: center; justify-content: center;
+}
+.packPreviewCell img,
+.packPreviewCell video {
+  width: 100%; height: 100%;
+  object-fit: contain;
+}
+
+.packPreviewFooter {
+  padding: 12px 16px;
+  border-top: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.packPreviewBtn {
+  width: 100%;
+  padding: 11px;
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity .15s;
+}
+.packPreviewBtn:hover:not(:disabled) { opacity: .88; }
+.packPreviewBtn:disabled { opacity: .5; cursor: default; }
+.packPreviewBtn.packPreviewBtnRemove {
+  background: var(--accent-dim);
+  color: var(--accent);
+}
+
 /* ── Video Trimmer Modal ── */
 
 .trimmerModal {

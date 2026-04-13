@@ -3,11 +3,13 @@ import { createPortal } from 'react-dom';
 import {
   getMyPacks, createPack, updatePack, deletePack,
   uploadStickerItem, deleteStickerItem, getPackItems, getMyQuota,
+  uploadPackLogo,
 } from '../../api/sticker-packs';
 import { type StickerPack, type StickerPackItem, type UserCreationQuota } from '../../types';
 import { useStickerStore } from '../../store/useStickerStore';
 import { VideoTrimmerModal, TRIM_MAX_DURATION } from './VideoTrimmerModal';
 import { StickerMedia } from '../ui/StickerMedia';
+import { PackCover } from '../ui/PackCover';
 
 interface Props {
   onClose: () => void;
@@ -117,7 +119,14 @@ export function StickerStudioModal({ onClose }: Props) {
 
   // ── Video trimmer state ───────────────────────────────────────────────────
   const [trimFile, setTrimFile] = useState<File | null>(null);
-  const [trimTarget, setTrimTarget] = useState<'wizard' | 'edit' | null>(null);
+  const [trimTarget, setTrimTarget] = useState<'wizard' | 'edit' | 'logo-wizard' | 'logo-edit' | null>(null);
+
+  // ── Pack logo state ───────────────────────────────────────────────────────
+  const logoWizardInputRef  = useRef<HTMLInputElement>(null);
+  const logoEditInputRef    = useRef<HTMLInputElement>(null);
+  const [wizardLogoFile, setWizardLogoFile]       = useState<File | null>(null);
+  const [wizardLogoPreview, setWizardLogoPreview] = useState<string | null>(null);
+  const [editLogoUploading, setEditLogoUploading] = useState(false);
 
   useEffect(() => {
     Promise.all([getMyPacks(), getMyQuota()])
@@ -167,19 +176,61 @@ export function StickerStudioModal({ onClose }: Props) {
     }
   }, []);
 
+  // ── Logo file handling ────────────────────────────────────────────────────
+  const handleLogoFilePick = useCallback(async (
+    file: File,
+    target: 'logo-wizard' | 'logo-edit',
+  ) => {
+    let duration = 0;
+    if (file.type.startsWith('video/')) {
+      duration = await getVideoDuration(file);
+    } else if (file.type === 'image/gif') {
+      try { const buf = await file.arrayBuffer(); duration = parseGifDuration(buf); } catch {}
+    }
+    if (duration > MAX_SECONDS) {
+      setTrimFile(file);
+      setTrimTarget(target);
+      return;
+    }
+    if (target === 'logo-wizard') {
+      if (wizardLogoPreview) URL.revokeObjectURL(wizardLogoPreview);
+      setWizardLogoFile(file);
+      setWizardLogoPreview(URL.createObjectURL(file));
+    } else {
+      // Edit mode: upload immediately
+      if (!editingPack) return;
+      setEditLogoUploading(true);
+      try {
+        const { cover_url } = await uploadPackLogo(editingPack.id, file);
+        setMyPacks(prev => prev.map(p => p.id === editingPack.id ? { ...p, cover_url } : p));
+        setEditingPack(ep => ep ? { ...ep, cover_url } : ep);
+      } catch (e: any) { setError(e.message || 'Ошибка загрузки логотипа'); }
+      finally { setEditLogoUploading(false); }
+    }
+  }, [editingPack, wizardLogoPreview]);
+
   // ── Wizard: Step 1 — create pack ─────────────────────────────────────────
   async function handleCreatePack() {
     if (!packName.trim()) return;
     setCreating(true);
     setError('');
     try {
-      const pack = await createPack({
+      let pack = await createPack({
         name: packName.trim(),
         description: packDesc.trim() || undefined,
         type: packType,
         is_public: isPublic,
       });
       if (!pack?.id) throw new Error('Сервер вернул некорректный ответ. Попробуй ещё раз.');
+
+      // Upload logo if one was chosen in step 1
+      if (wizardLogoFile) {
+        try {
+          const { cover_url } = await uploadPackLogo(pack.id, wizardLogoFile);
+          pack = { ...pack, cover_url };
+        } catch { /* logo upload failure is non-fatal */ }
+      }
+
       setCreatedPack(pack);
       setMyPacks(p => [pack, ...p.filter(x => x?.id && x.id !== pack.id)]);
       setQuota(q => q ? { ...q, packs_created: q.packs_created + 1 } : q);
@@ -253,6 +304,8 @@ export function StickerStudioModal({ onClose }: Props) {
       setStep(1);
       setPackName(''); setPackDesc(''); setPackType('sticker'); setIsPublic(false);
       setCreatedPack(null); setPendingItems([]); setCoverItemId(null);
+      setWizardLogoFile(null);
+      if (wizardLogoPreview) { URL.revokeObjectURL(wizardLogoPreview); setWizardLogoPreview(null); }
       setTab('my-packs');
     } catch (e: any) {
       setError(e.message || 'Ошибка публикации');
@@ -379,15 +432,36 @@ export function StickerStudioModal({ onClose }: Props) {
 
   // ── Video trimmer callbacks ───────────────────────────────────────────────
   function handleTrimConfirm(trimmedFile: File) {
+    const target = trimTarget;
     setTrimFile(null);
+    setTrimTarget(null);
+
+    if (target === 'logo-wizard') {
+      if (wizardLogoPreview) URL.revokeObjectURL(wizardLogoPreview);
+      setWizardLogoFile(trimmedFile);
+      setWizardLogoPreview(URL.createObjectURL(trimmedFile));
+      return;
+    }
+    if (target === 'logo-edit') {
+      if (!editingPack) return;
+      setEditLogoUploading(true);
+      uploadPackLogo(editingPack.id, trimmedFile)
+        .then(({ cover_url }) => {
+          setMyPacks(prev => prev.map(p => p.id === editingPack.id ? { ...p, cover_url } : p));
+          setEditingPack(ep => ep ? { ...ep, cover_url } : ep);
+        })
+        .catch(e => setError(e.message || 'Ошибка загрузки логотипа'))
+        .finally(() => setEditLogoUploading(false));
+      return;
+    }
+
     const preview = URL.createObjectURL(trimmedFile);
     const item: PendingItem = { file: trimmedFile, preview, emojiHint: '', keywords: '', uploading: false };
-    if (trimTarget === 'wizard') {
+    if (target === 'wizard') {
       setPendingItems(prev => [...prev, item]);
     } else {
       setUploadingItems(prev => [...prev, item]);
     }
-    setTrimTarget(null);
   }
 
   // ── Render ────────────────────────────────────────────────────────────────
@@ -522,10 +596,7 @@ export function StickerStudioModal({ onClose }: Props) {
                   {myPacks.filter(p => p?.id).map(pack => (
                     <div key={pack.id} className="studioPackRow">
                       <div className="studioPackThumb">
-                        {pack.cover_url
-                          ? <img src={pack.cover_url} alt={pack.name} />
-                          : <span>{pack.name[0]}</span>
-                        }
+                        <PackCover url={pack.cover_url} name={pack.name} />
                       </div>
                       <div className="studioPackInfo">
                         <div className="studioPackName">{pack.name}</div>
@@ -565,6 +636,42 @@ export function StickerStudioModal({ onClose }: Props) {
                   {editingPack && (
                     <div className="studioEditDialog">
                       <h4>Настройки пака</h4>
+
+                      {/* Logo upload in edit mode */}
+                      <input
+                        ref={logoEditInputRef}
+                        type="file"
+                        accept={ACCEPT_TYPES}
+                        style={{ display: 'none' }}
+                        onChange={e => {
+                          const f = e.target.files?.[0];
+                          e.target.value = '';
+                          if (f) handleLogoFilePick(f, 'logo-edit');
+                        }}
+                      />
+                      <div className="studioLogoRow">
+                        <button
+                          className={`studioLogoBtn${editLogoUploading ? ' studioLogoBtnLoading' : ''}`}
+                          onClick={() => !editLogoUploading && logoEditInputRef.current?.click()}
+                          title="Изменить логотип пака"
+                          type="button"
+                        >
+                          {editLogoUploading
+                            ? <div className="gifSpinner" />
+                            : <PackCover url={editingPack.cover_url} name={editingPack.name} />
+                          }
+                          {!editLogoUploading && (
+                            <span className="studioLogoBtnOverlay">
+                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+                                <circle cx="12" cy="13" r="4"/>
+                              </svg>
+                            </span>
+                          )}
+                        </button>
+                        <span className="studioLogoHint">Логотип пака<br/><small>фото · гифка · видео до 5 с</small></span>
+                      </div>
+
                       <input className="studioInput" value={editName} onChange={e => setEditName(e.target.value)} placeholder="Название" maxLength={64} />
                       <input className="studioInput" value={editDesc} onChange={e => setEditDesc(e.target.value)} placeholder="Описание (необязательно)" maxLength={256} />
                       <label className="studioToggleRow">
@@ -595,6 +702,47 @@ export function StickerStudioModal({ onClose }: Props) {
                   {step === 1 && (
                     <div className="studioStepBody">
                       <h4>Шаг 1: Основное</h4>
+
+                      {/* Logo upload */}
+                      <input
+                        ref={logoWizardInputRef}
+                        type="file"
+                        accept={ACCEPT_TYPES}
+                        style={{ display: 'none' }}
+                        onChange={e => {
+                          const f = e.target.files?.[0];
+                          e.target.value = '';
+                          if (f) handleLogoFilePick(f, 'logo-wizard');
+                        }}
+                      />
+                      <div className="studioLogoRow">
+                        <button
+                          className="studioLogoBtn"
+                          onClick={() => logoWizardInputRef.current?.click()}
+                          title="Загрузить логотип пака"
+                          type="button"
+                        >
+                          {wizardLogoPreview
+                            ? <PackCover url={wizardLogoPreview} name={packName || '?'} />
+                            : (
+                              <span className="studioLogoPlaceholder">
+                                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                                  <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+                                  <circle cx="12" cy="13" r="4"/>
+                                </svg>
+                              </span>
+                            )
+                          }
+                          <span className="studioLogoBtnOverlay">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                              <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+                              <circle cx="12" cy="13" r="4"/>
+                            </svg>
+                          </span>
+                        </button>
+                        <span className="studioLogoHint">Логотип пака<br/><small>фото · гифка · видео до 5 с</small></span>
+                      </div>
+
                       <input className="studioInput" placeholder="Название пака *" value={packName}
                         onChange={e => setPackName(e.target.value)} maxLength={64} />
                       <input className="studioInput" placeholder="Описание (необязательно)" value={packDesc}

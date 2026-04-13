@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback, useRef } from 'react';
 import { useStickerStore } from '../../store/useStickerStore';
 import { browsePublicPacks, installPack, uninstallPack, getPackItems } from '../../api/sticker-packs';
 import { StickerMedia } from '../ui/StickerMedia';
+import { PackCover } from '../ui/PackCover';
 import { type StickerPack, type StickerPackItem } from '../../types';
 
 interface Props {
@@ -140,9 +141,7 @@ export function StickersTab({ onSendSticker, onOpenStudio }: Props) {
                 </svg>
               </button>
               <div className="stickerBrowsePreviewThumb">
-                {browsePreviewPack.cover_url
-                  ? <img src={browsePreviewPack.cover_url} alt={browsePreviewPack.name} />
-                  : <span>{browsePreviewPack.name[0]}</span>}
+                <PackCover url={browsePreviewPack.cover_url} name={browsePreviewPack.name} />
               </div>
               <div className="stickerBrowsePreviewInfo">
                 <div className="stickerBrowsePreviewName">{browsePreviewPack.name}</div>
@@ -181,9 +180,7 @@ export function StickersTab({ onSendSticker, onOpenStudio }: Props) {
             {!browsing && browseResults.map(pack => (
               <div key={pack.id} className="stickerBrowseRow" onClick={() => handlePreviewPack(pack)}>
                 <div className="stickerPackIcon" style={{ flexShrink: 0 }}>
-                  {pack.cover_url
-                    ? <img src={pack.cover_url} alt={pack.name} />
-                    : <span className="stickerPackIconFallback">{pack.name[0]}</span>}
+                  <PackCover url={pack.cover_url} name={pack.name} />
                 </div>
                 <div className="stickerBrowseRowInfo">
                   <div className="stickerBrowseRowName">{pack.name}</div>
@@ -227,10 +224,7 @@ export function StickersTab({ onSendSticker, onOpenStudio }: Props) {
             onClick={() => setActivePackId(pack.id)}
             title={pack.name}
           >
-            {pack.cover_url
-              ? <img src={pack.cover_url} alt={pack.name} />
-              : <span className="stickerPackIconFallback">{pack.name[0]}</span>
-            }
+            <PackCover url={pack.cover_url} name={pack.name} />
           </button>
         ))}
 
