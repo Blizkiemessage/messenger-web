@@ -20,9 +20,10 @@ interface Props {
   thumbUrl: string | null;
   alt?:     string;
   className?: string;
+  loading?: 'lazy' | 'eager';
 }
 
-export function StickerMedia({ fileUrl, thumbUrl, alt = 'Стикер', className }: Props) {
+export function StickerMedia({ fileUrl, thumbUrl, alt = 'Стикер', className, loading = 'lazy' }: Props) {
   const src      = resolveUrl(fileUrl)  ?? fileUrl;
   const fallback = thumbUrl ? (resolveUrl(thumbUrl) ?? thumbUrl) : undefined;
 
@@ -45,7 +46,7 @@ export function StickerMedia({ fileUrl, thumbUrl, alt = 'Стикер', classNam
       src={src}
       alt={alt}
       className={className}
-      loading="lazy"
+      loading={loading}
       onError={e => {
         if (fallback && e.currentTarget.src !== fallback) {
           e.currentTarget.src = fallback;

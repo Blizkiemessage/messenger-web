@@ -1024,6 +1024,7 @@ export function MessageBubble({
                 thumbUrl={null}
                 alt="Стикер"
                 className="bubbleSticker"
+                loading="eager"
               />
             </button>
           );
