@@ -7010,7 +7010,7 @@ input[type="date"].psInput::-webkit-calendar-picker-indicator {
 }
 
 /* ── Mention popup (above composer input) ────────────────────────────── */
-.composerWrap { position: relative; }
+.composerWrap { position: relative; z-index: 10; }
 .mentionPopup {
   position: absolute;
   bottom: 100%;
