@@ -10,6 +10,7 @@ import { formatTime } from '../../utils/format';
 import { renderMarkdown } from '../../utils/markdown';
 import { Avatar, resolveUrl } from '../ui/Avatar';
 import { StickerMedia } from '../ui/StickerMedia';
+import { useStickerStore } from '../../store/useStickerStore';
 import { MsgStatus } from '../ui/icons/MsgStatus';
 import { PollBubble } from './PollBubble';
 import { useMediaPlayer } from '../../contexts/MediaPlayerContext';
@@ -1008,7 +1009,39 @@ export function MessageBubble({
         )}
         {isSticker && (() => {
           let packId: string | null = null;
-          try { packId = JSON.parse(m.attachment_meta || '{}').packId ?? null; } catch {}
+          let itemId: string | null = null;
+          try {
+            const meta = JSON.parse(m.attachment_meta || '{}');
+            packId = meta.packId ?? null;
+            itemId = meta.itemId ?? null;
+          } catch {}
+
+          // Look up the current sticker item from store to get live file_url / thumb_url.
+          // This recovers stickers whose attachment_url has gone stale (file re-uploaded).
+          const { packItems } = useStickerStore.getState();
+          let stickerFileUrl = attachmentUrl;
+          let stickerThumb: string | null = null;
+
+          if (packId && itemId) {
+            const found = (packItems[packId] ?? []).find(it => it.id === itemId);
+            if (found) {
+              stickerFileUrl = resolveUrl(found.file_url) ?? found.file_url;
+              stickerThumb = found.thumb_url ?? null;
+            }
+          }
+
+          // Fallback: search all loaded packs by matching file_url to attachment_url
+          if (stickerFileUrl === attachmentUrl && !stickerThumb) {
+            outer: for (const items of Object.values(packItems)) {
+              for (const it of items) {
+                if (it.file_url && (resolveUrl(it.file_url) === attachmentUrl || it.file_url === m.attachment_url)) {
+                  stickerThumb = it.thumb_url ?? null;
+                  break outer;
+                }
+              }
+            }
+          }
+
           return (
             <button
               className={`bubbleStickerBtn${packId && onStickerPackClick ? ' bubbleStickerBtnClickable' : ''}`}
@@ -1020,8 +1053,8 @@ export function MessageBubble({
               title={packId && onStickerPackClick ? 'Просмотреть стикерпак' : undefined}
             >
               <StickerMedia
-                fileUrl={attachmentUrl}
-                thumbUrl={null}
+                fileUrl={stickerFileUrl}
+                thumbUrl={stickerThumb}
                 alt="Стикер"
                 className="bubbleSticker"
                 loading="eager"
