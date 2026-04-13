@@ -267,11 +267,13 @@ function runMigrations() {
       user_id TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
       packs_created INTEGER NOT NULL DEFAULT 0,
       gifs_created INTEGER NOT NULL DEFAULT 0,
-      free_packs_limit INTEGER NOT NULL DEFAULT 3,
+      free_packs_limit INTEGER NOT NULL DEFAULT 999,
       free_gifs_limit INTEGER NOT NULL DEFAULT 10,
       extra_packs INTEGER NOT NULL DEFAULT 0,
       extra_gifs INTEGER NOT NULL DEFAULT 0
     )`,
+    // ✅ Unlimited packs for testing
+    `UPDATE user_creation_quota SET free_packs_limit = 999 WHERE free_packs_limit <= 3`,
     // ✅ NEW: purchases of packs and quota slots
     `CREATE TABLE IF NOT EXISTS purchases (
       id TEXT PRIMARY KEY,

@@ -55,11 +55,16 @@ async function saveFile(buffer, mime, prefix) {
   }
 }
 
-// ── Multer: memory storage, 5 MB limit, sticker formats only ────────────────
-const STICKER_TYPES = ['image/png', 'image/webp', 'image/gif'];
+// ── Multer: memory storage, 50 MB limit, sticker formats only ───────────────
+const STICKER_TYPES = [
+  'image/png', 'image/webp', 'image/gif',
+  'image/jpeg', 'image/jpg', 'image/svg+xml',
+  'image/avif', 'image/bmp', 'image/tiff',
+  'video/mp4', 'video/webm', 'video/quicktime',
+];
 const upload = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: 5 * 1024 * 1024 },
+  limits: { fileSize: 50 * 1024 * 1024 },
   fileFilter: (_req, file, cb) => {
     cb(null, STICKER_TYPES.includes(file.mimetype));
   },

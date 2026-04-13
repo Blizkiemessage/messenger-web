@@ -1004,9 +1004,6 @@ export function MessageBubble({
             caption={caption}
           />
         )}
-        {isGifTenor && (
-          <img className="bubbleGif" src={attachmentUrl} alt="GIF" loading="lazy" />
-        )}
         {isSticker && (
           <img className="bubbleSticker" src={attachmentUrl} alt="Стикер" loading="lazy" />
         )}
