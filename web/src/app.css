@@ -8510,14 +8510,44 @@ input[type="date"].psInput::-webkit-calendar-picker-indicator {
   opacity: 1;
   transform: scale(1);
 }
-/* On touch devices (no hover), always show the remove button */
-@media (hover: none) {
-  .stickerPackStripRemove {
-    opacity: 1;
-    transform: scale(1);
-  }
+/* Edit mode (iOS-style): show × on all packs */
+.stickerPackIconWrap.stripEditing .stickerPackStripRemove {
+  opacity: 1;
+  transform: scale(1);
 }
 .stickerPackStripRemove:disabled { opacity: .4; cursor: default; }
+
+/* iOS-style wiggle animation */
+@keyframes packWiggle {
+  0%   { transform: rotate(0deg); }
+  20%  { transform: rotate(-2.5deg); }
+  60%  { transform: rotate(2.5deg); }
+  80%  { transform: rotate(-1.5deg); }
+  100% { transform: rotate(0deg); }
+}
+.stickerPackIconWrap.stripEditing {
+  animation: packWiggle 0.35s ease-in-out infinite;
+}
+/* Stagger the wiggle so icons don't all move together */
+.stickerPackIconWrap.stripEditing:nth-child(2n)   { animation-delay: 0.05s; }
+.stickerPackIconWrap.stripEditing:nth-child(3n)   { animation-delay: 0.1s; }
+.stickerPackIconWrap.stripEditing:nth-child(4n)   { animation-delay: 0.15s; }
+
+/* "Done" pill that replaces the manage/browse area in edit mode */
+.stickerStripDoneBtn {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--accent);
+  background: var(--accent-dim);
+  border: none;
+  border-radius: 8px;
+  padding: 4px 10px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: opacity .15s;
+  align-self: center;
+}
+.stickerStripDoneBtn:hover { opacity: .75; }
 
 /* ── Manage packs mode ── */
 .stickerManageHeader {

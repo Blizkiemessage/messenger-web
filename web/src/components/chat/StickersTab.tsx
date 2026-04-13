@@ -5,6 +5,8 @@ import { StickerMedia } from '../ui/StickerMedia';
 import { PackCover } from '../ui/PackCover';
 import { type StickerPack, type StickerPackItem } from '../../types';
 
+const LONG_PRESS_MS = 500;
+
 interface Props {
   onSendSticker: (url: string, itemId: string, packId: string) => void;
   onOpenStudio: () => void;
@@ -21,6 +23,8 @@ export function StickersTab({ onSendSticker, onOpenStudio }: Props) {
   const [items, setItems]             = useState<StickerPackItem[]>([]);
   const [loading, setLoading]         = useState(false);
   const [removingId, setRemovingId]   = useState<string | null>(null);
+  const [stripEditMode, setStripEditMode] = useState(false);
+  const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Browse state
   const [browseQuery, setBrowseQuery]         = useState('');
@@ -62,6 +66,20 @@ export function StickersTab({ onSendSticker, onOpenStudio }: Props) {
   function handleSend(item: StickerPackItem) {
     useStickerStore.getState().addRecent(item);
     onSendSticker(item.file_url, item.id, item.pack_id);
+  }
+
+  // ── Long-press → strip edit mode ─────────────────────────────────────────
+  function startLongPress() {
+    longPressTimer.current = setTimeout(() => {
+      setStripEditMode(true);
+      navigator.vibrate?.(40);
+    }, LONG_PRESS_MS);
+  }
+  function cancelLongPress() {
+    if (longPressTimer.current) {
+      clearTimeout(longPressTimer.current);
+      longPressTimer.current = null;
+    }
   }
 
   // ── Remove pack from collection ──────────────────────────────────────────
@@ -284,10 +302,22 @@ export function StickersTab({ onSendSticker, onOpenStudio }: Props) {
         </button>
 
         {installedPacks.filter(p => p?.id).map(pack => (
-          <div key={pack.id} className="stickerPackIconWrap">
+          <div
+            key={pack.id}
+            className={`stickerPackIconWrap${stripEditMode ? ' stripEditing' : ''}`}
+          >
             <button
-              className={`stickerPackIcon${activePackId === pack.id ? ' active' : ''}`}
-              onClick={() => setActivePackId(pack.id)}
+              className={`stickerPackIcon${activePackId === pack.id && !stripEditMode ? ' active' : ''}`}
+              onClick={() => {
+                if (stripEditMode) { setStripEditMode(false); return; }
+                setActivePackId(pack.id);
+              }}
+              onMouseDown={startLongPress}
+              onMouseUp={cancelLongPress}
+              onMouseLeave={cancelLongPress}
+              onTouchStart={e => { e.preventDefault(); startLongPress(); }}
+              onTouchEnd={cancelLongPress}
+              onTouchMove={cancelLongPress}
               title={pack.name}
             >
               <PackCover url={pack.cover_url} name={pack.name} />
@@ -303,36 +333,42 @@ export function StickersTab({ onSendSticker, onOpenStudio }: Props) {
           </div>
         ))}
 
-        {/* Right side controls */}
-        <div style={{ marginLeft: 'auto', display: 'flex', gap: 2 }}>
-          {/* Manage button */}
-          {installedPacks.length > 0 && (
-            <button
-              className="stickerPackIcon stickerPackIconBtn"
-              onClick={() => setMode('manage')}
-              title="Управление паками"
-            >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <line x1="8" y1="6" x2="21" y2="6"/>
-                <line x1="8" y1="12" x2="21" y2="12"/>
-                <line x1="8" y1="18" x2="21" y2="18"/>
-                <line x1="3" y1="6" x2="3.01" y2="6"/>
-                <line x1="3" y1="12" x2="3.01" y2="12"/>
-                <line x1="3" y1="18" x2="3.01" y2="18"/>
-              </svg>
+        {/* Right side: Done (edit mode) or manage/browse icons */}
+        <div style={{ marginLeft: 'auto', display: 'flex', gap: 2, alignItems: 'center' }}>
+          {stripEditMode ? (
+            <button className="stickerStripDoneBtn" onClick={() => setStripEditMode(false)}>
+              Готово
             </button>
+          ) : (
+            <>
+              {installedPacks.length > 0 && (
+                <button
+                  className="stickerPackIcon stickerPackIconBtn"
+                  onClick={() => setMode('manage')}
+                  title="Управление паками"
+                >
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <line x1="8" y1="6" x2="21" y2="6"/>
+                    <line x1="8" y1="12" x2="21" y2="12"/>
+                    <line x1="8" y1="18" x2="21" y2="18"/>
+                    <line x1="3" y1="6" x2="3.01" y2="6"/>
+                    <line x1="3" y1="12" x2="3.01" y2="12"/>
+                    <line x1="3" y1="18" x2="3.01" y2="18"/>
+                  </svg>
+                </button>
+              )}
+              <button
+                className="stickerPackIcon stickerPackIconBtn"
+                onClick={() => setMode('browse')}
+                title="Найти паки"
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="11" cy="11" r="8"/>
+                  <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+                </svg>
+              </button>
+            </>
           )}
-          {/* Browse button */}
-          <button
-            className="stickerPackIcon stickerPackIconBtn"
-            onClick={() => setMode('browse')}
-            title="Найти паки"
-          >
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <circle cx="11" cy="11" r="8"/>
-              <line x1="21" y1="21" x2="16.65" y2="16.65"/>
-            </svg>
-          </button>
         </div>
       </div>
 
