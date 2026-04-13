@@ -27,7 +27,7 @@ export function StickersTab({ onSendSticker, onOpenStudio }: Props) {
   const [browsePreviewItems, setBrowsePreviewItems] = useState<StickerPackItem[]>([]);
   const [previewLoading, setPreviewLoading] = useState(false);
   const [installingId, setInstallingId]   = useState<string | null>(null);
-  const searchTimer = useRef<ReturnType<typeof setTimeout>>();
+  const searchTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   useEffect(() => {
     fetchInstalledPacks();
