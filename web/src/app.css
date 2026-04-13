@@ -8510,6 +8510,13 @@ input[type="date"].psInput::-webkit-calendar-picker-indicator {
   opacity: 1;
   transform: scale(1);
 }
+/* On touch devices (no hover), always show the remove button */
+@media (hover: none) {
+  .stickerPackStripRemove {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
 .stickerPackStripRemove:disabled { opacity: .4; cursor: default; }
 
 /* ── Manage packs mode ── */
