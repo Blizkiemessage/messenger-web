@@ -9,6 +9,7 @@ import { type Message, type User, type MessageReaction } from '../../types';
 import { formatTime } from '../../utils/format';
 import { renderMarkdown } from '../../utils/markdown';
 import { Avatar, resolveUrl } from '../ui/Avatar';
+import { StickerMedia } from '../ui/StickerMedia';
 import { MsgStatus } from '../ui/icons/MsgStatus';
 import { PollBubble } from './PollBubble';
 import { useMediaPlayer } from '../../contexts/MediaPlayerContext';
@@ -1005,7 +1006,12 @@ export function MessageBubble({
           />
         )}
         {isSticker && (
-          <img className="bubbleSticker" src={attachmentUrl} alt="Стикер" loading="lazy" />
+          <StickerMedia
+            fileUrl={attachmentUrl}
+            thumbUrl={null}
+            alt="Стикер"
+            className="bubbleSticker"
+          />
         )}
 
         {/* Poll bubble */}

@@ -7,7 +7,7 @@ import {
 import { type StickerPack, type StickerPackItem, type UserCreationQuota } from '../../types';
 import { useStickerStore } from '../../store/useStickerStore';
 import { VideoTrimmerModal, TRIM_MAX_DURATION } from './VideoTrimmerModal';
-import { resolveUrl } from '../ui/Avatar';
+import { StickerMedia } from '../ui/StickerMedia';
 
 interface Props {
   onClose: () => void;
@@ -492,8 +492,7 @@ export function StickerStudioModal({ onClose }: Props) {
                         <div className="studioItemGrid">
                           {packItemsList.map(item => (
                             <div key={item.id} className="studioItemCell">
-                              {/* Use file_url for animated display; resolveUrl fixes /uploads/ paths */}
-                              <img src={resolveUrl(item.file_url) ?? item.file_url} alt={item.emoji_hint || 'sticker'} />
+                              <StickerMedia fileUrl={item.file_url} thumbUrl={item.thumb_url} alt={item.emoji_hint || 'sticker'} />
                               <button className="studioItemRemove" onClick={() => removeEditItem(item.id)}>✕</button>
                               {item.emoji_hint && (
                                 <span className="studioItemEmojiTag">{item.emoji_hint}</span>

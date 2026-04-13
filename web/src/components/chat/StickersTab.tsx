@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { useStickerStore } from '../../store/useStickerStore';
 import { browsePublicPacks, installPack, uninstallPack, getPackItems } from '../../api/sticker-packs';
-import { resolveUrl } from '../ui/Avatar';
+import { StickerMedia } from '../ui/StickerMedia';
 import { type StickerPack, type StickerPackItem } from '../../types';
 
 interface Props {
@@ -166,7 +166,7 @@ export function StickersTab({ onSendSticker, onOpenStudio }: Props) {
                 <button key={item.id} className="stickerItem"
                   title={item.emoji_hint || 'Стикер'}
                   onClick={() => (browsePreviewPack as any).is_installed && handleSend(item)}>
-                  <img src={resolveUrl(item.file_url) ?? item.file_url} alt={item.emoji_hint || 'Стикер'} loading="lazy" />
+                  <StickerMedia fileUrl={item.file_url} thumbUrl={item.thumb_url} alt={item.emoji_hint || 'Стикер'} />
                 </button>
               ))}
             </div>
@@ -281,8 +281,7 @@ export function StickersTab({ onSendSticker, onOpenStudio }: Props) {
         {!loading && items.filter(it => it?.id).map(item => (
           <button key={item.id} className="stickerItem" onClick={() => handleSend(item)}
             title={item.emoji_hint || 'Стикер'}>
-            {/* file_url preserves animation; thumb_url is static first-frame WebP */}
-            <img src={resolveUrl(item.file_url) ?? item.file_url} alt={item.emoji_hint || 'Стикер'} loading="lazy" />
+            <StickerMedia fileUrl={item.file_url} thumbUrl={item.thumb_url} alt={item.emoji_hint || 'Стикер'} />
           </button>
         ))}
       </div>
