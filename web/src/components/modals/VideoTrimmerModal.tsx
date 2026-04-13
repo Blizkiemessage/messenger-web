@@ -54,8 +54,6 @@ export function VideoTrimmerModal({ file, onConfirm, onCancel }: Props) {
   const canvasRef  = useRef<HTMLCanvasElement>(null);
   const timelineRef = useRef<HTMLDivElement>(null);
   const objectUrl  = useRef('');
-  const playheadRafRef = useRef<number>(0);
-
   const [duration, setDuration]   = useState(0);
   const [startTime, setStartTime] = useState(0);
   const [endTime, setEndTime]     = useState(TRIM_MAX_DURATION);
