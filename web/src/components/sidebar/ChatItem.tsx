@@ -6,12 +6,41 @@ import { type Chat } from '../../types';
 import { chatTitle, avatarLetter, formatTime } from '../../utils/format';
 import { Avatar, resolveUrl } from '../ui/Avatar';
 import { stripPreview } from '../../utils/markdown';
+import { useStickerStore } from '../../store/useStickerStore';
+
+const CUSTOM_EMOJI_RE = /:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}:/gi;
+
+/** Split text into plain-string and custom-emoji segments */
+function parseInlineEmoji(text: string, packItems: Record<string, { id: string; file_url?: string; thumb_url?: string }[]>) {
+  const nodes: React.ReactNode[] = [];
+  let last = 0;
+  const re = new RegExp(CUSTOM_EMOJI_RE.source, 'gi');
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(text)) !== null) {
+    if (m.index > last) nodes.push(text.slice(last, m.index));
+    const inner = m[0].slice(1, -1);           // "packId:itemId"
+    const sep   = inner.indexOf(':');
+    const packId = inner.slice(0, sep);
+    const itemId = inner.slice(sep + 1);
+    const item = packItems[packId]?.find(it => it.id === itemId);
+    const url  = item?.file_url ?? item?.thumb_url;
+    if (url) {
+      nodes.push(
+        <img key={m.index} src={url} className="ciCustomEmojiThumb" alt="" loading="lazy" />
+      );
+    }
+    last = m.index + m[0].length;
+  }
+  if (last < text.length) nodes.push(text.slice(last));
+  return nodes;
+}
 
 /** Render the last-message preview line for the sidebar */
 function LastMessagePreview({ msg, typingPreview }: {
   msg: Chat['last_message'];
   typingPreview?: string | null;
 }) {
+  const { packItems } = useStickerStore();
   if (typingPreview) {
     return <span className="ciPreview ciPreviewTyping">{typingPreview}</span>;
   }
@@ -97,7 +126,8 @@ function LastMessagePreview({ msg, typingPreview }: {
   }
 
   if (msg.text) {
-    return <span className="ciPreview">{stripPreview(msg.text)}</span>;
+    const nodes = parseInlineEmoji(stripPreview(msg.text), packItems);
+    return <span className="ciPreview">{nodes}</span>;
   }
 
   return <span className="ciPreview ciPreviewMuted">Вложение</span>;

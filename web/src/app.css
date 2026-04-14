@@ -434,6 +434,14 @@ input { font: inherit; color: inherit; background: transparent; }
   flex-shrink: 0;
   display: block;
 }
+.ciCustomEmojiThumb {
+  width: 18px;
+  height: 18px;
+  object-fit: contain;
+  vertical-align: -4px;
+  display: inline;
+  flex-shrink: 0;
+}
 
 /* Attachment type label (📷 Фото, 🎬 Видео, etc.) */
 .ciAttachLabel {
