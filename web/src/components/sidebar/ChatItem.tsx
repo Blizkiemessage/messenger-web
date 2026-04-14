@@ -7,6 +7,102 @@ import { chatTitle, avatarLetter, formatTime } from '../../utils/format';
 import { Avatar, resolveUrl } from '../ui/Avatar';
 import { stripPreview } from '../../utils/markdown';
 
+/** Render the last-message preview line for the sidebar */
+function LastMessagePreview({ msg, typingPreview }: {
+  msg: Chat['last_message'];
+  typingPreview?: string | null;
+}) {
+  if (typingPreview) {
+    return <span className="ciPreview ciPreviewTyping">{typingPreview}</span>;
+  }
+  if (!msg) {
+    return <span className="ciPreview ciPreviewMuted">Нет сообщений</span>;
+  }
+
+  const isSticker  = msg.attachment_type === 'sticker';
+  const isGif      = msg.attachment_type === 'gif_tenor' || msg.attachment_type === 'gif_custom';
+  const isImage    = msg.attachment_type === 'image';
+  const isVideo    = msg.attachment_type === 'video';
+  const isAudio    = msg.attachment_type === 'audio';
+  const isVN       = msg.attachment_type === 'video_note';
+
+  if (isSticker) {
+    const url = resolveUrl(msg.attachment_url) ?? msg.attachment_url ?? '';
+    return (
+      <span className="ciPreview ciPreviewSticker">
+        {msg.text ? <span className="ciPreviewText">{stripPreview(msg.text)}&nbsp;</span> : null}
+        <img
+          src={url}
+          className="ciStickerThumb"
+          alt="Стикер"
+          loading="lazy"
+        />
+      </span>
+    );
+  }
+
+  if (isGif) {
+    return (
+      <span className="ciPreview">
+        <span className="ciAttachLabel">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor" style={{ marginRight: 3 }}>
+            <rect x="2" y="6" width="20" height="12" rx="2"/>
+            <text x="5" y="16" fontSize="8" fontWeight="bold" fill="white">GIF</text>
+          </svg>
+          GIF
+        </span>
+      </span>
+    );
+  }
+
+  if (isImage) {
+    return (
+      <span className="ciPreview">
+        <span className="ciAttachLabel">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" style={{ marginRight: 3, flexShrink: 0 }}>
+            <rect x="3" y="3" width="18" height="18" rx="2"/>
+            <circle cx="8.5" cy="8.5" r="1.5"/>
+            <polyline points="21 15 16 10 5 21"/>
+          </svg>
+          {msg.text ? stripPreview(msg.text) : 'Фото'}
+        </span>
+      </span>
+    );
+  }
+
+  if (isVideo || isVN) {
+    return (
+      <span className="ciPreview">
+        <span className="ciAttachLabel">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" style={{ marginRight: 3, flexShrink: 0 }}>
+            <polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2"/>
+          </svg>
+          {msg.text ? stripPreview(msg.text) : isVN ? 'Видеосообщение' : 'Видео'}
+        </span>
+      </span>
+    );
+  }
+
+  if (isAudio) {
+    return (
+      <span className="ciPreview">
+        <span className="ciAttachLabel">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" style={{ marginRight: 3, flexShrink: 0 }}>
+            <path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/>
+          </svg>
+          Аудио
+        </span>
+      </span>
+    );
+  }
+
+  if (msg.text) {
+    return <span className="ciPreview">{stripPreview(msg.text)}</span>;
+  }
+
+  return <span className="ciPreview ciPreviewMuted">Вложение</span>;
+}
+
 interface Props {
   chat: Chat;
   meId: string;
@@ -86,13 +182,7 @@ export function ChatItem({
         </div>
 
         <div className="ciBottom">
-          <span className={`ciPreview${typingPreview ? ' ciPreviewTyping' : ''}`}>
-            {typingPreview
-              ? typingPreview
-              : chat.last_message?.text
-                ? stripPreview(chat.last_message.text)
-                : (chat.last_message ? 'Вложение' : 'Нет сообщений')}
-          </span>
+          <LastMessagePreview msg={chat.last_message} typingPreview={typingPreview} />
 
           {/* Right slot: mute icon + pin icon (if no unread) + badge */}
           <div className="ciRightSlot">
