@@ -154,6 +154,7 @@ function renderTokens(tokens: Token[], opts: MdOptions, keyBase: string): ReactN
  */
 export function stripPreview(text: string): string {
   return text
+    .replace(/:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}:/gi, '[эмодзи]') // :packId:itemId: → [эмодзи]
     .replace(/\|\|([^|]*)\|\|/g, '[ скрытый текст ]')  // spoilers → placeholder
     .replace(/\*\*([^*]*)\*\*/g, '$1')                   // **bold** → bold
     .replace(/_([^_]+)_/g, '$1')                          // _italic_ → italic
