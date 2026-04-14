@@ -85,6 +85,8 @@ function parseGifDuration(buffer: ArrayBuffer): number {
 
 export function StickerStudioModal({ onClose }: Props) {
   const [tab, setTab] = useState<StudioTab>('my-packs');
+  // Sub-filter inside "Мои паки": show sticker packs or emoji packs
+  const [myPacksFilter, setMyPacksFilter] = useState<'sticker' | 'emoji'>('sticker');
   const [myPacks, setMyPacks] = useState<StickerPack[]>([]);
   const [quota, setQuota] = useState<UserCreationQuota | null>(null);
   const [loading, setLoading] = useState(true);
@@ -481,7 +483,7 @@ export function StickerStudioModal({ onClose }: Props) {
                       <polyline points="15 18 9 12 15 6"/>
                     </svg>
                   </button>
-                  <span className="studioTitle">Стикеры: {itemsEditPack.name}</span>
+                  <span className="studioTitle">{itemsEditPack.type === 'emoji' ? 'Эмодзи' : 'Стикеры'}: {itemsEditPack.name}</span>
                 </>
               ) : (
                 <span className="studioTitle">Студия стикеров</span>
@@ -508,7 +510,7 @@ export function StickerStudioModal({ onClose }: Props) {
               {itemsEditPack && (
                 <>
                   <div className="studioItemCountBadge">
-                    Стикеров: {totalInEdit} / {MAX_ITEMS}
+                    {itemsEditPack.type === 'emoji' ? 'Эмодзи' : 'Стикеров'}: {totalInEdit} / {MAX_ITEMS}
                   </div>
 
                   {itemsLoading && <div className="studioLoading"><div className="gifSpinner" /></div>}
@@ -527,7 +529,7 @@ export function StickerStudioModal({ onClose }: Props) {
                       {totalInEdit < MAX_ITEMS && (
                         <button className="studioBtnSecondary" style={{ marginBottom: 12 }}
                           onClick={() => editFileInputRef.current?.click()}>
-                          + Добавить стикеры
+                          + Добавить {itemsEditPack.type === 'emoji' ? 'эмодзи' : 'стикеры'}
                         </button>
                       )}
 
@@ -560,7 +562,7 @@ export function StickerStudioModal({ onClose }: Props) {
 
                       {/* Existing items */}
                       {packItemsList.length === 0 && uploadingItems.length === 0 && (
-                        <div className="studioEmpty"><p>Пак пуст. Добавь стикеры.</p></div>
+                        <div className="studioEmpty"><p>Пак пуст. Добавь {itemsEditPack.type === 'emoji' ? 'эмодзи' : 'стикеры'}.</p></div>
                       )}
                       {packItemsList.length > 0 && (
                         <div className="studioItemGrid">
@@ -583,17 +585,52 @@ export function StickerStudioModal({ onClose }: Props) {
               {/* ── My packs tab ── */}
               {!itemsEditPack && tab === 'my-packs' && (
                 <>
+                  {/* Sub-filter: Стикеры / Эмодзи */}
+                  <div className="studioPackTypeFilter">
+                    <button
+                      className={`studioPackTypeBtn${myPacksFilter === 'sticker' ? ' active' : ''}`}
+                      onClick={() => setMyPacksFilter('sticker')}
+                    >
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <rect x="3" y="3" width="18" height="18" rx="4"/>
+                        <circle cx="12" cy="10" r="3"/>
+                        <path d="M7 20c0-3 2.2-5 5-5s5 2 5 5"/>
+                      </svg>
+                      Стикеры
+                      {myPacks.filter(p => p?.id && p.type === 'sticker').length > 0 && (
+                        <span className="studioPackTypeCnt">{myPacks.filter(p => p?.id && p.type === 'sticker').length}</span>
+                      )}
+                    </button>
+                    <button
+                      className={`studioPackTypeBtn${myPacksFilter === 'emoji' ? ' active' : ''}`}
+                      onClick={() => setMyPacksFilter('emoji')}
+                    >
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <circle cx="12" cy="12" r="10"/>
+                        <path d="M8 14s1.5 2 4 2 4-2 4-2"/>
+                        <line x1="9" y1="9" x2="9.01" y2="9"/>
+                        <line x1="15" y1="9" x2="15.01" y2="9"/>
+                      </svg>
+                      Эмодзи
+                      {myPacks.filter(p => p?.id && p.type === 'emoji').length > 0 && (
+                        <span className="studioPackTypeCnt">{myPacks.filter(p => p?.id && p.type === 'emoji').length}</span>
+                      )}
+                    </button>
+                  </div>
+
                   {quota && (
                     <div className="studioQuotaBadge">Паки: {formatQuota(quota)}</div>
                   )}
                   {loading && <div className="studioLoading"><div className="gifSpinner" /></div>}
-                  {!loading && myPacks.length === 0 && (
+                  {!loading && myPacks.filter(p => p?.id && p.type === myPacksFilter).length === 0 && (
                     <div className="studioEmpty">
-                      <p>У тебя пока нет паков.</p>
-                      <button className="studioBtnPrimary" onClick={() => setTab('create')}>Создать первый пак</button>
+                      <p>Нет паков типа «{myPacksFilter === 'emoji' ? 'Эмодзи' : 'Стикеры'}».</p>
+                      <button className="studioBtnPrimary" onClick={() => { setTab('create'); setPackType(myPacksFilter); setStep(1); }}>
+                        Создать {myPacksFilter === 'emoji' ? 'эмодзи-пак' : 'стикерпак'}
+                      </button>
                     </div>
                   )}
-                  {myPacks.filter(p => p?.id).map(pack => (
+                  {myPacks.filter(p => p?.id && p.type === myPacksFilter).map(pack => (
                     <div key={pack.id} className="studioPackRow">
                       <div className="studioPackThumb">
                         <PackCover url={pack.cover_url} name={pack.name} />
@@ -601,12 +638,12 @@ export function StickerStudioModal({ onClose }: Props) {
                       <div className="studioPackInfo">
                         <div className="studioPackName">{pack.name}</div>
                         <div className="studioPackMeta">
-                          {(pack as any).item_count ?? 0} стикеров &bull; {pack.is_public ? 'Публичный' : 'Приватный'}
+                          {(pack as any).item_count ?? 0} {pack.type === 'emoji' ? 'эмодзи' : 'стикеров'} &bull; {pack.is_public ? 'Публичный' : 'Приватный'}
                         </div>
                       </div>
                       <div className="studioPackActions">
                         {/* Edit items */}
-                        <button className="studioIconBtn" onClick={() => openItemsEdit(pack)} title="Редактировать стикеры">
+                        <button className="studioIconBtn" onClick={() => openItemsEdit(pack)} title={`Редактировать ${pack.type === 'emoji' ? 'эмодзи' : 'стикеры'}`}>
                           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                             <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/>
                             <rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/>

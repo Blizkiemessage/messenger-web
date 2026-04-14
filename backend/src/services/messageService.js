@@ -240,11 +240,15 @@ function forwardMessages(targetChatId, senderId, messageIds) {
 }
 
 const ALLOWED_EMOJIS = new Set(['❤️','👍','😂','😮','😢','🔥','👏','🎉','🤔','💯','😍','😡']);
+// Custom emoji format: :packId:itemId: (two UUIDs separated by colon)
+const CUSTOM_EMOJI_RE = /^:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}:$/;
 
 // ✅ NEW: emoji reactions — toggle a specific emoji reaction for a user.
 // One reaction per user per message: adding a new emoji removes the previous one.
 function toggleEmojiReaction(msgId, userId, emoji) {
-  if (!ALLOWED_EMOJIS.has(emoji)) throw Object.assign(new Error('Invalid emoji'), { status: 400 });
+  if (!ALLOWED_EMOJIS.has(emoji) && !CUSTOM_EMOJI_RE.test(emoji)) {
+    throw Object.assign(new Error('Invalid emoji'), { status: 400 });
+  }
   const db = getDb();
   const msg = db.prepare('SELECT reactions FROM messages WHERE id = ?').get(msgId);
   if (!msg) throw Object.assign(new Error('Message not found'), { status: 404 });
