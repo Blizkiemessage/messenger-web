@@ -21,8 +21,11 @@ export function EmojiPicker({ x, y, onPick, onClose }: Props) {
   const ref  = useRef<HTMLDivElement>(null);
   const [tab, setTab] = useState<'standard' | 'custom'>('standard');
 
-  const { emojiPacks, packItems, fetchPackItems } = useStickerStore();
+  const { emojiPacks, packItems, fetchPackItems, fetchInstalledPacks } = useStickerStore();
   const [activePackId, setActivePackId] = useState<string | null>(null);
+
+  // Eagerly load installed packs so the Custom tab is populated
+  useEffect(() => { fetchInstalledPacks(); }, [fetchInstalledPacks]);
 
   // Auto-select first emoji pack
   useEffect(() => {
@@ -47,13 +50,11 @@ export function EmojiPicker({ x, y, onPick, onClose }: Props) {
     return () => { clearTimeout(t); window.removeEventListener('mousedown', handle); };
   }, [onClose]);
 
-  const hasCustom = emojiPacks.length > 0;
-
-  // Clamp to viewport
+  // Clamp to viewport — always use wider panel (tabs are always shown)
   const vw = window.innerWidth;
   const vh = window.innerHeight;
-  const PANEL_W = hasCustom ? 260 : 236;
-  const PANEL_H = tab === 'custom' ? 220 : (hasCustom ? 108 : 88);
+  const PANEL_W = 260;
+  const PANEL_H = tab === 'custom' ? 220 : 108;
   const cx = Math.max(8, Math.min(x, vw - PANEL_W - 8));
   const cy = Math.max(8, Math.min(y - PANEL_H - 8, vh - PANEL_H - 8));
 
@@ -63,27 +64,25 @@ export function EmojiPicker({ x, y, onPick, onClose }: Props) {
     <Portal>
       <div
         ref={ref}
-        className={`emojiPickerPanel${hasCustom ? ' withTabs' : ''}`}
+        className="emojiPickerPanel withTabs"
         style={{ left: cx, top: cy, width: PANEL_W }}
         onContextMenu={e => e.preventDefault()}
       >
-        {/* Tab bar — only shown when there are custom packs */}
-        {hasCustom && (
-          <div className="emojiPickerTabs">
-            <button
-              className={`emojiPickerTabBtn${tab === 'standard' ? ' active' : ''}`}
-              onClick={() => setTab('standard')}
-            >
-              Стандарт
-            </button>
-            <button
-              className={`emojiPickerTabBtn${tab === 'custom' ? ' active' : ''}`}
-              onClick={() => setTab('custom')}
-            >
-              Кастомные
-            </button>
-          </div>
-        )}
+        {/* Tab bar — always shown */}
+        <div className="emojiPickerTabs">
+          <button
+            className={`emojiPickerTabBtn${tab === 'standard' ? ' active' : ''}`}
+            onClick={() => setTab('standard')}
+          >
+            Стандарт
+          </button>
+          <button
+            className={`emojiPickerTabBtn${tab === 'custom' ? ' active' : ''}`}
+            onClick={() => setTab('custom')}
+          >
+            Кастомные
+          </button>
+        </div>
 
         {/* Standard emoji grid */}
         {tab === 'standard' && (

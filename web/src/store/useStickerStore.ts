@@ -34,7 +34,7 @@ interface StickerStore {
   /** Installed packs of type 'emoji' only */
   emojiPacks: StickerPack[];
 
-  fetchInstalledPacks: () => Promise<void>;
+  fetchInstalledPacks: (force?: boolean) => Promise<void>;
   fetchPackItems: (packId: string) => Promise<void>;
   installPack: (packId: string) => Promise<void>;
   uninstallPack: (packId: string) => Promise<void>;
@@ -49,6 +49,11 @@ if (_initialRecent.length === 0) {
   try { localStorage.setItem(RECENT_KEY, '[]'); } catch { /* ignore */ }
 }
 
+// Module-level dedup: one in-flight promise shared across all callers
+let _fetchPacksPromise: Promise<void> | null = null;
+let _fetchPacksLastAt = 0;
+const FETCH_PACKS_TTL = 30_000; // 30 s — don't re-fetch if already fresh
+
 export const useStickerStore = create<StickerStore>((set, get) => ({
   installedPacks: [],
   packItems: {},
@@ -56,16 +61,29 @@ export const useStickerStore = create<StickerStore>((set, get) => ({
   stickerPacks: [],
   emojiPacks: [],
 
-  fetchInstalledPacks: async () => {
-    const res = await client.get<StickerPack[]>('/sticker-packs/installed');
-    const packs = Array.isArray(res.data) ? res.data.filter(p => p?.id) : [];
-    const stickerPacks = packs.filter(p => p.type === 'sticker');
-    const emojiPacks   = packs.filter(p => p.type === 'emoji');
-    set({ installedPacks: packs, stickerPacks, emojiPacks });
-    // Pre-fetch emoji pack items so inline emojis resolve immediately
-    for (const p of emojiPacks) {
-      if (!get().packItems[p.id]) get().fetchPackItems(p.id);
-    }
+  fetchInstalledPacks: async (force = false) => {
+    const now = Date.now();
+    // Skip if a fresh load happened recently (unless forced, e.g. after install)
+    if (!force && now - _fetchPacksLastAt < FETCH_PACKS_TTL) return;
+    // Deduplicate concurrent calls — all callers await the same promise
+    if (_fetchPacksPromise) return _fetchPacksPromise;
+    _fetchPacksPromise = (async () => {
+      try {
+        const res = await client.get<StickerPack[]>('/sticker-packs/installed');
+        const packs = Array.isArray(res.data) ? res.data.filter(p => p?.id) : [];
+        const stickerPacks = packs.filter(p => p.type === 'sticker');
+        const emojiPacks   = packs.filter(p => p.type === 'emoji');
+        set({ installedPacks: packs, stickerPacks, emojiPacks });
+        _fetchPacksLastAt = Date.now();
+        // Pre-fetch emoji pack items so inline emojis resolve immediately
+        for (const p of emojiPacks) {
+          if (!get().packItems[p.id]) get().fetchPackItems(p.id);
+        }
+      } finally {
+        _fetchPacksPromise = null;
+      }
+    })();
+    return _fetchPacksPromise;
   },
 
   fetchPackItems: async (packId: string) => {
@@ -77,7 +95,8 @@ export const useStickerStore = create<StickerStore>((set, get) => ({
 
   installPack: async (packId: string) => {
     await client.post(`/sticker-packs/${packId}/install`);
-    await get().fetchInstalledPacks();
+    _fetchPacksLastAt = 0; // invalidate TTL so next call always re-fetches
+    await get().fetchInstalledPacks(true);
   },
 
   uninstallPack: async (packId: string) => {
