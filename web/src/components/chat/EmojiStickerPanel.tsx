@@ -3,6 +3,7 @@ import Picker from '@emoji-mart/react';
 import data from '@emoji-mart/data';
 import { GifTab } from './GifTab';
 import { StickersTab } from './StickersTab';
+import { EmojiPackSection } from './EmojiPackSection';
 
 type Tab = 'emoji' | 'sticker' | 'gif' | 'studio';
 
@@ -10,16 +11,15 @@ interface Props {
   onEmojiSelect: (emoji: { native: string }) => void;
   onSendGif: (url: string) => void;
   onSendSticker: (url: string, itemId: string, packId: string) => void;
+  onSendCustomEmoji: (packId: string, itemId: string, fileUrl: string) => void;
   onOpenStudio: () => void;
   theme: 'dark' | 'light';
 }
 
-export function EmojiStickerPanel({ onEmojiSelect, onSendGif, onSendSticker, onOpenStudio, theme }: Props) {
+export function EmojiStickerPanel({
+  onEmojiSelect, onSendGif, onSendSticker, onSendCustomEmoji, onOpenStudio, theme,
+}: Props) {
   const [tab, setTab] = useState<Tab>('emoji');
-
-  function handleStudioClick() {
-    onOpenStudio();
-  }
 
   return (
     <div className="espRoot">
@@ -45,7 +45,7 @@ export function EmojiStickerPanel({ onEmojiSelect, onSendGif, onSendSticker, onO
         </button>
         <button
           className={`espTab${tab === 'studio' ? ' active' : ''}`}
-          onClick={() => { setTab('studio'); handleStudioClick(); }}
+          onClick={() => { setTab('studio'); onOpenStudio(); }}
         >
           Студия
         </button>
@@ -53,16 +53,24 @@ export function EmojiStickerPanel({ onEmojiSelect, onSendGif, onSendSticker, onO
 
       {/* Tab content */}
       {tab === 'emoji' && (
-        <Picker
-          data={data}
-          onEmojiSelect={onEmojiSelect}
-          theme={theme}
-          locale="ru"
-          previewPosition="none"
-          skinTonePosition="none"
-          maxFrequentRows={2}
-          noCountryFlags={false}
-        />
+        <div className="espEmojiTabContent">
+          {/* Standard emoji picker */}
+          <Picker
+            data={data}
+            onEmojiSelect={onEmojiSelect}
+            theme={theme}
+            locale="ru"
+            previewPosition="none"
+            skinTonePosition="none"
+            maxFrequentRows={2}
+            noCountryFlags={false}
+          />
+          {/* Custom emoji packs section */}
+          <EmojiPackSection
+            onSelectEmoji={onSendCustomEmoji}
+            onOpenStudio={onOpenStudio}
+          />
+        </div>
       )}
 
       {tab === 'sticker' && (

@@ -29,6 +29,11 @@ interface StickerStore {
   packItems: Record<string, StickerPackItem[]>;
   recentStickers: StickerPackItem[];
 
+  /** Installed packs of type 'sticker' only */
+  stickerPacks: StickerPack[];
+  /** Installed packs of type 'emoji' only */
+  emojiPacks: StickerPack[];
+
   fetchInstalledPacks: () => Promise<void>;
   fetchPackItems: (packId: string) => Promise<void>;
   installPack: (packId: string) => Promise<void>;
@@ -48,10 +53,19 @@ export const useStickerStore = create<StickerStore>((set, get) => ({
   installedPacks: [],
   packItems: {},
   recentStickers: _initialRecent,
+  stickerPacks: [],
+  emojiPacks: [],
 
   fetchInstalledPacks: async () => {
     const res = await client.get<StickerPack[]>('/sticker-packs/installed');
-    set({ installedPacks: Array.isArray(res.data) ? res.data.filter(p => p?.id) : [] });
+    const packs = Array.isArray(res.data) ? res.data.filter(p => p?.id) : [];
+    const stickerPacks = packs.filter(p => p.type === 'sticker');
+    const emojiPacks   = packs.filter(p => p.type === 'emoji');
+    set({ installedPacks: packs, stickerPacks, emojiPacks });
+    // Pre-fetch emoji pack items so inline emojis resolve immediately
+    for (const p of emojiPacks) {
+      if (!get().packItems[p.id]) get().fetchPackItems(p.id);
+    }
   },
 
   fetchPackItems: async (packId: string) => {
@@ -68,9 +82,14 @@ export const useStickerStore = create<StickerStore>((set, get) => ({
 
   uninstallPack: async (packId: string) => {
     await client.delete(`/sticker-packs/${packId}/install`);
-    set(state => ({
-      installedPacks: state.installedPacks.filter(p => p.id !== packId),
-    }));
+    set(state => {
+      const installedPacks = state.installedPacks.filter(p => p.id !== packId);
+      return {
+        installedPacks,
+        stickerPacks: installedPacks.filter(p => p.type === 'sticker'),
+        emojiPacks:   installedPacks.filter(p => p.type === 'emoji'),
+      };
+    });
   },
 
   reorderPacks: async (orderedIds: string[]) => {

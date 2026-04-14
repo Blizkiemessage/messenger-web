@@ -13,6 +13,7 @@ import { ChatSticker } from './ChatSticker';
 import { MsgStatus } from '../ui/icons/MsgStatus';
 import { PollBubble } from './PollBubble';
 import { useMediaPlayer } from '../../contexts/MediaPlayerContext';
+import { useStickerStore } from '../../store/useStickerStore';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -740,6 +741,21 @@ function QuotedText({ text }: { text: string | null | undefined }) {
   );
 }
 
+// ── Custom emoji reaction helpers ─────────────────────────────────────────────
+const CUSTOM_EMOJI_RE = /^:([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}):([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}):$/;
+
+function isCustomEmoji(emoji: string): boolean {
+  return CUSTOM_EMOJI_RE.test(emoji);
+}
+
+function resolveCustomEmojiUrl(emoji: string): string | null {
+  const m = CUSTOM_EMOJI_RE.exec(emoji);
+  if (!m) return null;
+  const [, packId, itemId] = m;
+  const items = useStickerStore.getState().packItems[packId];
+  return items?.find(it => it.id === itemId)?.file_url ?? null;
+}
+
 // ── Reaction bar ─────────────────────────────────────────────────────────────
 function ReactionBar({
   reactions, meId, isOwn, onReact,
@@ -761,17 +777,24 @@ function ReactionBar({
 
   return (
     <div className={`reactionBar${isOwn ? ' reactionBarOwn' : ''}`}>
-      {Object.entries(groups).map(([emoji, { count, isMine }]) => (
-        <button
-          key={emoji}
-          className={`reactionChip${isMine ? ' reactionChipMine' : ''}`}
-          onClick={e => { e.stopPropagation(); onReact(emoji); }}
-          title={isMine ? 'Убрать реакцию' : 'Поставить реакцию'}
-        >
-          <span>{emoji}</span>
-          {count > 1 && <span className="reactionCount">{count}</span>}
-        </button>
-      ))}
+      {Object.entries(groups).map(([emoji, { count, isMine }]) => {
+        const custom = isCustomEmoji(emoji);
+        const customUrl = custom ? resolveCustomEmojiUrl(emoji) : null;
+        return (
+          <button
+            key={emoji}
+            className={`reactionChip${isMine ? ' reactionChipMine' : ''}${custom ? ' reactionChipCustom' : ''}`}
+            onClick={e => { e.stopPropagation(); onReact(emoji); }}
+            title={isMine ? 'Убрать реакцию' : 'Поставить реакцию'}
+          >
+            {custom && customUrl
+              ? <img src={customUrl} className="customEmojiReaction" alt="" loading="lazy" />
+              : <span>{emoji}</span>
+            }
+            {count > 1 && <span className="reactionCount">{count}</span>}
+          </button>
+        );
+      })}
     </div>
   );
 }
@@ -824,6 +847,13 @@ export function MessageBubble({
   const isGifTenor  = m.attachment_type === 'gif_tenor';
   const isSticker   = m.attachment_type === 'sticker';
   const isFile      = hasAttachment && !isImage && !isVideo && !isAudio && !isVideoNote && !isGifTenor && !isSticker;
+
+  // Custom emoji resolver — reads from store cache (non-reactive, uses getState)
+  const { packItems } = useStickerStore();
+  const emojiResolver = useCallback((packId: string, itemId: string): string | null => {
+    const items = packItems[packId];
+    return items?.find(it => it.id === itemId)?.file_url ?? null;
+  }, [packItems]);
 
   // Display name used in the mini player bar
   const playerSenderName = isOwn
@@ -1024,7 +1054,7 @@ export function MessageBubble({
         {/* Plain text */}
         {!m.poll && pureText && (
           <div className="bubbleText">
-            {renderMarkdown(pureText, { term: highlight, meUsername, members, onMentionClick: onViewUser })}
+            {renderMarkdown(pureText, { term: highlight, meUsername, members, onMentionClick: onViewUser, emojiResolver })}
           </div>
         )}
 

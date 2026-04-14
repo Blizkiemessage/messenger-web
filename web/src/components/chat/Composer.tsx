@@ -259,6 +259,38 @@ export function Composer({ value, onChange, onSend, onSendAttachment, externalFi
     onChange(md);
   }, [onChange]);
 
+  const insertCustomEmoji = useCallback((packId: string, itemId: string, fileUrl: string) => {
+    const editor = editorRef.current;
+    if (!editor) return;
+    editor.focus();
+
+    // Build a non-editable inline image that serializes to :packId:itemId:
+    const img = document.createElement('img');
+    img.dataset.emoji = `${packId}:${itemId}`;
+    img.src = fileUrl;
+    img.className = 'customEmojiInline';
+    img.setAttribute('contenteditable', 'false');
+    img.alt = `:${packId}:${itemId}:`;
+    img.draggable = false;
+
+    const sel = window.getSelection();
+    if (sel && sel.rangeCount > 0) {
+      const range = sel.getRangeAt(0);
+      range.deleteContents();
+      range.insertNode(img);
+      range.setStartAfter(img);
+      range.collapse(true);
+      sel.removeAllRanges();
+      sel.addRange(range);
+    } else {
+      editor.appendChild(img);
+    }
+
+    const md = htmlToMd(editor);
+    lastMdRef.current = md;
+    onChange(md);
+  }, [onChange]);
+
   useEffect(() => {
     if (externalFile) { stageFile(externalFile); onExternalFileConsumed?.(); }
   }, [externalFile]); // eslint-disable-line
@@ -1193,6 +1225,10 @@ export function Composer({ value, onChange, onSend, onSendAttachment, externalFi
                         onEmojiSelect={(e: { native: string }) => insertEmoji(e.native)}
                         onSendGif={async (url) => { await onSendGif?.(url); setEmojiOpen(false); }}
                         onSendSticker={async (url, itemId, packId) => { await onSendSticker?.(url, itemId, packId); setEmojiOpen(false); }}
+                        onSendCustomEmoji={(packId, itemId, fileUrl) => {
+                          insertCustomEmoji(packId, itemId, fileUrl);
+                          setEmojiOpen(false);
+                        }}
                         onOpenStudio={() => { setEmojiOpen(false); onOpenStudio?.(); }}
                         theme={document.documentElement.dataset.theme === 'light' ? 'light' : 'dark'}
                       />

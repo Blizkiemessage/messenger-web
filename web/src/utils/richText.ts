@@ -46,6 +46,11 @@ export function htmlToMd(el: HTMLElement): string {
     if (tag === 'BR')                    return '\n';
     if (e.classList.contains('composerSpoilerHint')) return `||${inner}||`;
     if (tag === 'A') return `[${inner}](${e.getAttribute('href') ?? ''})`;
+    // Custom emoji inline image: <img data-emoji="packId:itemId"> → :packId:itemId:
+    if (tag === 'IMG' && e.dataset.emoji) {
+      const parts = e.dataset.emoji.split(':');
+      if (parts.length === 2) return `:${parts[0]}:${parts[1]}:`;
+    }
     // Chrome wraps new lines in <div>
     if (tag === 'DIV') {
       const isFirst = !e.previousElementSibling && e === e.parentElement?.firstElementChild;

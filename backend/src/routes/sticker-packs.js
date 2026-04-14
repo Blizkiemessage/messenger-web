@@ -144,19 +144,23 @@ router.get('/my', (req, res) => {
   }
 });
 
-// GET /sticker-packs/browse?q=&limit=&offset= — public packs discovery
+// GET /sticker-packs/browse?q=&limit=&offset=&type= — public packs discovery
 router.get('/browse', (req, res) => {
   const db = getDb();
   const q      = String(req.query.q || '').trim();
   const limit  = Math.min(Math.max(parseInt(String(req.query.limit  || '20')), 1), 50);
   const offset = Math.max(parseInt(String(req.query.offset || '0')), 0);
+  const type   = ['sticker', 'emoji'].includes(String(req.query.type || '')) ? String(req.query.type) : null;
   try {
+    let baseWhere = `sp.is_public = 1 AND sp.is_deleted = 0`;
+    if (type) baseWhere += ` AND sp.type = '${type}'`;
+
     const baseSelect = `
       SELECT sp.*,
         (SELECT COUNT(*) FROM sticker_pack_items WHERE pack_id = sp.id) AS item_count,
         EXISTS(SELECT 1 FROM user_sticker_packs WHERE user_id = ? AND pack_id = sp.id) AS is_installed
       FROM sticker_packs sp
-      WHERE sp.is_public = 1 AND sp.is_deleted = 0
+      WHERE ${baseWhere}
     `;
     const rows = q
       ? db.prepare(`${baseSelect} AND (LOWER(sp.name) LIKE LOWER(?) OR LOWER(COALESCE(sp.description,'')) LIKE LOWER(?))

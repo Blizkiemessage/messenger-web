@@ -5547,6 +5547,360 @@ input[type="date"].psInput::-webkit-calendar-picker-indicator {
   transform: scale(1.2);
 }
 
+/* ── EmojiPicker — tabs (custom emoji reactions, Этап 8) ────────────── */
+.emojiPickerPanel.withTabs {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  padding: 6px;
+}
+.emojiPickerGrid {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 4px;
+}
+.emojiPickerTabs {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 6px;
+  padding: 0 2px;
+}
+.emojiPickerTabBtn {
+  flex: 1;
+  padding: 4px 6px;
+  border: none;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--text-muted, var(--muted));
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background .12s, color .12s;
+}
+.emojiPickerTabBtn:hover { background: var(--hover); color: var(--text); }
+.emojiPickerTabBtn.active { background: var(--accent-dim); color: var(--accent); }
+
+.emojiPickerCustom {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.emojiPickerPackStrip {
+  display: flex;
+  gap: 4px;
+  overflow-x: auto;
+  padding: 2px 0;
+  scrollbar-width: none;
+}
+.emojiPickerPackStrip::-webkit-scrollbar { display: none; }
+.emojiPickerPackIcon {
+  flex-shrink: 0;
+  width: 26px;
+  height: 26px;
+  border-radius: 6px;
+  border: 1.5px solid transparent;
+  background: var(--hover);
+  cursor: pointer;
+  overflow: hidden;
+  padding: 0;
+  transition: border-color .12s, transform .1s;
+}
+.emojiPickerPackIcon:hover { transform: scale(1.1); }
+.emojiPickerPackIcon.active { border-color: var(--accent); }
+.emojiPickerCustomGrid {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 3px;
+  max-height: 140px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
+.emojiPickerCustomBtn {
+  width: 34px;
+  height: 34px;
+  border: none;
+  border-radius: 7px;
+  background: transparent;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 3px;
+  transition: background .12s, transform .1s;
+}
+.emojiPickerCustomBtn:hover { background: var(--hover); transform: scale(1.15); }
+.emojiPickerCustomImg {
+  width: 26px;
+  height: 26px;
+  object-fit: contain;
+  border-radius: 4px;
+}
+.emojiPickerCustomEmpty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px 0;
+  color: var(--text-muted, var(--muted));
+  font-size: 12px;
+}
+
+/* ── Custom emoji inline in messages ────────────────────────────────── */
+.customEmojiInline {
+  display: inline;
+  width: 22px;
+  height: 22px;
+  vertical-align: -5px;
+  object-fit: contain;
+  border-radius: 3px;
+  pointer-events: none;
+  user-select: none;
+}
+
+/* ── Custom emoji in reactions ──────────────────────────────────────── */
+.customEmojiReaction {
+  width: 18px;
+  height: 18px;
+  vertical-align: -3px;
+  object-fit: contain;
+  border-radius: 3px;
+}
+.reactionChip.reactionChipCustom {
+  padding: 3px 6px;
+}
+
+/* ── EmojiPackSection (custom emoji tab inside emoji picker panel) ──── */
+.espEmojiTabContent {
+  overflow-y: auto;
+  max-height: 460px;
+}
+.espEmojiTabContent::-webkit-scrollbar { width: 4px; }
+.espEmojiTabContent::-webkit-scrollbar-track { background: transparent; }
+.espEmojiTabContent::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+.emojiPackSection {
+  border-top: 1px solid var(--border);
+  padding: 8px 6px 6px;
+}
+.emojiPackSectionEmpty { padding: 10px 6px; }
+
+.emojiPackSectionHeader {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+.emojiPackSectionLabel {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .4px;
+  text-transform: uppercase;
+  color: var(--text-muted, var(--muted));
+  flex: 1;
+}
+.emojiPackSectionTitle {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text);
+  flex: 1;
+}
+.emojiPackFindBtn {
+  width: 22px;
+  height: 22px;
+  border: none;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--text-muted, var(--muted));
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background .12s, color .12s;
+}
+.emojiPackFindBtn:hover { background: var(--hover); color: var(--text); }
+.emojiPackBackBtn {
+  width: 22px;
+  height: 22px;
+  border: none;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--text-muted, var(--muted));
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background .12s, color .12s;
+  flex-shrink: 0;
+}
+.emojiPackBackBtn:hover { background: var(--hover); color: var(--text); }
+
+/* Pack icon strip inside EmojiPackSection */
+.emojiPackStrip {
+  display: flex;
+  gap: 4px;
+  overflow-x: auto;
+  padding: 2px 0 6px;
+  scrollbar-width: none;
+}
+.emojiPackStrip::-webkit-scrollbar { display: none; }
+.emojiPackIcon {
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  border-radius: 7px;
+  border: 1.5px solid transparent;
+  background: var(--hover);
+  cursor: pointer;
+  overflow: hidden;
+  padding: 0;
+  transition: border-color .12s, transform .1s;
+}
+.emojiPackIcon:hover { transform: scale(1.08); }
+.emojiPackIcon.active { border-color: var(--accent); }
+
+/* Emoji grid inside EmojiPackSection */
+.emojiGrid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 3px;
+  max-height: 140px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
+.emojiGrid::-webkit-scrollbar { width: 3px; }
+.emojiGrid::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+.emojiItem {
+  aspect-ratio: 1;
+  border: none;
+  border-radius: 7px;
+  background: transparent;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 3px;
+  transition: background .12s, transform .1s;
+}
+.emojiItem:hover { background: var(--hover); transform: scale(1.15); }
+.emojiItemImg {
+  width: 28px;
+  height: 28px;
+  object-fit: contain;
+  border-radius: 4px;
+}
+
+/* Browse / catalog states */
+.emojiPackLoading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px 0;
+}
+.emojiPackEmpty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 12px 0;
+  color: var(--text-muted, var(--muted));
+  font-size: 12px;
+  text-align: center;
+}
+.emojiPackStudioBtn {
+  border: none;
+  background: var(--accent-dim);
+  color: var(--accent);
+  border-radius: 7px;
+  padding: 4px 10px;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background .12s;
+}
+.emojiPackStudioBtn:hover { background: var(--accent); color: #fff; }
+
+/* Browse list */
+.emojiPackBrowseList {
+  overflow-y: auto;
+  max-height: 320px;
+  scrollbar-width: thin;
+}
+.emojiPackBrowseRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 4px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background .12s;
+}
+.emojiPackBrowseRow:hover { background: var(--hover); }
+.emojiPackBrowseThumb {
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  overflow: hidden;
+  flex-shrink: 0;
+  background: var(--hover);
+}
+.emojiPackBrowseInfo { flex: 1; min-width: 0; }
+.emojiPackBrowseName {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.emojiPackBrowseMeta {
+  font-size: 11px;
+  color: var(--text-muted, var(--muted));
+  margin-top: 1px;
+}
+
+/* Preview */
+.emojiPackBrowsePreview { display: flex; flex-direction: column; gap: 8px; }
+.emojiPackPreviewHeader {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+}
+.emojiPackPreviewThumb {
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  overflow: hidden;
+  flex-shrink: 0;
+  background: var(--hover);
+}
+.emojiPackPreviewInfo { flex: 1; min-width: 0; }
+.emojiPackPreviewName {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+/* Install button */
+.emojiPackInstallBtn {
+  border: 1.5px solid var(--accent);
+  background: transparent;
+  color: var(--accent);
+  border-radius: 7px;
+  padding: 4px 10px;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background .12s, color .12s;
+  flex-shrink: 0;
+}
+.emojiPackInstallBtn:hover { background: var(--accent); color: #fff; }
+.emojiPackInstallBtn.installed {
+  border-color: var(--text-muted, var(--muted));
+  color: var(--text-muted, var(--muted));
+}
+.emojiPackInstallBtn.installed:hover { background: var(--hover); color: var(--text); }
+
 /* ── Online status in ChatHeader subtitle ───────────────────────────── */
 .chSubOnline {
   color: var(--accent) !important;

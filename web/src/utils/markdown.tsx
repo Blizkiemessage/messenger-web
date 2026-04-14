@@ -14,19 +14,23 @@ export interface MdOptions {
   meUsername?:     string;
   members?:        User[];
   onMentionClick?: (id: string) => void;
+  /** Resolve a custom emoji URL by packId + itemId. Returns null if not cached yet. */
+  emojiResolver?:  (packId: string, itemId: string) => string | null;
 }
 
 // Inline token regex — order matters (most specific first)
-// Groups: 1=bold 2=italic 3=spoiler 4=linkText 5=linkUrl 6=bareUrl 7=mention
+// Groups: 1=bold 2=italic 3=spoiler 4=linkText 5=linkUrl 6=bareUrl 7=mention 8=customEmojiPack 9=customEmojiItem
 const INLINE_RE =
-  /\*\*(.+?)\*\*|_(.+?)_|\|\|(.+?)\|\||\[([^\]\n]+)\]\((https?:\/\/[^\)\n\s]+)\)|(https?:\/\/[^\s<>"'\n]+)|(@\w+)/gs;
+  /\*\*(.+?)\*\*|_(.+?)_|\|\|(.+?)\|\||\[([^\]\n]+)\]\((https?:\/\/[^\)\n\s]+)\)|(https?:\/\/[^\s<>"'\n]+)|(@\w+)|:([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}):([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}):/gs;
 
 interface Token {
-  type: 'bold' | 'italic' | 'spoiler' | 'link' | 'url' | 'mention' | 'text';
+  type: 'bold' | 'italic' | 'spoiler' | 'link' | 'url' | 'mention' | 'customEmoji' | 'text';
   content?: string;
   text?: string;
   url?: string;
   username?: string;
+  packId?: string;
+  itemId?: string;
 }
 
 function tokenizeLine(line: string): Token[] {
@@ -36,12 +40,13 @@ function tokenizeLine(line: string): Token[] {
   let m: RegExpExecArray | null;
   while ((m = INLINE_RE.exec(line)) !== null) {
     if (m.index > last) tokens.push({ type: 'text', content: line.slice(last, m.index) });
-    if      (m[1] != null) tokens.push({ type: 'bold',    content: m[1] });
-    else if (m[2] != null) tokens.push({ type: 'italic',  content: m[2] });
-    else if (m[3] != null) tokens.push({ type: 'spoiler', content: m[3] });
-    else if (m[4] != null) tokens.push({ type: 'link',    text: m[4], url: m[5] });
-    else if (m[6] != null) tokens.push({ type: 'url',     url: m[6] });
-    else if (m[7] != null) tokens.push({ type: 'mention', username: m[7] });
+    if      (m[1] != null) tokens.push({ type: 'bold',        content: m[1] });
+    else if (m[2] != null) tokens.push({ type: 'italic',      content: m[2] });
+    else if (m[3] != null) tokens.push({ type: 'spoiler',     content: m[3] });
+    else if (m[4] != null) tokens.push({ type: 'link',        text: m[4], url: m[5] });
+    else if (m[6] != null) tokens.push({ type: 'url',         url: m[6] });
+    else if (m[7] != null) tokens.push({ type: 'mention',     username: m[7] });
+    else if (m[8] != null) tokens.push({ type: 'customEmoji', packId: m[8], itemId: m[9] });
     last = INLINE_RE.lastIndex;
   }
   if (last < line.length) tokens.push({ type: 'text', content: line.slice(last) });
@@ -118,6 +123,20 @@ function renderTokens(tokens: Token[], opts: MdOptions, keyBase: string): ReactN
           );
         }
         return <span key={k} className={`mention${isMe ? ' mentionMe' : ''}`}>{tok.username}</span>;
+      }
+      case 'customEmoji': {
+        const url = opts.emojiResolver?.(tok.packId!, tok.itemId!);
+        if (!url) return null; // not yet cached — renders invisible until store loads
+        return (
+          <img
+            key={k}
+            src={url}
+            className="customEmojiInline"
+            alt=""
+            loading="lazy"
+            draggable={false}
+          />
+        );
       }
       case 'text':
       default:

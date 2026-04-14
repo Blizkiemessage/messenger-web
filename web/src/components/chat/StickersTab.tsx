@@ -13,7 +13,7 @@ interface Props {
 type Mode = 'grid' | 'browse' | 'manage';
 
 export function StickersTab({ onSendSticker, onOpenStudio }: Props) {
-  const { installedPacks, packItems, recentStickers, fetchInstalledPacks, fetchPackItems } =
+  const { stickerPacks: installedPacks, packItems, recentStickers, fetchInstalledPacks, fetchPackItems } =
     useStickerStore();
 
   const [mode, setMode]               = useState<Mode>('grid');
@@ -80,7 +80,7 @@ export function StickersTab({ onSendSticker, onOpenStudio }: Props) {
   const runBrowse = useCallback(async (q: string) => {
     setBrowsing(true);
     try {
-      const results = await browsePublicPacks({ q: q.trim(), limit: 30 });
+      const results = await browsePublicPacks({ q: q.trim(), limit: 30, type: 'sticker' } as any);
       setBrowseResults(results);
     } catch { /* ignore */ } finally {
       setBrowsing(false);
