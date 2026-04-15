@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import {
   getMyPacks, createPack, updatePack, deletePack,
-  uploadStickerItem, deleteStickerItem, getPackItems, getMyQuota,
+  uploadStickerItem, deleteStickerItem, updateStickerItem, getPackItems, getMyQuota,
   uploadPackLogo,
 } from '../../api/sticker-packs';
 import { type StickerPack, type StickerPackItem, type UserCreationQuota } from '../../types';
@@ -30,6 +30,12 @@ interface PendingItem {
 
 const MAX_ITEMS = 100;
 const MAX_SECONDS = TRIM_MAX_DURATION;
+
+const HINT_EMOJIS = [
+  '😀','😂','😍','🥰','😎','🤔','😅','🥹','🤯','😭','😡','🥺',
+  '👍','👎','👏','🙌','✌️','🤞','💪','🫶','❤️','🔥','⭐','✅',
+  '❌','⚡','💀','🎉','🎁','🏆','💯','🚀','🌟','💫','🎊','🤝',
+];
 
 // Accepted formats: all raster, vector, animated and video
 const ACCEPT_TYPES = [
@@ -118,6 +124,10 @@ export function StickerStudioModal({ onClose }: Props) {
   const [packItemsList, setPackItemsList]  = useState<StickerPackItem[]>([]);
   const [itemsLoading, setItemsLoading]   = useState(false);
   const [uploadingItems, setUploadingItems] = useState<PendingItem[]>([]);
+
+  // ── Emoji hint picker state ────────────────────────────────────────────────
+  const [emojiPickerItemId, setEmojiPickerItemId] = useState<string | null>(null);
+  const [savingEmojiItemId, setSavingEmojiItemId] = useState<string | null>(null);
 
   // ── Video trimmer state ───────────────────────────────────────────────────
   const [trimFile, setTrimFile] = useState<File | null>(null);
@@ -419,6 +429,27 @@ export function StickerStudioModal({ onClose }: Props) {
     setUploadingItems(prev => prev.filter((_, i) => i !== index));
   }
 
+  // ── Update emoji hint for existing item ───────────────────────────────────
+  async function handleSetItemEmojiHint(itemId: string, hint: string) {
+    if (!itemsEditPack) return;
+    setSavingEmojiItemId(itemId);
+    try {
+      await updateStickerItem(itemsEditPack.id, itemId, { emoji_hint: hint || null });
+      setPackItemsList(prev => prev.map(it => it.id === itemId ? { ...it, emoji_hint: hint || null } : it));
+      // Invalidate store cache so sidebar/notifications pick up the new hint
+      useStickerStore.setState(s => {
+        const next = { ...s.packItems };
+        delete next[itemsEditPack.id];
+        return { packItems: next };
+      });
+    } catch (e: any) {
+      setError(e.message || 'Ошибка сохранения эмодзи');
+    } finally {
+      setSavingEmojiItemId(null);
+      setEmojiPickerItemId(null);
+    }
+  }
+
   // ── Delete pack ───────────────────────────────────────────────────────────
   async function handleDeletePack(pack: StickerPack) {
     if (!confirm(`Удалить пак «${pack.name}»? Это действие нельзя отменить.`)) return;
@@ -565,13 +596,62 @@ export function StickerStudioModal({ onClose }: Props) {
                         <div className="studioEmpty"><p>Пак пуст. Добавь {itemsEditPack.type === 'emoji' ? 'эмодзи' : 'стикеры'}.</p></div>
                       )}
                       {packItemsList.length > 0 && (
-                        <div className="studioItemGrid">
+                        <div className="studioItemGrid studioItemGridSm">
                           {packItemsList.map(item => (
-                            <div key={item.id} className="studioItemCell">
+                            <div key={item.id} className={`studioItemCell${emojiPickerItemId === item.id ? ' studioItemCellPickerOpen' : ''}`}>
                               <StickerMedia fileUrl={item.file_url} thumbUrl={item.thumb_url} alt={item.emoji_hint || 'sticker'} />
                               <button className="studioItemRemove" onClick={() => removeEditItem(item.id)}>✕</button>
-                              {item.emoji_hint && (
-                                <span className="studioItemEmojiTag">{item.emoji_hint}</span>
+
+                              {/* Emoji hint picker button */}
+                              <button
+                                className={`studioItemEmojiBtn${emojiPickerItemId === item.id ? ' open' : ''}`}
+                                title="Назначить эмодзи-привязку"
+                                onClick={e => {
+                                  e.stopPropagation();
+                                  setEmojiPickerItemId(emojiPickerItemId === item.id ? null : item.id);
+                                }}
+                              >
+                                {savingEmojiItemId === item.id
+                                  ? <span className="studioEmojiSaving">…</span>
+                                  : (item.emoji_hint || <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/></svg>)
+                                }
+                              </button>
+
+                              {/* Emoji picker popup */}
+                              {emojiPickerItemId === item.id && (
+                                <div className="studioItemEmojiPicker" onClick={e => e.stopPropagation()}>
+                                  <div className="studioItemEmojiPickerGrid">
+                                    {HINT_EMOJIS.map(e => (
+                                      <button
+                                        key={e}
+                                        className="studioItemEmojiPickerBtn"
+                                        onClick={() => handleSetItemEmojiHint(item.id, e)}
+                                      >
+                                        {e}
+                                      </button>
+                                    ))}
+                                  </div>
+                                  <div className="studioItemEmojiPickerInputRow">
+                                    <input
+                                      className="studioItemEmojiPickerInput"
+                                      placeholder="✏️ своё"
+                                      defaultValue={item.emoji_hint || ''}
+                                      maxLength={4}
+                                      onKeyDown={e => {
+                                        if (e.key === 'Enter') {
+                                          handleSetItemEmojiHint(item.id, e.currentTarget.value.trim());
+                                        }
+                                        if (e.key === 'Escape') setEmojiPickerItemId(null);
+                                      }}
+                                      autoFocus
+                                    />
+                                    <button
+                                      className="studioItemEmojiPickerClear"
+                                      title="Убрать привязку"
+                                      onClick={() => handleSetItemEmojiHint(item.id, '')}
+                                    >✕</button>
+                                  </div>
+                                </div>
                               )}
                             </div>
                           ))}

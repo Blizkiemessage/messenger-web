@@ -9465,3 +9465,150 @@ input[type="date"].psInput::-webkit-calendar-picker-indicator {
 .trimmerInput:focus { border-color: var(--accent); }
 .trimmerInput:read-only { opacity: .5; cursor: default; }
 
+
+/* ── Browse type slider (StickersTab + EmojiPackSection) ─────────────────── */
+.browseTypeSlider {
+  display: flex;
+  align-items: center;
+  background: var(--accent-dim);
+  border-radius: 8px;
+  padding: 3px;
+  margin: 6px 10px 4px;
+  gap: 2px;
+  flex-shrink: 0;
+}
+.browseTypeBtn {
+  flex: 1;
+  padding: 5px 8px;
+  background: none;
+  border: none;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-muted, var(--muted));
+  cursor: pointer;
+  transition: background .15s, color .15s;
+  white-space: nowrap;
+}
+.browseTypeBtn.active {
+  background: var(--bg-secondary, var(--panel));
+  color: var(--text);
+  box-shadow: 0 1px 3px rgba(0,0,0,.12);
+}
+.browseTypeBtn:not(.active):hover { color: var(--text); }
+
+/* ── Emoji browse search input ───────────────────────────────────────────── */
+.emojiPackBrowseSearch {
+  flex: 1;
+  background: var(--accent-dim);
+  border: 1.5px solid transparent;
+  border-radius: 8px;
+  padding: 6px 10px;
+  font-size: 13px;
+  color: var(--text);
+  outline: none;
+  transition: border-color .15s;
+}
+.emojiPackBrowseSearch::placeholder { color: var(--text-muted, var(--muted)); }
+.emojiPackBrowseSearch:focus { border-color: var(--accent); }
+
+/* ── Studio item grid — smaller cells in edit mode ───────────────────────── */
+.studioItemGridSm { grid-template-columns: repeat(5, 1fr); gap: 6px; }
+.studioItemGridSm .studioItemCell {
+  border-radius: 6px;
+}
+.studioItemGridSm .studioItemCell img,
+.studioItemGridSm .studioItemCell video {
+  width: 100%; height: 100%; object-fit: contain;
+}
+
+/* ── Studio item emoji hint button ───────────────────────────────────────── */
+.studioItemEmojiBtn {
+  position: absolute;
+  bottom: 2px; right: 2px;
+  background: rgba(0,0,0,.55);
+  border: none;
+  border-radius: 4px;
+  min-width: 18px; height: 18px;
+  padding: 0 3px;
+  font-size: 12px;
+  line-height: 18px;
+  text-align: center;
+  cursor: pointer;
+  color: #fff;
+  display: flex; align-items: center; justify-content: center;
+  opacity: 0;
+  transition: opacity .15s, background .15s;
+}
+.studioItemCell:hover .studioItemEmojiBtn { opacity: 1; }
+.studioItemEmojiBtn.open { opacity: 1; background: var(--accent); }
+.studioItemEmojiBtn svg { display: block; }
+.studioEmojiSaving { font-size: 11px; }
+
+/* ── Studio item emoji picker popup ─────────────────────────────────────── */
+.studioItemEmojiPicker {
+  position: absolute;
+  bottom: calc(100% + 4px);
+  right: 0;
+  z-index: 200;
+  background: var(--panel, var(--bg-secondary));
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 6px;
+  box-shadow: 0 4px 20px rgba(0,0,0,.2);
+  min-width: 170px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.studioItemEmojiPickerGrid {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 2px;
+}
+.studioItemEmojiPickerBtn {
+  background: none;
+  border: none;
+  border-radius: 5px;
+  font-size: 16px;
+  width: 26px; height: 26px;
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: background .1s;
+}
+.studioItemEmojiPickerBtn:hover { background: var(--accent-dim); }
+.studioItemEmojiPickerInputRow {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  border-top: 1px solid var(--border);
+  padding-top: 5px;
+}
+.studioItemEmojiPickerInput {
+  flex: 1;
+  background: var(--accent-dim);
+  border: 1.5px solid transparent;
+  border-radius: 6px;
+  padding: 4px 7px;
+  font-size: 14px;
+  color: var(--text);
+  outline: none;
+  min-width: 0;
+  transition: border-color .15s;
+}
+.studioItemEmojiPickerInput:focus { border-color: var(--accent); }
+.studioItemEmojiPickerInput::placeholder { color: var(--text-muted, var(--muted)); font-size: 12px; }
+.studioItemEmojiPickerClear {
+  background: none;
+  border: none;
+  color: var(--text-muted, var(--muted));
+  font-size: 11px;
+  cursor: pointer;
+  padding: 3px 5px;
+  border-radius: 4px;
+  transition: color .15s;
+}
+.studioItemEmojiPickerClear:hover { color: var(--text); }
+
+/* Allow emoji picker popup to overflow cell bounds */
+.studioItemCellPickerOpen { overflow: visible !important; z-index: 10; }

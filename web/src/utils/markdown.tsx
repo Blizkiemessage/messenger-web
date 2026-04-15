@@ -148,13 +148,31 @@ function renderTokens(tokens: Token[], opts: MdOptions, keyBase: string): ReactN
 }
 
 /**
- * Strip markdown syntax for chat-list previews.
+ * Strip markdown syntax for chat-list previews and push notifications.
+ * Custom emoji are replaced with their emoji_hint (unicode) when available,
+ * otherwise with a generic placeholder.
  * Spoiler content is replaced with a placeholder so recipients can't read it
  * in the sidebar before revealing it in the chat.
  */
-export function stripPreview(text: string): string {
+export function stripPreview(
+  text: string,
+  packItems?: Record<string, { id: string; emoji_hint?: string | null }[]>,
+): string {
   return text
-    .replace(/:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}:/gi, '[эмодзи]') // :packId:itemId: → [эмодзи]
+    .replace(
+      /:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}:/gi,
+      (match) => {
+        if (packItems) {
+          const inner = match.slice(1, -1);
+          const sep = inner.indexOf(':');
+          const packId = inner.slice(0, sep);
+          const itemId = inner.slice(sep + 1);
+          const item = packItems[packId]?.find(it => it.id === itemId);
+          if (item?.emoji_hint) return item.emoji_hint;
+        }
+        return '[эмодзи]';
+      },
+    ) // :packId:itemId: → emoji_hint or [эмодзи]
     .replace(/\|\|([^|]*)\|\|/g, '[ скрытый текст ]')  // spoilers → placeholder
     .replace(/\*\*([^*]*)\*\*/g, '$1')                   // **bold** → bold
     .replace(/_([^_]+)_/g, '$1')                          // _italic_ → italic

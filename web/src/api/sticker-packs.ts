@@ -82,6 +82,15 @@ export async function deleteStickerItem(packId: string, itemId: string): Promise
   await client.delete(`/sticker-packs/${packId}/items/${itemId}`);
 }
 
+export async function updateStickerItem(
+  packId: string,
+  itemId: string,
+  data: { emoji_hint?: string | null },
+): Promise<StickerPackItem> {
+  const res = await client.patch<StickerPackItem>(`/sticker-packs/${packId}/items/${itemId}`, data);
+  return res.data;
+}
+
 export async function reorderItems(packId: string, orderedIds: string[]): Promise<void> {
   await client.patch(`/sticker-packs/${packId}/items/order`, { ids: orderedIds });
 }

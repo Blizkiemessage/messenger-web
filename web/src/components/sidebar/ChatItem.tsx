@@ -126,7 +126,11 @@ function LastMessagePreview({ msg, typingPreview }: {
   }
 
   if (msg.text) {
-    const nodes = parseInlineEmoji(stripPreview(msg.text), packItems);
+    // stripPreview resolves custom emoji to emoji_hint when packItems cached,
+    // otherwise falls back to [эмодзи]. parseInlineEmoji handles any
+    // remaining :packId:itemId: tokens not yet in cache.
+    const stripped = stripPreview(msg.text, packItems);
+    const nodes = parseInlineEmoji(stripped, packItems);
     return <span className="ciPreview">{nodes}</span>;
   }
 

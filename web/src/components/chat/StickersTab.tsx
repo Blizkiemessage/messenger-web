@@ -24,6 +24,7 @@ export function StickersTab({ onSendSticker, onOpenStudio }: Props) {
 
   // Browse state
   const [browseQuery, setBrowseQuery]         = useState('');
+  const [browseType, setBrowseType]           = useState<'sticker' | 'emoji'>('sticker');
   const [browseResults, setBrowseResults]     = useState<(StickerPack & { is_installed: boolean })[]>([]);
   const [browsing, setBrowsing]               = useState(false);
   const [browsePreviewPack, setBrowsePreviewPack] = useState<StickerPack | null>(null);
@@ -77,20 +78,27 @@ export function StickersTab({ onSendSticker, onOpenStudio }: Props) {
   }
 
   // ── Browse helpers ────────────────────────────────────────────────────────
-  const runBrowse = useCallback(async (q: string) => {
+  const runBrowse = useCallback(async (q: string, type?: 'sticker' | 'emoji') => {
     setBrowsing(true);
     try {
-      const results = await browsePublicPacks({ q: q.trim(), limit: 30, type: 'sticker' } as any);
+      const results = await browsePublicPacks({ q: q.trim(), limit: 30, type: type ?? browseType } as any);
       setBrowseResults(results);
     } catch { /* ignore */ } finally {
       setBrowsing(false);
     }
-  }, []);
+  }, [browseType]); // eslint-disable-line
 
   function handleSearchChange(val: string) {
     setBrowseQuery(val);
     clearTimeout(searchTimer.current);
     searchTimer.current = setTimeout(() => runBrowse(val), 350);
+  }
+
+  function handleBrowseTypeChange(type: 'sticker' | 'emoji') {
+    setBrowseType(type);
+    setBrowsePreviewPack(null);
+    clearTimeout(searchTimer.current);
+    runBrowse(browseQuery, type);
   }
 
   async function handlePreviewPack(pack: StickerPack & { is_installed: boolean }) {
@@ -145,6 +153,22 @@ export function StickersTab({ onSendSticker, onOpenStudio }: Props) {
           />
         </div>
 
+        {/* Type slider */}
+        <div className="browseTypeSlider">
+          <button
+            className={`browseTypeBtn${browseType === 'sticker' ? ' active' : ''}`}
+            onClick={() => handleBrowseTypeChange('sticker')}
+          >
+            Стикерпаки
+          </button>
+          <button
+            className={`browseTypeBtn${browseType === 'emoji' ? ' active' : ''}`}
+            onClick={() => handleBrowseTypeChange('emoji')}
+          >
+            Эмодзи
+          </button>
+        </div>
+
         {browsePreviewPack ? (
           <div className="stickerBrowsePreview">
             <div className="stickerBrowsePreviewHeader">
@@ -196,7 +220,9 @@ export function StickersTab({ onSendSticker, onOpenStudio }: Props) {
                 </div>
                 <div className="stickerBrowseRowInfo">
                   <div className="stickerBrowseRowName">{pack.name}</div>
-                  <div className="stickerBrowseRowMeta">{(pack as any).item_count ?? 0} стикеров</div>
+                  <div className="stickerBrowseRowMeta">
+                    {(pack as any).item_count ?? 0} {browseType === 'emoji' ? 'эмодзи' : 'стикеров'}
+                  </div>
                 </div>
                 <button
                   className={`stickerInstallBtn${pack.is_installed ? ' installed' : ''}`}

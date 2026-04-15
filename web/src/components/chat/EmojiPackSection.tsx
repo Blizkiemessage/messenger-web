@@ -4,7 +4,7 @@
  * Displays installed emoji packs as an icon strip + scrollable emoji grid.
  * Clicking an emoji calls onSelectEmoji(packId, itemId, fileUrl).
  */
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useStickerStore } from '../../store/useStickerStore';
 import { browsePublicPacks, installPack, uninstallPack, getPackItems } from '../../api/sticker-packs';
 import { PackCover } from '../ui/PackCover';
@@ -26,12 +26,15 @@ export function EmojiPackSection({ onSelectEmoji, onOpenStudio }: Props) {
   const [loading, setLoading]           = useState(false);
 
   // Browse state
+  const [browseQuery, setBrowseQuery]       = useState('');
+  const [browseType, setBrowseType]         = useState<'emoji' | 'sticker'>('emoji');
   const [browseResults, setBrowseResults]   = useState<(StickerPack & { is_installed: boolean })[]>([]);
   const [browsing, setBrowsing]             = useState(false);
   const [installingId, setInstallingId]     = useState<string | null>(null);
   const [browsePreview, setBrowsePreview]   = useState<(StickerPack & { is_installed: boolean }) | null>(null);
   const [previewItems, setPreviewItems]     = useState<StickerPackItem[]>([]);
   const [previewLoading, setPreviewLoading] = useState(false);
+  const searchTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   useEffect(() => {
     fetchInstalledPacks();
@@ -58,19 +61,32 @@ export function EmojiPackSection({ onSelectEmoji, onOpenStudio }: Props) {
     }
   }, [activePackId, packItems, fetchPackItems, mode]);
 
-  const loadBrowse = useCallback(async () => {
+  const loadBrowse = useCallback(async (q?: string, type?: 'emoji' | 'sticker') => {
     setBrowsing(true);
     try {
-      const results = await browsePublicPacks({ limit: 40, type: 'emoji' } as any);
+      const results = await browsePublicPacks({ q: q?.trim(), limit: 40, type: type ?? browseType } as any);
       setBrowseResults(results);
     } catch { /* ignore */ } finally {
       setBrowsing(false);
     }
-  }, []);
+  }, [browseType]); // eslint-disable-line
 
   useEffect(() => {
-    if (mode === 'browse') loadBrowse();
-  }, [mode, loadBrowse]);
+    if (mode === 'browse') loadBrowse(browseQuery, browseType);
+  }, [mode]); // eslint-disable-line
+
+  function handleBrowseSearch(val: string) {
+    setBrowseQuery(val);
+    clearTimeout(searchTimer.current);
+    searchTimer.current = setTimeout(() => loadBrowse(val, browseType), 350);
+  }
+
+  function handleBrowseTypeChange(type: 'emoji' | 'sticker') {
+    setBrowseType(type);
+    setBrowsePreview(null);
+    clearTimeout(searchTimer.current);
+    loadBrowse(browseQuery, type);
+  }
 
   async function handleInstall(pack: StickerPack & { is_installed: boolean }) {
     setInstallingId(pack.id);
@@ -107,12 +123,34 @@ export function EmojiPackSection({ onSelectEmoji, onOpenStudio }: Props) {
     return (
       <div className="emojiPackSection">
         <div className="emojiPackSectionHeader">
-          <button className="emojiPackBackBtn" onClick={() => { setMode('grid'); setBrowsePreview(null); }}>
+          <button className="emojiPackBackBtn" onClick={() => { setMode('grid'); setBrowsePreview(null); setBrowseQuery(''); }}>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
               <polyline points="15 18 9 12 15 6"/>
             </svg>
           </button>
-          <span className="emojiPackSectionTitle">Каталог эмодзи</span>
+          <input
+            className="emojiPackBrowseSearch"
+            placeholder="Поиск паков…"
+            value={browseQuery}
+            onChange={e => handleBrowseSearch(e.target.value)}
+            autoFocus
+          />
+        </div>
+
+        {/* Type slider */}
+        <div className="browseTypeSlider">
+          <button
+            className={`browseTypeBtn${browseType === 'emoji' ? ' active' : ''}`}
+            onClick={() => handleBrowseTypeChange('emoji')}
+          >
+            Эмодзи
+          </button>
+          <button
+            className={`browseTypeBtn${browseType === 'sticker' ? ' active' : ''}`}
+            onClick={() => handleBrowseTypeChange('sticker')}
+          >
+            Стикеры
+          </button>
         </div>
 
         {browsePreview ? (
@@ -167,7 +205,9 @@ export function EmojiPackSection({ onSelectEmoji, onOpenStudio }: Props) {
                 </div>
                 <div className="emojiPackBrowseInfo">
                   <div className="emojiPackBrowseName">{pack.name}</div>
-                  <div className="emojiPackBrowseMeta">{(pack as any).item_count ?? 0} эмодзи</div>
+                  <div className="emojiPackBrowseMeta">
+                    {(pack as any).item_count ?? 0} {browseType === 'sticker' ? 'стикеров' : 'эмодзи'}
+                  </div>
                 </div>
                 <button
                   className={`emojiPackInstallBtn${pack.is_installed ? ' installed' : ''}`}
