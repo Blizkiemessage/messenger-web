@@ -1,5 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
+import Picker from '@emoji-mart/react';
+import data from '@emoji-mart/data';
 import {
   getMyPacks, createPack, updatePack, deletePack,
   uploadStickerItem, deleteStickerItem, updateStickerItem, getPackItems, getMyQuota,
@@ -7,6 +9,7 @@ import {
 } from '../../api/sticker-packs';
 import { type StickerPack, type StickerPackItem, type UserCreationQuota } from '../../types';
 import { useStickerStore } from '../../store/useStickerStore';
+import { useAppStore } from '../../store/useAppStore';
 import { VideoTrimmerModal, TRIM_MAX_DURATION } from './VideoTrimmerModal';
 import { StickerMedia } from '../ui/StickerMedia';
 import { PackCover } from '../ui/PackCover';
@@ -31,11 +34,6 @@ interface PendingItem {
 const MAX_ITEMS = 100;
 const MAX_SECONDS = TRIM_MAX_DURATION;
 
-const HINT_EMOJIS = [
-  '😀','😂','😍','🥰','😎','🤔','😅','🥹','🤯','😭','😡','🥺',
-  '👍','👎','👏','🙌','✌️','🤞','💪','🫶','❤️','🔥','⭐','✅',
-  '❌','⚡','💀','🎉','🎁','🏆','💯','🚀','🌟','💫','🎊','🤝',
-];
 
 // Accepted formats: all raster, vector, animated and video
 const ACCEPT_TYPES = [
@@ -90,6 +88,7 @@ function parseGifDuration(buffer: ArrayBuffer): number {
 }
 
 export function StickerStudioModal({ onClose }: Props) {
+  const theme = useAppStore(s => s.theme);
   const [tab, setTab] = useState<StudioTab>('my-packs');
   // Sub-filter inside "Мои паки": show sticker packs or emoji packs
   const [myPacksFilter, setMyPacksFilter] = useState<'sticker' | 'emoji'>('sticker');
@@ -148,10 +147,26 @@ export function StickerStudioModal({ onClose }: Props) {
   }, []);
 
   useEffect(() => {
-    const fn = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+    const fn = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        if (emojiPickerItemId) { setEmojiPickerItemId(null); return; }
+        onClose();
+      }
+    };
     document.addEventListener('keydown', fn);
     return () => document.removeEventListener('keydown', fn);
-  }, [onClose]);
+  }, [onClose, emojiPickerItemId]);
+
+  // Close emoji picker on outside click
+  useEffect(() => {
+    if (!emojiPickerItemId) return;
+    const handle = (e: MouseEvent) => {
+      const portal = document.querySelector('.studioItemEmojiPickerPortal');
+      if (portal && !portal.contains(e.target as Node)) setEmojiPickerItemId(null);
+    };
+    const t = setTimeout(() => document.addEventListener('mousedown', handle), 50);
+    return () => { clearTimeout(t); document.removeEventListener('mousedown', handle); };
+  }, [emojiPickerItemId]);
 
   // ── Check file duration, open trimmer if needed ───────────────────────────
   const checkAndQueue = useCallback(async (
@@ -617,41 +632,38 @@ export function StickerStudioModal({ onClose }: Props) {
                                 }
                               </button>
 
-                              {/* Emoji picker popup */}
-                              {emojiPickerItemId === item.id && (
-                                <div className="studioItemEmojiPicker" onClick={e => e.stopPropagation()}>
-                                  <div className="studioItemEmojiPickerGrid">
-                                    {HINT_EMOJIS.map(e => (
+                              {/* Emoji picker popup — full emoji-mart */}
+                              {emojiPickerItemId === item.id && createPortal(
+                                <div
+                                  className="studioItemEmojiPickerPortal"
+                                  onClick={e => e.stopPropagation()}
+                                  onMouseDown={e => e.stopPropagation()}
+                                >
+                                  <div className="studioItemEmojiPickerWrap">
+                                    <div className="studioItemEmojiPickerToolbar">
+                                      <span className="studioItemEmojiPickerLabel">Привязка эмодзи</span>
                                       <button
-                                        key={e}
-                                        className="studioItemEmojiPickerBtn"
-                                        onClick={() => handleSetItemEmojiHint(item.id, e)}
-                                      >
-                                        {e}
-                                      </button>
-                                    ))}
-                                  </div>
-                                  <div className="studioItemEmojiPickerInputRow">
-                                    <input
-                                      className="studioItemEmojiPickerInput"
-                                      placeholder="✏️ своё"
-                                      defaultValue={item.emoji_hint || ''}
-                                      maxLength={4}
-                                      onKeyDown={e => {
-                                        if (e.key === 'Enter') {
-                                          handleSetItemEmojiHint(item.id, e.currentTarget.value.trim());
-                                        }
-                                        if (e.key === 'Escape') setEmojiPickerItemId(null);
-                                      }}
-                                      autoFocus
+                                        className="studioItemEmojiPickerClear"
+                                        title="Убрать привязку"
+                                        onClick={() => handleSetItemEmojiHint(item.id, '')}
+                                      >Убрать</button>
+                                      <button
+                                        className="studioItemEmojiPickerClose"
+                                        onClick={() => setEmojiPickerItemId(null)}
+                                      >✕</button>
+                                    </div>
+                                    <Picker
+                                      data={data}
+                                      theme={theme}
+                                      locale="ru"
+                                      previewPosition="none"
+                                      skinTonePosition="none"
+                                      maxFrequentRows={1}
+                                      onEmojiSelect={(e: any) => handleSetItemEmojiHint(item.id, e.native)}
                                     />
-                                    <button
-                                      className="studioItemEmojiPickerClear"
-                                      title="Убрать привязку"
-                                      onClick={() => handleSetItemEmojiHint(item.id, '')}
-                                    >✕</button>
                                   </div>
-                                </div>
+                                </div>,
+                                document.body,
                               )}
                             </div>
                           ))}

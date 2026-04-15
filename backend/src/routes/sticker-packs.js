@@ -496,6 +496,28 @@ router.post('/:id/items', upload.single('file'), async (req, res) => {
   }
 });
 
+// PATCH /sticker-packs/:id/items/:itemId — update emoji_hint (owner only)
+router.patch('/:id/items/:itemId', (req, res) => {
+  const db = getDb();
+  try {
+    const item = db.prepare(
+      'SELECT spi.*, sp.owner_id FROM sticker_pack_items spi JOIN sticker_packs sp ON sp.id = spi.pack_id WHERE spi.id = ? AND spi.pack_id = ?'
+    ).get([req.params.itemId, req.params.id]);
+    if (!item) return res.status(404).json({ error: 'Not found' });
+    if (item.owner_id !== req.user.id) return res.status(403).json({ error: 'Forbidden' });
+
+    const emojiHint = req.body?.emoji_hint !== undefined
+      ? (req.body.emoji_hint?.trim() || null)
+      : item.emoji_hint;
+
+    db.prepare('UPDATE sticker_pack_items SET emoji_hint = ? WHERE id = ?').run([emojiHint, req.params.itemId]);
+    const updated = db.prepare('SELECT * FROM sticker_pack_items WHERE id = ?').get([req.params.itemId]);
+    res.json(mapItem(updated));
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // DELETE /sticker-packs/:id/items/:itemId
 router.delete('/:id/items/:itemId', (req, res) => {
   const db = getDb();
