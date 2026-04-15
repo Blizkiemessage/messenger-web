@@ -50,6 +50,8 @@ interface Props {
   onAtBottomChange?: (atBottom: boolean) => void;
   /** Called once on mount; provides an imperative scroll-to-bottom function to the parent. */
   onScrollToBottomRef?: (fn: () => void) => void;
+  /** Called when user taps the error badge on a failed optimistic message. */
+  onRetryMessage?: (msgId: string) => void;
 }
 
 const CTX_WIDTH  = 200;
@@ -63,7 +65,7 @@ export function MessageList({
   searchQuery, matchedIds, currentMatchId, pinnedFocusId,
   hasMoreMessages, loadingMore, onLoadMore,
   onVote, onRetract, onViewVoters, onEdit, meUsername, unreadCount, onMarkRead,
-  onAtBottomChange, onScrollToBottomRef,
+  onAtBottomChange, onScrollToBottomRef, onRetryMessage,
 }: Props) {
   const bottomRef      = useRef<HTMLDivElement | null>(null);
   const matchRef       = useRef<HTMLDivElement | null>(null);
@@ -339,6 +341,7 @@ export function MessageList({
               onVideoNoteActivate={handleVideoNoteActivate}
               onVideoNoteEnded={handleVideoNoteEnded}
               onStickerPackClick={handleStickerPackClick}
+              onRetry={m._error ? () => onRetryMessage?.(m.id) : undefined}
             />
           </div>
         );

@@ -10,9 +10,17 @@
 import { resolveUrl } from './Avatar';
 
 const VIDEO_RE = /\.(webm|mp4|mov|avi|mpeg|3gp)(\?|#|$)/i;
+/** GIF and APNG animate only when loaded eagerly; lazy loading inside
+ *  overflow-scroll containers prevents the Intersection Observer from
+ *  triggering, so these images never decode/animate. */
+const ANIM_RE  = /\.(gif|apng)(\?|#|$)/i;
 
 function isVideoUrl(url: string): boolean {
   return VIDEO_RE.test(url);
+}
+
+function isAnimatedImage(url: string): boolean {
+  return ANIM_RE.test(url);
 }
 
 interface Props {
@@ -23,9 +31,13 @@ interface Props {
   loading?: 'lazy' | 'eager';
 }
 
-export function StickerMedia({ fileUrl, thumbUrl, alt = 'Стикер', className, loading = 'lazy' }: Props) {
+export function StickerMedia({ fileUrl, thumbUrl, alt = 'Стикер', className, loading = 'eager' }: Props) {
   const src      = resolveUrl(fileUrl)  ?? fileUrl;
   const fallback = thumbUrl ? (resolveUrl(thumbUrl) ?? thumbUrl) : undefined;
+  // Animated images (GIF/APNG) must always be loaded eagerly — inside overflow-scroll
+  // containers the browser's Intersection Observer uses the document viewport, not the
+  // scroll container, so lazy items are never detected as visible and never animate.
+  const effectiveLoading: 'eager' | 'lazy' = isAnimatedImage(src) ? 'eager' : loading;
 
   if (isVideoUrl(src)) {
     return (
@@ -47,7 +59,7 @@ export function StickerMedia({ fileUrl, thumbUrl, alt = 'Стикер', classNam
       src={src}
       alt={alt}
       className={className}
-      loading={loading}
+      loading={effectiveLoading}
       onError={e => {
         if (fallback && e.currentTarget.src !== fallback) {
           e.currentTarget.src = fallback;

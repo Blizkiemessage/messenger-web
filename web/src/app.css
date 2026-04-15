@@ -1385,6 +1385,32 @@ input { font: inherit; color: inherit; background: transparent; }
   color: var(--accent);
   filter: drop-shadow(0 0 3px color-mix(in srgb, var(--accent) 50%, transparent));
 }
+/* Sending spinner */
+.msgStatus.sending {
+  color: var(--muted);
+  opacity: .7;
+  animation: msgStatusSpin .9s linear infinite;
+  transform-origin: center;
+}
+@keyframes msgStatusSpin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+/* Error badge — looks like a button (reset button styles) */
+.msgStatus.error {
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  color: #e53935;
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+  border-radius: 50%;
+  transition: opacity .15s;
+}
+.msgStatus.error:hover { opacity: .75; }
+.msgStatus.error:active { opacity: .5; }
 
 /* ── "Who read" eye button inside message bubble ───────────────────── */
 .bubbleReadersBtn {

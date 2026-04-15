@@ -80,6 +80,10 @@ export type Message = {
   reply?: MessageReply | null;
   poll_id?: string | null;
   poll?: Poll | null;
+  /** Optimistic-send flag: message is in-flight, not yet confirmed by server. */
+  _pending?: boolean;
+  /** Optimistic-send flag: send failed; user can tap to retry. */
+  _error?: boolean;
 };
 
 export type Chat = {

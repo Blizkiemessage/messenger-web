@@ -91,6 +91,12 @@ interface ChatsState {
   /** Update blocked_by_them on direct chat members when a block event arrives. */
   updateMemberBlockStatus: (blockerId: string, blocked: boolean) => void;
 
+  // ── Optimistic send ────────────────────────────────────────────────────────
+  /** Replace the temporary optimistic message (by tmpId) with the real server message. */
+  confirmMessage: (tmpId: string, real: Message) => void;
+  /** Mark the temporary optimistic message as failed so the user can retry. */
+  failMessage: (tmpId: string) => void;
+
   // ── Scroll target (global search navigation) ───────────────────────────────
   scrollToMessageId: string | null;
   setScrollToMessageId: (id: string | null) => void;
@@ -329,6 +335,30 @@ export const useChatsStore = create<ChatsState>((set) => ({
 
   markChatRead: (chatId) => set(state => ({
     chats: state.chats.map(c => c.id === chatId ? { ...c, unread_count: 0 } : c),
+  })),
+
+  // ── Optimistic send ────────────────────────────────────────────────────────
+
+  confirmMessage: (tmpId, real) => set(state => {
+    // If the socket already delivered this message (race condition), just remove the tmp
+    const alreadyDelivered = state.messages.some(m => m.id === real.id);
+    return {
+      messages: alreadyDelivered
+        ? state.messages.filter(m => m.id !== tmpId)
+        : state.messages.map(m => m.id === tmpId ? { ...real } : m),
+      // Update last_message in chat list
+      chats: state.chats.map(c => c.id === real.chat_id
+        ? { ...c, last_message: real }
+        : c
+      ),
+    };
+  }),
+
+  failMessage: (tmpId) => set(state => ({
+    messages: state.messages.map(m => m.id === tmpId
+      ? { ...m, _pending: false, _error: true }
+      : m
+    ),
   })),
 
   // ── Async ──────────────────────────────────────────────────────────────────

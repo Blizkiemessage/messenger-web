@@ -298,6 +298,7 @@ function VideoAttachment({ url, caption }: { url: string; caption?: string; name
 function VideoNotePlayer({
   url, msgId, isActive, onActivate, onEnded,
   isOwn, isRead, sendTime, isGroup, onViewReaders, senderName, initialDuration,
+  isPending, isError, onRetry,
 }: {
   url: string;
   msgId: string;
@@ -311,6 +312,9 @@ function VideoNotePlayer({
   onViewReaders?: () => void;
   senderName: string;
   initialDuration?: number;
+  isPending?: boolean;
+  isError?: boolean;
+  onRetry?: () => void;
 }) {
   const videoRef    = useRef<HTMLVideoElement>(null);
   const msgRef      = useRef<HTMLDivElement>(null);   // root div for coordinate base
@@ -523,7 +527,7 @@ function VideoNotePlayer({
                   <circle cx="12" cy="12" r="3"/>
                 </svg>
               </button>
-            : <MsgStatus isRead={isRead} />
+            : <MsgStatus isRead={isRead} isPending={isPending} isError={isError} onRetry={onRetry} />
           }
         </div>
       )}
@@ -549,8 +553,8 @@ function extractFirstUrl(text: string | null | undefined): string | null {
 
 // ── Audio player for voice messages ──────────────────────────────────────────
 function AudioPlayer({
-  url, isOwn, isRead, sendTime, msgId, senderName, initialDuration,
-}: { url: string; isOwn: boolean; isRead: boolean; sendTime: number; msgId: string; senderName: string; initialDuration?: number }) {
+  url, isOwn, isRead, sendTime, msgId, senderName, initialDuration, isPending, isError, onRetry,
+}: { url: string; isOwn: boolean; isRead: boolean; sendTime: number; msgId: string; senderName: string; initialDuration?: number; isPending?: boolean; isError?: boolean; onRetry?: () => void }) {
   const audioRef    = useRef<HTMLAudioElement>(null);
   const trackRef    = useRef<HTMLDivElement>(null);
   const draggingRef = useRef(false);
@@ -713,7 +717,7 @@ function AudioPlayer({
           <span className="voiceMsgTime">{timeLabel}</span>
           <div className="voiceMsgSendMeta">
             <span className="voiceMsgSendTime">{formatTime(sendTime)}</span>
-            {isOwn && <MsgStatus isRead={isRead} />}
+            {isOwn && <MsgStatus isRead={isRead} isPending={isPending} isError={isError} onRetry={onRetry} />}
           </div>
         </div>
       </div>
@@ -829,6 +833,8 @@ interface Props {
   onVideoNoteActivate?: (msgId: string) => void;
   onVideoNoteEnded?: (msgId: string) => void;
   onStickerPackClick?: (packId: string) => void;
+  /** Called when user taps the error badge to retry a failed optimistic send. */
+  onRetry?: () => void;
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
@@ -838,6 +844,7 @@ export function MessageBubble({
   meId, onContextMenu, onClick, onViewUser, onForwardedSenderClick,
   onReact, onScrollToMessage, onVote, onRetract, onViewVoters, meUsername, members, onViewReaders,
   activeVideoNoteId, onVideoNoteActivate, onVideoNoteEnded, onStickerPackClick,
+  onRetry,
 }: Props) {
   const hasAttachment = !!m.attachment_url;
   const isImage     = m.attachment_type === 'image';
@@ -990,6 +997,9 @@ export function MessageBubble({
             onViewReaders={onViewReaders}
             senderName={playerSenderName}
             initialDuration={m.attachment_duration ?? undefined}
+            isPending={m._pending}
+            isError={m._error}
+            onRetry={onRetry}
           />
         )}
         {isAudio && (
@@ -1001,6 +1011,9 @@ export function MessageBubble({
             msgId={m.id}
             senderName={playerSenderName}
             initialDuration={m.attachment_duration ?? undefined}
+            isPending={m._pending}
+            isError={m._error}
+            onRetry={onRetry}
           />
         )}
         {isImage && (
@@ -1103,7 +1116,7 @@ export function MessageBubble({
                   </svg>
                 </button>
               )}
-              {isOwn && <MsgStatus isRead={isRead} />}
+              {isOwn && <MsgStatus isRead={isRead} isPending={m._pending} isError={m._error} onRetry={onRetry} />}
             </div>
           </div>
         )}

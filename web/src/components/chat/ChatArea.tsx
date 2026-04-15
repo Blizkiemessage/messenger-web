@@ -359,6 +359,42 @@ export function ChatArea() {
     scheduleMarkRead(chatId, readUntil);
   }, []);
 
+  // ── Optimistic send helper ────────────────────────────────────────────────
+  // Creates a temporary message immediately, then confirms or fails it.
+  type SendPayload = Parameters<typeof sendChatMessage>[1];
+  const sendOptimistic = useCallback(async (
+    chatId: string,
+    payload: SendPayload,
+    extra: Partial<Message> = {},
+  ) => {
+    const meUser = useSessionStore.getState().me;
+    if (!meUser) return;
+    const tmpId = `tmp_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+    const tmpMsg: Message = {
+      id:              tmpId,
+      chat_id:         chatId,
+      sender_id:       meUser.id,
+      text:            payload.text ?? '',
+      created_at:      Date.now(),
+      attachment_url:  payload.attachment_url ?? null,
+      attachment_type: payload.attachment_type ?? null,
+      attachment_name: payload.attachment_name ?? null,
+      attachment_size: payload.attachment_size ?? null,
+      attachment_duration: payload.attachment_duration ?? null,
+      attachment_meta: payload.attachment_meta ?? null,
+      reply:           (payload.reply as Message['reply']) ?? null,
+      _pending:        true,
+      ...extra,
+    };
+    useChatsStore.getState().addMessage(tmpMsg);
+    try {
+      const real = await sendChatMessage(chatId, payload);
+      useChatsStore.getState().confirmMessage(tmpId, real);
+    } catch {
+      useChatsStore.getState().failMessage(tmpId);
+    }
+  }, []); // eslint-disable-line
+
   // ── Send text (with auto-split) ───────────────────────────────────────────
   const handleSend = useCallback(async () => {
     const text = messageText.trim();
@@ -394,18 +430,18 @@ export function ChatArea() {
     } : undefined;
     setReplyTo(null);
     for (let i = 0; i < parts.length; i++) {
-      await sendChatMessage(chatId, {
+      await sendOptimistic(chatId, {
         text: parts[i],
         reply: i === 0 ? replyPayload : undefined,
       });
     }
-  }, [messageText, replyTo, editingId]);
+  }, [messageText, replyTo, editingId, sendOptimistic]);
 
   // ── Send attachment ───────────────────────────────────────────────────────
   const handleSendAttachment = useCallback(async (result: UploadResult, caption: string) => {
     const chatId = useChatsStore.getState().activeChatId;
     if (!chatId) return;
-    await sendChatMessage(chatId, {
+    await sendOptimistic(chatId, {
       text: caption.trim() || '',
       attachment_url:      result.url,
       attachment_type:     result.type,
@@ -413,26 +449,53 @@ export function ChatArea() {
       attachment_size:     result.size,
       attachment_duration: result.duration ?? null,
     });
-  }, []);
+  }, [sendOptimistic]);
 
   // ── Send GIF ─────────────────────────────────────────────────────────────
   const handleSendGif = useCallback(async (url: string) => {
     const chatId = useChatsStore.getState().activeChatId;
     if (!chatId) return;
-    await sendChatMessage(chatId, { text: '', attachment_url: url, attachment_type: 'gif_tenor', attachment_name: 'gif' });
-  }, []);
+    await sendOptimistic(chatId, { text: '', attachment_url: url, attachment_type: 'gif_tenor', attachment_name: 'gif' });
+  }, [sendOptimistic]);
 
   // ── Send sticker ─────────────────────────────────────────────────────────
   const handleSendSticker = useCallback(async (url: string, itemId: string, packId: string) => {
     const chatId = useChatsStore.getState().activeChatId;
     if (!chatId) return;
-    await sendChatMessage(chatId, {
+    await sendOptimistic(chatId, {
       text: '',
       attachment_url:  url,
       attachment_type: 'sticker',
       attachment_name: 'sticker',
       attachment_meta: JSON.stringify({ itemId, packId }),
     });
+  }, [sendOptimistic]);
+
+  // ── Retry failed optimistic message ──────────────────────────────────────
+  const handleRetryMessage = useCallback(async (msgId: string) => {
+    const { messages, activeChatId: chatId } = useChatsStore.getState();
+    if (!chatId) return;
+    const msg = messages.find(m => m.id === msgId);
+    if (!msg?._error) return;
+    // Mark as pending again while retrying
+    useChatsStore.getState().setMessages(
+      messages.map(m => m.id === msgId ? { ...m, _pending: true, _error: false } : m)
+    );
+    try {
+      const real = await sendChatMessage(chatId, {
+        text:            msg.text || '',
+        attachment_url:  msg.attachment_url ?? undefined,
+        attachment_type: msg.attachment_type ?? undefined,
+        attachment_name: msg.attachment_name ?? undefined,
+        attachment_size: msg.attachment_size ?? undefined,
+        attachment_duration: msg.attachment_duration ?? undefined,
+        attachment_meta: msg.attachment_meta ?? undefined,
+        reply:           msg.reply ?? undefined,
+      });
+      useChatsStore.getState().confirmMessage(msgId, real);
+    } catch {
+      useChatsStore.getState().failMessage(msgId);
+    }
   }, []);
 
   // ── Studio modal ──────────────────────────────────────────────────────────
@@ -677,6 +740,7 @@ export function ChatArea() {
         onMarkRead={handleMarkRead}
         onAtBottomChange={setChatAtBottom}
         onScrollToBottomRef={(fn) => { scrollToBottomFnRef.current = fn; }}
+        onRetryMessage={handleRetryMessage}
       />
 
       {/* Scroll-to-bottom button — position:absolute inside chatAreaInner (position:relative).
