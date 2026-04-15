@@ -11,7 +11,7 @@ import { useStickerStore } from '../../store/useStickerStore';
 const CUSTOM_EMOJI_RE = /:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}:/gi;
 
 /** Split text into plain-string and custom-emoji segments */
-function parseInlineEmoji(text: string, packItems: Record<string, { id: string; file_url?: string; thumb_url?: string }[]>) {
+function parseInlineEmoji(text: string, packItems: Record<string, { id: string; file_url?: string | null; thumb_url?: string | null }[]>) {
   const nodes: React.ReactNode[] = [];
   let last = 0;
   const re = new RegExp(CUSTOM_EMOJI_RE.source, 'gi');
