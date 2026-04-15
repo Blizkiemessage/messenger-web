@@ -89,7 +89,11 @@ router.post('/:chatId/messages', msgLimiter, (req, res, next) => {
 
     // Fire-and-forget push to offline members
     const { fireAndForgetPush } = require('../services/pushService');
-    fireAndForgetPush(req.params.chatId, req.userId, hasText ? text.trim() : '', io);
+    fireAndForgetPush(req.params.chatId, req.userId, {
+      text:            hasText ? text.trim() : '',
+      attachment_type: attachment_type || null,
+      attachment_meta: (typeof attachment_meta === 'string' ? attachment_meta : null),
+    }, io);
 
     res.status(201).json(msg);
   } catch (err) { next(err); }

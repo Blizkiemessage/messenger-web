@@ -35,6 +35,7 @@ export function StickerMedia({ fileUrl, thumbUrl, alt = 'Стикер', classNam
         loop
         muted
         playsInline
+        preload="auto"
         className={className}
         style={{ display: 'block', width: '100%', height: '100%', objectFit: 'contain' }}
       />

@@ -75,8 +75,9 @@ export const useStickerStore = create<StickerStore>((set, get) => ({
         const emojiPacks   = packs.filter(p => p.type === 'emoji');
         set({ installedPacks: packs, stickerPacks, emojiPacks });
         _fetchPacksLastAt = Date.now();
-        // Pre-fetch emoji pack items so inline emojis resolve immediately
-        for (const p of emojiPacks) {
+        // Pre-fetch ALL pack items eagerly — emoji for inline rendering,
+        // stickers so the picker opens instantly and chat stickers resolve
+        for (const p of packs) {
           if (!get().packItems[p.id]) get().fetchPackItems(p.id);
         }
       } finally {

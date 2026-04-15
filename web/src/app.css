@@ -8464,7 +8464,8 @@ input[type="date"].psInput::-webkit-calendar-picker-indicator {
   transition: background .15s;
 }
 .stickerItem:hover { background: var(--accent-dim); }
-.stickerItem img { max-width: 100%; max-height: 100%; object-fit: contain; }
+.stickerItem img,
+.stickerItem video { max-width: 100%; max-height: 100%; object-fit: contain; display: block; }
 
 .stickerEmpty {
   grid-column: 1 / -1;

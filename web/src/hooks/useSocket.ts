@@ -8,6 +8,7 @@ import { connectSocket, disconnectSocket, getSocket } from '../socket/socketClie
 import { markChatRead as apiMarkChatRead } from '../api/chats';
 import { useSessionStore } from '../store/useSessionStore';
 import { useChatsStore } from '../store/useChatsStore';
+import { useStickerStore } from '../store/useStickerStore';
 import { registerPush } from '../utils/push';
 
 let _markReadTimer: ReturnType<typeof setTimeout> | null = null;
@@ -54,6 +55,8 @@ export function useSocket() {
         onlineUsers: new Set<string>(),
         typingUsers: new Map<string, string[]>(),
       });
+      // Eagerly warm up sticker/emoji cache so packs open instantly
+      useStickerStore.getState().fetchInstalledPacks();
     };
     socket.on('connect', onConnect);
 

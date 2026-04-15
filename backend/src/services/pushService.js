@@ -1,14 +1,65 @@
 const { getDb } = require('../config/database');
 const { sendPush } = require('../utils/webPush');
 
+const CUSTOM_EMOJI_RE = /:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}:/gi;
+
+/**
+ * Build a human-readable notification body from message data.
+ * Resolves :packId:itemId: custom emoji to their emoji_hint from the DB.
+ */
+function buildBody(db, { text, attachment_type, attachment_meta }) {
+  // Sticker → look up emoji_hint or fallback icon
+  if (attachment_type === 'sticker') {
+    try {
+      const meta = JSON.parse(attachment_meta || '{}');
+      if (meta.itemId) {
+        const item = db.prepare('SELECT emoji_hint FROM sticker_pack_items WHERE id = ?').get(meta.itemId);
+        if (item?.emoji_hint) return `${item.emoji_hint} Стикер`;
+      }
+    } catch { /* ignore bad json */ }
+    return '🎭 Стикер';
+  }
+
+  // Other non-text attachments
+  if (!text && attachment_type) {
+    const icons = {
+      image:      '📷 Фото',
+      video:      '🎥 Видео',
+      video_note: '🎥 Видеосообщение',
+      audio:      '🎵 Аудио',
+      gif_tenor:  '🎞 GIF',
+      gif_custom: '🎞 GIF',
+    };
+    return icons[attachment_type] || '📎 Вложение';
+  }
+
+  if (!text) return '📎 Вложение';
+
+  // Resolve :packId:itemId: → emoji_hint in text
+  CUSTOM_EMOJI_RE.lastIndex = 0;
+  const resolved = text.replace(CUSTOM_EMOJI_RE, (match) => {
+    try {
+      const inner = match.slice(1, -1);               // "packId:itemId"
+      const itemId = inner.slice(inner.indexOf(':') + 1);
+      const row = db.prepare('SELECT emoji_hint FROM sticker_pack_items WHERE id = ?').get(itemId);
+      return row?.emoji_hint || '😊';
+    } catch { return '😊'; }
+  });
+
+  return resolved.slice(0, 120);
+}
+
 /**
  * Fire-and-forget: send push notifications to offline members of a chat.
  * @param {string} chatId
- * @param {string} senderId  — the user who sent the message (skip them)
- * @param {string} text      — plain-text message body (truncated)
- * @param {object} io        — Socket.IO server instance (has io.onlineUsers Map)
+ * @param {string} senderId   — the user who sent the message (skip them)
+ * @param {object} msgData    — { text, attachment_type, attachment_meta }
+ * @param {object} io         — Socket.IO server instance (has io.onlineUsers Map)
  */
-function fireAndForgetPush(chatId, senderId, text, io) {
+function fireAndForgetPush(chatId, senderId, msgData, io) {
+  // Back-compat: old callers may pass a plain string
+  if (typeof msgData === 'string') msgData = { text: msgData, attachment_type: null, attachment_meta: null };
+
   setImmediate(async () => {
     try {
       const db = getDb();
@@ -42,7 +93,7 @@ function fireAndForgetPush(chatId, senderId, text, io) {
       const senderName = sender?.display_name || sender?.username || 'Новое сообщение';
 
       // 4. Build notification payload
-      const body = text ? text.slice(0, 120) : '📎 Вложение';
+      const body = buildBody(db, msgData);
       const payload = { title: senderName, body, chatId };
 
       // 5. Load subscriptions and send
