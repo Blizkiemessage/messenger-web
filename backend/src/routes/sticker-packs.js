@@ -51,6 +51,7 @@ async function saveFile(buffer, mime, prefix) {
       Body:   buffer,
       ContentType: mime,
       ContentDisposition: 'inline',
+      ACL: 'public-read',
     }));
     const publicUrl = process.env.S3_PUBLIC_URL.replace(/\/+$/, '');
     return `${publicUrl}/${filename}`;
