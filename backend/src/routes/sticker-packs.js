@@ -350,12 +350,23 @@ router.post('/:id/logo', upload.single('file'), async (req, res) => {
     if (pack.owner_id !== req.user.id) return res.status(403).json({ error: 'Forbidden' });
 
     const mime     = req.file.mimetype;
+    const origname = (req.file.originalname || '').toLowerCase();
     const isVideo  = mime.startsWith('video/');
-    const isGif    = mime === 'image/gif' || mime === 'image/apng';
     const isSvg    = mime === 'image/svg+xml';
+    const isGif    = mime === 'image/gif' || mime === 'image/apng'
+      || origname.endsWith('.gif') || origname.endsWith('.apng');
+
+    // Content-based animation fallback (handles wrong MIME from browser)
+    let isContentAnimated = isGif;
+    if (!isContentAnimated && !isVideo && !isSvg) {
+      try {
+        const meta = await sharp(req.file.buffer, { animated: true }).metadata();
+        isContentAnimated = (meta.pages ?? 1) > 1;
+      } catch { /* not detectable */ }
+    }
 
     let fileBuffer, fileMime;
-    if (isGif || isVideo || isSvg) {
+    if (isContentAnimated || isVideo || isSvg) {
       fileBuffer = req.file.buffer;
       fileMime   = mime;
     } else {
@@ -412,18 +423,38 @@ router.post('/:id/items', upload.single('file'), async (req, res) => {
     if (!pack) return res.status(404).json({ error: 'Pack not found' });
     if (pack.owner_id !== req.user.id) return res.status(403).json({ error: 'Forbidden' });
 
-    const mime = req.file.mimetype;
+    const mime     = req.file.mimetype;
+    const origname = (req.file.originalname || '').toLowerCase();
     const isVideo  = mime.startsWith('video/');
-    const isGif    = mime === 'image/gif' || mime === 'image/apng';
     const isSvg    = mime === 'image/svg+xml';
+
+    // MIME-type detection (browser-reported, can be unreliable on some OS/browsers)
+    const isGif = mime === 'image/gif' || mime === 'image/apng'
+      || origname.endsWith('.gif') || origname.endsWith('.apng');
 
     // Detect animated WebP via sharp metadata
     let isAnimatedWebP = false;
-    if (mime === 'image/webp') {
+    if (!isGif && mime === 'image/webp') {
       try {
         const meta = await sharp(req.file.buffer, { animated: true }).metadata();
         isAnimatedWebP = (meta.pages ?? 1) > 1;
       } catch { /* treat as static */ }
+    }
+
+    // Content-based animation detection — final fallback when MIME type is wrong
+    // (e.g. browser reports application/octet-stream for a .gif file on some systems)
+    let isContentAnimated = isGif || isAnimatedWebP;
+    let detectedMime = mime;
+    if (!isContentAnimated && !isVideo && !isSvg) {
+      try {
+        const meta = await sharp(req.file.buffer, { animated: true }).metadata();
+        if ((meta.pages ?? 1) > 1) {
+          isContentAnimated = true;
+          // Use format detected from file content to pick the right MIME / extension
+          const FMT_MIME = { gif: 'image/gif', webp: 'image/webp', png: 'image/png', apng: 'image/apng' };
+          detectedMime = FMT_MIME[meta.format] || mime;
+        }
+      } catch { /* not detectable — treat as static */ }
     }
 
     // ── Enforce 100-sticker limit per pack ───────────────────────────────────
@@ -436,10 +467,10 @@ router.post('/:id/items', upload.single('file'), async (req, res) => {
 
     // ── Process full-size sticker ────────────────────────────────────────────
     let fileBuffer, fileMime;
-    if (isGif || isAnimatedWebP || isVideo || isSvg) {
+    if (isContentAnimated || isVideo || isSvg) {
       // Pass through: animated GIF/WebP/APNG, video, SVG — no recompression
       fileBuffer = req.file.buffer;
-      fileMime   = mime;
+      fileMime   = isContentAnimated && detectedMime !== mime ? detectedMime : mime;
     } else {
       // Static raster → resize max 512×512, convert to WebP
       try {
