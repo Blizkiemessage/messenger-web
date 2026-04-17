@@ -377,7 +377,19 @@ router.post('/:id/logo', upload.single('file'), async (req, res) => {
           const compressed = await sharp(req.file.buffer, { animated: true })
             .webp({ quality: 85, effort: 4 })
             .toBuffer();
-          if (compressed.length < fileBuffer.length) {
+
+          // Validate the converted WebP — sharp can silently produce a 1-frame
+          // (static) or corrupt blob when libvips gif support is incomplete.
+          let convertedIsValid = false;
+          if (compressed.length > 1024) {
+            try {
+              const meta = await sharp(compressed, { animated: true }).metadata();
+              convertedIsValid = (meta.pages ?? 1) > 1;
+            } catch { /* can't verify — treat as invalid */ }
+          }
+
+          // Only swap if truly animated, valid, AND smaller than the original
+          if (convertedIsValid && compressed.length < fileBuffer.length) {
             fileBuffer = compressed;
             fileMime   = 'image/webp';
           }
@@ -493,8 +505,23 @@ router.post('/:id/items', upload.single('file'), async (req, res) => {
           const compressed = await sharp(req.file.buffer, { animated: true })
             .webp({ quality: 85, effort: 4 })
             .toBuffer();
-          // Only swap if actually smaller (WebP is almost always smaller than GIF)
-          if (compressed.length < fileBuffer.length) {
+
+          // ── Validate the converted WebP before accepting it ──────────────
+          // sharp can silently produce a 1-frame (static) or corrupt WebP when
+          // libvips gif support is incomplete or the source GIF is unusual.
+          // A broken WebP causes the browser to fire <img onError>, which then
+          // shows the stk-thumb- fallback instead of the animated sticker.
+          let convertedIsValid = false;
+          if (compressed.length > 1024) { // at least 1 KB — reject empty/tiny blobs
+            try {
+              const meta = await sharp(compressed, { animated: true }).metadata();
+              // Accept only if the output is truly animated (multiple frames)
+              convertedIsValid = (meta.pages ?? 1) > 1;
+            } catch { /* can't verify — treat as invalid */ }
+          }
+
+          // Only swap if the conversion is valid, truly animated, AND smaller
+          if (convertedIsValid && compressed.length < fileBuffer.length) {
             fileBuffer = compressed;
             fileMime   = 'image/webp';
           }
@@ -544,7 +571,9 @@ router.post('/:id/items', upload.single('file'), async (req, res) => {
     ).run([itemId, req.params.id, fileUrl, thumbUrl, emojiHint, keywords, maxOrder + 1, Date.now()]);
 
     // Mark pack as animated if needed
-    const isAnimated = isGif || isAnimatedWebP;
+    // Use isContentAnimated so content-based detection (e.g. animated WebP without the right MIME)
+    // also triggers the flag — not just the extension/MIME heuristic variables.
+    const isAnimated = isContentAnimated;
     if (isAnimated && !pack.is_animated) {
       db.prepare('UPDATE sticker_packs SET is_animated = 1, updated_at = ? WHERE id = ?')
         .run([Date.now(), req.params.id]);
