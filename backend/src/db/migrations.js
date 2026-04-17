@@ -283,6 +283,9 @@ function runMigrations() {
       amount INTEGER NOT NULL,
       created_at INTEGER NOT NULL DEFAULT 0
     )`,
+    // ✅ NEW: original upload URL for sticker items — enables self-healing re-conversion
+    // without asking users to re-upload (see POST /admin/api/sticker-repair).
+    'ALTER TABLE sticker_pack_items ADD COLUMN orig_url TEXT',
   ];
 
   for (const sql of alters) {

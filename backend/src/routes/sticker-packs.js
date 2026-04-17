@@ -101,8 +101,11 @@ function mapPack(r) {
   return { ...r, is_public: !!r.is_public, is_animated: !!r.is_animated, is_deleted: !!r.is_deleted };
 }
 function mapItem(r) {
+  // orig_url is an internal field — it holds the unmodified original upload and
+  // is only used by the admin repair endpoint. Strip it from all public responses.
+  const { orig_url, ...rest } = r;
   return {
-    ...r,
+    ...rest,
     keywords: r.keywords ? JSON.parse(r.keywords) : null,
   };
 }
@@ -491,6 +494,12 @@ router.post('/:id/items', upload.single('file'), async (req, res) => {
       return res.status(400).json({ error: 'pack_item_limit', message: 'Максимум 100 стикеров на пак' });
     }
 
+    // ── Save original upload (for self-healing re-conversion) ───────────────
+    // Stored as stk-orig-{uuid} and never modified after upload.
+    // The admin /sticker-repair endpoint uses this to regenerate a working
+    // file_url without requiring the user to re-upload.
+    const origUrl = await saveFile(req.file.buffer, mime, 'stk-orig');
+
     // ── Process full-size sticker ────────────────────────────────────────────
     let fileBuffer, fileMime;
     if (isContentAnimated || isVideo || isSvg) {
@@ -566,9 +575,9 @@ router.post('/:id/items', upload.single('file'), async (req, res) => {
     ).get([req.params.id]).m;
 
     db.prepare(`INSERT INTO sticker_pack_items
-      (id, pack_id, file_url, thumb_url, emoji_hint, keywords, sort_order, created_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
-    ).run([itemId, req.params.id, fileUrl, thumbUrl, emojiHint, keywords, maxOrder + 1, Date.now()]);
+      (id, pack_id, file_url, thumb_url, orig_url, emoji_hint, keywords, sort_order, created_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+    ).run([itemId, req.params.id, fileUrl, thumbUrl, origUrl, emojiHint, keywords, maxOrder + 1, Date.now()]);
 
     // Mark pack as animated if needed
     // Use isContentAnimated so content-based detection (e.g. animated WebP without the right MIME)
