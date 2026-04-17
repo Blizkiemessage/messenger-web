@@ -141,7 +141,7 @@ interface Props {
   onSend: () => void;
   onSendAttachment: (result: UploadResult, caption: string) => Promise<void>;
   onSendGif?: (url: string) => Promise<void>;
-  externalFile?: File | null;
+  externalFiles?: File[] | null;
   onExternalFileConsumed?: () => void;
   disabled?: boolean;
   isGroup?: boolean;
@@ -162,18 +162,19 @@ const LOCK_THRESHOLD = 60;
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
-export function Composer({ value, onChange, onSend, onSendAttachment, externalFile, onExternalFileConsumed, disabled, isGroup, onOpenPollCreator, onSendGif, onSendSticker, onOpenStudio, onTypingStart, onTypingStop, editingMessageId, onCancelEdit, members, blockedByThem, partnerName }: Props) {
-  // File staging
-  const [staged,    setStaged]    = useState<File | null>(null);
-  const [caption,   setCaption]   = useState('');
-  const [progress,  setProgress]  = useState(0);
-  const [uploading, setUploading] = useState(false);
-  const [uploadErr, setUploadErr] = useState<string | null>(null);
+export function Composer({ value, onChange, onSend, onSendAttachment, externalFiles, onExternalFileConsumed, disabled, isGroup, onOpenPollCreator, onSendGif, onSendSticker, onOpenStudio, onTypingStart, onTypingStop, editingMessageId, onCancelEdit, members, blockedByThem, partnerName }: Props) {
+  // Multi-file staging
+  const [stagedFiles,  setStagedFiles]  = useState<File[]>([]);
+  const [thumbUrls,    setThumbUrls]    = useState<(string | null)[]>([]);
+  const [caption,      setCaption]      = useState('');
+  const [progresses,   setProgresses]   = useState<number[]>([]);
+  const [uploading,    setUploading]    = useState(false);
+  const [uploadErr,    setUploadErr]    = useState<string | null>(null);
 
   const fileInputRef    = useRef<HTMLInputElement>(null);
   const captionInputRef = useRef<HTMLInputElement>(null);
   const editorRef       = useRef<HTMLDivElement>(null);
-  const cancelRef       = useRef<(() => void) | null>(null);
+  const cancelRefs      = useRef<Array<() => void>>([]);
   // Track last markdown value to avoid external-value → innerHTML → onChange loops
   const lastMdRef       = useRef(value);
   // Track Range start for @mention detection
@@ -292,8 +293,8 @@ export function Composer({ value, onChange, onSend, onSendAttachment, externalFi
   }, [onChange]);
 
   useEffect(() => {
-    if (externalFile) { stageFile(externalFile); onExternalFileConsumed?.(); }
-  }, [externalFile]); // eslint-disable-line
+    if (externalFiles && externalFiles.length > 0) { addFiles(externalFiles); onExternalFileConsumed?.(); }
+  }, [externalFiles]); // eslint-disable-line
 
   // Sync external value changes → innerHTML (but not changes caused by typing)
   useEffect(() => {
@@ -313,38 +314,84 @@ export function Composer({ value, onChange, onSend, onSendAttachment, externalFi
     } catch { /* ignore */ }
   }, [value]);
 
+  function addFiles(files: File[]) {
+    setStagedFiles(prev => [...prev, ...files]);
+    if (files.length > 0) setTimeout(() => captionInputRef.current?.focus(), 80);
+  }
+
   function stageFile(file: File) {
-    setStaged(file); setCaption(''); setProgress(0); setUploadErr(null);
+    setStagedFiles([]);
+    setCaption('');
+    setProgresses([]);
+    setUploadErr(null);
+    setStagedFiles([file]);
     setTimeout(() => captionInputRef.current?.focus(), 80);
   }
 
+  function removeFile(idx: number) {
+    setStagedFiles(prev => prev.filter((_, i) => i !== idx));
+  }
+
   const clearStage = useCallback(() => {
-    setStaged(null); setCaption(''); setProgress(0); setUploadErr(null);
+    setStagedFiles([]); setCaption(''); setProgresses([]); setUploadErr(null);
     setTimeout(() => editorRef.current?.focus(), 60);
   }, []);
 
   const handleCancelUpload = useCallback(() => {
-    cancelRef.current?.(); cancelRef.current = null;
+    cancelRefs.current.forEach(c => c?.());
+    cancelRefs.current = [];
     setUploading(false); clearStage();
   }, [clearStage]);
 
   const handleSendFile = useCallback(async (fileOverride?: File, captionOverride?: string, durationHint?: number) => {
-    const f = fileOverride ?? staged;
-    const c = captionOverride !== undefined ? captionOverride : caption;
+    const f = fileOverride;
+    const c = captionOverride !== undefined ? captionOverride : '';
     if (!f || uploading) return;
-    setUploading(true); setProgress(0); setUploadErr(null);
-    const task = uploadFile(f, pct => setProgress(pct));
-    cancelRef.current = task.cancel;
+    setUploading(true); setProgresses([0]); setUploadErr(null);
+    const task = uploadFile(f, pct => setProgresses([pct]));
+    cancelRefs.current = [task.cancel];
     try {
       const result = await task.promise;
       await onSendAttachment(durationHint ? { ...result, duration: durationHint } : result, c);
+    } catch (e: any) {
+      if (e?.message !== 'Загрузка отменена') { setUploadErr(e?.message ?? 'Ошибка загрузки'); setProgresses([0]); }
+    } finally {
+      setUploading(false); cancelRefs.current = [];
+    }
+  }, [uploading, onSendAttachment]);
+
+  const handleSendFiles = useCallback(async () => {
+    if (stagedFiles.length === 0 || uploading) return;
+    setUploading(true); setUploadErr(null);
+    const allFiles = [...stagedFiles];
+    const captionText = caption.trim();
+    const initProgresses = new Array(allFiles.length).fill(0);
+    setProgresses(initProgresses);
+    cancelRefs.current = [];
+    try {
+      for (let batchStart = 0; batchStart < allFiles.length; batchStart += 10) {
+        const batch = allFiles.slice(batchStart, batchStart + 10);
+        const tasks = batch.map((file, i) => {
+          const globalIdx = batchStart + i;
+          const task = uploadFile(file, pct => {
+            setProgresses(prev => { const next = [...prev]; next[globalIdx] = pct; return next; });
+          });
+          cancelRefs.current[globalIdx] = task.cancel;
+          return task.promise;
+        });
+        const results = await Promise.all(tasks);
+        for (let i = 0; i < results.length; i++) {
+          const isFirst = batchStart === 0 && i === 0;
+          await onSendAttachment(results[i], isFirst ? captionText : '');
+        }
+      }
       clearStage();
     } catch (e: any) {
-      if (e?.message !== 'Загрузка отменена') { setUploadErr(e?.message ?? 'Ошибка загрузки'); setProgress(0); }
+      if (e?.message !== 'Загрузка отменена') { setUploadErr(e?.message ?? 'Ошибка загрузки'); }
     } finally {
-      setUploading(false); cancelRef.current = null;
+      setUploading(false); cancelRefs.current = [];
     }
-  }, [staged, caption, uploading, onSendAttachment, clearStage]);
+  }, [stagedFiles, caption, uploading, onSendAttachment, clearStage]);
 
   // ── Recording mode: audio | video ─────────────────────────────────────────
   const [recordMode, setRecordMode] = useState<'audio' | 'video'>('audio');
@@ -704,7 +751,14 @@ export function Composer({ value, onChange, onSend, onSendAttachment, externalFi
     } catch { /* camera switch failed, continue with existing */ }
   }, []);
 
-  const isFileMode = !!staged;
+  // Generate / revoke object URLs for image thumbnails
+  useEffect(() => {
+    const urls = stagedFiles.map(f => f.type.startsWith('image/') ? URL.createObjectURL(f) : null);
+    setThumbUrls(urls);
+    return () => { urls.forEach(u => u && URL.revokeObjectURL(u)); };
+  }, [stagedFiles]);
+
+  const isFileMode = stagedFiles.length > 0;
   const canSend    = isFileMode ? !uploading : (!!value.trim() && !disabled);
 
   // When videoState becomes 'recording', the overlay mounts and the viewfinder <video> element appears.
@@ -799,39 +853,77 @@ export function Composer({ value, onChange, onSend, onSendAttachment, externalFi
         />
       )}
 
-      <input ref={fileInputRef} type="file" accept="*/*" style={{ display: 'none' }}
-        onChange={e => { const f = e.target.files?.[0]; if (f) stageFile(f); e.target.value = ''; }} />
+      <input ref={fileInputRef} type="file" accept="*/*" multiple style={{ display: 'none' }}
+        onChange={e => { const files = Array.from(e.target.files ?? []); if (files.length) addFiles(files); e.target.value = ''; }} />
 
-      {/* File staging card */}
-      {staged && (
+      {/* Multi-file staging card */}
+      {stagedFiles.length > 0 && (
         <div className={`fileStagingCard${uploading ? ' fileStagingUploading' : ''}`}>
-          <div className="fileStagingRow">
-            <FileIconBadge name={staged.name} size={48} />
-            <div className="fileStagingMeta">
-              <div className="fileStagingName" title={staged.name}>{staged.name}</div>
-              <div className="fileStagingSize">{formatFileSize(staged.size)}</div>
-            </div>
+          {/* Header row */}
+          <div className="fileStagingHeader">
+            <span className="fileStagingCount">
+              {stagedFiles.length} {stagedFiles.length === 1 ? 'файл' : stagedFiles.length < 5 ? 'файла' : 'файлов'}
+              {stagedFiles.length > 10 && (
+                <span className="fileStagingBatchHint"> · отправится {Math.ceil(stagedFiles.length / 10)} сообщениями</span>
+              )}
+            </span>
             {uploading ? (
               <button className="fileStagingCancel" onClick={handleCancelUpload} title="Отменить">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
                   <rect x="3" y="3" width="18" height="18" rx="3"/>
                   <line x1="9" y1="9" x2="15" y2="15"/><line x1="15" y1="9" x2="9" y2="15"/>
                 </svg>
+                Отмена
               </button>
             ) : (
-              <button className="fileStagingRemove" onClick={clearStage} title="Убрать файл">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+              <button className="fileStagingRemove" onClick={clearStage} title="Убрать все">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
                   <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                </svg>
+                Убрать все
+              </button>
+            )}
+          </div>
+
+          {/* Scrollable thumbnails row */}
+          <div className="fileStagingMultiList">
+            {stagedFiles.map((file, idx) => (
+              <div key={idx} className="fileStagingMultiItem">
+                {thumbUrls[idx] ? (
+                  <img src={thumbUrls[idx]!} className="fileStagingThumb" alt={file.name} />
+                ) : (
+                  <div className="fileStagingMultiIcon">
+                    <FileIconBadge name={file.name} size={30} />
+                  </div>
+                )}
+                {uploading && (
+                  <div className="fileStagingThumbOverlay">
+                    <div className="fileStagingThumbProgressFill" style={{ height: `${100 - (progresses[idx] ?? 0)}%` }} />
+                    {(progresses[idx] ?? 0) < 100 && (
+                      <span className="fileStagingThumbPct">{progresses[idx] ?? 0}%</span>
+                    )}
+                  </div>
+                )}
+                {!uploading && (
+                  <button className="fileStagingMultiRemove" onClick={() => removeFile(idx)} title="Убрать">
+                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round">
+                      <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                    </svg>
+                  </button>
+                )}
+                <div className="fileStagingMultiName" title={file.name}>{file.name}</div>
+              </div>
+            ))}
+            {/* Add more button */}
+            {!uploading && (
+              <button className="fileStagingAddMore" onClick={() => fileInputRef.current?.click()} title="Добавить ещё">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                  <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
                 </svg>
               </button>
             )}
           </div>
-          {uploading && (
-            <div className="fileProgressTrack">
-              <div className="fileProgressFill" style={{ width: `${progress}%` }} />
-              <span className="fileProgressPct">{progress}%</span>
-            </div>
-          )}
+
           {uploadErr && (
             <div className="fileStagingErr">
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
@@ -844,7 +936,7 @@ export function Composer({ value, onChange, onSend, onSendAttachment, externalFi
             onChange={e => setCaption(e.target.value)} placeholder="Добавить подпись…"
             disabled={uploading} maxLength={1000}
             onKeyDown={e => {
-              if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSendFile(); }
+              if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSendFiles(); }
               if (e.key === 'Escape') clearStage();
             }} />
         </div>
@@ -1113,7 +1205,7 @@ export function Composer({ value, onChange, onSend, onSendAttachment, externalFi
                   contentEditable={!isFileMode && !disabled ? 'true' : 'false'}
                   suppressContentEditableWarning
                   className="composerInput"
-                  data-placeholder={uploading ? `Загрузка… ${progress}%` : isFileMode ? 'Файл готов к отправке' : 'Сообщение…'}
+                  data-placeholder={uploading ? `Загрузка…` : isFileMode ? 'Файлы готовы к отправке' : 'Сообщение…'}
                   dir="auto"
                   onContextMenu={e => e.preventDefault()}
                   onInput={() => {
@@ -1187,18 +1279,20 @@ export function Composer({ value, onChange, onSend, onSendAttachment, externalFi
                   }}
                   onPaste={e => {
                     e.preventDefault();
-                    // Image paste → stage file
+                    // Collect all files/images from clipboard
                     const items = e.clipboardData?.items;
                     if (items) {
+                      const pastedFiles: File[] = [];
                       for (const item of Array.from(items)) {
-                        if (item.type.startsWith('image/')) {
+                        if (item.kind === 'file') {
                           const file = item.getAsFile();
-                          if (file) { stageFile(file); return; }
+                          if (file) pastedFiles.push(file);
                         }
                       }
+                      if (pastedFiles.length > 0) { addFiles(pastedFiles); return; }
                     }
                     // Text paste — insert as plain text (strip HTML)
-                    const text = e.clipboardData.getData('text/plain');
+                    const text = e.clipboardData?.getData('text/plain');
                     if (text) document.execCommand('insertText', false, text);
                   }}
                 />
@@ -1295,7 +1389,7 @@ export function Composer({ value, onChange, onSend, onSendAttachment, externalFi
                 /* ── Send button (replaces mic when text is entered) ── */
                 <button
                   className="composerMic composerMicSend"
-                  onClick={isFileMode ? () => handleSendFile() : () => { if (value.trim()) onSend(); }}
+                  onClick={isFileMode ? () => handleSendFiles() : () => { if (value.trim()) onSend(); }}
                   title="Отправить"
                 >
                   {uploading ? (

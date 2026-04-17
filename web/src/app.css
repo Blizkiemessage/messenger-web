@@ -3561,8 +3561,9 @@ input[type="date"].psInput::-webkit-calendar-picker-indicator {
   margin-top: 2px;
 }
 .fileStagingRemove {
-  width: 28px;
   height: 28px;
+  padding: 0 10px;
+  gap: 5px;
   border-radius: 8px;
   display: flex;
   align-items: center;
@@ -3572,9 +3573,134 @@ input[type="date"].psInput::-webkit-calendar-picker-indicator {
   color: var(--muted);
   cursor: pointer;
   flex-shrink: 0;
+  font-size: 12px;
   transition: background .15s, color .15s;
 }
 .fileStagingRemove:hover { background: var(--danger); color: #fff; border-color: var(--danger); }
+
+/* ── Multi-file staging ──────────────────────────────────────────────────── */
+.fileStagingHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.fileStagingCount {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--text);
+}
+.fileStagingBatchHint {
+  font-weight: 400;
+  color: var(--muted);
+}
+.fileStagingMultiList {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+  scrollbar-width: thin;
+}
+.fileStagingMultiList::-webkit-scrollbar { height: 4px; }
+.fileStagingMultiList::-webkit-scrollbar-track { background: transparent; }
+.fileStagingMultiList::-webkit-scrollbar-thumb { background: var(--border); border-radius: 99px; }
+.fileStagingMultiItem {
+  position: relative;
+  flex-shrink: 0;
+  width: 80px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.fileStagingThumb {
+  width: 80px;
+  height: 80px;
+  object-fit: cover;
+  border-radius: 10px;
+  border: 1.5px solid var(--border);
+  display: block;
+}
+.fileStagingMultiIcon {
+  width: 80px;
+  height: 80px;
+  border-radius: 10px;
+  border: 1.5px solid var(--border);
+  background: var(--surface);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.fileStagingThumbOverlay {
+  position: absolute;
+  top: 0; left: 0;
+  width: 80px;
+  height: 80px;
+  border-radius: 10px;
+  overflow: hidden;
+  pointer-events: none;
+  display: flex;
+  align-items: flex-end;
+}
+.fileStagingThumbProgressFill {
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  background: color-mix(in srgb, #000 50%, transparent);
+  transition: height .25s ease;
+}
+.fileStagingThumbPct {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 700;
+  color: #fff;
+}
+.fileStagingMultiRemove {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: color-mix(in srgb, #000 55%, transparent);
+  border: none;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background .15s;
+}
+.fileStagingMultiRemove:hover { background: var(--danger); }
+.fileStagingMultiName {
+  font-size: 10.5px;
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 80px;
+}
+.fileStagingAddMore {
+  flex-shrink: 0;
+  width: 80px;
+  height: 80px;
+  border-radius: 10px;
+  border: 2px dashed var(--border);
+  background: transparent;
+  color: var(--muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: border-color .15s, color .15s, background .15s;
+}
+.fileStagingAddMore:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+}
+
 .fileStagingErr {
   display: flex;
   align-items: center;
@@ -3987,14 +4113,14 @@ input[type="date"].psInput::-webkit-calendar-picker-indicator {
    ✅ FIXES: cancel upload, group avatar overlay, chat header real avatar
    ═══════════════════════════════════════════════════════════════════════════ */
 
-/* Cancel upload button (red square-stop icon) */
+/* Cancel upload button */
 .fileStagingCancel {
-  width: 28px; height: 28px; border-radius: 8px;
+  height: 28px; padding: 0 10px; gap: 5px; border-radius: 8px;
   display: flex; align-items: center; justify-content: center;
   background: color-mix(in srgb, var(--danger) 15%, transparent);
   border: 1px solid color-mix(in srgb, var(--danger) 40%, transparent);
   color: var(--danger); cursor: pointer; flex-shrink: 0;
-  transition: background .15s;
+  font-size: 12px; transition: background .15s;
 }
 .fileStagingCancel:hover { background: var(--danger); color: #fff; }
 

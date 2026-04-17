@@ -503,8 +503,8 @@ export function ChatArea() {
 
 
   // ── Drag & drop ───────────────────────────────────────────────────────────
-  const [dragOver,     setDragOver]     = useState(false);
-  const [droppedFile,  setDroppedFile]  = useState<File | null>(null);
+  const [dragOver,      setDragOver]      = useState(false);
+  const [droppedFiles,  setDroppedFiles]  = useState<File[]>([]);
   const dragCounter = useRef(0);
 
   const handleDragEnter = useCallback((e: React.DragEvent) => {
@@ -518,8 +518,8 @@ export function ChatArea() {
   const handleDragOver  = useCallback((e: React.DragEvent) => { e.preventDefault(); e.dataTransfer.dropEffect = 'copy'; }, []);
   const handleDrop      = useCallback((e: React.DragEvent) => {
     e.preventDefault(); dragCounter.current = 0; setDragOver(false);
-    const file = e.dataTransfer.files?.[0];
-    if (file) setDroppedFile(file);
+    const files = Array.from(e.dataTransfer.files ?? []);
+    if (files.length > 0) setDroppedFiles(files);
   }, []);
 
   // ── Poll handlers ─────────────────────────────────────────────────────────
@@ -796,8 +796,8 @@ export function ChatArea() {
             onSend={handleSend}
             onSendAttachment={handleSendAttachment}
             onSendGif={handleSendGif}
-            externalFile={droppedFile}
-            onExternalFileConsumed={() => setDroppedFile(null)}
+            externalFiles={droppedFiles}
+            onExternalFileConsumed={() => setDroppedFiles([])}
             isGroup={activeChat.type === 'group'}
             onOpenPollCreator={() => setShowPollCreator(true)}
             onSendSticker={handleSendSticker}
