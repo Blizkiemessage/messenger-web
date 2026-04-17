@@ -16,13 +16,6 @@ import { FormatToolbar }  from './FormatToolbar';
 import { mdToHtml, htmlToMd, getTextBeforeCursor } from '../../utils/richText';
 import { EmojiStickerPanel } from './EmojiStickerPanel';
 
-function formatFileSize(bytes: number): string {
-  if (!bytes) return '0 B';
-  if (bytes < 1024)               return `${bytes} B`;
-  if (bytes < 1024 * 1024)        return `${(bytes / 1024).toFixed(1)} KB`;
-  if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-  return `${(bytes / (1024 * 1024 * 1024)).toFixed(2)} GB`;
-}
 
 function fmt(sec: number): string {
   if (!isFinite(sec) || isNaN(sec)) return '0:00';
@@ -319,15 +312,6 @@ export function Composer({ value, onChange, onSend, onSendAttachment, externalFi
     if (files.length > 0) setTimeout(() => captionInputRef.current?.focus(), 80);
   }
 
-  function stageFile(file: File) {
-    setStagedFiles([]);
-    setCaption('');
-    setProgresses([]);
-    setUploadErr(null);
-    setStagedFiles([file]);
-    setTimeout(() => captionInputRef.current?.focus(), 80);
-  }
-
   function removeFile(idx: number) {
     setStagedFiles(prev => prev.filter((_, i) => i !== idx));
   }
@@ -459,7 +443,7 @@ export function Composer({ value, onChange, onSend, onSendAttachment, externalFi
   }
 
   const startRecording = useCallback(async () => {
-    if (voiceState !== 'idle' || staged) return;
+    if (voiceState !== 'idle' || stagedFiles.length > 0) return;
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       streamRef.current = stream;
@@ -516,7 +500,7 @@ export function Composer({ value, onChange, onSend, onSendAttachment, externalFi
       };
       rafRef.current = requestAnimationFrame(draw);
     } catch { /* mic denied */ }
-  }, [voiceState, staged]);
+  }, [voiceState, stagedFiles.length]);
 
   const stopRecording = useCallback(() => {
     if (voiceState !== 'recording') return;
@@ -587,7 +571,7 @@ export function Composer({ value, onChange, onSend, onSendAttachment, externalFi
   }
 
   const startVideoRecording = useCallback(async () => {
-    if (videoState !== 'idle' || voiceState !== 'idle' || staged) return;
+    if (videoState !== 'idle' || voiceState !== 'idle' || stagedFiles.length > 0) return;
     try {
       // Get camera + audio as separate streams so we can switch camera without losing audio
       const cameraStream = await navigator.mediaDevices.getUserMedia({
@@ -672,7 +656,7 @@ export function Composer({ value, onChange, onSend, onSendAttachment, externalFi
       }, 1000);
 
     } catch { /* camera/mic denied */ }
-  }, [videoState, voiceState, staged]); // eslint-disable-line
+  }, [videoState, voiceState, stagedFiles.length]); // eslint-disable-line
 
   const stopVideoRecording = useCallback(() => {
     if (videoState !== 'recording') return;
