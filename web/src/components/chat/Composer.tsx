@@ -916,13 +916,32 @@ export function Composer({ value, onChange, onSend, onSendAttachment, externalFi
               {uploadErr}
             </div>
           )}
-          <input ref={captionInputRef} className="fileCaptionInput" value={caption}
-            onChange={e => setCaption(e.target.value)} placeholder="Добавить подпись…"
-            disabled={uploading} maxLength={1000}
-            onKeyDown={e => {
-              if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSendFiles(); }
-              if (e.key === 'Escape') clearStage();
-            }} />
+          <div className="fileCaptionRow">
+            <input ref={captionInputRef} className="fileCaptionInput" value={caption}
+              onChange={e => setCaption(e.target.value)} placeholder="Добавить подпись…"
+              disabled={uploading} maxLength={1000}
+              onKeyDown={e => {
+                if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSendFiles(); }
+                if (e.key === 'Escape') clearStage();
+              }} />
+            <button
+              className="fileCaptionSendBtn"
+              onClick={handleSendFiles}
+              disabled={uploading}
+              title="Отправить"
+            >
+              {uploading ? (
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" className="composerSpinner">
+                  <path d="M21 12a9 9 0 1 1-6.219-8.56"/>
+                </svg>
+              ) : (
+                <svg viewBox="0 0 24 24" fill="none" width="18" height="18">
+                  <path d="M22 2L11 13" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+                  <path d="M22 2L15 22L11 13L2 9L22 2Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+              )}
+            </button>
+          </div>
         </div>
       )}
 

@@ -3741,9 +3741,15 @@ input[type="date"].psInput::-webkit-calendar-picker-indicator {
   margin-top: 3px;
 }
 
-/* ── File caption input (inside staging card) ────────────────────────────── */
+/* ── File caption row (input + send button) ──────────────────────────────── */
+.fileCaptionRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
 .fileCaptionInput {
-  width: 100%;
+  flex: 1;
+  min-width: 0;
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 9px;
@@ -3756,6 +3762,23 @@ input[type="date"].psInput::-webkit-calendar-picker-indicator {
 .fileCaptionInput:focus { border-color: color-mix(in srgb, var(--accent) 50%, transparent); }
 .fileCaptionInput::placeholder { color: var(--muted); }
 .fileCaptionInput:disabled { opacity: .6; }
+.fileCaptionSendBtn {
+  flex-shrink: 0;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: var(--accent);
+  border: none;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background .15s, transform .1s;
+}
+.fileCaptionSendBtn:hover { background: color-mix(in srgb, var(--accent) 85%, #000); }
+.fileCaptionSendBtn:active { transform: scale(.93); }
+.fileCaptionSendBtn:disabled { opacity: .5; cursor: default; }
 
 /* ── File icon badge (staging card) ─────────────────────────────────────── */
 .fileIconBadge {
