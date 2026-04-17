@@ -27,6 +27,15 @@
     .sortable:hover { color: #fff; }
     .sort-icon { font-size: 11px; margin-left: 4px; opacity: 0.5; }
     .sort-icon.active { opacity: 1; color: #0d6efd; }
+
+    /* Pack thumbnail */
+    .pack-thumb {
+      width: 40px; height: 40px; border-radius: 8px; object-fit: cover;
+      background: #2a2a2a; display: inline-flex; align-items: center; justify-content: center;
+      font-size: 20px; overflow: hidden; flex-shrink: 0;
+    }
+    .pack-thumb img { width: 100%; height: 100%; object-fit: cover; }
+    .report-badge { background: #dc3545; color: #fff; font-size: 11px; padding: 2px 6px; border-radius: 99px; font-weight: 600; }
   </style>
 </head>
 <body>
@@ -71,6 +80,12 @@
           <li class="nav-item">
             <a class="nav-link" onclick="showTab('chats')" id="nav-chats">
               <i class="bi bi-chat-dots me-2"></i> Чаты
+            </a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" onclick="showTab('content')" id="nav-content">
+              <i class="bi bi-flag me-2"></i> Контент
+              <span id="nav-content-badge" class="report-badge ms-1" style="display:none"></span>
             </a>
           </li>
           <li class="nav-item mt-4">
@@ -140,18 +155,24 @@
             </div>
           </div>
 
-          <!-- Stat cards — row 2: support -->
+          <!-- Stat cards — row 2: support + content reports -->
           <div class="row g-4 mb-4">
-            <div class="col-md-6">
+            <div class="col-md-4">
               <div class="card p-4 text-center">
                 <h6 class="text-secondary text-uppercase mb-2"><i class="bi bi-bug me-1"></i>Отчёты об ошибках</h6>
                 <h1 class="text-warning mb-0" id="stat-bugs">-</h1>
               </div>
             </div>
-            <div class="col-md-6">
+            <div class="col-md-4">
               <div class="card p-4 text-center">
                 <h6 class="text-secondary text-uppercase mb-2"><i class="bi bi-lightbulb me-1"></i>Предложения</h6>
-                <h1 class="text-purple mb-0" id="stat-features" style="color:#a855f7">-</h1>
+                <h1 class="mb-0" id="stat-features" style="color:#a855f7">-</h1>
+              </div>
+            </div>
+            <div class="col-md-4">
+              <div class="card p-4 text-center">
+                <h6 class="text-secondary text-uppercase mb-2"><i class="bi bi-flag me-1"></i>Жалобы на контент</h6>
+                <h1 class="text-danger mb-0" id="stat-content-reports">-</h1>
               </div>
             </div>
           </div>
@@ -235,6 +256,89 @@
                 <tr><td colspan="5" class="text-center py-4 text-secondary">Загрузка...</td></tr>
               </tbody>
             </table>
+          </div>
+        </div>
+
+        <!-- Content Moderation Tab -->
+        <div id="tab-content" class="tab-pane d-none">
+          <div class="d-flex justify-content-between align-items-center mb-4">
+            <h2>Контент</h2>
+            <button class="btn btn-outline-secondary btn-sm" onclick="loadContent()"><i class="bi bi-arrow-clockwise"></i> Обновить</button>
+          </div>
+
+          <!-- Sub-tabs -->
+          <ul class="nav nav-tabs mb-4" id="content-subtabs">
+            <li class="nav-item">
+              <a class="nav-link active" id="subtab-reports-btn" onclick="showContentSubtab('reports')" style="cursor:pointer">
+                <i class="bi bi-flag me-1"></i> Жалобы
+                <span id="reports-count-badge" class="report-badge ms-1" style="display:none"></span>
+              </a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link" id="subtab-packs-btn" onclick="showContentSubtab('packs')" style="cursor:pointer">
+                <i class="bi bi-collection me-1"></i> Все паки
+              </a>
+            </li>
+          </ul>
+
+          <!-- Reports sub-tab -->
+          <div id="subtab-reports">
+            <div class="d-flex align-items-center gap-3 mb-3">
+              <div class="form-check form-switch">
+                <input class="form-check-input" type="checkbox" id="show-resolved-toggle" onchange="loadReports()">
+                <label class="form-check-label text-secondary small" for="show-resolved-toggle">Показать решённые</label>
+              </div>
+            </div>
+            <div class="card table-responsive">
+              <table class="table table-hover mb-0">
+                <thead>
+                  <tr>
+                    <th>Пак</th>
+                    <th>Автор пака</th>
+                    <th>Жалоба от</th>
+                    <th>Причина</th>
+                    <th>Дата</th>
+                    <th class="text-end">Действия</th>
+                  </tr>
+                </thead>
+                <tbody id="reports-tbody">
+                  <tr><td colspan="6" class="text-center py-4 text-secondary">Загрузка...</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Packs sub-tab -->
+          <div id="subtab-packs" class="d-none">
+            <div class="mb-3">
+              <div class="input-group" style="max-width:380px">
+                <span class="input-group-text bg-dark border-secondary"><i class="bi bi-search text-secondary"></i></span>
+                <input type="text" id="packs-search" class="form-control bg-dark border-secondary text-light"
+                  placeholder="Поиск по названию или автору..."
+                  oninput="filterPacks(this.value)">
+                <button class="btn btn-outline-secondary" onclick="document.getElementById('packs-search').value='';filterPacks('')">
+                  <i class="bi bi-x"></i>
+                </button>
+              </div>
+            </div>
+            <div class="card table-responsive">
+              <table class="table table-hover mb-0">
+                <thead>
+                  <tr>
+                    <th>Пак</th>
+                    <th>Тип</th>
+                    <th>Автор</th>
+                    <th>Стикеров</th>
+                    <th>Жалобы</th>
+                    <th>Создан</th>
+                    <th class="text-end">Действия</th>
+                  </tr>
+                </thead>
+                <tbody id="packs-tbody">
+                  <tr><td colspan="7" class="text-center py-4 text-secondary">Загрузка...</td></tr>
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
 

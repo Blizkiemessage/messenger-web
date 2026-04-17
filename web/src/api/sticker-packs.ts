@@ -105,6 +105,10 @@ export async function getPackById(packId: string): Promise<StickerPack & { is_in
   return res.data;
 }
 
+export async function reportPack(packId: string, reason: string): Promise<void> {
+  await client.post(`/sticker-packs/${packId}/report`, { reason });
+}
+
 export async function uploadPackLogo(packId: string, file: File): Promise<{ cover_url: string }> {
   const form = new FormData();
   form.append('file', file);

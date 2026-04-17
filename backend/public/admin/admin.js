@@ -7,8 +7,8 @@ let adminUsername = localStorage.getItem('admin_username') || '';
 // ─── Cached data for sorting/filtering ────────────────────────────────────
 let usersData = [];
 let chatsData = [];
+let packsData = [];
 
-// Sort state: { col: string, dir: 'asc'|'desc' }
 let usersSort = { col: null, dir: 'asc' };
 let chatsSort = { col: null, dir: 'asc' };
 
@@ -17,6 +17,7 @@ if (token) {
   document.getElementById('login-screen').classList.add('d-none');
   document.getElementById('app').classList.remove('d-none');
   loadStats();
+  loadReportsBadge();
 }
 
 // ─── Authentication ────────────────────────────────────────────────────────
@@ -48,6 +49,7 @@ document.getElementById('login-form').addEventListener('submit', async (e) => {
     document.getElementById('login-screen').classList.add('d-none');
     document.getElementById('app').classList.remove('d-none');
     loadStats();
+    loadReportsBadge();
   } catch (err) {
     errorEl.textContent = err.message;
     errorEl.style.display = 'block';
@@ -92,6 +94,7 @@ function showTab(tabName) {
   if (tabName === 'dashboard') loadStats();
   if (tabName === 'users') loadUsers();
   if (tabName === 'chats') loadChats();
+  if (tabName === 'content') loadContent();
 }
 
 // ─── Date filter helpers ───────────────────────────────────────────────────
@@ -100,16 +103,9 @@ function getDateParams() {
   const toVal   = document.getElementById('filter-to').value;
   const params  = new URLSearchParams();
 
-  if (fromVal) {
-    // Start of selected day (00:00:00 local)
-    params.set('from', new Date(fromVal + 'T00:00:00').getTime());
-  }
-  if (toVal) {
-    // End of selected day (23:59:59 local)
-    params.set('to', new Date(toVal + 'T23:59:59').getTime());
-  }
+  if (fromVal) params.set('from', new Date(fromVal + 'T00:00:00').getTime());
+  if (toVal)   params.set('to',   new Date(toVal   + 'T23:59:59').getTime());
 
-  // Update label
   const label = document.getElementById('filter-label');
   if (fromVal || toVal) {
     label.textContent = fromVal && toVal
@@ -138,6 +134,7 @@ async function loadStats() {
     document.getElementById('stat-messages').textContent = data.messages;
     document.getElementById('stat-bugs').textContent     = data.support_bugs;
     document.getElementById('stat-features').textContent = data.support_features;
+    document.getElementById('stat-content-reports').textContent = data.content_reports ?? '-';
   } catch (err) {
     console.error('Failed to load stats', err);
   }
@@ -177,7 +174,7 @@ function sortUsers(col) {
   }
   updateSortIcons('users', col, usersSort.dir);
   const q = document.getElementById('users-search').value;
-  filterUsers(q); // re-apply current filter with new sort
+  filterUsers(q);
 }
 
 function applySortUsers(arr) {
@@ -318,4 +315,200 @@ async function deleteChat(id) {
   } catch (err) {
     alert('Ошибка при удалении: ' + err.message);
   }
+}
+
+// ─── Content Moderation ────────────────────────────────────────────────────
+let currentContentSubtab = 'reports';
+
+function loadContent() {
+  if (currentContentSubtab === 'reports') loadReports();
+  else loadPacks();
+}
+
+function showContentSubtab(name) {
+  currentContentSubtab = name;
+  document.getElementById('subtab-reports').classList.toggle('d-none', name !== 'reports');
+  document.getElementById('subtab-packs').classList.toggle('d-none', name !== 'packs');
+  document.getElementById('subtab-reports-btn').classList.toggle('active', name === 'reports');
+  document.getElementById('subtab-packs-btn').classList.toggle('active', name === 'packs');
+
+  if (name === 'reports') loadReports();
+  else loadPacks();
+}
+
+// ─── Reports badge (sidebar) ───────────────────────────────────────────────
+async function loadReportsBadge() {
+  try {
+    const reports = await fetchApi('/content-reports?resolved=0');
+    const badge = document.getElementById('nav-content-badge');
+    const countBadge = document.getElementById('reports-count-badge');
+    if (reports.length > 0) {
+      badge.textContent = reports.length;
+      badge.style.display = 'inline';
+      if (countBadge) { countBadge.textContent = reports.length; countBadge.style.display = 'inline'; }
+    } else {
+      badge.style.display = 'none';
+      if (countBadge) countBadge.style.display = 'none';
+    }
+  } catch {}
+}
+
+// ─── Reports ───────────────────────────────────────────────────────────────
+async function loadReports() {
+  const tbody = document.getElementById('reports-tbody');
+  tbody.innerHTML = '<tr><td colspan="6" class="text-center py-4 text-secondary">Загрузка...</td></tr>';
+  const resolved = document.getElementById('show-resolved-toggle').checked ? 1 : 0;
+  try {
+    const reports = await fetchApi(`/content-reports?resolved=${resolved}`);
+    if (!reports.length) {
+      tbody.innerHTML = `<tr><td colspan="6" class="text-center py-4 text-secondary">${resolved ? 'Нет решённых жалоб' : 'Жалоб нет'}</td></tr>`;
+      return;
+    }
+    tbody.innerHTML = '';
+    reports.forEach(r => {
+      const tr = document.createElement('tr');
+      const thumbHtml = r.pack_cover
+        ? `<span class="pack-thumb me-2"><img src="${escHtml(r.pack_cover)}" alt=""></span>`
+        : `<span class="pack-thumb me-2" style="font-size:18px">📦</span>`;
+      tr.innerHTML = `
+        <td>
+          <div class="d-flex align-items-center">
+            ${thumbHtml}
+            <div>
+              <div class="fw-bold">${escHtml(r.pack_name || 'Удалён')}</div>
+              <div class="small text-secondary">${r.pack_type === 'emoji' ? 'Эмодзи-пак' : 'Стикерпак'}</div>
+            </div>
+          </div>
+        </td>
+        <td class="text-secondary small">${r.owner_username ? '@' + escHtml(r.owner_username) : '—'}</td>
+        <td class="text-secondary small">${r.reporter_username ? '@' + escHtml(r.reporter_username) : 'Удалён'}</td>
+        <td>
+          <span class="text-secondary small" style="white-space:pre-wrap;max-width:280px;display:block;overflow:hidden;text-overflow:ellipsis"
+            title="${escHtml(r.reason || '')}">
+            ${r.reason ? escHtml(r.reason.slice(0, 120)) + (r.reason.length > 120 ? '…' : '') : '<span class="text-muted fst-italic">Не указана</span>'}
+          </span>
+        </td>
+        <td class="small text-secondary">${new Date(r.created_at).toLocaleString('ru-RU')}</td>
+        <td class="text-end">
+          <div class="d-flex gap-2 justify-content-end">
+            ${!resolved ? `
+              <button class="btn btn-sm btn-outline-danger" onclick="adminDeletePack('${escHtml(r.content_id)}', '${escHtml(r.id)}')">
+                <i class="bi bi-trash3"></i> Удалить пак
+              </button>
+              <button class="btn btn-sm btn-outline-secondary" onclick="dismissReport('${escHtml(r.id)}')">
+                <i class="bi bi-x-circle"></i> Отклонить
+              </button>
+            ` : `<span class="badge bg-success">Решено</span>`}
+          </div>
+        </td>
+      `;
+      tbody.appendChild(tr);
+    });
+    loadReportsBadge();
+  } catch (err) {
+    tbody.innerHTML = `<tr><td colspan="6" class="text-center py-4 text-danger">${err.message}</td></tr>`;
+  }
+}
+
+async function dismissReport(id) {
+  if (!confirm('Отклонить жалобу? Пак останется доступным.')) return;
+  try {
+    await fetchApi(`/content-reports/${id}/dismiss`, { method: 'PATCH' });
+    loadReports();
+    loadStats();
+  } catch (err) {
+    alert('Ошибка: ' + err.message);
+  }
+}
+
+async function adminDeletePack(packId, reportId) {
+  if (!confirm('Удалить этот пак? Это действие необратимо, пак будет скрыт для всех пользователей.')) return;
+  try {
+    await fetchApi(`/sticker-packs/${packId}`, { method: 'DELETE' });
+    loadReports();
+    loadStats();
+  } catch (err) {
+    alert('Ошибка при удалении: ' + err.message);
+  }
+}
+
+// ─── Packs ─────────────────────────────────────────────────────────────────
+async function loadPacks() {
+  const tbody = document.getElementById('packs-tbody');
+  tbody.innerHTML = '<tr><td colspan="7" class="text-center py-4 text-secondary">Загрузка...</td></tr>';
+  try {
+    packsData = await fetchApi('/sticker-packs');
+    renderPacks(packsData);
+  } catch (err) {
+    tbody.innerHTML = `<tr><td colspan="7" class="text-center py-4 text-danger">${err.message}</td></tr>`;
+  }
+}
+
+function filterPacks(query) {
+  const q = query.trim().toLowerCase();
+  const filtered = q
+    ? packsData.filter(p =>
+        (p.name || '').toLowerCase().includes(q) ||
+        (p.owner_username || '').toLowerCase().includes(q) ||
+        (p.owner_name || '').toLowerCase().includes(q)
+      )
+    : packsData;
+  renderPacks(filtered);
+}
+
+function renderPacks(list) {
+  const tbody = document.getElementById('packs-tbody');
+  if (!list.length) {
+    tbody.innerHTML = '<tr><td colspan="7" class="text-center py-4 text-secondary">Нет паков</td></tr>';
+    return;
+  }
+  tbody.innerHTML = '';
+  list.forEach(p => {
+    const tr = document.createElement('tr');
+    const thumbHtml = p.cover_url
+      ? `<span class="pack-thumb me-2"><img src="${escHtml(p.cover_url)}" alt=""></span>`
+      : `<span class="pack-thumb me-2" style="font-size:18px">📦</span>`;
+    tr.innerHTML = `
+      <td>
+        <div class="d-flex align-items-center">
+          ${thumbHtml}
+          <div>
+            <div class="fw-bold">${escHtml(p.name)}</div>
+            <div class="small text-secondary">${p.is_public ? 'Публичный' : 'Приватный'}</div>
+          </div>
+        </div>
+      </td>
+      <td><span class="badge ${p.type === 'emoji' ? 'bg-warning text-dark' : 'bg-primary'}">${p.type === 'emoji' ? 'Эмодзи' : 'Стикеры'}</span></td>
+      <td class="text-secondary small">${p.owner_username ? '@' + escHtml(p.owner_username) : '—'}</td>
+      <td>${p.item_count}</td>
+      <td>
+        ${p.report_count > 0
+          ? `<span class="report-badge">${p.report_count}</span>`
+          : '<span class="text-muted">—</span>'}
+      </td>
+      <td class="small text-secondary">${new Date(p.created_at).toLocaleDateString('ru-RU')}</td>
+      <td class="text-end">
+        <button class="btn btn-sm btn-outline-danger" onclick="adminDeletePackFromList('${escHtml(p.id)}', '${escHtml(p.name)}')">
+          <i class="bi bi-trash3"></i> Удалить
+        </button>
+      </td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
+
+async function adminDeletePackFromList(packId, packName) {
+  if (!confirm(`Удалить пак «${packName}»? Пак будет скрыт для всех пользователей.`)) return;
+  try {
+    await fetchApi(`/sticker-packs/${packId}`, { method: 'DELETE' });
+    loadPacks();
+    loadStats();
+  } catch (err) {
+    alert('Ошибка при удалении: ' + err.message);
+  }
+}
+
+// ─── Helpers ───────────────────────────────────────────────────────────────
+function escHtml(str) {
+  return String(str ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }

@@ -618,6 +618,35 @@ router.patch('/:id/items/order', (req, res) => {
 });
 
 // ────────────────────────────────────────────────────────────────────────────
+//  REPORT / COMPLAINT
+// ────────────────────────────────────────────────────────────────────────────
+
+// POST /sticker-packs/:id/report — body: { reason: string }
+router.post('/:id/report', (req, res, next) => {
+  try {
+    const db = getDb();
+    const packId = req.params.id;
+    const reason = (req.body?.reason || '').trim().slice(0, 1000) || null;
+
+    const pack = db.prepare('SELECT id FROM sticker_packs WHERE id = ? AND is_deleted = 0').get([packId]);
+    if (!pack) return res.status(404).json({ error: 'Pack not found' });
+
+    const existing = db.prepare(
+      'SELECT id FROM content_reports WHERE reporter_id = ? AND content_id = ? AND content_type = ?'
+    ).get([req.user.id, packId, 'sticker_pack']);
+    if (existing) return res.status(409).json({ error: 'Вы уже отправляли жалобу на этот пак' });
+
+    db.prepare(
+      'INSERT INTO content_reports (id, reporter_id, content_type, content_id, reason, resolved, created_at) VALUES (?, ?, ?, ?, ?, 0, ?)'
+    ).run([uuidv4(), req.user.id, 'sticker_pack', packId, reason, Date.now()]);
+
+    res.json({ ok: true });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// ────────────────────────────────────────────────────────────────────────────
 //  QUOTA ROUTE (exported separately as /quota/my)
 // ────────────────────────────────────────────────────────────────────────────
 

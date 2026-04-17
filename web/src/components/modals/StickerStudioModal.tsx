@@ -555,29 +555,35 @@ export function StickerStudioModal({ onClose }: Props) {
               {/* ── Edit items mode ── */}
               {itemsEditPack && (
                 <>
-                  <div className="studioItemCountBadge">
-                    {itemsEditPack.type === 'emoji' ? 'Эмодзи' : 'Стикеров'}: {totalInEdit} / {MAX_ITEMS}
+                  <div className="studioItemsToolbar">
+                    <div className="studioItemsCounter">
+                      <span className="studioItemsCount">{totalInEdit}</span>
+                      <span className="studioItemsMax">/ {MAX_ITEMS}</span>
+                      <span className="studioItemsLabel">{itemsEditPack.type === 'emoji' ? 'эмодзи' : 'стикеров'}</span>
+                    </div>
+
+                    <input
+                      ref={editFileInputRef}
+                      type="file"
+                      accept={ACCEPT_TYPES}
+                      multiple
+                      style={{ display: 'none' }}
+                      onChange={handleEditFilePick}
+                    />
+                    {totalInEdit < MAX_ITEMS && (
+                      <button className="studioAddItemsBtn" onClick={() => editFileInputRef.current?.click()}>
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                          <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+                        </svg>
+                        Добавить
+                      </button>
+                    )}
                   </div>
 
                   {itemsLoading && <div className="studioLoading"><div className="gifSpinner" /></div>}
 
                   {!itemsLoading && (
                     <>
-                      <input
-                        ref={editFileInputRef}
-                        type="file"
-                        accept={ACCEPT_TYPES}
-                        multiple
-                        style={{ display: 'none' }}
-                        onChange={handleEditFilePick}
-                      />
-
-                      {totalInEdit < MAX_ITEMS && (
-                        <button className="studioBtnSecondary" style={{ marginBottom: 12 }}
-                          onClick={() => editFileInputRef.current?.click()}>
-                          + Добавить {itemsEditPack.type === 'emoji' ? 'эмодзи' : 'стикеры'}
-                        </button>
-                      )}
 
                       {/* Uploading queue */}
                       {uploadingItems.length > 0 && (

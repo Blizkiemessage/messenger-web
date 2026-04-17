@@ -99,12 +99,15 @@ router.get('/stats', (req, res, next) => {
       return db.prepare(`SELECT COUNT(*) as c FROM support_reports ${where}${and}`).get([...params, type]).c;
     }
 
+    const contentReports = db.prepare("SELECT COUNT(*) as c FROM content_reports WHERE resolved = 0").get().c;
+
     res.json({
       users:            countTable('users'),
       chats:            countTable('chats'),
       messages:         countTable('messages'),
       support_bugs:     countSupport('bug'),
       support_features: countSupport('feature'),
+      content_reports:  contentReports,
     });
   } catch (err) {
     next(err);
@@ -212,6 +215,70 @@ router.delete('/chats/:id', (req, res, next) => {
   } catch (err) {
     next(err);
   }
+});
+
+// ── Content reports ──────────────────────────────────────────────────────────
+
+// GET /admin/api/content-reports?resolved=0
+router.get('/content-reports', (req, res, next) => {
+  try {
+    const db = getDb();
+    const resolved = req.query.resolved === '1' ? 1 : 0;
+    const rows = db.prepare(`
+      SELECT cr.*,
+        u.username AS reporter_username, u.display_name AS reporter_name,
+        sp.name AS pack_name, sp.type AS pack_type, sp.cover_url AS pack_cover,
+        ou.username AS owner_username
+      FROM content_reports cr
+      LEFT JOIN users u ON cr.reporter_id = u.id
+      LEFT JOIN sticker_packs sp ON cr.content_id = sp.id
+      LEFT JOIN users ou ON sp.owner_id = ou.id
+      WHERE cr.resolved = ?
+      ORDER BY cr.created_at DESC
+    `).all([resolved]);
+    res.json(rows);
+  } catch (err) { next(err); }
+});
+
+// PATCH /admin/api/content-reports/:id/dismiss
+router.patch('/content-reports/:id/dismiss', (req, res, next) => {
+  try {
+    const db = getDb();
+    db.prepare('UPDATE content_reports SET resolved = 1 WHERE id = ?').run([req.params.id]);
+    res.json({ ok: true });
+  } catch (err) { next(err); }
+});
+
+// ── Sticker packs moderation ─────────────────────────────────────────────────
+
+// GET /admin/api/sticker-packs
+router.get('/sticker-packs', (req, res, next) => {
+  try {
+    const db = getDb();
+    const packs = db.prepare(`
+      SELECT sp.*, u.username AS owner_username, u.display_name AS owner_name,
+        COUNT(spi.id) AS item_count,
+        (SELECT COUNT(*) FROM content_reports cr WHERE cr.content_id = sp.id AND cr.resolved = 0) AS report_count
+      FROM sticker_packs sp
+      LEFT JOIN users u ON sp.owner_id = u.id
+      LEFT JOIN sticker_pack_items spi ON spi.pack_id = sp.id
+      WHERE sp.is_deleted = 0
+      GROUP BY sp.id
+      ORDER BY report_count DESC, sp.created_at DESC
+    `).all();
+    res.json(packs);
+  } catch (err) { next(err); }
+});
+
+// DELETE /admin/api/sticker-packs/:id
+router.delete('/sticker-packs/:id', (req, res, next) => {
+  try {
+    const db = getDb();
+    db.prepare('UPDATE sticker_packs SET is_deleted = 1 WHERE id = ?').run([req.params.id]);
+    // Mark all related reports resolved
+    db.prepare("UPDATE content_reports SET resolved = 1 WHERE content_id = ? AND content_type = 'sticker_pack'").run([req.params.id]);
+    res.json({ ok: true });
+  } catch (err) { next(err); }
 });
 
 module.exports = router;
