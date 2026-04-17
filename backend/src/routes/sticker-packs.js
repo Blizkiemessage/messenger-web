@@ -369,6 +369,20 @@ router.post('/:id/logo', upload.single('file'), async (req, res) => {
     if (isContentAnimated || isVideo || isSvg) {
       fileBuffer = req.file.buffer;
       fileMime   = mime;
+
+      // GIF / APNG logo → animated WebP (smaller, same animation)
+      const isGifOrApng = mime === 'image/gif' || mime === 'image/apng';
+      if (isContentAnimated && isGifOrApng) {
+        try {
+          const compressed = await sharp(req.file.buffer, { animated: true })
+            .webp({ quality: 85, effort: 4 })
+            .toBuffer();
+          if (compressed.length < fileBuffer.length) {
+            fileBuffer = compressed;
+            fileMime   = 'image/webp';
+          }
+        } catch { /* keep original */ }
+      }
     } else {
       try {
         fileBuffer = await sharp(req.file.buffer)
@@ -468,9 +482,24 @@ router.post('/:id/items', upload.single('file'), async (req, res) => {
     // ── Process full-size sticker ────────────────────────────────────────────
     let fileBuffer, fileMime;
     if (isContentAnimated || isVideo || isSvg) {
-      // Pass through: animated GIF/WebP/APNG, video, SVG — no recompression
       fileBuffer = req.file.buffer;
       fileMime   = isContentAnimated && detectedMime !== mime ? detectedMime : mime;
+
+      // GIF / APNG → animated WebP: typically 40–60% smaller, same animation quality.
+      // Already-WebP and video formats are efficient enough — skip re-encoding.
+      const isGifOrApng = fileMime === 'image/gif' || fileMime === 'image/apng';
+      if (isContentAnimated && isGifOrApng) {
+        try {
+          const compressed = await sharp(req.file.buffer, { animated: true })
+            .webp({ quality: 85, effort: 4 })
+            .toBuffer();
+          // Only swap if actually smaller (WebP is almost always smaller than GIF)
+          if (compressed.length < fileBuffer.length) {
+            fileBuffer = compressed;
+            fileMime   = 'image/webp';
+          }
+        } catch { /* keep original GIF if conversion fails */ }
+      }
     } else {
       // Static raster → resize max 512×512, convert to WebP
       try {

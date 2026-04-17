@@ -10,10 +10,11 @@
 import { resolveUrl } from './Avatar';
 
 const VIDEO_RE = /\.(webm|mp4|mov|avi|mpeg|3gp)(\?|#|$)/i;
-/** GIF and APNG animate only when loaded eagerly; lazy loading inside
+/** GIF, APNG and animated WebP must be loaded eagerly; lazy loading inside
  *  overflow-scroll containers prevents the Intersection Observer from
- *  triggering, so these images never decode/animate. */
-const ANIM_RE  = /\.(gif|apng)(\?|#|$)/i;
+ *  triggering, so these images never decode/animate.
+ *  Note: all three formats are stored by the backend after GIF→WebP compression. */
+const ANIM_RE  = /\.(gif|apng|webp)(\?|#|$)/i;
 
 function isVideoUrl(url: string): boolean {
   return VIDEO_RE.test(url);
