@@ -6,6 +6,8 @@ const {
   setUserPassword,
   initiateRegistration,
   verifyEmailAndCreateAccount,
+  initiateForgotPassword,
+  resetPassword,
 } = require('../services/authService');
 const { authMiddleware } = require('../middleware/auth');
 
@@ -79,6 +81,40 @@ router.patch('/password', authMiddleware, async (req, res, next) => {
     }
     await setUserPassword(req.userId, newPassword, currentPassword || null);
     res.json({ ok: true });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// POST /auth/forgot-password — send password reset link to email
+router.post('/forgot-password', limiter, async (req, res, next) => {
+  try {
+    const { email } = req.body;
+    if (!email || typeof email !== 'string') {
+      return res.status(400).json({ error: 'Email обязателен' });
+    }
+    const result = await initiateForgotPassword(email.trim());
+    res.json(result);
+  } catch (err) {
+    next(err);
+  }
+});
+
+// POST /auth/reset-password — verify token and set new password
+router.post('/reset-password', limiter, async (req, res, next) => {
+  try {
+    const { id, token, newPassword } = req.body;
+    if (!id || typeof id !== 'string') {
+      return res.status(400).json({ error: 'Недействительная ссылка' });
+    }
+    if (!token || typeof token !== 'string') {
+      return res.status(400).json({ error: 'Недействительная ссылка' });
+    }
+    if (!newPassword || typeof newPassword !== 'string' || newPassword.length < 6) {
+      return res.status(400).json({ error: 'Пароль: минимум 6 символов' });
+    }
+    const result = await resetPassword(id, token, newPassword);
+    res.json(result);
   } catch (err) {
     next(err);
   }

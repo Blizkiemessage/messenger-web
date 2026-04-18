@@ -92,4 +92,44 @@ async function sendSupportEmail({ subject, username, userEmail, sentAt, descript
   await getTransporter().sendMail({ from, to, subject, html, text: description, attachments });
 }
 
-module.exports = { sendOtpEmail, sendSupportEmail };
+/**
+ * Send a password reset link email.
+ */
+async function sendPasswordResetEmail(to, resetUrl) {
+  if (!process.env.SMTP_HOST) {
+    console.log(`[EMAIL DEV] Password reset for ${to}: ${resetUrl}`);
+    return;
+  }
+
+  const from = process.env.SMTP_FROM || process.env.SMTP_USER;
+  await getTransporter().sendMail({
+    from,
+    to,
+    subject: 'Сброс пароля',
+    text: `Для сброса пароля перейдите по ссылке:\n${resetUrl}\n\nСсылка действительна 1 час.\nЕсли вы не запрашивали сброс — просто проигнорируйте это письмо.`,
+    html: `
+      <div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:24px">
+        <h2 style="margin:0 0 8px;color:#111">Сброс пароля</h2>
+        <p style="margin:0 0 24px;color:#555;font-size:14px;line-height:1.6">
+          Мы получили запрос на сброс пароля для аккаунта, привязанного к этому адресу.<br>
+          Нажмите кнопку ниже, чтобы задать новый пароль.
+        </p>
+        <a href="${resetUrl}"
+           style="display:inline-block;background:#2f81f7;color:#fff;text-decoration:none;
+                  padding:13px 28px;border-radius:10px;font-weight:600;font-size:15px;
+                  letter-spacing:0.02em">
+          Сбросить пароль
+        </a>
+        <p style="margin:24px 0 0;color:#888;font-size:12px;line-height:1.6">
+          Кнопка не работает? Скопируйте ссылку в браузер:<br>
+          <a href="${resetUrl}" style="color:#2f81f7;word-break:break-all">${resetUrl}</a>
+        </p>
+        <p style="margin:16px 0 0;color:#aaa;font-size:12px">
+          Ссылка действительна 1 час. Если вы не запрашивали сброс — просто проигнорируйте это письмо.
+        </p>
+      </div>
+    `,
+  });
+}
+
+module.exports = { sendOtpEmail, sendSupportEmail, sendPasswordResetEmail };

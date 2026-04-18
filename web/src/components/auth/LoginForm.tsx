@@ -1,6 +1,3 @@
-/**
- * LoginForm — accepts username or email + password.
- */
 import { useState, useCallback } from 'react';
 import { type User } from '../../types';
 import { PasswordInput } from '../ui/PasswordInput';
@@ -9,9 +6,10 @@ import { authLoginPassword } from '../../api/auth';
 interface Props {
   onAuthenticated: (token: string, user: User) => void;
   onSwitchTab: () => void;
+  onForgotPassword: () => void;
 }
 
-export function LoginForm({ onAuthenticated, onSwitchTab }: Props) {
+export function LoginForm({ onAuthenticated, onSwitchTab, onForgotPassword }: Props) {
   const [login,    setLogin]    = useState('');
   const [password, setPassword] = useState('');
   const [busy,  setBusy]  = useState(false);
@@ -51,7 +49,17 @@ export function LoginForm({ onAuthenticated, onSwitchTab }: Props) {
         onKeyDown={handleKeyDown}
       />
 
-      <div className="authLabel">Пароль</div>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: -8 }}>
+        <div className="authLabel" style={{ margin: 0 }}>Пароль</div>
+        <button
+          type="button"
+          className="authSwitchLink"
+          style={{ fontSize: 12 }}
+          onClick={onForgotPassword}
+        >
+          Забыли пароль?
+        </button>
+      </div>
       <PasswordInput
         value={password}
         onChange={setPassword}

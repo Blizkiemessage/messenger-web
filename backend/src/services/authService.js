@@ -4,7 +4,8 @@ const { getDb } = require('../config/database');
 const { sign } = require('../utils/jwt');
 const { sanitizeUser: sanitizeUserFull } = require('./userService');
 const { generateOtp } = require('../utils/otp');
-const { sendOtpEmail } = require('../config/email');
+const { sendOtpEmail, sendPasswordResetEmail } = require('../config/email');
+const crypto = require('crypto');
 
 // ✅ sanitizeUser imported from userService (includes hide_avatar, privacy fields)
 
@@ -324,6 +325,95 @@ async function verifyEmailChange(userId, email, otp) {
   return sanitizeUserFull(user, { showPrivate: true });
 }
 
+/**
+ * Step 1 of password reset.
+ * Validates email exists, creates a signed reset token, sends link by email.
+ */
+async function initiateForgotPassword(email) {
+  const db = getDb();
+  const cleanEmail = email.trim().toLowerCase();
+
+  if (!cleanEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail)) {
+    throw Object.assign(new Error('Введите корректный email'), { status: 400 });
+  }
+
+  const user = db.prepare('SELECT id FROM users WHERE email = ?').get(cleanEmail);
+  if (!user) {
+    throw Object.assign(new Error('Аккаунт с таким email не найден'), { status: 404 });
+  }
+
+  // Invalidate any prior reset tokens for this email
+  db.prepare(
+    `UPDATE otps SET used = 1 WHERE target = ? AND used = 0 AND meta LIKE '%"password_reset"%'`
+  ).run(cleanEmail);
+
+  const rawToken = crypto.randomBytes(32).toString('hex');
+  const tokenHash = await bcrypt.hash(rawToken, 10);
+  const now = Date.now();
+  const otpId = uuidv4();
+  const meta = JSON.stringify({ type: 'password_reset', userId: user.id });
+
+  db.prepare(
+    `INSERT INTO otps (id, target, code_hash, expires_at, used, created_at, meta)
+     VALUES (?, ?, ?, ?, 0, ?, ?)`
+  ).run([otpId, cleanEmail, tokenHash, now + 60 * 60 * 1000, now, meta]);
+
+  const appUrl = (process.env.APP_URL || 'http://localhost:5173').replace(/\/$/, '');
+  const resetUrl = `${appUrl}/?rid=${otpId}&tok=${rawToken}`;
+
+  await sendPasswordResetEmail(cleanEmail, resetUrl);
+  return { sent: true };
+}
+
+/**
+ * Step 2 of password reset.
+ * Verifies the token, sets new password, revokes all existing sessions.
+ */
+async function resetPassword(id, rawToken, newPassword) {
+  const db = getDb();
+
+  if (!id || !rawToken) {
+    throw Object.assign(new Error('Недействительная ссылка сброса пароля'), { status: 400 });
+  }
+  if (!newPassword || newPassword.length < 6) {
+    throw Object.assign(new Error('Пароль: минимум 6 символов'), { status: 400 });
+  }
+
+  const row = db.prepare(
+    `SELECT * FROM otps WHERE id = ? AND used = 0 AND expires_at > ? AND meta IS NOT NULL`
+  ).get([id, Date.now()]);
+
+  if (!row) {
+    throw Object.assign(new Error('Ссылка недействительна или истекла. Запросите новую.'), { status: 400 });
+  }
+
+  const parsed = JSON.parse(row.meta);
+  if (parsed.type !== 'password_reset') {
+    throw Object.assign(new Error('Недействительная ссылка'), { status: 400 });
+  }
+
+  if ((row.attempts || 0) >= 5) {
+    db.prepare('UPDATE otps SET used = 1 WHERE id = ?').run(row.id);
+    throw Object.assign(new Error('Превышено количество попыток. Запросите новую ссылку.'), { status: 429 });
+  }
+
+  const valid = await bcrypt.compare(rawToken, row.code_hash);
+  if (!valid) {
+    db.prepare('UPDATE otps SET attempts = attempts + 1 WHERE id = ?').run(row.id);
+    throw Object.assign(new Error('Недействительная ссылка сброса пароля'), { status: 400 });
+  }
+
+  db.prepare('UPDATE otps SET used = 1 WHERE id = ?').run(row.id);
+
+  const newHash = await bcrypt.hash(newPassword, 10);
+  db.prepare('UPDATE users SET password_hash = ? WHERE id = ?').run([newHash, parsed.userId]);
+
+  // Revoke all existing sessions so the user logs in fresh
+  db.prepare('UPDATE sessions SET revoked = 1 WHERE user_id = ?').run(parsed.userId);
+
+  return { ok: true };
+}
+
 module.exports = {
   loginOrRegister,
   sanitizeUser: sanitizeUserFull,
@@ -333,4 +423,6 @@ module.exports = {
   verifyEmailAndCreateAccount,
   initiateEmailChange,
   verifyEmailChange,
+  initiateForgotPassword,
+  resetPassword,
 };

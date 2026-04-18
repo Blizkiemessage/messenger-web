@@ -35,3 +35,18 @@ export async function authSetPassword(
 export async function deleteAccount(): Promise<void> {
   await client.delete('/users/me');
 }
+
+/** Send a password reset link to the given email */
+export async function authForgotPassword(email: string): Promise<{ sent: boolean }> {
+  const res = await client.post<{ sent: boolean }>('/auth/forgot-password', { email });
+  return res.data;
+}
+
+/** Verify reset token and set a new password */
+export async function authResetPassword(
+  id: string,
+  token: string,
+  newPassword: string,
+): Promise<void> {
+  await client.post('/auth/reset-password', { id, token, newPassword });
+}
