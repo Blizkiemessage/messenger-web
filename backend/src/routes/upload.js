@@ -187,11 +187,13 @@ router.post('/presign', async (req, res, next) => {
     if (!useS3) return res.json({ fallback: true });
 
     const { size, filename: origName } = req.body;
-    // Normalize audio MIME — strip codec params sent by MediaRecorder
-    const mime = (req.body.mime || '').startsWith('audio/')
-      ? req.body.mime.split(';')[0]
-      : req.body.mime;
-    if (!mime || !size) return res.status(400).json({ error: 'mime and size required' });
+    // Normalize MIME: strip codec params from audio ("audio/webm;codecs=opus" → "audio/webm"),
+    // fall back to application/octet-stream when browser doesn't report a type (common on Windows)
+    const rawMime = (req.body.mime || '').trim();
+    const mime = rawMime.startsWith('audio/')
+      ? rawMime.split(';')[0]
+      : (rawMime || 'application/octet-stream');
+    if (!size) return res.status(400).json({ error: 'size required' });
     if (size > MAX_SIZE) return res.status(400).json({ error: 'File too large (max 100MB)' });
 
     const ALLOWED = [...IMAGE_TYPES, ...VIDEO_TYPES, ...AUDIO_TYPES, ...DOCUMENT_TYPES];
