@@ -186,6 +186,9 @@ router.post('/presign', async (req, res, next) => {
   try {
     if (!useS3) return res.json({ fallback: true });
 
+    console.log('[presign] headers content-type:', req.headers['content-type']);
+    console.log('[presign] body:', JSON.stringify(req.body));
+
     const { size, filename: origName } = req.body;
     // Normalize MIME: strip codec params from audio ("audio/webm;codecs=opus" → "audio/webm"),
     // fall back to application/octet-stream when browser doesn't report a type (common on Windows)
@@ -193,8 +196,13 @@ router.post('/presign', async (req, res, next) => {
     const mime = rawMime.startsWith('audio/')
       ? rawMime.split(';')[0]
       : (rawMime || 'application/octet-stream');
-    if (!size) return res.status(400).json({ error: 'size required' });
-    if (size > MAX_SIZE) return res.status(400).json({ error: 'File too large (max 100MB)' });
+
+    // Accept size as number or numeric string; coerce to number
+    const sizeNum = Number(size);
+    console.log('[presign] mime:', mime, '| size raw:', size, '| size coerced:', sizeNum);
+
+    if (!sizeNum) return res.status(400).json({ error: 'size required (received: ' + JSON.stringify(size) + ')' });
+    if (sizeNum > MAX_SIZE) return res.status(400).json({ error: 'File too large (max 100MB)' });
 
     const ALLOWED = [...IMAGE_TYPES, ...VIDEO_TYPES, ...AUDIO_TYPES, ...DOCUMENT_TYPES];
     if (!ALLOWED.includes(mime)) return res.status(400).json({ error: 'File type not allowed' });
