@@ -134,49 +134,67 @@ export function uploadFile(
   const controller = new AbortController();
 
   const promise = (async (): Promise<UploadResult> => {
+    // ── Materialise file if size is 0 ──────────────────────────────────────────
+    // Browsers report size:0 for files pasted from the OS clipboard (Ctrl+C file →
+    // Ctrl+V in browser) and sometimes for drag-dropped files in Chromium-based
+    // browsers. Reading the raw bytes gives us the real size and ensures the XHR
+    // body is not empty when we PUT to S3.
+    let workingFile: File = file;
+    if (file.size === 0) {
+      try {
+        const buf = await file.arrayBuffer();
+        if (buf.byteLength > 0) {
+          workingFile = new File([buf], file.name, {
+            type: file.type || 'application/octet-stream',
+            lastModified: file.lastModified,
+          });
+        }
+      } catch { /* use original file – will likely fail at S3 step, not here */ }
+    }
+
     // Determine what mime we'll actually upload (WebP for images, WebM for videos)
-    const isImage = file.type.startsWith('image/');
-    const isVideo = file.type.startsWith('video/');
-    const compressibleImage = isImage && file.type !== 'image/gif' && file.type !== 'image/svg+xml';
+    const isImage = workingFile.type.startsWith('image/');
+    const isVideo = workingFile.type.startsWith('video/');
+    const compressibleImage = isImage && workingFile.type !== 'image/gif' && workingFile.type !== 'image/svg+xml';
     // Strip codec suffix from audio MIME: "audio/webm;codecs=opus" → "audio/webm"
     // Fall back to application/octet-stream when browser can't detect file type (common on Windows drag-drop)
-    const rawMime = file.type || 'application/octet-stream';
+    const rawMime = workingFile.type || 'application/octet-stream';
     const normalizedMime = rawMime.startsWith('audio/') ? rawMime.split(';')[0] : rawMime;
     const uploadMime = compressibleImage ? 'image/webp' : isVideo ? 'video/webm' : normalizedMime;
 
     // 1. Ask backend for a presigned URL
     const presignRes = await client.post<{ fallback: true } | { uploadUrl: string; fileUrl: string }>(
       '/upload/presign',
-      { mime: uploadMime, size: file.size, filename: file.name },
+      { mime: uploadMime, size: workingFile.size, filename: workingFile.name },
     );
 
     // 2a. Fallback: server in local disk mode — use old multipart upload
     if ('fallback' in presignRes.data) {
       const fd = new FormData();
-      fd.append('file', file);
+      fd.append('file', workingFile);
       const r = await client.post<UploadResult>('/upload', fd, {
         headers: { 'Content-Type': undefined },
         timeout: 120_000,
         signal: controller.signal,
         onUploadProgress: e => { if (e.total) onProgress(Math.round(e.loaded / e.total * 100)); },
       });
-      return { ...r.data, size: r.data.size ?? file.size };
+      return { ...r.data, size: r.data.size ?? workingFile.size };
     }
 
     // 2b. Presigned: compress image client-side, then PUT directly to S3
     const { uploadUrl, fileUrl, contentDisposition } = presignRes.data as { uploadUrl: string; fileUrl: string; contentType: string; contentDisposition: string };
-    let blob: Blob = file;
+    let blob: Blob = workingFile;
     let mime = normalizedMime; // already stripped of codec suffix for audio
 
     if (isImage) {
-      const compressed = await compressImage(file);
+      const compressed = await compressImage(workingFile);
       blob = compressed.blob;
       mime = compressed.mime;
     } else if (isVideo) {
       // Skip re-encoding if already WebM — camera recordings land here and are
       // already at the desired bitrate; re-encoding only wastes time + degrades quality.
-      if (file.type !== 'video/webm') {
-        const compressed = await compressVideo(file);
+      if (workingFile.type !== 'video/webm') {
+        const compressed = await compressVideo(workingFile);
         blob = compressed.blob;
         mime = compressed.mime;
       }

@@ -197,11 +197,10 @@ router.post('/presign', async (req, res, next) => {
       ? rawMime.split(';')[0]
       : (rawMime || 'application/octet-stream');
 
-    // Accept size as number or numeric string; coerce to number
-    const sizeNum = Number(size);
-    console.log('[presign] mime:', mime, '| size raw:', size, '| size coerced:', sizeNum);
-
-    if (!sizeNum) return res.status(400).json({ error: 'size required (received: ' + JSON.stringify(size) + ')' });
+    // size is optional for presign (the S3 PutObject command is not size-scoped).
+    // Only reject if the client explicitly reports a size above MAX_SIZE.
+    const sizeNum = Number(size) || 0;
+    console.log('[presign] mime:', mime, '| size:', sizeNum);
     if (sizeNum > MAX_SIZE) return res.status(400).json({ error: 'File too large (max 100MB)' });
 
     const ALLOWED = [...IMAGE_TYPES, ...VIDEO_TYPES, ...AUDIO_TYPES, ...DOCUMENT_TYPES];
