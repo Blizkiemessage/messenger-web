@@ -163,7 +163,7 @@ router.post('/', upload.single('file'), async (req, res) => {
         Bucket: process.env.S3_BUCKET, Key: filename,
         Body: req.file.buffer, ContentType: mime,
         ContentDisposition: contentDisposition,
-        ACL: 'public-read',
+        // ACL omitted — objects are private by default (bucket policy)
       }));
 
       const publicUrl = process.env.S3_PUBLIC_URL.replace(/\/+$/, '');

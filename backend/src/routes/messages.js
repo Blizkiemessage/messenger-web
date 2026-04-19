@@ -17,6 +17,7 @@ const { authMiddleware } = require('../middleware/auth');
 const { getChatMessages, saveMessage, toggleReaction, toggleEmojiReaction, deleteMessages, hideMessages, pinMessage, unpinMessage, getPinnedMessages, forwardMessages, editMessage } = require('../services/messageService');
 const { isBlocked } = require('../services/userService');
 const { getDb } = require('../config/database');
+const { signUrl, signMessageUrls } = require('../utils/s3Sign');
 
 const router = express.Router();
 router.use(authMiddleware);
@@ -30,17 +31,18 @@ const msgLimiter = rateLimit({
 });
 
 // GET /chats/:chatId/messages
-router.get('/:chatId/messages', (req, res, next) => {
+router.get('/:chatId/messages', async (req, res, next) => {
   try {
     const limit = Math.min(parseInt(req.query.limit) || 50, 100);
     const before = req.query.before ? parseInt(req.query.before) : null;
     const messages = getChatMessages(req.params.chatId, req.userId, { limit, before });
+    await signMessageUrls(messages);
     res.json(messages);
   } catch (err) { next(err); }
 });
 
 // POST /chats/:chatId/messages
-router.post('/:chatId/messages', msgLimiter, (req, res, next) => {
+router.post('/:chatId/messages', msgLimiter, async (req, res, next) => {
   try {
     const { text, attachment_url, attachment_type, attachment_name, attachment_meta, attachment_duration, reply } = req.body;
     const hasText = text && typeof text === 'string' && text.trim();
@@ -74,6 +76,9 @@ router.post('/:chatId/messages', msgLimiter, (req, res, next) => {
     }
 
     const msg = saveMessage(req.params.chatId, req.userId, hasText ? text.trim() : '', attachment, false, replyData);
+
+    // Sign the attachment URL once — same signed URL is broadcast to all members
+    if (msg.attachment_url) msg.attachment_url = await signUrl(msg.attachment_url);
 
     const db = getDb();
     const members = db
@@ -225,19 +230,25 @@ router.post('/:chatId/messages/:msgId/react2', (req, res, next) => {
 });
 
 // GET /chats/:chatId/messages/pinned
-router.get('/:chatId/messages/pinned', (req, res, next) => {
-  try { res.json(getPinnedMessages(req.params.chatId, req.userId)); }
-  catch (err) { next(err); }
+router.get('/:chatId/messages/pinned', async (req, res, next) => {
+  try {
+    const msgs = getPinnedMessages(req.params.chatId, req.userId);
+    await signMessageUrls(msgs);
+    res.json(msgs);
+  } catch (err) { next(err); }
 });
 
 // POST /chats/:chatId/messages/forward  ✅ NEW
-router.post('/:chatId/messages/forward', (req, res, next) => {
+router.post('/:chatId/messages/forward', async (req, res, next) => {
   try {
     const { messageIds } = req.body;
     if (!Array.isArray(messageIds) || messageIds.length === 0) {
       return res.status(400).json({ error: 'messageIds array is required' });
     }
     const messages = forwardMessages(req.params.chatId, req.userId, messageIds);
+
+    // Sign attachment URLs on all forwarded messages at once
+    await signMessageUrls(messages);
 
     const io = req.app.get('io');
     if (io) {
@@ -256,9 +267,10 @@ router.post('/:chatId/messages/forward', (req, res, next) => {
 });
 
 // POST /chats/:chatId/messages/:msgId/pin
-router.post('/:chatId/messages/:msgId/pin', (req, res, next) => {
+router.post('/:chatId/messages/:msgId/pin', async (req, res, next) => {
   try {
     const msg = pinMessage(req.params.chatId, req.params.msgId, req.userId);
+    if (msg.attachment_url) msg.attachment_url = await signUrl(msg.attachment_url);
     const io = req.app.get('io');
     if (io) {
       const { getDb } = require('../config/database');

@@ -18,13 +18,15 @@ const {
   toggleMuteChat,
   updateChatPinOrder,
 } = require('../services/chatService');
+const { signChatAttachments, signSingleChatAttachment } = require('../utils/s3Sign');
 
 const router = express.Router();
 router.use(authMiddleware);
 
 // GET /chats — list all chats for current user
-router.get('/', (req, res) => {
+router.get('/', async (req, res) => {
   const chats = getUserChats(req.userId);
+  await signChatAttachments(chats);
   res.json(chats);
 });
 
@@ -91,9 +93,10 @@ router.post('/group', (req, res, next) => {
 });
 
 // GET /chats/:id
-router.get('/:id', (req, res) => {
+router.get('/:id', async (req, res) => {
   const chat = getChatById(req.params.id, req.userId);
   if (!chat) return res.status(404).json({ error: 'Chat not found' });
+  await signSingleChatAttachment(chat);
   res.json(chat);
 });
 
