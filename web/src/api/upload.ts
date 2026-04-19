@@ -139,7 +139,9 @@ export function uploadFile(
     const isVideo = file.type.startsWith('video/');
     const compressibleImage = isImage && file.type !== 'image/gif' && file.type !== 'image/svg+xml';
     // Strip codec suffix from audio MIME: "audio/webm;codecs=opus" → "audio/webm"
-    const normalizedMime = file.type.startsWith('audio/') ? file.type.split(';')[0] : file.type;
+    // Fall back to application/octet-stream when browser can't detect file type (common on Windows drag-drop)
+    const rawMime = file.type || 'application/octet-stream';
+    const normalizedMime = rawMime.startsWith('audio/') ? rawMime.split(';')[0] : rawMime;
     const uploadMime = compressibleImage ? 'image/webp' : isVideo ? 'video/webm' : normalizedMime;
 
     // 1. Ask backend for a presigned URL
