@@ -154,7 +154,7 @@ router.get('/my', async (req, res) => {
 });
 
 // GET /sticker-packs/browse?q=&limit=&offset=&type= — public packs discovery
-router.get('/browse', (req, res) => {
+router.get('/browse', async (req, res) => {
   const db = getDb();
   const q      = String(req.query.q || '').trim();
   const limit  = Math.min(Math.max(parseInt(String(req.query.limit  || '20')), 1), 50);
@@ -610,7 +610,7 @@ router.post('/:id/items', upload.single('file'), async (req, res) => {
 });
 
 // PATCH /sticker-packs/:id/items/:itemId — update emoji_hint (owner only)
-router.patch('/:id/items/:itemId', (req, res) => {
+router.patch('/:id/items/:itemId', async (req, res) => {
   const db = getDb();
   try {
     const item = db.prepare(
