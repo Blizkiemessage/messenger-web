@@ -20,20 +20,23 @@ const { authMiddleware } = require('../middleware/auth');
 const { getUserById, updateUser, searchUsers, sanitizeUser, toggleBlockUser, isBlocked, setContactAlias, deleteContactAlias, getContactAlias } = require('../services/userService');
 const { deleteAccount } = require('../services/chatService');
 const { deleteFromS3 } = require('../utils/s3Delete');
+const { signAvatarUrl, signUserAvatars } = require('../utils/s3Sign');
 const { initiateEmailChange, verifyEmailChange } = require('../services/authService');
 
 const router = express.Router();
 router.use(authMiddleware);
 
 // GET /users/me
-router.get('/me', (req, res) => {
+router.get('/me', async (req, res) => {
   const user = getUserById(req.userId);
   if (!user) return res.status(404).json({ error: 'User not found' });
-  res.json(sanitizeUser(user, { showPrivate: true }));
+  const data = sanitizeUser(user, { showPrivate: true });
+  if (data.avatar_url) data.avatar_url = await signAvatarUrl(data.avatar_url);
+  res.json(data);
 });
 
 // PATCH /users/me
-router.patch('/me', (req, res, next) => {
+router.patch('/me', async (req, res, next) => {
   try {
     const {
       username, display_name, avatar_url, bio, birth_date,
@@ -59,7 +62,9 @@ router.patch('/me', (req, res, next) => {
     // Delete old avatar from S3 if it was replaced (fire-and-forget)
     if (oldAvatarUrl && oldAvatarUrl !== avatar_url) deleteFromS3(oldAvatarUrl);
 
-    res.json(sanitizeUser(updated, { showPrivate: true }));
+    const data = sanitizeUser(updated, { showPrivate: true });
+    if (data.avatar_url) data.avatar_url = await signAvatarUrl(data.avatar_url);
+    res.json(data);
   } catch (err) {
     if (err.message && err.message.includes('UNIQUE')) {
       return res.status(409).json({ error: 'Username already taken' });
@@ -133,14 +138,16 @@ router.get('/check-username', (req, res) => {
 });
 
 // GET /users/search?q=...
-router.get('/search', (req, res) => {
+router.get('/search', async (req, res) => {
   const q = (req.query.q || '').trim();
   if (q.length < 2) return res.json([]);
-  res.json(searchUsers(q, req.userId));
+  const users = searchUsers(q, req.userId);
+  await signUserAvatars(users);
+  res.json(users);
 });
 
 // GET /users/:id — public profile (with block status + alias)
-router.get('/:id', (req, res, next) => {
+router.get('/:id', async (req, res, next) => {
   try {
     const user = getUserById(req.params.id);
     if (!user) return res.status(404).json({ error: 'User not found' });
@@ -153,6 +160,7 @@ router.get('/:id', (req, res, next) => {
     sanitized.is_blocked      = isBlk;
     sanitized.blocked_by_them = blkByThem;
     sanitized.alias           = alias;
+    if (sanitized.avatar_url) sanitized.avatar_url = await signAvatarUrl(sanitized.avatar_url);
     res.json(sanitized);
   } catch (err) { next(err); }
 });

@@ -7,6 +7,7 @@ const sharp   = require('sharp');
 const { S3Client, PutObjectCommand } = require('@aws-sdk/client-s3');
 const { authMiddleware } = require('../middleware/auth');
 const { getDb } = require('../config/database');
+const { signStickerItem, signStickerItems, signStickerPack, signStickerPacks } = require('../utils/s3Sign');
 
 const router = express.Router();
 router.use(authMiddleware);
@@ -51,7 +52,7 @@ async function saveFile(buffer, mime, prefix) {
       Body:   buffer,
       ContentType: mime,
       ContentDisposition: 'inline',
-      ACL: 'public-read',
+      // ACL omitted — objects are private by default (bucket policy)
     }));
     const publicUrl = process.env.S3_PUBLIC_URL.replace(/\/+$/, '');
     return `${publicUrl}/${filename}`;
@@ -115,7 +116,7 @@ function mapItem(r) {
 // ────────────────────────────────────────────────────────────────────────────
 
 // GET /sticker-packs/installed — user's installed packs ordered by sort_order
-router.get('/installed', (req, res) => {
+router.get('/installed', async (req, res) => {
   const db = getDb();
   try {
     const rows = db.prepare(`
@@ -125,14 +126,16 @@ router.get('/installed', (req, res) => {
       WHERE usp.user_id = ? AND sp.is_deleted = 0
       ORDER BY usp.sort_order ASC, usp.installed_at ASC
     `).all([req.user.id]);
-    res.json(rows.map(mapPack));
+    const packs = rows.map(mapPack);
+    await signStickerPacks(packs);
+    res.json(packs);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
 // GET /sticker-packs/my — packs owned by user (for Studio)
-router.get('/my', (req, res) => {
+router.get('/my', async (req, res) => {
   const db = getDb();
   try {
     const rows = db.prepare(`
@@ -142,7 +145,9 @@ router.get('/my', (req, res) => {
       WHERE sp.owner_id = ? AND sp.is_deleted = 0
       ORDER BY sp.created_at DESC
     `).all([req.user.id]);
-    res.json(rows.map(mapPack));
+    const packs = rows.map(mapPack);
+    await signStickerPacks(packs);
+    res.json(packs);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -173,14 +178,16 @@ router.get('/browse', (req, res) => {
       : db.prepare(`${baseSelect} ORDER BY sp.created_at DESC LIMIT ? OFFSET ?`
         ).all([req.user.id, limit, offset]);
 
-    res.json(rows.map(r => ({ ...mapPack(r), is_installed: !!r.is_installed })));
+    const packs = rows.map(r => ({ ...mapPack(r), is_installed: !!r.is_installed }));
+    await signStickerPacks(packs);
+    res.json(packs);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
 // GET /sticker-packs/:id — get single pack (public or owner)
-router.get('/:id', (req, res) => {
+router.get('/:id', async (req, res) => {
   const db = getDb();
   try {
     const pack = db.prepare(`
@@ -194,14 +201,16 @@ router.get('/:id', (req, res) => {
     if (!pack.is_public && pack.owner_id !== req.user.id) {
       return res.status(403).json({ error: 'Forbidden' });
     }
-    res.json({ ...mapPack(pack), is_installed: !!pack.is_installed });
+    const result = { ...mapPack(pack), is_installed: !!pack.is_installed };
+    await signStickerPack(result);
+    res.json(result);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
 // GET /sticker-packs/:id/items — items for a pack
-router.get('/:id/items', (req, res) => {
+router.get('/:id/items', async (req, res) => {
   const db = getDb();
   try {
     const pack = db.prepare('SELECT * FROM sticker_packs WHERE id = ? AND is_deleted = 0').get([req.params.id]);
@@ -218,7 +227,9 @@ router.get('/:id/items', (req, res) => {
     const items = db.prepare(
       'SELECT * FROM sticker_pack_items WHERE pack_id = ? ORDER BY sort_order ASC'
     ).all([req.params.id]);
-    res.json(items.map(mapItem));
+    const mapped = items.map(mapItem);
+    await signStickerItems(mapped);
+    res.json(mapped);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -414,7 +425,8 @@ router.post('/:id/logo', upload.single('file'), async (req, res) => {
     const logoUrl = await saveFile(fileBuffer, fileMime, 'pack-logo');
     db.prepare('UPDATE sticker_packs SET cover_url = ?, updated_at = ? WHERE id = ?')
       .run([logoUrl, Date.now(), req.params.id]);
-    res.json({ cover_url: logoUrl });
+    const signedLogoUrl = await signStickerPack({ cover_url: logoUrl }).then(p => p.cover_url);
+    res.json({ cover_url: signedLogoUrl });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -588,7 +600,9 @@ router.post('/:id/items', upload.single('file'), async (req, res) => {
         .run([Date.now(), req.params.id]);
     }
 
-    res.status(201).json(mapItem(db.prepare('SELECT * FROM sticker_pack_items WHERE id = ?').get([itemId])));
+    const newItem = mapItem(db.prepare('SELECT * FROM sticker_pack_items WHERE id = ?').get([itemId]));
+    await signStickerItem(newItem);
+    res.status(201).json(newItem);
   } catch (err) {
     console.error('[Stickers] Upload error:', err.message);
     res.status(500).json({ error: err.message });
@@ -610,8 +624,9 @@ router.patch('/:id/items/:itemId', (req, res) => {
       : item.emoji_hint;
 
     db.prepare('UPDATE sticker_pack_items SET emoji_hint = ? WHERE id = ?').run([emojiHint, req.params.itemId]);
-    const updated = db.prepare('SELECT * FROM sticker_pack_items WHERE id = ?').get([req.params.itemId]);
-    res.json(mapItem(updated));
+    const updatedItem = mapItem(db.prepare('SELECT * FROM sticker_pack_items WHERE id = ?').get([req.params.itemId]));
+    await signStickerItem(updatedItem);
+    res.json(updatedItem);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
