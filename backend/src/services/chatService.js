@@ -21,7 +21,7 @@
 
 const { v4: uuidv4 } = require('uuid');
 const { getDb } = require('../config/database');
-const { sanitizeUser, getContactAlias, isBlocked } = require('./userService');
+const { sanitizeUser } = require('./userService');
 const { deleteFromS3, deleteManyFromS3 } = require('../utils/s3Delete');
 const { decryptMessage, saveMessage } = require('./messageService');
 
@@ -41,26 +41,46 @@ function getChatById(chatId, userId) {
     .get(chatId);
   if (!chat) return null;
 
-  const member = db
-    .prepare('SELECT 1 FROM chat_members WHERE chat_id = ? AND user_id = ?')
-    .get([chatId, userId]);
-  if (!member) return null;
+  // Fetch all members + their last_read_at in one query (membership check included)
+  const rawMembers = db.prepare(`
+    SELECT cm.last_read_at AS member_last_read_at,
+           u.id, u.username, u.display_name, u.avatar_url, u.last_seen_at,
+           u.hide_avatar, u.avatar_exceptions
+    FROM chat_members cm
+    JOIN users u ON u.id = cm.user_id
+    WHERE cm.chat_id = ?
+  `).all(chatId);
 
-  const members = db
-    .prepare(
-      `SELECT u.id, u.username, u.display_name, u.avatar_url, u.last_seen_at, u.hide_avatar, u.avatar_exceptions
-       FROM chat_members cm JOIN users u ON u.id = cm.user_id
-       WHERE cm.chat_id = ?`
-    )
-    .all(chatId)
-    .map(u => {
-      const alias = u.id !== userId ? getContactAlias(userId, u.id) : null;
-      const member = sanitizeUser(u, { viewerId: userId }, alias);
-      if (u.id !== userId) {
-        try { member.blocked_by_them = isBlocked(u.id, userId); } catch { member.blocked_by_them = false; }
-      }
-      return member;
-    });
+  if (!rawMembers.some(m => m.id === userId)) return null;
+
+  const otherIds = rawMembers.filter(m => m.id !== userId).map(m => m.id);
+
+  // Batch load aliases for all other members
+  const aliasMap = {};
+  if (otherIds.length) {
+    const phs = otherIds.map(() => '?').join(',');
+    db.prepare(`SELECT target_id, alias FROM contact_aliases WHERE user_id = ? AND target_id IN (${phs})`)
+      .all([userId, ...otherIds])
+      .forEach(a => { aliasMap[a.target_id] = a.alias; });
+  }
+
+  // Batch load who among other members has blocked me
+  const blockedByThem = new Set();
+  if (otherIds.length) {
+    const phs = otherIds.map(() => '?').join(',');
+    db.prepare(`SELECT blocker_id FROM blocked_users WHERE blocked_id = ? AND blocker_id IN (${phs})`)
+      .all([userId, ...otherIds])
+      .forEach(b => blockedByThem.add(b.blocker_id));
+  }
+
+  const members = rawMembers.map(u => {
+    const alias = u.id !== userId ? (aliasMap[u.id] || null) : null;
+    const sanitized = sanitizeUser(u, { viewerId: userId }, alias);
+    if (u.id !== userId) {
+      sanitized.blocked_by_them = blockedByThem.has(u.id);
+    }
+    return sanitized;
+  });
 
   const lastMsg = db
     .prepare(
@@ -68,17 +88,12 @@ function getChatById(chatId, userId) {
     )
     .get(chatId);
 
-  const partner = chat.type === 'direct' ? members.find(m => m.id !== userId) : null;
+  // partner_last_read_at derived from already-loaded rawMembers — no extra query
+  const partner = chat.type === 'direct' ? rawMembers.find(m => m.id !== userId) : null;
   const partner_last_read_at = partner
-    ? db
-        .prepare('SELECT last_read_at FROM chat_members WHERE chat_id = ? AND user_id = ?')
-        .get([chatId, partner.id])?.last_read_at ?? 0
+    ? (partner.member_last_read_at ?? 0)
     : chat.type === 'group'
-      ? db
-          .prepare(
-            'SELECT MAX(last_read_at) as maxr FROM chat_members WHERE chat_id = ? AND user_id != ?'
-          )
-          .get([chatId, userId])?.maxr ?? 0
+      ? Math.max(0, ...rawMembers.filter(m => m.id !== userId).map(m => m.member_last_read_at ?? 0))
       : 0;
 
   return {
@@ -135,19 +150,17 @@ function getUserChats(userId) {
     WHERE m.deleted_at IS NULL
   `).all(chatIds);
 
-  // 4. Unread counts per chat in one query
+  // 4. Unread counts per chat — JOIN instead of correlated subquery
   const unreadCounts = db.prepare(`
-    SELECT chat_id, COUNT(*) AS cnt
-    FROM messages
-    WHERE chat_id IN (${placeholders})
-      AND deleted_at IS NULL
-      AND sender_id != ?
-      AND created_at > COALESCE(
-        (SELECT last_read_at FROM chat_members WHERE chat_id = messages.chat_id AND user_id = ?),
-        0
-      )
-    GROUP BY chat_id
-  `).all([...chatIds, userId, userId]);
+    SELECT m.chat_id, COUNT(*) AS cnt
+    FROM messages m
+    JOIN chat_members cm_me ON cm_me.chat_id = m.chat_id AND cm_me.user_id = ?
+    WHERE m.chat_id IN (${placeholders})
+      AND m.deleted_at IS NULL
+      AND m.sender_id != ?
+      AND m.created_at > COALESCE(cm_me.last_read_at, 0)
+    GROUP BY m.chat_id
+  `).all([userId, ...chatIds, userId]);
 
   // 5. All contact aliases for this user in one query
   const allAliases = db.prepare(`
@@ -175,10 +188,8 @@ function getUserChats(userId) {
   const aliasMap = {};
   for (const a of allAliases) aliasMap[a.target_id] = a.alias;
 
-  const blockedByMe = new Set();
   const blockedByThem = new Set();
   for (const b of allBlocks) {
-    if (b.blocker_id === userId) blockedByMe.add(b.blocked_id);
     if (b.blocked_id === userId) blockedByThem.add(b.blocker_id);
   }
 
