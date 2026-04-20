@@ -286,6 +286,8 @@ function runMigrations() {
     // ✅ NEW: original upload URL for sticker items — enables self-healing re-conversion
     // without asking users to re-upload (see POST /admin/api/sticker-repair).
     'ALTER TABLE sticker_pack_items ADD COLUMN orig_url TEXT',
+    // ✅ SECURITY: store IP address at session creation for user visibility
+    'ALTER TABLE sessions ADD COLUMN ip_address TEXT',
     // ✅ PERF: composite index for session lookups by user (logout-all, revoke, active-list)
     `CREATE INDEX IF NOT EXISTS idx_sessions_user_revoked ON sessions(user_id, revoked)`,
     // ✅ PERF: explicit named indexes on users (UNIQUE already creates implicit ones, but named for clarity)

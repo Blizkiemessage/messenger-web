@@ -13,6 +13,12 @@ const { loginLimiter, emailSendLimiter, otpVerifyLimiter } = require('../middlew
 
 const router = express.Router();
 
+function getClientIp(req) {
+  return req.headers['x-forwarded-for']?.split(',')[0]?.trim()
+    || req.socket.remoteAddress
+    || '';
+}
+
 // POST /auth/login — login by username or email + password
 router.post('/login', loginLimiter, async (req, res, next) => {
   try {
@@ -20,7 +26,7 @@ router.post('/login', loginLimiter, async (req, res, next) => {
     if (!login || typeof login !== 'string' || login.trim().length < 3) {
       return res.status(400).json({ error: 'Введите username или email' });
     }
-    const result = await loginOrRegister(login, password || null, req.headers['user-agent'] || '');
+    const result = await loginOrRegister(login, password || null, req.headers['user-agent'] || '', getClientIp(req));
     res.json(result);
   } catch (err) {
     next(err);
@@ -57,7 +63,7 @@ router.post('/verify-email', otpVerifyLimiter, async (req, res, next) => {
     if (!otp || typeof otp !== 'string' || !/^\d{6}$/.test(otp.trim())) {
       return res.status(400).json({ error: 'Код должен состоять из 6 цифр' });
     }
-    const result = await verifyEmailAndCreateAccount(email.trim(), otp.trim(), req.headers['user-agent'] || '');
+    const result = await verifyEmailAndCreateAccount(email.trim(), otp.trim(), req.headers['user-agent'] || '', getClientIp(req));
     res.status(201).json(result);
   } catch (err) {
     next(err);

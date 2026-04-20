@@ -7614,6 +7614,16 @@ input[type="date"].psInput::-webkit-calendar-picker-indicator {
   color: var(--muted);
   margin-top: 2px;
 }
+.sessionsIp {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  color: var(--muted);
+  opacity: .65;
+  margin-top: 3px;
+  font-variant-numeric: tabular-nums;
+}
 .sessionsRevokeBtn {
   flex-shrink: 0;
   padding: 5px 12px;

@@ -43,8 +43,9 @@ router.post('/login', adminLoginLimiter, (req, res, next) => {
     // Create a real revocable session
     const jti = uuidv4();
     const now = Date.now();
-    db.prepare('INSERT INTO sessions (id, user_id, created_at, revoked) VALUES (?, ?, ?, 0)')
-      .run([jti, user.id, now]);
+    const ip = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.socket.remoteAddress || null;
+    db.prepare('INSERT INTO sessions (id, user_id, created_at, revoked, user_agent, last_used_at, ip_address) VALUES (?, ?, ?, 0, ?, ?, ?)')
+      .run([jti, user.id, now, req.headers['user-agent'] || null, now, ip]);
 
     const token = sign({ sub: user.id, jti });
     res.json({ token });

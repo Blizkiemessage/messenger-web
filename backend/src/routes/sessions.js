@@ -44,7 +44,7 @@ router.get('/', (req, res, next) => {
   try {
     const db = getDb();
     const rows = db.prepare(
-      `SELECT id, created_at, last_used_at, user_agent
+      `SELECT id, created_at, last_used_at, user_agent, ip_address
        FROM sessions
        WHERE user_id = ? AND revoked = 0
        ORDER BY COALESCE(last_used_at, created_at) DESC`
@@ -55,6 +55,7 @@ router.get('/', (req, res, next) => {
       created_at: s.created_at,
       last_used_at: s.last_used_at || s.created_at,
       device: parseUA(s.user_agent),
+      ip_address: s.ip_address || null,
       is_current: s.id === req.sessionId,
     })));
   } catch (err) { next(err); }

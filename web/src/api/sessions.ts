@@ -5,6 +5,7 @@ export type Session = {
   created_at: number;
   last_used_at: number;
   device: string;
+  ip_address: string | null;
   is_current: boolean;
 };
 

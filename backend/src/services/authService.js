@@ -13,7 +13,7 @@ const crypto = require('crypto');
  * Login by username or email + optional password.
  * If login contains '@' — looks up by email, otherwise by username.
  */
-async function loginOrRegister(login, password, userAgent = '') {
+async function loginOrRegister(login, password, userAgent = '', ipAddress = '') {
   const db = getDb();
   const clean = login.trim().toLowerCase();
 
@@ -55,8 +55,8 @@ async function loginOrRegister(login, password, userAgent = '') {
   db.prepare('UPDATE users SET last_seen_at = ? WHERE id = ?').run([now, user.id]);
 
   const sessionId = uuidv4();
-  db.prepare('INSERT INTO sessions (id, user_id, created_at, revoked, user_agent, last_used_at) VALUES (?, ?, ?, 0, ?, ?)')
-    .run([sessionId, user.id, now, userAgent, now]);
+  db.prepare('INSERT INTO sessions (id, user_id, created_at, revoked, user_agent, last_used_at, ip_address) VALUES (?, ?, ?, 0, ?, ?, ?)')
+    .run([sessionId, user.id, now, userAgent, now, ipAddress || null]);
 
   const token = sign({ sub: user.id, jti: sessionId });
   return { token, user: sanitizeUserFull(user, { showPrivate: true }) };
@@ -66,7 +66,7 @@ async function loginOrRegister(login, password, userAgent = '') {
  * Explicit registration with username + password.
  * Fails if username already taken.
  */
-async function registerWithPassword(username, password, userAgent = '') {
+async function registerWithPassword(username, password, userAgent = '', ipAddress = '') {
   const db = getDb();
   const clean = username.trim().toLowerCase();
 
@@ -96,8 +96,8 @@ async function registerWithPassword(username, password, userAgent = '') {
 
   const user = db.prepare('SELECT * FROM users WHERE id = ?').get(userId);
   const sessionId = uuidv4();
-  db.prepare('INSERT INTO sessions (id, user_id, created_at, revoked, user_agent, last_used_at) VALUES (?, ?, ?, 0, ?, ?)')
-    .run([sessionId, userId, now, userAgent, now]);
+  db.prepare('INSERT INTO sessions (id, user_id, created_at, revoked, user_agent, last_used_at, ip_address) VALUES (?, ?, ?, 0, ?, ?, ?)')
+    .run([sessionId, userId, now, userAgent, now, ipAddress || null]);
 
   const token = sign({ sub: userId, jti: sessionId });
   return { token, user: sanitizeUserFull(user, { showPrivate: true }), isNew: true };
@@ -186,7 +186,7 @@ async function initiateRegistration(username, email, password) {
  * Step 2 of email-verified registration.
  * Verifies OTP, creates the user account, returns { token, user }.
  */
-async function verifyEmailAndCreateAccount(email, otp, userAgent = '') {
+async function verifyEmailAndCreateAccount(email, otp, userAgent = '', ipAddress = '') {
   const db = getDb();
   const cleanEmail = email.trim().toLowerCase();
 
@@ -235,8 +235,8 @@ async function verifyEmailAndCreateAccount(email, otp, userAgent = '') {
 
   const user = db.prepare('SELECT * FROM users WHERE id = ?').get(userId);
   const sessionId = uuidv4();
-  db.prepare('INSERT INTO sessions (id, user_id, created_at, revoked, user_agent, last_used_at) VALUES (?, ?, ?, 0, ?, ?)')
-    .run([sessionId, userId, now, userAgent, now]);
+  db.prepare('INSERT INTO sessions (id, user_id, created_at, revoked, user_agent, last_used_at, ip_address) VALUES (?, ?, ?, 0, ?, ?, ?)')
+    .run([sessionId, userId, now, userAgent, now, ipAddress || null]);
 
   const token = sign({ sub: userId, jti: sessionId });
   return { token, user: sanitizeUserFull(user, { showPrivate: true }), isNew: true };
