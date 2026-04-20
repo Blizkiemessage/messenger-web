@@ -96,76 +96,128 @@ function getChatById(chatId, userId) {
 function getUserChats(userId) {
   const db = getDb();
 
-  const chats = db
-    .prepare(
-      `SELECT c.id, c.type, c.name, c.description, c.avatar_url, c.created_at, c.creator_id, c.is_closed,
-              cm.is_pinned, cm.pin_order, cm.is_muted
-       FROM chats c
-       JOIN chat_members cm ON cm.chat_id = c.id
-       WHERE cm.user_id = ?
-       ORDER BY c.created_at DESC`
-    )
-    .all(userId);
+  // 1. All chats for this user + their membership row
+  const rows = db.prepare(`
+    SELECT c.id, c.type, c.name, c.description, c.avatar_url, c.created_at,
+           c.creator_id, c.is_closed,
+           cm.is_pinned, cm.pin_order, cm.is_muted, cm.last_read_at AS my_last_read_at
+    FROM chats c
+    JOIN chat_members cm ON cm.chat_id = c.id
+    WHERE cm.user_id = ?
+    ORDER BY c.created_at DESC
+  `).all(userId);
 
-  return chats.map(chat => {
-    const members = db
-      .prepare(
-        `SELECT u.id, u.username, u.display_name, u.avatar_url, u.last_seen_at, u.hide_avatar, u.avatar_exceptions
-         FROM chat_members cm JOIN users u ON u.id = cm.user_id
-         WHERE cm.chat_id = ?`
+  if (!rows.length) return [];
+
+  const chatIds = rows.map(r => r.id);
+  const placeholders = chatIds.map(() => '?').join(',');
+
+  // 2. All members of all chats in one query
+  const allMembers = db.prepare(`
+    SELECT cm.chat_id, cm.last_read_at AS member_last_read_at,
+           u.id, u.username, u.display_name, u.avatar_url, u.last_seen_at,
+           u.hide_avatar, u.avatar_exceptions
+    FROM chat_members cm
+    JOIN users u ON u.id = cm.user_id
+    WHERE cm.chat_id IN (${placeholders})
+  `).all(chatIds);
+
+  // 3. Latest message per chat in one query
+  const lastMessages = db.prepare(`
+    SELECT m.*
+    FROM messages m
+    INNER JOIN (
+      SELECT chat_id, MAX(created_at) AS max_ts
+      FROM messages
+      WHERE chat_id IN (${placeholders}) AND deleted_at IS NULL
+      GROUP BY chat_id
+    ) latest ON m.chat_id = latest.chat_id AND m.created_at = latest.max_ts
+    WHERE m.deleted_at IS NULL
+  `).all(chatIds);
+
+  // 4. Unread counts per chat in one query
+  const unreadCounts = db.prepare(`
+    SELECT chat_id, COUNT(*) AS cnt
+    FROM messages
+    WHERE chat_id IN (${placeholders})
+      AND deleted_at IS NULL
+      AND sender_id != ?
+      AND created_at > COALESCE(
+        (SELECT last_read_at FROM chat_members WHERE chat_id = messages.chat_id AND user_id = ?),
+        0
       )
-      .all(chat.id)
-      .map(u => {
-        const alias = u.id !== userId ? getContactAlias(userId, u.id) : null;
-        const member = sanitizeUser(u, { viewerId: userId }, alias);
-        if (u.id !== userId) {
-          try { member.blocked_by_them = isBlocked(u.id, userId); } catch { member.blocked_by_them = false; }
-        }
-        return member;
-      });
+    GROUP BY chat_id
+  `).all([...chatIds, userId, userId]);
 
-    const lastMsg = db
-      .prepare(
-        `SELECT * FROM messages WHERE chat_id = ? AND deleted_at IS NULL
-         ORDER BY created_at DESC LIMIT 1`
-      )
-      .get(chat.id);
+  // 5. All contact aliases for this user in one query
+  const allAliases = db.prepare(`
+    SELECT target_id, alias FROM contact_aliases WHERE user_id = ?
+  `).all(userId);
 
-    const myMember = db
-      .prepare('SELECT last_read_at FROM chat_members WHERE chat_id = ? AND user_id = ?')
-      .get([chat.id, userId]);
+  // 6. All block relationships involving this user in one query
+  const allBlocks = db.prepare(`
+    SELECT blocker_id, blocked_id FROM blocked_users
+    WHERE blocker_id = ? OR blocked_id = ?
+  `).all([userId, userId]);
 
-    const unread_count = lastMsg
-      ? db
-          .prepare(
-            `SELECT COUNT(*) as cnt FROM messages
-             WHERE chat_id = ? AND created_at > ? AND deleted_at IS NULL AND sender_id != ?`
-          )
-          .get([chat.id, myMember?.last_read_at ?? 0, userId])?.cnt ?? 0
-      : 0;
+  // ── Build lookup maps ─────────────────────────────────────────────────────
+  const membersByChat = {};
+  for (const m of allMembers) {
+    (membersByChat[m.chat_id] ??= []).push(m);
+  }
 
-    const partner = chat.type === 'direct' ? members.find(m => m.id !== userId) : null;
+  const lastMsgByChat = {};
+  for (const m of lastMessages) lastMsgByChat[m.chat_id] = m;
+
+  const unreadByChat = {};
+  for (const r of unreadCounts) unreadByChat[r.chat_id] = r.cnt;
+
+  const aliasMap = {};
+  for (const a of allAliases) aliasMap[a.target_id] = a.alias;
+
+  const blockedByMe = new Set();
+  const blockedByThem = new Set();
+  for (const b of allBlocks) {
+    if (b.blocker_id === userId) blockedByMe.add(b.blocked_id);
+    if (b.blocked_id === userId) blockedByThem.add(b.blocker_id);
+  }
+
+  // ── Assemble result ───────────────────────────────────────────────────────
+  return rows.map(chat => {
+    const rawMembers = membersByChat[chat.id] || [];
+    const members = rawMembers.map(u => {
+      const alias = u.id !== userId ? (aliasMap[u.id] || null) : null;
+      const sanitized = sanitizeUser(u, { viewerId: userId }, alias);
+      if (u.id !== userId) {
+        sanitized.blocked_by_them = blockedByThem.has(u.id);
+      }
+      return sanitized;
+    });
+
+    const lastMsg = lastMsgByChat[chat.id] || null;
+
+    const partner = chat.type === 'direct' ? rawMembers.find(m => m.id !== userId) : null;
     const partner_last_read_at = partner
-      ? db
-          .prepare('SELECT last_read_at FROM chat_members WHERE chat_id = ? AND user_id = ?')
-          .get([chat.id, partner.id])?.last_read_at ?? 0
+      ? (partner.member_last_read_at ?? 0)
       : chat.type === 'group'
-        ? db
-            .prepare(
-              'SELECT MAX(last_read_at) as maxr FROM chat_members WHERE chat_id = ? AND user_id != ?'
-            )
-            .get([chat.id, userId])?.maxr ?? 0
+        ? Math.max(0, ...rawMembers.filter(m => m.id !== userId).map(m => m.member_last_read_at ?? 0))
         : 0;
 
     return {
-      ...chat,
-      is_closed:  chat.is_closed  === 1,
-      is_pinned:  chat.is_pinned  === 1,
-      pin_order:  chat.pin_order  ?? null,
-      is_muted:   chat.is_muted   === 1,
+      id:          chat.id,
+      type:        chat.type,
+      name:        chat.name,
+      description: chat.description,
+      avatar_url:  chat.avatar_url,
+      created_at:  chat.created_at,
+      creator_id:  chat.creator_id,
+      is_closed:   chat.is_closed  === 1,
+      is_pinned:   chat.is_pinned  === 1,
+      pin_order:   chat.pin_order  ?? null,
+      is_muted:    chat.is_muted   === 1,
       members,
       last_message: lastMsg ? decryptMessage(lastMsg) : null,
-      unread_count: unread_count || 0,
+      unread_count: unreadByChat[chat.id] || 0,
       partner_last_read_at,
     };
   });
