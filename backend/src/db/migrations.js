@@ -286,6 +286,15 @@ function runMigrations() {
     // ✅ NEW: original upload URL for sticker items — enables self-healing re-conversion
     // without asking users to re-upload (see POST /admin/api/sticker-repair).
     'ALTER TABLE sticker_pack_items ADD COLUMN orig_url TEXT',
+    // ✅ PERF: composite index for session lookups by user (logout-all, revoke, active-list)
+    `CREATE INDEX IF NOT EXISTS idx_sessions_user_revoked ON sessions(user_id, revoked)`,
+    // ✅ PERF: explicit named indexes on users (UNIQUE already creates implicit ones, but named for clarity)
+    `CREATE INDEX IF NOT EXISTS idx_users_email    ON users(email)`,
+    `CREATE INDEX IF NOT EXISTS idx_users_username ON users(username)`,
+    // ✅ PERF: composite index for OTP lookup by target+used (login / email verification)
+    `CREATE INDEX IF NOT EXISTS idx_otps_target_used ON otps(target, used, expires_at)`,
+    // ✅ PERF: index for messages by sender (admin delete user, push notifications)
+    `CREATE INDEX IF NOT EXISTS idx_messages_sender ON messages(sender_id)`,
   ];
 
   for (const sql of alters) {
