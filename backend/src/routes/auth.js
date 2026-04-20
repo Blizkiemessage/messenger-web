@@ -1,5 +1,4 @@
 const express = require('express');
-const rateLimit = require('express-rate-limit');
 const {
   loginOrRegister,
   registerWithPassword,
@@ -10,19 +9,12 @@ const {
   resetPassword,
 } = require('../services/authService');
 const { authMiddleware } = require('../middleware/auth');
+const { loginLimiter, emailSendLimiter, otpVerifyLimiter } = require('../middleware/rateLimits');
 
 const router = express.Router();
 
-const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 30,
-  message: { error: 'Too many requests, please try again later' },
-  standardHeaders: true,
-  legacyHeaders: false,
-});
-
 // POST /auth/login — login by username or email + password
-router.post('/login', limiter, async (req, res, next) => {
+router.post('/login', loginLimiter, async (req, res, next) => {
   try {
     const { login, password } = req.body;
     if (!login || typeof login !== 'string' || login.trim().length < 3) {
@@ -36,7 +28,7 @@ router.post('/login', limiter, async (req, res, next) => {
 });
 
 // POST /auth/register — step 1: validate, send OTP email
-router.post('/register', limiter, async (req, res, next) => {
+router.post('/register', emailSendLimiter, async (req, res, next) => {
   try {
     const { username, email, password } = req.body;
     if (!username || typeof username !== 'string' || username.trim().length < 3) {
@@ -56,7 +48,7 @@ router.post('/register', limiter, async (req, res, next) => {
 });
 
 // POST /auth/verify-email — step 2: verify OTP, create account
-router.post('/verify-email', limiter, async (req, res, next) => {
+router.post('/verify-email', otpVerifyLimiter, async (req, res, next) => {
   try {
     const { email, otp } = req.body;
     if (!email || typeof email !== 'string') {
@@ -87,7 +79,7 @@ router.patch('/password', authMiddleware, async (req, res, next) => {
 });
 
 // POST /auth/forgot-password — send password reset link to email
-router.post('/forgot-password', limiter, async (req, res, next) => {
+router.post('/forgot-password', emailSendLimiter, async (req, res, next) => {
   try {
     const { email } = req.body;
     if (!email || typeof email !== 'string') {
@@ -101,7 +93,7 @@ router.post('/forgot-password', limiter, async (req, res, next) => {
 });
 
 // POST /auth/reset-password — verify token and set new password
-router.post('/reset-password', limiter, async (req, res, next) => {
+router.post('/reset-password', otpVerifyLimiter, async (req, res, next) => {
   try {
     const { id, token, newPassword } = req.body;
     if (!id || typeof id !== 'string') {

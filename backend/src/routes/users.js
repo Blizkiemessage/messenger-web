@@ -22,6 +22,7 @@ const { deleteAccount } = require('../services/chatService');
 const { deleteFromS3 } = require('../utils/s3Delete');
 const { signAvatarUrl, signUserAvatars } = require('../utils/s3Sign');
 const { initiateEmailChange, verifyEmailChange } = require('../services/authService');
+const { emailSendLimiter, otpVerifyLimiter } = require('../middleware/rateLimits');
 
 const router = express.Router();
 router.use(authMiddleware);
@@ -100,7 +101,7 @@ router.delete('/me', (req, res, next) => {
 });
 
 // POST /users/me/request-email-change — step 1: send OTP to new email
-router.post('/me/request-email-change', async (req, res, next) => {
+router.post('/me/request-email-change', emailSendLimiter, async (req, res, next) => {
   try {
     const { email } = req.body;
     if (!email || typeof email !== 'string') {
@@ -112,7 +113,7 @@ router.post('/me/request-email-change', async (req, res, next) => {
 });
 
 // POST /users/me/verify-email-change — step 2: verify OTP and update email
-router.post('/me/verify-email-change', async (req, res, next) => {
+router.post('/me/verify-email-change', otpVerifyLimiter, async (req, res, next) => {
   try {
     const { email, otp } = req.body;
     if (!email || typeof email !== 'string') {
