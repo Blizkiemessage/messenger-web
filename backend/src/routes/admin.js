@@ -72,12 +72,18 @@ function isAdmin(req, res, next) {
 
 router.use(isAdmin);
 
+const ALLOWED_TABLES = new Set(['users', 'chats', 'messages', 'support_reports', 'sessions']);
+const ALLOWED_SUPPORT_TYPES = new Set(['bug', 'feature', 'other']);
+
 // GET /admin/api/stats?from=<ms>&to=<ms>
 router.get('/stats', (req, res, next) => {
   try {
     const db = getDb();
     const from = req.query.from ? parseInt(req.query.from) : null;
     const to   = req.query.to   ? parseInt(req.query.to)   : null;
+
+    if (from !== null && (isNaN(from) || from < 0)) return res.status(400).json({ error: 'Invalid from' });
+    if (to   !== null && (isNaN(to)   || to   < 0)) return res.status(400).json({ error: 'Invalid to' });
 
     // Build a WHERE clause fragment and params for date filtering
     function dateWhere(alias) {
@@ -89,11 +95,13 @@ router.get('/stats', (req, res, next) => {
     }
 
     function countTable(table) {
+      if (!ALLOWED_TABLES.has(table)) throw new Error(`Table not allowed: ${table}`);
       const { where, params } = dateWhere('');
       return db.prepare(`SELECT COUNT(*) as c FROM ${table} ${where}`).get(params).c;
     }
 
     function countSupport(type) {
+      if (!ALLOWED_SUPPORT_TYPES.has(type)) return 0;
       const { where, params } = dateWhere('');
       const and = where ? ' AND type = ?' : 'WHERE type = ?';
       return db.prepare(`SELECT COUNT(*) as c FROM support_reports ${where}${and}`).get([...params, type]).c;
