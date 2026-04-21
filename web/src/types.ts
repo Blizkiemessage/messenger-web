@@ -22,6 +22,7 @@ export type User = {
   is_blocked?: boolean;        // viewer has blocked this user
   blocked_by_them?: boolean;   // this user has blocked the viewer
   alias?: string | null;       // viewer's custom nickname for this user
+  role?: 'member' | 'moderator' | 'admin'; // role in a group chat context
 };
 
 export type MessageReply = {

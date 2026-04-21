@@ -2055,7 +2055,7 @@ input { font: inherit; color: inherit; background: transparent; }
 .giMemberName { font-size: 13.5px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .giMemberSub { font-size: 12px; color: var(--muted); margin-top: 1px; }
 .giBadges { display: flex; gap: 4px; flex-shrink: 0; }
-.giYouBadge, .giAdminBadge {
+.giYouBadge, .giAdminBadge, .giModeratorBadge {
   font-size: 10.5px;
   font-weight: 700;
   padding: 2px 7px;
@@ -2063,6 +2063,7 @@ input { font: inherit; color: inherit; background: transparent; }
 }
 .giYouBadge { background: var(--accent-dim); color: var(--accent); border: 1px solid var(--accent-border); }
 .giAdminBadge { background: rgba(63,185,80,.12); color: var(--success); border: 1px solid rgba(63,185,80,.25); }
+.giModeratorBadge { background: rgba(251,191,36,.12); color: #fbbf24; border: 1px solid rgba(251,191,36,.25); }
 .giConfirmOverlay {
   position: fixed;
   inset: 0;

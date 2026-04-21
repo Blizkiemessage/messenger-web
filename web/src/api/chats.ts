@@ -161,3 +161,9 @@ export async function editMessage(chatId: string, messageId: string, text: strin
   const res = await client.patch<import('../types').Message>(`/chats/${chatId}/messages/${messageId}`, { text });
   return res.data;
 }
+
+/** ✅ Assign or remove moderator role for a group member (admin only) */
+export async function setMemberRole(chatId: string, userId: string, role: 'member' | 'moderator'): Promise<Chat> {
+  const res = await client.patch<Chat>(`/chats/${chatId}/members/${userId}/role`, { role });
+  return res.data;
+}

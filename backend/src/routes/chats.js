@@ -17,6 +17,7 @@ const {
   togglePinChat,
   toggleMuteChat,
   updateChatPinOrder,
+  setMemberRole,
 } = require('../services/chatService');
 const { signFullChatObjects, signFullChatObject } = require('../utils/s3Sign');
 
@@ -216,6 +217,29 @@ router.post('/:id/transfer-admin', (req, res, next) => {
       for (const uid of allMembers) {
         io.to(`user:${uid}`).emit('chat-updated', updatedChat);
         if (sysMsg) io.to(`user:${uid}`).emit('new-message', sysMsg);
+      }
+    }
+    res.json(updatedChat);
+  } catch (err) { next(err); }
+});
+
+// PATCH /chats/:id/members/:userId/role — assign moderator/member role
+router.patch('/:id/members/:userId/role', (req, res, next) => {
+  try {
+    const { role } = req.body;
+    if (!['member', 'moderator'].includes(role)) {
+      return res.status(400).json({ error: 'role must be "member" or "moderator"' });
+    }
+    const { updatedChat, sysMsg } = setMemberRole(req.params.id, req.userId, req.params.userId, role);
+    const io = req.app.get('io');
+    if (io) {
+      for (const member of updatedChat.members) {
+        io.to(`user:${member.id}`).emit('chat-updated', updatedChat);
+      }
+      if (sysMsg) {
+        for (const member of updatedChat.members) {
+          io.to(`user:${member.id}`).emit('new-message', sysMsg);
+        }
       }
     }
     res.json(updatedChat);

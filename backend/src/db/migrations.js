@@ -299,6 +299,8 @@ function runMigrations() {
     `CREATE INDEX IF NOT EXISTS idx_messages_sender ON messages(sender_id)`,
     // ✅ PERF: denormalized unread counter — avoids COUNT(*) on every getUserChats call
     'ALTER TABLE chat_members ADD COLUMN unread_count INTEGER NOT NULL DEFAULT 0',
+    // ✅ ROLES: role in group chats — 'member' | 'moderator' | 'admin'
+    "ALTER TABLE chat_members ADD COLUMN role TEXT NOT NULL DEFAULT 'member'",
     // ✅ NEW: structured error log — stores background errors for admin panel review
     `CREATE TABLE IF NOT EXISTS app_errors (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -317,6 +319,21 @@ function runMigrations() {
   for (const sql of alters) {
     try { db.exec(sql); } catch { /* already exists */ }
   }
+
+  // Backfill: assign role='admin' to the creator of each existing group
+  try {
+    db.exec(`
+      UPDATE chat_members SET role = 'admin'
+      WHERE role = 'member'
+        AND EXISTS (
+          SELECT 1 FROM chats
+          WHERE chats.id = chat_members.chat_id
+            AND chats.type = 'group'
+            AND chats.creator_id = chat_members.user_id
+        )
+    `);
+    console.log('[DB] role backfill complete');
+  } catch (e) { console.warn('[DB] role backfill:', e.message); }
 
   try {
     const members = db.prepare('SELECT chat_id, user_id, last_read_at FROM chat_members').all();

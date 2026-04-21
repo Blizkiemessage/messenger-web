@@ -10,7 +10,7 @@ import { ContextMenu } from '../ui/ContextMenu';
 import { AddGroupMembersModal } from './AddGroupMembersModal';
 import { Portal } from '../ui/Portal';
 import client from '../../api/client';
-import { getChatMessages } from '../../api/chats';
+import { getChatMessages, setMemberRole as setMemberRoleApi } from '../../api/chats';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -114,8 +114,11 @@ export function GroupInfoModal({
   onUpdateChat, onRemoveMember, onCloseGroup, onTransferAdmin, onUpdateAvatar,
   onJumpToMessage,
 }: Props) {
-  const isCreator    = chat.creator_id === meId;
-  const isGroupClosed = chat.is_closed === true;
+  const myRole           = chat.members.find(m => m.id === meId)?.role ?? 'member';
+  const isAdmin          = myRole === 'admin';
+  const isModerator      = myRole === 'moderator';
+  const canManageMembers = isAdmin || isModerator;
+  const isGroupClosed    = chat.is_closed === true;
 
   // ── Edit ─────────────────────────────────────────────────────────────────
   const [editing,   setEditing]   = useState(false);
@@ -143,6 +146,8 @@ export function GroupInfoModal({
   const [closeBusy, setCloseBusy]                 = useState(false);
   const [makeAdminTarget, setMakeAdminTarget]     = useState<User | null>(null);
   const [makeAdminBusy, setMakeAdminBusy]         = useState(false);
+  const [modRoleTarget, setModRoleTarget]         = useState<{ user: User; action: 'assign' | 'revoke' } | null>(null);
+  const [modRoleBusy, setModRoleBusy]             = useState(false);
 
   // ── Tabs ─────────────────────────────────────────────────────────────────
   const [activeTab, setActiveTab] = useState<TabType>('members');
@@ -267,6 +272,17 @@ export function GroupInfoModal({
     finally { setMakeAdminBusy(false); }
   }
 
+  async function handleModRole() {
+    if (!modRoleTarget) return;
+    setModRoleBusy(true);
+    try {
+      const newRole = modRoleTarget.action === 'assign' ? 'moderator' : 'member';
+      await setMemberRoleApi(chat.id, modRoleTarget.user.id, newRole);
+      setModRoleTarget(null);
+    } catch { /* socket will update chat */ }
+    finally { setModRoleBusy(false); }
+  }
+
   async function loadMore() {
     if (tabLoading || !tabOldest) return;
     setTabLoading(true);
@@ -332,14 +348,14 @@ export function GroupInfoModal({
         <div className="upHeader">
             <div className="upAvatarRing">
               <div className="upAvatar"
-                style={{ position: 'relative', cursor: isCreator ? 'pointer' : 'default' }}
-                onClick={() => isCreator && avatarInputRef.current?.click()}
+                style={{ position: 'relative', cursor: isAdmin ? 'pointer' : 'default' }}
+                onClick={() => isAdmin && avatarInputRef.current?.click()}
               >
                 {chat.avatar_url
                   ? <img src={chat.avatar_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 'inherit' }} />
                   : <span className="upAvatarLetter">{avatarLetter(chat.name || 'Г')}</span>
                 }
-                {isCreator && (
+                {isAdmin && (
                   <div className="giAvatarOverlay">
                     {avatarUploading
                       ? <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" style={{ animation: 'spin 1s linear infinite' }}><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
@@ -348,7 +364,7 @@ export function GroupInfoModal({
                   </div>
                 )}
               </div>
-              {isCreator && <input ref={avatarInputRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={handleAvatarChange} />}
+              {isAdmin && <input ref={avatarInputRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={handleAvatarChange} />}
             </div>
 
             {editing ? (
@@ -375,7 +391,7 @@ export function GroupInfoModal({
               <>
                 <div className="giNameRow">
                   <div className="upName">{chat.name || 'Группа'}</div>
-                  {isCreator && !isGroupClosed && (
+                  {isAdmin && !isGroupClosed && (
                     <button className="giEditBtn" onClick={() => setEditing(true)} title="Редактировать">
                       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
                         <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
@@ -448,7 +464,7 @@ export function GroupInfoModal({
           {/* MEMBERS (also shown when editing) */}
           {(activeTab === 'members' || editing) && (
             <div className="giMembersSection">
-              {isCreator && !isGroupClosed && (
+              {canManageMembers && !isGroupClosed && (
                 <button className="giAddMembersBtn" onClick={() => setShowAddMembers(true)}>
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
                     <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/>
@@ -459,11 +475,17 @@ export function GroupInfoModal({
                 </button>
               )}
               <div className="giMemberList">
-                {chat.members.map(m => (
+                {chat.members.map(m => {
+                  const targetRole = m.role ?? 'member';
+                  const canOpenCtx = m.id !== meId && (
+                    (isAdmin && targetRole !== 'admin') ||
+                    (isModerator && targetRole === 'member')
+                  );
+                  return (
                   <button key={m.id} className="giMemberItem"
                     onClick={() => { onViewUser(m.id); onClose(); }}
                     onContextMenu={e => {
-                      if (!isCreator || m.id === meId) return;
+                      if (!canOpenCtx) return;
                       e.preventDefault();
                       setMemberCtx({ x: e.clientX, y: e.clientY, user: m });
                     }}
@@ -474,13 +496,15 @@ export function GroupInfoModal({
                       {m.username && <div className="giMemberSub">@{m.username}</div>}
                     </div>
                     <div className="giBadges">
-                      {m.id === meId            && <span className="giYouBadge">Вы</span>}
-                      {m.id === chat.creator_id && <span className="giAdminBadge">Администратор</span>}
+                      {m.id === meId             && <span className="giYouBadge">Вы</span>}
+                      {targetRole === 'admin'     && <span className="giAdminBadge">Администратор</span>}
+                      {targetRole === 'moderator' && <span className="giModeratorBadge">Модератор</span>}
                     </div>
                   </button>
-                ))}
+                  );
+                })}
               </div>
-              {isCreator && !isGroupClosed && (
+              {isAdmin && !isGroupClosed && (
                 <div className="giDangerZone">
                   <button className="giDeleteGroupBtn" onClick={() => setShowDeleteDialog(true)}>
                     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -733,7 +757,29 @@ export function GroupInfoModal({
 
       {memberCtx && (
         <ContextMenu x={memberCtx.x} y={memberCtx.y} onClose={() => setMemberCtx(null)} zIndex={10100}>
-          {memberCtx.user.id !== chat.creator_id && (
+          {/* Admin: toggle moderator role */}
+          {isAdmin && (
+            (memberCtx.user.role ?? 'member') === 'moderator' ? (
+              <button className="ctxItem"
+                onClick={() => { setMemberCtx(null); setModRoleTarget({ user: memberCtx.user, action: 'revoke' }); }}>
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                  <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                  <line x1="4" y1="4" x2="20" y2="20"/>
+                </svg>
+                Снять роль модератора
+              </button>
+            ) : (
+              <button className="ctxItem"
+                onClick={() => { setMemberCtx(null); setModRoleTarget({ user: memberCtx.user, action: 'assign' }); }}>
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                  <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                </svg>
+                Назначить модератором
+              </button>
+            )
+          )}
+          {/* Admin: transfer admin rights */}
+          {isAdmin && memberCtx.user.id !== chat.creator_id && (
             <button className="ctxItem ctxItemAdmin"
               onClick={() => { setMemberCtx(null); setMakeAdminTarget(memberCtx.user); }}>
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
@@ -742,6 +788,7 @@ export function GroupInfoModal({
               Сделать администратором
             </button>
           )}
+          {/* Admin/moderator: remove member */}
           <button className="ctxItem ctxItemDanger"
             onClick={() => { setMemberCtx(null); setRemoveConfirm(memberCtx.user); }}>
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
@@ -793,6 +840,34 @@ export function GroupInfoModal({
               <button className="confirmCancel" onClick={() => setMakeAdminTarget(null)} disabled={makeAdminBusy}>Отмена</button>
               <button className="confirmAdmin" onClick={handleMakeAdminFromCtx} disabled={makeAdminBusy}>
                 {makeAdminBusy ? '…' : 'Передать'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {modRoleTarget && (
+        <div className="giConfirmOverlay" onClick={e => e.target === e.currentTarget && !modRoleBusy && setModRoleTarget(null)}>
+          <div className="confirmCard">
+            <div className="confirmIcon" style={{ color: '#fbbf24' }}>
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
+                <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+              </svg>
+            </div>
+            <div className="confirmTitle">
+              {modRoleTarget.action === 'assign' ? 'Назначить модератором?' : 'Снять роль модератора?'}
+            </div>
+            <div className="confirmText">
+              {modRoleTarget.action === 'assign'
+                ? <><strong>{modRoleTarget.user.display_name || modRoleTarget.user.username}</strong> получит права модератора: добавлять участников, удалять рядовых участников и закреплять сообщения.</>
+                : <><strong>{modRoleTarget.user.display_name || modRoleTarget.user.username}</strong> потеряет права модератора и станет обычным участником.</>
+              }
+            </div>
+            <div className="confirmBtns">
+              <button className="confirmCancel" onClick={() => setModRoleTarget(null)} disabled={modRoleBusy}>Отмена</button>
+              <button className="confirmAdmin" style={{ background: 'rgba(251,191,36,.15)', color: '#fbbf24', border: '1px solid rgba(251,191,36,.3)' }}
+                onClick={handleModRole} disabled={modRoleBusy}>
+                {modRoleBusy ? '…' : modRoleTarget.action === 'assign' ? 'Назначить' : 'Снять'}
               </button>
             </div>
           </div>

@@ -170,22 +170,26 @@ function toggleReaction(msgId, userId) {
   return liked;
 }
 
-// ✅ NEW: pin a message
+// ✅ NEW: pin a message (admin/moderator only)
 function pinMessage(chatId, messageId, requesterId) {
   const db = getDb();
-  const member = db.prepare('SELECT 1 FROM chat_members WHERE chat_id = ? AND user_id = ?').get([chatId, requesterId]);
-  if (!member) throw Object.assign(new Error('Forbidden'), { status: 403 });
+  const member = db.prepare('SELECT role FROM chat_members WHERE chat_id = ? AND user_id = ?').get([chatId, requesterId]);
+  if (!member || !['admin', 'moderator'].includes(member.role || 'member')) {
+    throw Object.assign(new Error('Только администраторы и модераторы могут закреплять сообщения'), { status: 403 });
+  }
   const msg = db.prepare('SELECT id, chat_id FROM messages WHERE id = ? AND chat_id = ? AND deleted_at IS NULL').get([messageId, chatId]);
   if (!msg) throw Object.assign(new Error('Message not found'), { status: 404 });
   db.prepare('UPDATE messages SET is_pinned = 1 WHERE id = ?').run(messageId);
   return decryptMessage(db.prepare('SELECT * FROM messages WHERE id = ?').get(messageId));
 }
 
-// ✅ NEW: unpin a message
+// ✅ NEW: unpin a message (admin/moderator only)
 function unpinMessage(chatId, messageId, requesterId) {
   const db = getDb();
-  const member = db.prepare('SELECT 1 FROM chat_members WHERE chat_id = ? AND user_id = ?').get([chatId, requesterId]);
-  if (!member) throw Object.assign(new Error('Forbidden'), { status: 403 });
+  const member = db.prepare('SELECT role FROM chat_members WHERE chat_id = ? AND user_id = ?').get([chatId, requesterId]);
+  if (!member || !['admin', 'moderator'].includes(member.role || 'member')) {
+    throw Object.assign(new Error('Только администраторы и модераторы могут откреплять сообщения'), { status: 403 });
+  }
   db.prepare('UPDATE messages SET is_pinned = 0 WHERE id = ? AND chat_id = ?').run([messageId, chatId]);
   return { ok: true, messageId };
 }

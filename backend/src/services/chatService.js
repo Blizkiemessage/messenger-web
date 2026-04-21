@@ -41,9 +41,9 @@ function getChatById(chatId, userId) {
     .get(chatId);
   if (!chat) return null;
 
-  // Fetch all members + their last_read_at in one query (membership check included)
+  // Fetch all members + their last_read_at + role in one query (membership check included)
   const rawMembers = db.prepare(`
-    SELECT cm.last_read_at AS member_last_read_at,
+    SELECT cm.last_read_at AS member_last_read_at, cm.role,
            u.id, u.username, u.display_name, u.avatar_url, u.last_seen_at,
            u.hide_avatar, u.avatar_exceptions
     FROM chat_members cm
@@ -79,6 +79,7 @@ function getChatById(chatId, userId) {
     if (u.id !== userId) {
       sanitized.blocked_by_them = blockedByThem.has(u.id);
     }
+    sanitized.role = u.role || 'member';
     return sanitized;
   });
 
@@ -130,7 +131,7 @@ function getUserChats(userId) {
 
   // 2. All members of all chats in one query
   const allMembers = db.prepare(`
-    SELECT cm.chat_id, cm.last_read_at AS member_last_read_at,
+    SELECT cm.chat_id, cm.last_read_at AS member_last_read_at, cm.role,
            u.id, u.username, u.display_name, u.avatar_url, u.last_seen_at,
            u.hide_avatar, u.avatar_exceptions
     FROM chat_members cm
@@ -190,6 +191,7 @@ function getUserChats(userId) {
       if (u.id !== userId) {
         sanitized.blocked_by_them = blockedByThem.has(u.id);
       }
+      sanitized.role = u.role || 'member';
       return sanitized;
     });
 
@@ -307,8 +309,8 @@ function createGroupChat(name, creatorId, memberIds, description) {
 
     for (const memberId of allMembers) {
       db.prepare(
-        'INSERT INTO chat_members (chat_id, user_id, joined_at) VALUES (?, ?, ?)'
-      ).run([chatId, memberId, now]);
+        'INSERT INTO chat_members (chat_id, user_id, joined_at, role) VALUES (?, ?, ?, ?)'
+      ).run([chatId, memberId, now, memberId === creatorId ? 'admin' : 'member']);
     }
 
     db.exec('COMMIT');
@@ -404,8 +406,10 @@ function addChatMember(chatId, requesterId, newUserId) {
   if (!chat || chat.type !== 'group') {
     throw Object.assign(new Error('Chat not found'), { status: 404 });
   }
-  if (chat.creator_id !== requesterId) {
-    throw Object.assign(new Error('Only the group creator can add members'), { status: 403 });
+
+  const requesterMember = db.prepare('SELECT role FROM chat_members WHERE chat_id = ? AND user_id = ?').get([chatId, requesterId]);
+  if (!requesterMember || !['admin', 'moderator'].includes(requesterMember.role)) {
+    throw Object.assign(new Error('Только администраторы и модераторы могут добавлять участников'), { status: 403 });
   }
 
   const existing = db
@@ -431,26 +435,41 @@ function addChatMember(chatId, requesterId, newUserId) {
 function removeChatMember(chatId, requesterId, targetUserId) {
   const db = getDb();
 
-  const chat = db.prepare('SELECT creator_id FROM chats WHERE id = ?').get(chatId);
-  if (!chat) throw Object.assign(new Error('Chat not found'), { status: 404 });
-  if (chat.creator_id !== requesterId && requesterId !== targetUserId) {
-    throw Object.assign(new Error('Only creator can remove members'), { status: 403 });
+  if (!db.prepare('SELECT id FROM chats WHERE id = ?').get(chatId)) {
+    throw Object.assign(new Error('Chat not found'), { status: 404 });
   }
 
-  const targetUser = db
-    .prepare('SELECT display_name, username FROM users WHERE id = ?')
-    .get(targetUserId);
+  const requesterMember = db.prepare('SELECT role FROM chat_members WHERE chat_id = ? AND user_id = ?').get([chatId, requesterId]);
+  if (!requesterMember) throw Object.assign(new Error('Not a member'), { status: 403 });
+
+  // Allow self-removal (leave); otherwise check permissions
+  if (requesterId !== targetUserId) {
+    const targetMember = db.prepare('SELECT role FROM chat_members WHERE chat_id = ? AND user_id = ?').get([chatId, targetUserId]);
+    if (!targetMember) throw Object.assign(new Error('Target not in chat'), { status: 404 });
+
+    if (requesterMember.role === 'admin') {
+      if (targetMember.role === 'admin') {
+        throw Object.assign(new Error('Нельзя удалить другого администратора'), { status: 403 });
+      }
+    } else if (requesterMember.role === 'moderator') {
+      if (targetMember.role !== 'member') {
+        throw Object.assign(new Error('Модераторы могут удалять только обычных участников'), { status: 403 });
+      }
+    } else {
+      throw Object.assign(new Error('Forbidden'), { status: 403 });
+    }
+  }
+
+  const targetUser = db.prepare('SELECT display_name, username FROM users WHERE id = ?').get(targetUserId);
   const targetName = targetUser?.display_name || targetUser?.username || 'Пользователь';
 
   db.prepare('DELETE FROM chat_members WHERE chat_id = ? AND user_id = ?').run([chatId, targetUserId]);
 
   const updatedChat = getChatById(chatId, requesterId);
-  const remaining = db
-    .prepare('SELECT user_id FROM chat_members WHERE chat_id = ?')
-    .all(chatId)
-    .map(r => r.user_id);
+  const remaining = db.prepare('SELECT user_id FROM chat_members WHERE chat_id = ?').all(chatId).map(r => r.user_id);
 
-  const sysMsg = saveMessage(chatId, requesterId, `Администратор удалил(а) ${targetName} из группы`, {}, true);
+  const actorLabel = requesterMember.role === 'moderator' ? 'Модератор' : 'Администратор';
+  const sysMsg = saveMessage(chatId, requesterId, `${actorLabel} удалил(а) ${targetName} из группы`, {}, true);
 
   return { updatedChat, sysMsg, remaining };
 }
@@ -559,6 +578,8 @@ function transferAdmin(chatId, requesterId, newAdminId) {
   const newAdminName = newAdmin?.display_name || newAdmin?.username || 'Пользователь';
 
   db.prepare('UPDATE chats SET creator_id = ? WHERE id = ?').run([newAdminId, chatId]);
+  db.prepare('UPDATE chat_members SET role = ? WHERE chat_id = ? AND user_id = ?').run(['admin', chatId, newAdminId]);
+  db.prepare('UPDATE chat_members SET role = ? WHERE chat_id = ? AND user_id = ?').run(['member', chatId, requesterId]);
   const sysMsg = saveMessage(chatId, requesterId, `Новый администратор группы — ${newAdminName}`, {}, true);
 
   const allMembers = db
@@ -717,6 +738,49 @@ function deleteAccount(userId) {
   return { groupNotifications, deletedDirectChatIds, directChatMembersMap };
 }
 
+// ── Roles ────────────────────────────────────────────────────────────────────
+
+/**
+ * setMemberRole — assign 'moderator' or 'member' to a chat member.
+ * Only the group admin can call this.
+ * Cannot change another admin's role; use transferAdmin to pass admin rights.
+ */
+function setMemberRole(chatId, requesterId, targetUserId, newRole) {
+  const db = getDb();
+
+  if (requesterId === targetUserId) {
+    throw Object.assign(new Error('Нельзя изменить собственную роль'), { status: 400 });
+  }
+
+  const chat = db.prepare('SELECT type FROM chats WHERE id = ?').get(chatId);
+  if (!chat || chat.type !== 'group') {
+    throw Object.assign(new Error('Chat not found'), { status: 404 });
+  }
+
+  const requester = db.prepare('SELECT role FROM chat_members WHERE chat_id = ? AND user_id = ?').get([chatId, requesterId]);
+  if (!requester || requester.role !== 'admin') {
+    throw Object.assign(new Error('Только администраторы могут назначать роли'), { status: 403 });
+  }
+
+  const target = db.prepare('SELECT role FROM chat_members WHERE chat_id = ? AND user_id = ?').get([chatId, targetUserId]);
+  if (!target) throw Object.assign(new Error('Пользователь не состоит в группе'), { status: 404 });
+  if (target.role === 'admin') {
+    throw Object.assign(new Error('Нельзя изменить роль администратора'), { status: 403 });
+  }
+
+  db.prepare('UPDATE chat_members SET role = ? WHERE chat_id = ? AND user_id = ?').run([newRole, chatId, targetUserId]);
+
+  const targetUser = db.prepare('SELECT display_name, username FROM users WHERE id = ?').get(targetUserId);
+  const targetName = targetUser?.display_name || targetUser?.username || 'Пользователь';
+  const msgText = newRole === 'moderator'
+    ? `${targetName} назначен(а) модератором`
+    : `${targetName} больше не является модератором`;
+  const sysMsg = saveMessage(chatId, requesterId, msgText, {}, true);
+
+  const updatedChat = getChatById(chatId, requesterId);
+  return { updatedChat, sysMsg };
+}
+
 module.exports = {
   getUserChats,
   getChatById,
@@ -735,4 +799,5 @@ module.exports = {
   togglePinChat,
   toggleMuteChat,
   updateChatPinOrder,
+  setMemberRole,
 };
