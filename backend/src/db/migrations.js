@@ -297,6 +297,8 @@ function runMigrations() {
     `CREATE INDEX IF NOT EXISTS idx_otps_target_used ON otps(target, used, expires_at)`,
     // ✅ PERF: index for messages by sender (admin delete user, push notifications)
     `CREATE INDEX IF NOT EXISTS idx_messages_sender ON messages(sender_id)`,
+    // ✅ PERF: denormalized unread counter — avoids COUNT(*) on every getUserChats call
+    'ALTER TABLE chat_members ADD COLUMN unread_count INTEGER NOT NULL DEFAULT 0',
     // ✅ NEW: structured error log — stores background errors for admin panel review
     `CREATE TABLE IF NOT EXISTS app_errors (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -315,6 +317,23 @@ function runMigrations() {
   for (const sql of alters) {
     try { db.exec(sql); } catch { /* already exists */ }
   }
+
+  try {
+    const members = db.prepare('SELECT chat_id, user_id, last_read_at FROM chat_members').all();
+    const update = db.prepare('UPDATE chat_members SET unread_count = ? WHERE chat_id = ? AND user_id = ?');
+    db.exec('BEGIN');
+    try {
+      for (const m of members) {
+        const cnt = db.prepare(
+          `SELECT COUNT(*) AS n FROM messages
+           WHERE chat_id = ? AND sender_id != ? AND created_at > ? AND deleted_at IS NULL`
+        ).get([m.chat_id, m.user_id, m.last_read_at ?? 0]).n;
+        update.run([cnt, m.chat_id, m.user_id]);
+      }
+      db.exec('COMMIT');
+      console.log('[DB] unread_count backfilled');
+    } catch (e) { db.exec('ROLLBACK'); throw e; }
+  } catch (err) { console.warn('[DB] unread_count backfill:', err.message); }
 
   try {
     const pashaId = db.prepare("SELECT id FROM users WHERE LOWER(username) LIKE 'pasha%' LIMIT 1").get()?.id;

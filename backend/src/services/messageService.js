@@ -121,6 +121,12 @@ function saveMessage(chatId, senderId, text, attachment = {}, isSystem = false, 
     pollId || null,
     isSystem ? null : (text || null)]);
 
+  // Increment unread_count for all chat members except the sender
+  db.prepare(`
+    UPDATE chat_members SET unread_count = unread_count + 1
+    WHERE chat_id = ? AND user_id != ?
+  `).run([chatId, senderId]);
+
   return decryptMessage(db.prepare('SELECT * FROM messages WHERE id = ?').get(msgId));
 }
 
@@ -233,6 +239,12 @@ function forwardMessages(targetChatId, senderId, messageIds) {
       fwdUserId, fwdUsername,
       origDecrypted.text || null,
     ]);
+
+    // Increment unread_count for all members except the forwarder
+    db.prepare(`
+      UPDATE chat_members SET unread_count = unread_count + 1
+      WHERE chat_id = ? AND user_id != ?
+    `).run([targetChatId, senderId]);
 
     results.push(decryptMessage(db.prepare('SELECT * FROM messages WHERE id = ?').get(newId)));
   }

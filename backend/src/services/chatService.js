@@ -115,7 +115,8 @@ function getUserChats(userId) {
   const rows = db.prepare(`
     SELECT c.id, c.type, c.name, c.description, c.avatar_url, c.created_at,
            c.creator_id, c.is_closed,
-           cm.is_pinned, cm.pin_order, cm.is_muted, cm.last_read_at AS my_last_read_at
+           cm.is_pinned, cm.pin_order, cm.is_muted, cm.last_read_at AS my_last_read_at,
+           cm.unread_count
     FROM chats c
     JOIN chat_members cm ON cm.chat_id = c.id
     WHERE cm.user_id = ?
@@ -150,17 +151,7 @@ function getUserChats(userId) {
     WHERE m.deleted_at IS NULL
   `).all(chatIds);
 
-  // 4. Unread counts per chat — JOIN instead of correlated subquery
-  const unreadCounts = db.prepare(`
-    SELECT m.chat_id, COUNT(*) AS cnt
-    FROM messages m
-    JOIN chat_members cm_me ON cm_me.chat_id = m.chat_id AND cm_me.user_id = ?
-    WHERE m.chat_id IN (${placeholders})
-      AND m.deleted_at IS NULL
-      AND m.sender_id != ?
-      AND m.created_at > COALESCE(cm_me.last_read_at, 0)
-    GROUP BY m.chat_id
-  `).all([userId, ...chatIds, userId]);
+  // 4. (removed — unread_count now read directly from chat_members.unread_count)
 
   // 5. All contact aliases for this user in one query
   const allAliases = db.prepare(`
@@ -181,9 +172,6 @@ function getUserChats(userId) {
 
   const lastMsgByChat = {};
   for (const m of lastMessages) lastMsgByChat[m.chat_id] = m;
-
-  const unreadByChat = {};
-  for (const r of unreadCounts) unreadByChat[r.chat_id] = r.cnt;
 
   const aliasMap = {};
   for (const a of allAliases) aliasMap[a.target_id] = a.alias;
@@ -228,7 +216,7 @@ function getUserChats(userId) {
       is_muted:    chat.is_muted   === 1,
       members,
       last_message: lastMsg ? decryptMessage(lastMsg) : null,
-      unread_count: unreadByChat[chat.id] || 0,
+      unread_count: chat.unread_count || 0,
       partner_last_read_at,
     };
   });
@@ -399,10 +387,13 @@ function getOrCreateSavedChat(userId) {
 // ─── Membership ──────────────────────────────────────────────────────────────
 
 function markChatAsRead(chatId, userId, readUntil) {
+  const db = getDb();
   const ts = readUntil && readUntil < Date.now() ? readUntil : Date.now();
-  getDb()
-    .prepare('UPDATE chat_members SET last_read_at = ? WHERE chat_id = ? AND user_id = ? AND last_read_at < ?')
+  // Move last_read_at forward only; always reset unread_count as self-correcting insurance against drift
+  db.prepare('UPDATE chat_members SET last_read_at = ? WHERE chat_id = ? AND user_id = ? AND COALESCE(last_read_at, 0) < ?')
     .run([ts, chatId, userId, ts]);
+  db.prepare('UPDATE chat_members SET unread_count = 0 WHERE chat_id = ? AND user_id = ?')
+    .run([chatId, userId]);
   return ts;
 }
 
