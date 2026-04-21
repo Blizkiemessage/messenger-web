@@ -109,6 +109,7 @@ router.get('/stats', (req, res, next) => {
     }
 
     const contentReports = db.prepare("SELECT COUNT(*) as c FROM content_reports WHERE resolved = 0").get().c;
+    const appErrors = db.prepare("SELECT COUNT(*) as c FROM app_errors WHERE level = 'error'").get()?.c ?? 0;
 
     res.json({
       users:            countTable('users'),
@@ -117,6 +118,7 @@ router.get('/stats', (req, res, next) => {
       support_bugs:     countSupport('bug'),
       support_features: countSupport('feature'),
       content_reports:  contentReports,
+      app_errors:       appErrors,
     });
   } catch (err) {
     next(err);
@@ -503,6 +505,74 @@ router.post('/sticker-repair', async (req, res, next) => {
       dry_run:  dryRun,
       results,
     });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// ── App error log ────────────────────────────────────────────────────────────
+
+const ALLOWED_ERROR_LEVELS = new Set(['error', 'warn']);
+
+// GET /admin/api/errors?level=error&tag=[S3Delete]&search=&limit=100&offset=0
+router.get('/errors', (req, res, next) => {
+  try {
+    const db = getDb();
+    const level  = ALLOWED_ERROR_LEVELS.has(req.query.level) ? req.query.level : null;
+    const tag    = req.query.tag    ? req.query.tag.trim()    : null;
+    const search = req.query.search ? `%${req.query.search.trim()}%` : null;
+    const limit  = Math.min(parseInt(req.query.limit  || '100'), 500);
+    const offset = Math.max(parseInt(req.query.offset || '0'),   0);
+
+    const conditions = [];
+    const params = [];
+
+    if (level)  { conditions.push('level = ?');           params.push(level); }
+    if (tag)    { conditions.push('tag = ?');             params.push(tag); }
+    if (search) { conditions.push('(message LIKE ? OR error_text LIKE ?)'); params.push(search, search); }
+
+    const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
+    const rows = db.prepare(
+      `SELECT * FROM app_errors ${where} ORDER BY ts DESC LIMIT ? OFFSET ?`
+    ).all([...params, limit, offset]);
+
+    const total = db.prepare(
+      `SELECT COUNT(*) AS c FROM app_errors ${where}`
+    ).get(params).c;
+
+    // Unique tags for filter dropdown
+    const tags = db.prepare('SELECT DISTINCT tag FROM app_errors WHERE tag IS NOT NULL ORDER BY tag').all().map(r => r.tag);
+
+    res.json({ rows, total, tags });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// DELETE /admin/api/errors/:id — remove single entry
+router.delete('/errors/:id', (req, res, next) => {
+  try {
+    const db = getDb();
+    const id = parseInt(req.params.id);
+    if (isNaN(id)) return res.status(400).json({ error: 'Invalid id' });
+    db.prepare('DELETE FROM app_errors WHERE id = ?').run([id]);
+    res.json({ ok: true });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// DELETE /admin/api/errors?level=error — clear all (or by level)
+router.delete('/errors', (req, res, next) => {
+  try {
+    const db = getDb();
+    const level = ALLOWED_ERROR_LEVELS.has(req.query.level) ? req.query.level : null;
+    if (level) {
+      db.prepare('DELETE FROM app_errors WHERE level = ?').run([level]);
+    } else {
+      db.prepare('DELETE FROM app_errors').run();
+    }
+    res.json({ ok: true });
   } catch (err) {
     next(err);
   }

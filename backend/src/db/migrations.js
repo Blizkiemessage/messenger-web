@@ -297,6 +297,19 @@ function runMigrations() {
     `CREATE INDEX IF NOT EXISTS idx_otps_target_used ON otps(target, used, expires_at)`,
     // ✅ PERF: index for messages by sender (admin delete user, push notifications)
     `CREATE INDEX IF NOT EXISTS idx_messages_sender ON messages(sender_id)`,
+    // ✅ NEW: structured error log — stores background errors for admin panel review
+    `CREATE TABLE IF NOT EXISTS app_errors (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      level TEXT NOT NULL,
+      tag TEXT,
+      message TEXT,
+      error_text TEXT,
+      stack TEXT,
+      meta TEXT,
+      user_id TEXT,
+      ts INTEGER NOT NULL
+    )`,
+    `CREATE INDEX IF NOT EXISTS idx_app_errors_ts ON app_errors(ts)`,
   ];
 
   for (const sql of alters) {

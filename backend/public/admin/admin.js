@@ -18,6 +18,7 @@ if (token) {
   document.getElementById('app').classList.remove('d-none');
   loadStats();
   loadReportsBadge();
+  loadErrorsBadge();
 }
 
 // ─── Authentication ────────────────────────────────────────────────────────
@@ -50,6 +51,7 @@ document.getElementById('login-form').addEventListener('submit', async (e) => {
     document.getElementById('app').classList.remove('d-none');
     loadStats();
     loadReportsBadge();
+    loadErrorsBadge();
   } catch (err) {
     errorEl.textContent = err.message;
     errorEl.style.display = 'block';
@@ -95,6 +97,7 @@ function showTab(tabName) {
   if (tabName === 'users') loadUsers();
   if (tabName === 'chats') loadChats();
   if (tabName === 'content') loadContent();
+  if (tabName === 'errors') loadErrors();
 }
 
 // ─── Date filter helpers ───────────────────────────────────────────────────
@@ -506,6 +509,200 @@ async function adminDeletePackFromList(packId, packName) {
   } catch (err) {
     alert('Ошибка при удалении: ' + err.message);
   }
+}
+
+// ─── Error Log ─────────────────────────────────────────────────────────────
+let errorsOffset = 0;
+const ERRORS_PAGE = 100;
+let _errorSearchTimer = null;
+let _errorsRowCache = {};
+
+function debounceErrorSearch() {
+  clearTimeout(_errorSearchTimer);
+  _errorSearchTimer = setTimeout(() => loadErrors(), 400);
+}
+
+function _errorsQueryParams(offset = 0) {
+  const level  = document.getElementById('errors-level').value;
+  const tag    = document.getElementById('errors-tag').value;
+  const search = document.getElementById('errors-search').value.trim();
+  const p = new URLSearchParams();
+  if (level)  p.set('level',  level);
+  if (tag)    p.set('tag',    tag);
+  if (search) p.set('search', search);
+  p.set('limit',  ERRORS_PAGE);
+  p.set('offset', offset);
+  return p.toString();
+}
+
+async function loadErrors(reset = true) {
+  if (reset) { errorsOffset = 0; _errorsRowCache = {}; }
+  const tbody = document.getElementById('errors-tbody');
+  if (reset) tbody.innerHTML = '<tr><td colspan="6" class="text-center py-4 text-secondary">Загрузка...</td></tr>';
+
+  try {
+    const data = await fetchApi(`/errors?${_errorsQueryParams(errorsOffset)}`);
+
+    if (reset) {
+      const tagSel = document.getElementById('errors-tag');
+      const curTag = tagSel.value;
+      tagSel.innerHTML = '<option value="">Все теги</option>';
+      (data.tags || []).forEach(t => {
+        const opt = document.createElement('option');
+        opt.value = t; opt.textContent = t;
+        if (t === curTag) opt.selected = true;
+        tagSel.appendChild(opt);
+      });
+    }
+
+    document.getElementById('errors-total-label').textContent = `Найдено записей: ${data.total}`;
+
+    if (reset) tbody.innerHTML = '';
+
+    if (!data.rows.length && reset) {
+      tbody.innerHTML = '<tr><td colspan="6" class="text-center py-4 text-secondary">Ошибок не найдено</td></tr>';
+      document.getElementById('errors-load-more').classList.add('d-none');
+      return;
+    }
+
+    data.rows.forEach(r => { _errorsRowCache[r.id] = r; });
+    renderErrorRows(data.rows, tbody);
+    errorsOffset += data.rows.length;
+
+    document.getElementById('errors-load-more').classList.toggle('d-none', errorsOffset >= data.total);
+
+    const level = document.getElementById('errors-level').value;
+    document.getElementById('errors-clear-warn-btn').classList.toggle('d-none', level !== 'warn');
+    document.getElementById('errors-clear-error-btn').classList.toggle('d-none', level !== 'error');
+
+    loadErrorsBadge();
+  } catch (err) {
+    tbody.innerHTML = `<tr><td colspan="6" class="text-center py-4 text-danger">${escHtml(err.message)}</td></tr>`;
+  }
+}
+
+async function loadMoreErrors() {
+  await loadErrors(false);
+}
+
+function renderErrorRows(rows, tbody) {
+  rows.forEach(r => {
+    const tr = document.createElement('tr');
+    tr.style.cursor = 'pointer';
+
+    const timeStr = new Date(r.ts).toLocaleString('ru-RU', {
+      day:'2-digit', month:'2-digit', year:'2-digit',
+      hour:'2-digit', minute:'2-digit', second:'2-digit'
+    });
+
+    const levelBadge = r.level === 'error'
+      ? `<span class="level-badge-error"><i class="bi bi-x-circle me-1"></i>error</span>`
+      : `<span class="level-badge-warn"><i class="bi bi-exclamation-triangle me-1"></i>warn</span>`;
+
+    const tagHtml = r.tag
+      ? `<span class="tag-chip">${escHtml(r.tag)}</span>`
+      : '<span class="text-muted">—</span>';
+
+    const msgHtml = r.message
+      ? `<div class="fw-semibold small">${escHtml(r.message.slice(0, 120))}${r.message.length > 120 ? '…' : ''}</div>`
+      : '';
+    const errHtml = r.error_text
+      ? `<div class="small text-secondary font-monospace mt-1" style="max-width:420px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"
+           title="${escHtml(r.error_text)}">${escHtml(r.error_text.slice(0, 140))}</div>`
+      : '';
+
+    const userHtml = r.user_id
+      ? `<span class="small font-monospace text-info" title="${escHtml(r.user_id)}">${escHtml(r.user_id.split('-')[0])}…</span>`
+      : '<span class="text-muted small">—</span>';
+
+    tr.innerHTML = `
+      <td class="small text-secondary" style="white-space:nowrap">${timeStr}</td>
+      <td>${levelBadge}</td>
+      <td>${tagHtml}</td>
+      <td>${msgHtml}${errHtml}</td>
+      <td>${userHtml}</td>
+      <td class="text-end">
+        <button class="btn btn-sm btn-outline-secondary"
+          onclick="event.stopPropagation();showErrorDetail(${r.id})" title="Подробнее">
+          <i class="bi bi-search"></i>
+        </button>
+        <button class="btn btn-sm btn-outline-danger ms-1"
+          onclick="event.stopPropagation();deleteError(${r.id})" title="Удалить">
+          <i class="bi bi-trash3"></i>
+        </button>
+      </td>
+    `;
+    tr.onclick = () => showErrorDetail(r.id);
+    tbody.appendChild(tr);
+  });
+}
+
+function showErrorDetail(id) {
+  const r = _errorsRowCache[id];
+  if (!r) { alert('Запись не найдена в кэше. Обновите список.'); return; }
+
+  const dt = new Date(r.ts).toLocaleString('ru-RU');
+  const levelBadge = r.level === 'error'
+    ? `<span class="level-badge-error">error</span>`
+    : `<span class="level-badge-warn">warn</span>`;
+
+  let metaParsed = null;
+  if (r.meta) { try { metaParsed = JSON.parse(r.meta); } catch {} }
+
+  document.getElementById('errorDetailBody').innerHTML = `
+    <div class="d-flex align-items-center gap-2 mb-3">
+      ${levelBadge}
+      ${r.tag ? `<span class="tag-chip">${escHtml(r.tag)}</span>` : ''}
+      <span class="text-secondary small ms-auto">${dt}</span>
+    </div>
+    ${r.message ? `<div class="mb-3"><div class="text-secondary small mb-1">Сообщение</div><div class="fw-semibold">${escHtml(r.message)}</div></div>` : ''}
+    ${r.error_text ? `<div class="mb-3"><div class="text-secondary small mb-1">Текст ошибки</div><pre class="err-detail-pre">${escHtml(r.error_text)}</pre></div>` : ''}
+    ${r.user_id ? `<div class="mb-3"><div class="text-secondary small mb-1">User ID</div><div class="font-monospace small text-info">${escHtml(r.user_id)}</div></div>` : ''}
+    ${metaParsed ? `<div class="mb-3"><div class="text-secondary small mb-1">Контекст (meta)</div><pre class="err-detail-pre">${escHtml(JSON.stringify(metaParsed, null, 2))}</pre></div>` : ''}
+    ${r.stack ? `<div class="mb-3"><div class="text-secondary small mb-1">Stack trace</div><pre class="err-detail-pre text-warning">${escHtml(r.stack)}</pre></div>` : ''}
+  `;
+
+  document.getElementById('errorDetailDeleteBtn').onclick = async () => {
+    await deleteError(r.id);
+    bootstrap.Modal.getInstance(document.getElementById('errorDetailModal')).hide();
+  };
+
+  new bootstrap.Modal(document.getElementById('errorDetailModal')).show();
+}
+
+async function deleteError(id) {
+  try {
+    await fetchApi(`/errors/${id}`, { method: 'DELETE' });
+    loadErrors();
+  } catch (err) {
+    alert('Ошибка при удалении: ' + err.message);
+  }
+}
+
+async function clearErrors(level) {
+  const label = level === 'error' ? 'все ошибки' : level === 'warn' ? 'все предупреждения' : 'весь лог ошибок';
+  if (!confirm(`Удалить ${label}? Действие необратимо.`)) return;
+  try {
+    const qs = level ? `?level=${level}` : '';
+    await fetchApi(`/errors${qs}`, { method: 'DELETE' });
+    loadErrors();
+    loadErrorsBadge();
+  } catch (err) {
+    alert('Ошибка: ' + err.message);
+  }
+}
+
+async function loadErrorsBadge() {
+  try {
+    const data = await fetchApi('/errors?level=error&limit=1');
+    const badge = document.getElementById('nav-errors-badge');
+    if (data.total > 0) {
+      badge.textContent = data.total > 99 ? '99+' : data.total;
+      badge.style.display = 'inline';
+    } else {
+      badge.style.display = 'none';
+    }
+  } catch {}
 }
 
 // ─── Helpers ───────────────────────────────────────────────────────────────
