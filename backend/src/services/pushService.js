@@ -1,5 +1,6 @@
 const { getDb } = require('../config/database');
 const { sendPush } = require('../utils/webPush');
+const logger = require('../utils/logger');
 
 const CUSTOM_EMOJI_RE = /:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}:/gi;
 
@@ -114,7 +115,7 @@ function fireAndForgetPush(chatId, senderId, msgData, io) {
         }
       }
     } catch (err) {
-      console.error('[PushService] fireAndForgetPush error:', err.message);
+      logger.error('[Push]', 'Push notification failed', err, { chatId, senderId });
     }
   });
 }

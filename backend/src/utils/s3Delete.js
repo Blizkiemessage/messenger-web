@@ -1,6 +1,7 @@
 const { S3Client, DeleteObjectCommand } = require('@aws-sdk/client-s3');
-const fs   = require('fs');
-const path = require('path');
+const fs     = require('fs');
+const path   = require('path');
+const logger = require('./logger');
 
 const useS3 = !!(
   process.env.S3_ACCESS_KEY_ID &&
@@ -41,20 +42,28 @@ async function deleteFromS3(url) {
         Key: urlToKey(url),
       }));
     } catch (err) {
-      console.warn('[S3] Delete failed:', url, err.message);
+      logger.warn('[S3Delete]', 'Failed to delete object', { url, error: err.message });
     }
   } else {
     const filename = url.split('/').pop();
     if (!filename) return;
     const filepath = path.join(__dirname, '../../uploads', filename);
     fs.unlink(filepath, err => {
-      if (err && err.code !== 'ENOENT') console.warn('[Local] Delete failed:', filepath, err.message);
+      if (err && err.code !== 'ENOENT') {
+        logger.warn('[S3Delete]', 'Failed to delete local file', { url: filepath, error: err.message });
+      }
     });
   }
 }
 
 async function deleteManyFromS3(urls) {
-  await Promise.all((urls || []).filter(Boolean).map(deleteFromS3));
+  const valid = (urls || []).filter(u => u && typeof u === 'string');
+  if (!valid.length) return;
+  await Promise.allSettled(valid.map(url =>
+    deleteFromS3(url).catch(err =>
+      logger.warn('[S3Delete]', 'Failed to delete object in batch', { url, error: err.message })
+    )
+  ));
 }
 
 module.exports = { deleteFromS3, deleteManyFromS3 };

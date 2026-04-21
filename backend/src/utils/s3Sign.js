@@ -20,6 +20,7 @@
  */
 const { S3Client, GetObjectCommand } = require('@aws-sdk/client-s3');
 const { getSignedUrl }               = require('@aws-sdk/s3-request-presigner');
+const logger                         = require('./logger');
 
 const useS3 = !!(
   process.env.S3_ACCESS_KEY_ID &&
@@ -65,7 +66,7 @@ async function signUrl(url, expiresIn = 3600) {
     });
     return await getSignedUrl(s3, command, { expiresIn });
   } catch (err) {
-    console.warn('[S3Sign] Failed to sign URL:', url, err.message);
+    logger.warn('[S3Sign]', 'Failed to sign URL', { url, error: err.message });
     return url; // safe fallback — object still loads if bucket is still public
   }
 }
