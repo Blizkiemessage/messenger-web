@@ -10,8 +10,31 @@ const {
 } = require('../services/authService');
 const { authMiddleware } = require('../middleware/auth');
 const { loginLimiter, emailSendLimiter, otpVerifyLimiter } = require('../middleware/rateLimits');
+const { getDb } = require('../config/database');
 
 const router = express.Router();
+
+// ─── Cookie helper ─────────────────────────────────────────────────────────
+const isProduction = process.env.NODE_ENV === 'production';
+
+function setSessionCookie(res, token) {
+  res.cookie('session', token, {
+    httpOnly: true,                                   // JS cannot read this cookie
+    secure: isProduction,                             // HTTPS only in production
+    sameSite: isProduction ? 'none' : 'lax',          // cross-origin (Vercel→Amvera) needs 'none'
+    maxAge: 30 * 24 * 60 * 60 * 1000,                // 30 days
+    path: '/',
+  });
+}
+
+function clearSessionCookie(res) {
+  res.clearCookie('session', {
+    httpOnly: true,
+    secure: isProduction,
+    sameSite: isProduction ? 'none' : 'lax',
+    path: '/',
+  });
+}
 
 function getClientIp(req) {
   return req.headers['x-forwarded-for']?.split(',')[0]?.trim()
@@ -26,8 +49,9 @@ router.post('/login', loginLimiter, async (req, res, next) => {
     if (!login || typeof login !== 'string' || login.trim().length < 3) {
       return res.status(400).json({ error: 'Введите username или email' });
     }
-    const result = await loginOrRegister(login, password || null, req.headers['user-agent'] || '', getClientIp(req));
-    res.json(result);
+    const { token, user, sessionId } = await loginOrRegister(login, password || null, req.headers['user-agent'] || '', getClientIp(req));
+    setSessionCookie(res, token);
+    res.json({ user, sessionId });
   } catch (err) {
     next(err);
   }
@@ -63,8 +87,9 @@ router.post('/verify-email', otpVerifyLimiter, async (req, res, next) => {
     if (!otp || typeof otp !== 'string' || !/^\d{6}$/.test(otp.trim())) {
       return res.status(400).json({ error: 'Код должен состоять из 6 цифр' });
     }
-    const result = await verifyEmailAndCreateAccount(email.trim(), otp.trim(), req.headers['user-agent'] || '', getClientIp(req));
-    res.status(201).json(result);
+    const { token, user, sessionId, isNew } = await verifyEmailAndCreateAccount(email.trim(), otp.trim(), req.headers['user-agent'] || '', getClientIp(req));
+    setSessionCookie(res, token);
+    res.status(201).json({ user, sessionId, isNew });
   } catch (err) {
     next(err);
   }
@@ -113,6 +138,18 @@ router.post('/reset-password', otpVerifyLimiter, async (req, res, next) => {
     }
     const result = await resetPassword(id, token, newPassword);
     res.json(result);
+  } catch (err) {
+    next(err);
+  }
+});
+
+// POST /auth/logout — clear session cookie and revoke session in DB
+router.post('/logout', authMiddleware, (req, res, next) => {
+  try {
+    const db = getDb();
+    db.prepare('UPDATE sessions SET revoked = 1 WHERE id = ?').run(req.sessionId);
+    clearSessionCookie(res);
+    res.json({ ok: true });
   } catch (err) {
     next(err);
   }

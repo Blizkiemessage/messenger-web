@@ -20,6 +20,7 @@ const http = require('http');
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
+const cookieParser = require('cookie-parser');
 
 const { runMigrations } = require('./db/migrations');
 const { initSocket } = require('./socket/socketServer');
@@ -79,6 +80,7 @@ if (allowed && origin === allowed) {
   },
   credentials: true,
 }));
+app.use(cookieParser());
 app.use(express.json());
 
 // ─── Routes ────────────────────────────────────────────────────────────────

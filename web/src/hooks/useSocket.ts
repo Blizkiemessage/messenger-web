@@ -33,11 +33,11 @@ export function scheduleMarkRead(chatId: string, readUntil?: number) {
 }
 
 export function useSocket() {
-  const token = useSessionStore(s => s.token);
+  const me = useSessionStore(s => s.me);
 
   useEffect(() => {
-    if (!token) return;
-    connectSocket(token);
+    if (!me) return;
+    connectSocket();
     const socket = getSocket();
     if (!socket) return;
 
@@ -130,14 +130,12 @@ export function useSocket() {
       }
     };
 
-    // ✅ NEW: session revoked — log out if it's our session
+    // ✅ session revoked — log out if it's our session
     const onSessionRevoked = ({ sessionId }: { sessionId: string }) => {
-      const { token } = useSessionStore.getState();
-      if (!token) return;
-      try {
-        const payload = JSON.parse(atob(token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')));
-        if (payload?.jti === sessionId) useSessionStore.getState().clearSession();
-      } catch { /* ignore malformed token */ }
+      const mySessionId = useSessionStore.getState().sessionId;
+      if (mySessionId && sessionId === mySessionId) {
+        useSessionStore.getState().clearSession();
+      }
     };
 
     const onBlockStatusChanged = ({ blockerId, blocked }: { blockerId: string; blocked: boolean }) => {
@@ -200,5 +198,5 @@ export function useSocket() {
       if (_markReadTimer) clearTimeout(_markReadTimer);
       disconnectSocket();
     };
-  }, [token]); // eslint-disable-line
+  }, [me]); // eslint-disable-line
 }

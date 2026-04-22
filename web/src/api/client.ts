@@ -1,21 +1,16 @@
 import axios from 'axios';
 import { API_BASE_URL } from '../config';
-import { getSession } from '../storage/session';
 
 const client = axios.create({
   baseURL: API_BASE_URL,
   timeout: 30000,
+  withCredentials: true, // send HttpOnly session cookie on every request
   headers: {
     'Content-Type': 'application/json',
   },
 });
 
 client.interceptors.request.use((config) => {
-  const session = getSession();
-  if (session?.token) {
-    config.headers = config.headers ?? {};
-    config.headers.Authorization = `Bearer ${session.token}`;
-  }
   // For FormData, remove the default application/json Content-Type so the browser
   // can set multipart/form-data with the correct boundary automatically.
   if (config.data instanceof FormData) {
@@ -38,4 +33,3 @@ client.interceptors.response.use(
 );
 
 export default client;
-

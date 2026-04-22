@@ -29,7 +29,7 @@ function clearResetParams() {
 interface Props {
   theme: Theme;
   onThemeToggle: () => void;
-  onAuthenticated: (token: string, user: User) => void;
+  onAuthenticated: (user: User, sessionId: string | null) => void;
 }
 
 const viewTitles: Record<AuthView, string> = {

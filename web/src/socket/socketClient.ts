@@ -3,11 +3,11 @@ import { SOCKET_URL } from '../config';
 
 let socket: Socket | null = null;
 
-export function connectSocket(token: string): Socket {
+export function connectSocket(): Socket {
   if (socket?.connected) return socket;
 
   socket = io(SOCKET_URL, {
-    auth: { token },
+    withCredentials: true, // send HttpOnly session cookie on WS handshake
     transports: ['websocket'],
     reconnection: true,
     reconnectionAttempts: 10,
@@ -51,4 +51,3 @@ export function emitTypingStart(chatId: string): void {
 export function emitTypingStop(chatId: string): void {
   socket?.emit('typing-stop', { chatId });
 }
-

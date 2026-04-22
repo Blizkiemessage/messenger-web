@@ -9,7 +9,7 @@ import { Portal } from '../ui/Portal';
 import { authRegister, authVerifyEmail } from '../../api/auth';
 
 interface Props {
-  onAuthenticated: (token: string, user: User) => void;
+  onAuthenticated: (user: User, sessionId: string | null) => void;
   onSwitchTab: () => void;
 }
 
@@ -66,7 +66,7 @@ export function RegisterForm({ onAuthenticated, onSwitchTab }: Props) {
     setOtpBusy(true);
     try {
       const res = await authVerifyEmail(pendingEmail, otp);
-      onAuthenticated(res.token, res.user);
+      onAuthenticated(res.user, res.sessionId ?? null);
     } catch (e: any) {
       setOtpError(e?.message ?? 'Неверный код');
       setOtp('');

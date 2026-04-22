@@ -46,7 +46,15 @@ function initSocket(httpServer) {
 
   // ── Auth middleware ─────────────────────────────────────────────────────────
   io.use((socket, next) => {
-    const token = socket.handshake.auth?.token;
+    // Try HttpOnly cookie first, then fall back to auth.token (legacy / admin panel)
+    const cookieHeader = socket.handshake.headers.cookie || '';
+    const cookieToken = cookieHeader.split(';')
+      .map(c => c.trim())
+      .find(c => c.startsWith('session='))
+      ?.slice('session='.length)
+      .trim() || null;
+    const token = cookieToken || socket.handshake.auth?.token || null;
+
     if (!token) return next(new Error('No token'));
 
     let payload;

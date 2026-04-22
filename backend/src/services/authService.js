@@ -59,7 +59,7 @@ async function loginOrRegister(login, password, userAgent = '', ipAddress = '') 
     .run([sessionId, user.id, now, userAgent, now, ipAddress || null]);
 
   const token = sign({ sub: user.id, jti: sessionId });
-  return { token, user: sanitizeUserFull(user, { showPrivate: true }) };
+  return { token, sessionId, user: sanitizeUserFull(user, { showPrivate: true }) };
 }
 
 /**
@@ -100,7 +100,7 @@ async function registerWithPassword(username, password, userAgent = '', ipAddres
     .run([sessionId, userId, now, userAgent, now, ipAddress || null]);
 
   const token = sign({ sub: userId, jti: sessionId });
-  return { token, user: sanitizeUserFull(user, { showPrivate: true }), isNew: true };
+  return { token, sessionId, user: sanitizeUserFull(user, { showPrivate: true }), isNew: true };
 }
 
 /**
@@ -239,7 +239,7 @@ async function verifyEmailAndCreateAccount(email, otp, userAgent = '', ipAddress
     .run([sessionId, userId, now, userAgent, now, ipAddress || null]);
 
   const token = sign({ sub: userId, jti: sessionId });
-  return { token, user: sanitizeUserFull(user, { showPrivate: true }), isNew: true };
+  return { token, sessionId, user: sanitizeUserFull(user, { showPrivate: true }), isNew: true };
 }
 
 /**

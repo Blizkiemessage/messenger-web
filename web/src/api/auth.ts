@@ -31,6 +31,11 @@ export async function authSetPassword(
   await client.patch('/auth/password', { newPassword, currentPassword });
 }
 
+/** Log out: clears the HttpOnly session cookie on the server */
+export async function authLogout(): Promise<void> {
+  await client.post('/auth/logout');
+}
+
 /** Permanently delete the current user's account */
 export async function deleteAccount(): Promise<void> {
   await client.delete('/users/me');

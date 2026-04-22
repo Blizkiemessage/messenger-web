@@ -13,6 +13,7 @@ import { SidebarBottom } from './SidebarBottom';
 import { SupportModal } from '../modals/SupportModal';
 import { updateMe } from '../../api/users';
 import { getSavedChat } from '../../api/chats';
+import { authLogout } from '../../api/auth';
 
 export function Sidebar() {
   // Session
@@ -101,7 +102,10 @@ export function Sidebar() {
           setShowSupport(true);
           useAppStore.getState().setShowProfile(false);
         }}
-        onLogout={clearSession}
+        onLogout={async () => {
+          try { await authLogout(); } catch { /* cookie might already be gone */ }
+          clearSession();
+        }}
         onThemeToggle={toggleTheme}
       />
       {showSupport && <SupportModal me={me} onClose={() => setShowSupport(false)} />}

@@ -12,12 +12,12 @@ import { useChatsStore } from '../store/useChatsStore';
 import { useAppStore } from '../store/useAppStore';
 
 export function useMessages() {
-  const token = useSessionStore(s => s.token);
+  const me = useSessionStore(s => s.me);
   const activeChatId = useChatsStore(s => s.activeChatId);
 
   // Load messages when active chat changes
   useEffect(() => {
-    if (!token || !activeChatId) {
+    if (!me || !activeChatId) {
       useChatsStore.getState().setMessages([]);
       return;
     }
@@ -36,7 +36,7 @@ export function useMessages() {
 
 
     return () => { setActiveChat(null); };
-  }, [token, activeChatId]); // eslint-disable-line
+  }, [me, activeChatId]); // eslint-disable-line
 
   const sendMessage = useCallback(async (text: string) => {
     const chatId = useChatsStore.getState().activeChatId;

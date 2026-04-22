@@ -4,7 +4,7 @@ import { PasswordInput } from '../ui/PasswordInput';
 import { authLoginPassword } from '../../api/auth';
 
 interface Props {
-  onAuthenticated: (token: string, user: User) => void;
+  onAuthenticated: (user: User, sessionId: string | null) => void;
   onSwitchTab: () => void;
   onForgotPassword: () => void;
 }
@@ -23,7 +23,7 @@ export function LoginForm({ onAuthenticated, onSwitchTab, onForgotPassword }: Pr
     setBusy(true);
     try {
       const res = await authLoginPassword(login.trim(), password);
-      onAuthenticated(res.token, res.user);
+      onAuthenticated(res.user, res.sessionId ?? null);
     } catch (e: any) {
       setError(e?.message ?? 'Неверный username/email или пароль');
     } finally {

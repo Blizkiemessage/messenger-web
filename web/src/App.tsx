@@ -42,7 +42,6 @@ import {
 
 export default function App() {
   // Session
-  const token = useSessionStore(s => s.token);
   const me = useSessionStore(s => s.me);
   const setSession = useSessionStore(s => s.setSession);
   const clearSession = useSessionStore(s => s.clearSession);
@@ -82,23 +81,25 @@ export default function App() {
 
   // Load chats on login
   useEffect(() => {
-    if (token) useChatsStore.getState().loadChats();
-  }, [token]); // eslint-disable-line
+    if (me) useChatsStore.getState().loadChats();
+  }, [me]); // eslint-disable-line
 
   // Refresh user profile on mount — syncs settings changed on other devices
+  // Also validates that the session cookie is still valid; clears local state on 401
   useEffect(() => {
-    const t = useSessionStore.getState().token;
-    if (!t) return;
-    getMe().then(user => setSession(t, user)).catch(() => {});
+    if (!useSessionStore.getState().me) return;
+    getMe()
+      .then(user => setSession(user, useSessionStore.getState().sessionId))
+      .catch((err) => { if (err?.status === 401) clearSession(); });
   }, []); // eslint-disable-line
 
   // Auth gate
-  if (!token || !me) {
+  if (!me) {
     return (
       <AuthScreen
         theme={theme}
         onThemeToggle={toggleTheme}
-        onAuthenticated={(t, u) => setSession(t, u)}
+        onAuthenticated={(u, sid) => setSession(u, sid)}
       />
     );
   }
@@ -154,7 +155,6 @@ export default function App() {
       {showProfileSettings && (
         <ProfileSettingsModal
           me={me}
-          token={token}
           onClose={() => setShowProfileSettings(false)}
           onUpdate={updateMe}
           onDeleteAccount={onDeleteAccount}

@@ -106,8 +106,9 @@ export type Chat = {
 };
 
 export type AuthResponse = {
-  token: string;
+  /** JWT is now stored in HttpOnly cookie — not returned in body */
   user: User;
+  sessionId: string;
   isNew?: boolean;
 };
 

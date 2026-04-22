@@ -11,7 +11,6 @@ import { PermissionsTab } from '../profile/PermissionsTab';
 
 interface Props {
   me: User;
-  token: string;
   onClose: () => void;
   onUpdate: (u: User) => void;
   onDeleteAccount: () => Promise<void>;
@@ -114,7 +113,7 @@ const TAB_LABELS: Record<Tab, string> = {
   permissions: 'Разрешения',
 };
 
-export function ProfileSettingsModal({ me, token, onClose, onUpdate, onDeleteAccount }: Props) {
+export function ProfileSettingsModal({ me, onClose, onUpdate, onDeleteAccount }: Props) {
   const [tab, setTab] = useState<Tab | null>(null);
 
   const [showDeleteConfirm,  setShowDeleteConfirm]  = useState(false);
@@ -239,7 +238,7 @@ export function ProfileSettingsModal({ me, token, onClose, onUpdate, onDeleteAcc
           </div>
         ) : (
           <div className="psBody">
-            {tab === 'profile'     && <ProfileTab    me={me} token={token} onUpdate={onUpdate} />}
+            {tab === 'profile'     && <ProfileTab    me={me} onUpdate={onUpdate} />}
             {tab === 'password'    && <PasswordTab   me={me} onUpdate={onUpdate} />}
             {tab === 'privacy'     && <PrivacyTab    me={me} onUpdate={onUpdate} />}
             {tab === 'appearance'  && <AppearanceTab />}

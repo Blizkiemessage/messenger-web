@@ -15,7 +15,6 @@ const BIO_MAX = 150;
 
 interface Props {
   me: User;
-  token: string;
   onUpdate: (u: User) => void;
 }
 

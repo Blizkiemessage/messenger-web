@@ -2,12 +2,15 @@ const { verify } = require('../utils/jwt');
 const { getDb } = require('../config/database');
 
 function authMiddleware(req, res, next) {
-  const header = req.headers.authorization;
-  if (!header || !header.startsWith('Bearer ')) {
+  // Prefer HttpOnly session cookie; fall back to Bearer for admin panel / API clients
+  const token = req.cookies?.session
+    || (req.headers.authorization?.startsWith('Bearer ')
+        ? req.headers.authorization.slice(7)
+        : null);
+
+  if (!token) {
     return res.status(401).json({ error: 'Unauthorized' });
   }
-
-  const token = header.slice(7);
   let payload;
   try {
     payload = verify(token);

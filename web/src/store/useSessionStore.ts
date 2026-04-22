@@ -1,8 +1,9 @@
 /**
  * useSessionStore
  *
- * Holds the authenticated user's token and profile.
- * Applies/resets the per-user accent colour on login/logout.
+ * Holds the authenticated user profile and session ID.
+ * JWT lives in an HttpOnly cookie — never in JS memory.
+ * sessionId (jti UUID) is used only to identify which 'session-revoked' event is ours.
  */
 import { create } from 'zustand';
 import { type User } from '../types';
@@ -12,11 +13,11 @@ import { applyTheme, type Theme } from '../utils/theme';
 import { useAppStore } from './useAppStore';
 
 interface SessionState {
-  token: string | null;
   me: User | null;
+  sessionId: string | null;
   accent: string;
 
-  setSession: (token: string, me: User) => void;
+  setSession: (me: User, sessionId: string | null) => void;
   clearSession: () => void;
   updateMe: (user: User) => void;
 }
@@ -26,12 +27,12 @@ const saved = getSession();
 const initialAccent = saved?.user?.id ? onUserLogin(saved.user.id) : '#2f81f7';
 
 export const useSessionStore = create<SessionState>((set) => ({
-  token: saved?.token ?? null,
-  me: saved?.user ?? null,
-  accent: initialAccent,
+  me:        saved?.user      ?? null,
+  sessionId: saved?.sessionId ?? null,
+  accent:    initialAccent,
 
-  setSession: (token, me) => {
-    persistSession({ token, user: me });
+  setSession: (me, sessionId) => {
+    persistSession({ user: me, sessionId });
     // Apply accent from server (overrides localStorage default)
     if (me.accent_color) {
       applyAccentCss(me.accent_color);
@@ -43,18 +44,18 @@ export const useSessionStore = create<SessionState>((set) => ({
       useAppStore.setState({ theme: me.theme as Theme });
     }
     const accent = me.accent_color || onUserLogin(me.id);
-    set({ token, me, accent });
+    set({ me, sessionId, accent });
   },
 
   clearSession: () => {
     clearPersisted();
-    onUserLogout();                       // reset CSS to default blue
-    set({ token: null, me: null, accent: '#2f81f7' });
+    onUserLogout();                        // reset CSS to default blue
+    set({ me: null, sessionId: null, accent: '#2f81f7' });
   },
 
   updateMe: (me) => {
     set(state => {
-      if (state.token) persistSession({ token: state.token, user: me });
+      persistSession({ user: me, sessionId: state.sessionId });
       return { me };
     });
   },
