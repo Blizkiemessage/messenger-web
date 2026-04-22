@@ -1,12 +1,18 @@
 require('dotenv').config();
 
+const logger = require('./utils/logger');
+
 // ─── Global crash handlers (must be first) ────────────────────────────────
-process.on('uncaughtException', (err) => {
-  console.error('[CRASH] Uncaught exception:', err);
-  process.exit(1);
-});
 process.on('unhandledRejection', (reason) => {
-  console.error('[CRASH] Unhandled promise rejection:', reason);
+  const err = reason instanceof Error ? reason : null;
+  const message = err ? err.message : String(reason);
+  logger.error('[PROCESS]', 'Unhandled Promise Rejection', err, { reason: message });
+  // Do NOT exit — one bad promise must not kill the server for all users
+});
+
+process.on('uncaughtException', (err) => {
+  logger.error('[PROCESS]', 'Uncaught Exception — завершение', err, {});
+  // Synchronous crash: state is undefined, exit is the only safe option
   process.exit(1);
 });
 
