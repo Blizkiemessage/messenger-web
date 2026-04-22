@@ -1,28 +1,22 @@
+const crypto = require('crypto');
+const bcryptjs = require('bcryptjs');
 const express = require('express');
-const rateLimit = require('express-rate-limit');
 const { v4: uuidv4 } = require('uuid');
 const { authMiddleware } = require('../middleware/auth');
+const { adminLoginLimiter } = require('../middleware/rateLimits');
 const { getDb } = require('../config/database');
 const { sign } = require('../utils/jwt');
 const { deleteManyFromS3 } = require('../utils/s3Delete');
 
 const router = express.Router();
 
-const adminLoginLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 10,
-  message: { error: 'Слишком много попыток. Попробуйте через 15 минут.' },
-  standardHeaders: true,
-  legacyHeaders: false,
-});
-
 // POST /admin/api/login
-router.post('/login', adminLoginLimiter, (req, res, next) => {
+router.post('/login', adminLoginLimiter, async (req, res, next) => {
   try {
-    const ADMIN_USERNAME = process.env.ADMIN_USERNAME;
-    const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD;
+    const expectedUser   = process.env.ADMIN_USERNAME      || '';
+    const passwordHash   = process.env.ADMIN_PASSWORD_HASH || '';
 
-    if (!ADMIN_USERNAME || !ADMIN_PASSWORD) {
+    if (!expectedUser || !passwordHash) {
       return res.status(503).json({ error: 'Admin not configured' });
     }
 
@@ -30,11 +24,25 @@ router.post('/login', adminLoginLimiter, (req, res, next) => {
     if (!username || !password) {
       return res.status(400).json({ error: 'Username и пароль обязательны' });
     }
-    if (username.toLowerCase() !== ADMIN_USERNAME.toLowerCase() || password !== ADMIN_PASSWORD) {
+
+    // Timing-safe username comparison (prevents length-based leaks too)
+    let usernameMatch = false;
+    try {
+      const a = Buffer.from(username.toLowerCase());
+      const b = Buffer.from(expectedUser.toLowerCase());
+      usernameMatch = a.length === b.length && crypto.timingSafeEqual(a, b);
+    } catch { usernameMatch = false; }
+
+    // bcrypt.compare is timing-safe by design; always run it to avoid
+    // timing difference between "wrong user" and "wrong password" branches.
+    const passwordMatch = await bcryptjs.compare(password, passwordHash);
+
+    if (!usernameMatch || !passwordMatch) {
       return res.status(401).json({ error: 'Неверный логин или пароль' });
     }
+
     const db = getDb();
-    const user = db.prepare('SELECT id FROM users WHERE LOWER(username) = ?').get(ADMIN_USERNAME.toLowerCase());
+    const user = db.prepare('SELECT id FROM users WHERE LOWER(username) = ?').get(expectedUser.toLowerCase());
 
     if (!user) {
       return res.status(404).json({ error: 'Admin user not found in DB' });

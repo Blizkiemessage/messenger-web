@@ -29,4 +29,13 @@ const otpVerifyLimiter = rateLimit({
   legacyHeaders: false,
 });
 
-module.exports = { loginLimiter, emailSendLimiter, otpVerifyLimiter };
+// Admin login — tight: 5 attempts / 30 min per IP
+const adminLoginLimiter = rateLimit({
+  windowMs: 30 * 60 * 1000,
+  max: 5,
+  message: { error: 'Too many attempts. Try again in 30 minutes.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+module.exports = { loginLimiter, emailSendLimiter, otpVerifyLimiter, adminLoginLimiter };
