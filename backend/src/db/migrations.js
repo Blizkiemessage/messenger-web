@@ -400,6 +400,24 @@ function runMigrations() {
     }
   } catch (err) { console.error('[DB] FTS5 backfill failed:', err.message); }
 
+  // ── Partial indexes for the hottest queries ──────────────────────────────
+  // These improve on the existing plain indexes by filtering out rows that are
+  // never queried (deleted messages), making the index smaller and faster.
+  const partialIndexes = [
+    // Main chat-history query: "give me the last N non-deleted messages in this chat"
+    // Replaces idx_messages_chat (no WHERE clause) with a smaller, more selective index.
+    `CREATE INDEX IF NOT EXISTS idx_messages_chat_created
+     ON messages(chat_id, created_at DESC) WHERE deleted_at IS NULL`,
+
+    // Unread-count and message-list queries that exclude system messages.
+    `CREATE INDEX IF NOT EXISTS idx_messages_unread
+     ON messages(chat_id, created_at) WHERE deleted_at IS NULL AND is_system = 0`,
+  ];
+
+  for (const sql of partialIndexes) {
+    try { db.exec(sql); } catch (e) { console.warn('[DB] index:', e.message); }
+  }
+
   console.log('[DB] Migrations complete');
 }
 
