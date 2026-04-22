@@ -1,8 +1,8 @@
 FROM node:20-slim
 
-# sharp requires these system libs on Debian slim
+# Build tools for native Node.js addons (better-sqlite3) + sharp system libs
 RUN apt-get update && apt-get install -y --no-install-recommends \
-      libvips-dev \
+      python3 make g++ libvips-dev \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
