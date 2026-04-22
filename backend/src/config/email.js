@@ -1,5 +1,15 @@
 const nodemailer = require('nodemailer');
 
+const isProd = process.env.NODE_ENV === 'production';
+
+/** Throw in production if SMTP is not configured; log in development. */
+function devFallback(label) {
+  if (isProd) {
+    throw new Error('SMTP not configured in production. Cannot send email.');
+  }
+  return (details) => console.log(`[EMAIL DEV] ${label}:`, details);
+}
+
 let _transporter = null;
 
 function getTransporter() {
@@ -23,7 +33,7 @@ function getTransporter() {
  */
 async function sendOtpEmail(to, otp) {
   if (!process.env.SMTP_HOST) {
-    console.log(`[EMAIL DEV] OTP for ${to}: ${otp}`);
+    devFallback('OTP')(`for ${to}: ${otp}`);
     return;
   }
 
@@ -85,7 +95,7 @@ async function sendSupportEmail({ subject, username, userEmail, sentAt, descript
     : [];
 
   if (!process.env.SMTP_HOST) {
-    console.log(`[EMAIL DEV] Support report from @${username}: ${subject}`);
+    devFallback('Support report')(`from @${username}: ${subject}`);
     return;
   }
 
@@ -97,7 +107,7 @@ async function sendSupportEmail({ subject, username, userEmail, sentAt, descript
  */
 async function sendPasswordResetEmail(to, resetUrl) {
   if (!process.env.SMTP_HOST) {
-    console.log(`[EMAIL DEV] Password reset for ${to}: ${resetUrl}`);
+    devFallback('Password reset')(`for ${to}: ${resetUrl}`);
     return;
   }
 

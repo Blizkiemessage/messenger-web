@@ -2,6 +2,25 @@ require('dotenv').config();
 
 const logger = require('./utils/logger');
 
+// ─── Startup env validation ────────────────────────────────────────────────
+// Always required (server cannot function without these)
+const REQUIRED_ENV = ['JWT_SECRET', 'MESSAGE_ENCRYPTION_KEY'];
+// Required only in production (dev can run without SMTP, admin hash, etc.)
+const PROD_REQUIRED_ENV = ['SMTP_HOST', 'ADMIN_PASSWORD_HASH', 'APP_URL'];
+
+const missingAlways = REQUIRED_ENV.filter(k => !process.env[k]);
+if (missingAlways.length) {
+  logger.error('[STARTUP]', `Missing required env vars: ${missingAlways.join(', ')}`, null, {});
+  process.exit(1);
+}
+if (process.env.NODE_ENV === 'production') {
+  const missingProd = PROD_REQUIRED_ENV.filter(k => !process.env[k]);
+  if (missingProd.length) {
+    logger.error('[STARTUP]', `Missing required production env vars: ${missingProd.join(', ')}`, null, {});
+    process.exit(1);
+  }
+}
+
 // ─── Global crash handlers (must be first) ────────────────────────────────
 process.on('unhandledRejection', (reason) => {
   const err = reason instanceof Error ? reason : null;
