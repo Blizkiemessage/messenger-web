@@ -20,7 +20,16 @@ let db;
 function getDb() {
   if (!db) {
     db = new Database(DB_PATH);
-    db.exec('PRAGMA foreign_keys = ON;');
+    // Note: node-sqlite3-wasm runs SQLite in a WASM sandbox — WAL mode and
+    // mmap_size are silently ignored (no OS-level shared memory / file mapping).
+    // The remaining PRAGMAs work and provide meaningful performance gains.
+    db.exec(`
+      PRAGMA synchronous  = NORMAL;
+      PRAGMA cache_size   = -65536;
+      PRAGMA temp_store   = MEMORY;
+      PRAGMA busy_timeout = 5000;
+      PRAGMA foreign_keys = ON;
+    `);
   }
   return db;
 }
