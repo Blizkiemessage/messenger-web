@@ -18,6 +18,7 @@ const { getChatMessages, saveMessage, toggleReaction, toggleEmojiReaction, delet
 const { isBlocked } = require('../services/userService');
 const { getDb } = require('../config/database');
 const { signUrl, signMessageUrls } = require('../utils/s3Sign');
+const { parsePagination } = require('../utils/pagination');
 
 const router = express.Router();
 router.use(authMiddleware);
@@ -33,8 +34,7 @@ const msgLimiter = rateLimit({
 // GET /chats/:chatId/messages
 router.get('/:chatId/messages', async (req, res, next) => {
   try {
-    const limit = Math.min(parseInt(req.query.limit) || 50, 100);
-    const before = req.query.before ? parseInt(req.query.before) : null;
+    const { limit, before } = parsePagination(req.query, { defaultLimit: 50, maxLimit: 100 });
     const messages = getChatMessages(req.params.chatId, req.userId, { limit, before });
     await signMessageUrls(messages);
     res.json(messages);
