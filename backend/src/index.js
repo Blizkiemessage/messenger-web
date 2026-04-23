@@ -67,9 +67,42 @@ const server = http.createServer(app);
 
 // ─── Middleware ────────────────────────────────────────────────────────────
 app.set('trust proxy', 1);
+
+// Resolve S3 origin once at startup so undefined env var never leaks into CSP
+const _s3Origin = (() => {
+  try { return process.env.S3_PUBLIC_URL ? new URL(process.env.S3_PUBLIC_URL).origin : null; }
+  catch { return null; }
+})();
+
 app.use(helmet({
-  contentSecurityPolicy: false, // Prevent helmet from blocking our inline admin scripts/styles
+  contentSecurityPolicy: false,    // set per-path below
+  crossOriginEmbedderPolicy: false, // required for S3 media playback
 }));
+
+// Content Security Policy
+// Admin panel needs 'unsafe-inline' for scriptSrc: Bootstrap JS is loaded from
+// cdn.jsdelivr.net AND the HTML uses dozens of inline onclick="..." handlers
+// (Bootstrap-generated markup). All other routes get the strict policy.
+app.use((req, res, next) => {
+  const isAdmin = req.path.startsWith('/admin');
+  return helmet.contentSecurityPolicy({
+    directives: {
+      defaultSrc:  ["'self'"],
+      scriptSrc:   isAdmin
+        ? ["'self'", "'unsafe-inline'", 'https://cdn.jsdelivr.net']
+        : ["'self'"],
+      styleSrc:    ["'self'", "'unsafe-inline'", 'https://cdn.jsdelivr.net'],
+      imgSrc:      ["'self'", 'data:', 'blob:', ...(_s3Origin ? [_s3Origin] : [])],
+      mediaSrc:    ["'self'", 'blob:', ...(_s3Origin ? [_s3Origin] : [])],
+      connectSrc:  ["'self'"],
+      fontSrc:     ["'self'", 'data:', 'https://cdn.jsdelivr.net'],
+      objectSrc:   ["'none'"],
+      frameAncestors: ["'none'"],
+      // upgrade-insecure-requests breaks local HTTP dev; production only
+      ...(process.env.NODE_ENV === 'production' ? { upgradeInsecureRequests: [] } : {}),
+    },
+  })(req, res, next);
+});
 app.use(cors({
   origin: (origin, cb) => {
     // Allow non-browser clients (curl, mobile, etc.)
