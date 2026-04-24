@@ -7,6 +7,11 @@ const { adminLoginLimiter } = require('../middleware/rateLimits');
 const { getDb } = require('../config/database');
 const { sign } = require('../utils/jwt');
 const { deleteManyFromS3 } = require('../utils/s3Delete');
+const { logAdminAction } = require('../services/adminAuditService');
+
+function clientIp(req) {
+  return req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.socket.remoteAddress || null;
+}
 
 const router = express.Router();
 
@@ -165,6 +170,8 @@ router.delete('/users/:id', (req, res, next) => {
       .map(r => r.attachment_url);
 
     // Cascade delete manually just in case PRAGMA foreign_keys is off
+    const deletedUser = db.prepare('SELECT username, display_name FROM users WHERE id = ?').get(targetUserId);
+
     db.exec('BEGIN');
     try {
       db.prepare('DELETE FROM messages WHERE sender_id = ?').run(targetUserId);
@@ -179,6 +186,15 @@ router.delete('/users/:id', (req, res, next) => {
       db.exec('COMMIT');
       // Fire-and-forget S3 cleanup
       deleteManyFromS3([targetUser?.avatar_url, ...msgAttachments]);
+      logAdminAction({
+        adminUserId: req.userId,
+        action: 'delete_user',
+        targetType: 'user',
+        targetId: targetUserId,
+        targetMeta: { username: deletedUser?.username, display_name: deletedUser?.display_name },
+        ipAddress: clientIp(req),
+        userAgent: req.headers['user-agent'] || null,
+      });
       res.json({ ok: true });
     } catch (e) {
       db.exec('ROLLBACK');
@@ -210,22 +226,32 @@ router.get('/chats', (req, res, next) => {
 router.delete('/chats/:id', (req, res, next) => {
   try {
     const db = getDb();
+    const chatId = req.params.id;
 
     // Collect S3 objects before cascade
-    const chat = db.prepare('SELECT avatar_url FROM chats WHERE id = ?').get(req.params.id);
+    const chat = db.prepare('SELECT avatar_url, type, name FROM chats WHERE id = ?').get(chatId);
     const msgAttachments = db
       .prepare('SELECT attachment_url FROM messages WHERE chat_id = ? AND attachment_url IS NOT NULL')
-      .all(req.params.id)
+      .all(chatId)
       .map(r => r.attachment_url);
 
     db.exec('BEGIN');
     try {
-      db.prepare('DELETE FROM messages WHERE chat_id = ?').run(req.params.id);
-      db.prepare('DELETE FROM chat_members WHERE chat_id = ?').run(req.params.id);
-      db.prepare('DELETE FROM chats WHERE id = ?').run(req.params.id);
+      db.prepare('DELETE FROM messages WHERE chat_id = ?').run(chatId);
+      db.prepare('DELETE FROM chat_members WHERE chat_id = ?').run(chatId);
+      db.prepare('DELETE FROM chats WHERE id = ?').run(chatId);
       db.exec('COMMIT');
       // Fire-and-forget S3 cleanup
       deleteManyFromS3([chat?.avatar_url, ...msgAttachments]);
+      logAdminAction({
+        adminUserId: req.userId,
+        action: 'delete_chat',
+        targetType: 'chat',
+        targetId: chatId,
+        targetMeta: { type: chat?.type, name: chat?.name },
+        ipAddress: clientIp(req),
+        userAgent: req.headers['user-agent'] || null,
+      });
       res.json({ ok: true });
     } catch (e) {
       db.exec('ROLLBACK');
@@ -263,7 +289,18 @@ router.get('/content-reports', (req, res, next) => {
 router.patch('/content-reports/:id/dismiss', (req, res, next) => {
   try {
     const db = getDb();
-    db.prepare('UPDATE content_reports SET resolved = 1 WHERE id = ?').run([req.params.id]);
+    const reportId = req.params.id;
+    const report = db.prepare('SELECT content_type, content_id FROM content_reports WHERE id = ?').get(reportId);
+    db.prepare('UPDATE content_reports SET resolved = 1 WHERE id = ?').run([reportId]);
+    logAdminAction({
+      adminUserId: req.userId,
+      action: 'dismiss_content_report',
+      targetType: 'content_report',
+      targetId: reportId,
+      targetMeta: { content_type: report?.content_type, content_id: report?.content_id },
+      ipAddress: clientIp(req),
+      userAgent: req.headers['user-agent'] || null,
+    });
     res.json({ ok: true });
   } catch (err) { next(err); }
 });
@@ -293,9 +330,20 @@ router.get('/sticker-packs', (req, res, next) => {
 router.delete('/sticker-packs/:id', (req, res, next) => {
   try {
     const db = getDb();
-    db.prepare('UPDATE sticker_packs SET is_deleted = 1 WHERE id = ?').run([req.params.id]);
+    const packId = req.params.id;
+    const pack = db.prepare('SELECT name, type, owner_id FROM sticker_packs WHERE id = ?').get(packId);
+    db.prepare('UPDATE sticker_packs SET is_deleted = 1 WHERE id = ?').run([packId]);
     // Mark all related reports resolved
-    db.prepare("UPDATE content_reports SET resolved = 1 WHERE content_id = ? AND content_type = 'sticker_pack'").run([req.params.id]);
+    db.prepare("UPDATE content_reports SET resolved = 1 WHERE content_id = ? AND content_type = 'sticker_pack'").run([packId]);
+    logAdminAction({
+      adminUserId: req.userId,
+      action: 'delete_sticker_pack',
+      targetType: 'sticker_pack',
+      targetId: packId,
+      targetMeta: { name: pack?.name, type: pack?.type, owner_id: pack?.owner_id },
+      ipAddress: clientIp(req),
+      userAgent: req.headers['user-agent'] || null,
+    });
     res.json({ ok: true });
   } catch (err) { next(err); }
 });
@@ -580,7 +628,50 @@ router.delete('/errors', (req, res, next) => {
     } else {
       db.prepare('DELETE FROM app_errors').run();
     }
+    logAdminAction({
+      adminUserId: req.userId,
+      action: 'clear_app_errors',
+      targetType: 'app_errors',
+      targetMeta: { level: level || 'all' },
+      ipAddress: clientIp(req),
+      userAgent: req.headers['user-agent'] || null,
+    });
     res.json({ ok: true });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// ── Audit log ────────────────────────────────────────────────────────────────
+
+// GET /admin/api/audit-log?limit=50&offset=0&action=delete_user
+router.get('/audit-log', (req, res, next) => {
+  try {
+    const db     = getDb();
+    const limit  = Math.min(parseInt(req.query.limit  || '50'),  500);
+    const offset = Math.max(parseInt(req.query.offset || '0'),   0);
+    const action = req.query.action ? req.query.action.trim() : null;
+
+    const conditions = [];
+    const params     = [];
+    if (action) { conditions.push('action = ?'); params.push(action); }
+
+    const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
+
+    const rows = db.prepare(
+      `SELECT al.*, u.username AS admin_username
+       FROM admin_audit_log al
+       LEFT JOIN users u ON u.id = al.admin_user_id
+       ${where}
+       ORDER BY al.created_at DESC
+       LIMIT ? OFFSET ?`
+    ).all([...params, limit, offset]);
+
+    const total = db.prepare(
+      `SELECT COUNT(*) AS c FROM admin_audit_log ${where}`
+    ).get(params).c;
+
+    res.json({ rows, total });
   } catch (err) {
     next(err);
   }

@@ -317,6 +317,19 @@ function runMigrations() {
       ts INTEGER NOT NULL
     )`,
     `CREATE INDEX IF NOT EXISTS idx_app_errors_ts ON app_errors(ts)`,
+    // ✅ NEW: admin audit log — records who did what and when in the admin panel
+    `CREATE TABLE IF NOT EXISTS admin_audit_log (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      admin_user_id TEXT NOT NULL,
+      action TEXT NOT NULL,
+      target_type TEXT,
+      target_id TEXT,
+      target_meta TEXT,
+      ip_address TEXT,
+      user_agent TEXT,
+      created_at INTEGER NOT NULL
+    )`,
+    `CREATE INDEX IF NOT EXISTS idx_admin_audit_log_created ON admin_audit_log(created_at DESC)`,
   ];
 
   for (const sql of alters) {
