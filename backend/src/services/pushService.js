@@ -71,11 +71,12 @@ function fireAndForgetPush(chatId, senderId, msgData, io) {
         .all([chatId, senderId]);
       if (members.length === 0) return;
 
-      // 2. Filter to offline members (not in io.onlineUsers)
-      const onlineUsers = io.onlineUsers instanceof Set ? io.onlineUsers : new Set();
+      // 2. Filter to offline members (not in io.onlineUsers).
+      // onlineUsers is now a Map<userId, socketCount>; a user is online if count > 0.
+      const onlineUsers = io.onlineUsers instanceof Map ? io.onlineUsers : new Map();
       const offlineIds = members
         .map(m => m.user_id)
-        .filter(id => !onlineUsers.has(id));
+        .filter(id => !(onlineUsers.get(id) > 0));
       if (offlineIds.length === 0) return;
 
       // 3a. Skip members who have muted this chat

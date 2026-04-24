@@ -19,10 +19,14 @@ const { getUserChats } = require('../services/chatService');
 const { saveMessage } = require('../services/messageService');
 const { corsOriginCallback } = require('../utils/corsOrigin');
 
-// Track which userIds are currently connected
-const onlineUsers = new Set();
+// Track active socket count per user: userId → number.
+// A user is online as long as count > 0; goes offline only when the last socket disconnects.
+// This fixes the multi-tab/multi-device "presence flicker" bug where disconnecting one
+// tab incorrectly marked the user offline while other tabs were still open.
+const onlineUsers = new Map();
 
-// Track which chat each user currently has open (userId → chatId | null)
+// Track which chat each socket currently has open (socketId → chatId | null).
+// Keyed by socketId (not userId) so each tab can independently set its active chat.
 const userActiveChat = new Map();
 
 // Per-socket typing throttle: Map<"socketId:chatId", lastEmitTimestamp>
@@ -73,8 +77,10 @@ function initSocket(httpServer) {
   // ── Connection handler ──────────────────────────────────────────────────────
   io.on('connection', (socket) => {
     const userId = socket.data.userId;
-    onlineUsers.add(userId);
-    console.log(`[Socket] Connected: ${userId}`);
+    const prevCount = onlineUsers.get(userId) || 0;
+    onlineUsers.set(userId, prevCount + 1);
+    const isFirstSocket = prevCount === 0;
+    console.log(`[Socket] Connected: ${userId} (sockets: ${prevCount + 1})`);
 
     // Load user's chats — used for room joins and presence notifications
     const userChats = getUserChats(userId);
@@ -87,17 +93,20 @@ function initSocket(httpServer) {
     // Join personal room (for events targeted to this user specifically)
     socket.join(`user:${userId}`);
 
-    // Join all chat rooms and announce online presence
+    // Join all chat rooms; broadcast user-online only on the first socket connection
+    // to avoid duplicate presence events when the same user opens a second tab.
     userChats.forEach(chat => {
       socket.join(`chat:${chat.id}`);
-      socket.to(`chat:${chat.id}`).emit('user-online', { userId });
+      if (isFirstSocket) {
+        socket.to(`chat:${chat.id}`).emit('user-online', { userId });
+      }
     });
 
     // Inform connecting user which of their contacts are already online
     const seenMembers = new Set();
     userChats.forEach(chat => {
       chat.members.forEach(m => {
-        if (m.id !== userId && !seenMembers.has(m.id) && onlineUsers.has(m.id)) {
+        if (m.id !== userId && !seenMembers.has(m.id) && (onlineUsers.get(m.id) || 0) > 0) {
           socket.emit('user-online', { userId: m.id });
           seenMembers.add(m.id);
         }
@@ -111,9 +120,10 @@ function initSocket(httpServer) {
       socket.join(`chat:${chatId}`);
     });
 
-    // Track which chat the user currently has open (for read-state / push suppression)
+    // Track which chat this socket currently has open (for read-state / push suppression).
+    // Keyed by socket.id so each tab tracks its own active chat independently.
     socket.on('set-active-chat', chatId => {
-      userActiveChat.set(userId, chatId || null);
+      userActiveChat.set(socket.id, chatId || null);
     });
 
     // Typing indicators — throttled to prevent event flooding
@@ -139,8 +149,19 @@ function initSocket(httpServer) {
       for (const key of typingThrottle.keys()) {
         if (key.startsWith(prefix)) typingThrottle.delete(key);
       }
+      // Always clean up this socket's active-chat entry
+      userActiveChat.delete(socket.id);
+
+      const remaining = (onlineUsers.get(userId) || 1) - 1;
+      if (remaining > 0) {
+        // Other tabs/devices still open — stay online, don't broadcast user-offline
+        onlineUsers.set(userId, remaining);
+        console.log(`[Socket] Disconnected: ${userId} (sockets remaining: ${remaining})`);
+        return;
+      }
+
+      // Last socket gone — mark user offline
       onlineUsers.delete(userId);
-      userActiveChat.delete(userId);
       const lastSeenAt = Date.now();
       const db = getDb();
       db.prepare('UPDATE users SET last_seen_at = ? WHERE id = ?').run([lastSeenAt, userId]);
@@ -153,7 +174,7 @@ function initSocket(httpServer) {
           last_seen_at: showLastSeen ? lastSeenAt : undefined,
         });
       });
-      console.log(`[Socket] Disconnected: ${userId}`);
+      console.log(`[Socket] Disconnected: ${userId} (all sockets closed)`);
     });
   });
 
