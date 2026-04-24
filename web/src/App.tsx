@@ -73,7 +73,12 @@ export default function App() {
   // Chats store
   const activeChat = useChatsStore(selectActiveChat);
   const selectedIds = useChatsStore(s => s.selectedIds);
+  const messages = useChatsStore(s => s.messages);
   const hasSelection = selectedIds.size > 0;
+
+  // True only when every selected message was sent by the current user
+  const allOwnMessages = !!me && selectedIds.size > 0 &&
+    [...selectedIds].every(id => messages.find(m => m.id === id)?.sender_id === me.id);
 
   // Hooks
   useSocket();
@@ -146,6 +151,7 @@ export default function App() {
           count={selectedIds.size}
           forEveryone={deleteForEveryone}
           onToggle={setDeleteForEveryone}
+          canDeleteForEveryone={allOwnMessages}
           onConfirm={deleteSelected}
           onCancel={() => setShowDeleteConfirm(false)}
           busy={deleteBusy}

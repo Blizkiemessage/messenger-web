@@ -9,16 +9,19 @@ import { ContextMenu } from '../ui/ContextMenu';
 
 // ── DeleteConfirmModal ────────────────────────────────────────────────────────
 export function DeleteConfirmModal({
-  count, forEveryone, onToggle, onConfirm, onCancel, busy,
+  count, forEveryone, onToggle, canDeleteForEveryone, onConfirm, onCancel, busy,
 }: {
   count: number;
   forEveryone: boolean;
   onToggle: (v: boolean) => void;
+  canDeleteForEveryone: boolean;
   onConfirm: () => void;
   onCancel: () => void;
   busy: boolean;
 }) {
   const n = count === 1 ? 'сообщение' : `${count} сообщ.`;
+  const effectiveForEveryone = canDeleteForEveryone && forEveryone;
+
   return (
     <div className="modalOverlay" onClick={e => e.target === e.currentTarget && onCancel()}>
       <div className="confirmCard">
@@ -32,26 +35,28 @@ export function DeleteConfirmModal({
         </div>
         <div className="confirmTitle">Удалить {n}?</div>
 
-        {/* Segmented scope toggle */}
-        <div className="delToggle">
-          <button
-            className={`delToggleBtn${!forEveryone ? ' delToggleActive' : ''}`}
-            onClick={() => onToggle(false)}
-            disabled={busy}
-          >
-            У себя
-          </button>
-          <button
-            className={`delToggleBtn${forEveryone ? ' delToggleActive' : ''}`}
-            onClick={() => onToggle(true)}
-            disabled={busy}
-          >
-            У всех
-          </button>
-        </div>
+        {/* Segmented scope toggle — only shown when user can delete for everyone */}
+        {canDeleteForEveryone && (
+          <div className="delToggle">
+            <button
+              className={`delToggleBtn${!forEveryone ? ' delToggleActive' : ''}`}
+              onClick={() => onToggle(false)}
+              disabled={busy}
+            >
+              У себя
+            </button>
+            <button
+              className={`delToggleBtn${forEveryone ? ' delToggleActive' : ''}`}
+              onClick={() => onToggle(true)}
+              disabled={busy}
+            >
+              У всех
+            </button>
+          </div>
+        )}
 
         <div className="confirmText">
-          {forEveryone
+          {effectiveForEveryone
             ? (count === 1
                 ? 'Сообщение исчезнет у всех участников чата.'
                 : `${count} сообщения исчезнут у всех участников чата.`)
