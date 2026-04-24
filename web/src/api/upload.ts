@@ -96,9 +96,10 @@ async function compressVideo(file: File): Promise<{ blob: Blob; mime: string }> 
 }
 
 // Client-side image compression — mirrors server sharp logic:
-// GIF and SVG pass through unchanged; everything else → WebP, quality 0.82, max 2560px.
+// GIF passes through unchanged (animated GIF breaks if re-encoded).
+// Everything else → WebP, quality 0.82, max 2560px.
 async function compressImage(file: File): Promise<{ blob: Blob; mime: string }> {
-  if (file.type === 'image/gif' || file.type === 'image/svg+xml') {
+  if (file.type === 'image/gif') {
     return { blob: file, mime: file.type };
   }
   return new Promise((resolve) => {
@@ -155,7 +156,7 @@ export function uploadFile(
     // Determine what mime we'll actually upload (WebP for images, WebM for videos)
     const isImage = workingFile.type.startsWith('image/');
     const isVideo = workingFile.type.startsWith('video/');
-    const compressibleImage = isImage && workingFile.type !== 'image/gif' && workingFile.type !== 'image/svg+xml';
+    const compressibleImage = isImage && workingFile.type !== 'image/gif';
     // Strip codec suffix from audio MIME: "audio/webm;codecs=opus" → "audio/webm"
     // Fall back to application/octet-stream when browser can't detect file type (common on Windows drag-drop)
     const rawMime = workingFile.type || 'application/octet-stream';
