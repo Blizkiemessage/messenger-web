@@ -7,6 +7,7 @@ import { chatTitle, avatarLetter, formatTime } from '../../utils/format';
 import { Avatar, resolveUrl } from '../ui/Avatar';
 import { stripPreview } from '../../utils/markdown';
 import { useStickerStore } from '../../store/useStickerStore';
+import { useDraftStore } from '../../store/useDraftStore';
 
 const CUSTOM_EMOJI_RE = /:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}:/gi;
 
@@ -161,8 +162,10 @@ export function ChatItem({
   onDragStart, onDragOver, onDrop, onDragEnd,
   onClick, onContextMenu,
 }: Props) {
-  const title   = chatTitle(chat, meId);
-  const isSaved = chat.type === 'saved';
+  const title     = chatTitle(chat, meId);
+  const isSaved   = chat.type === 'saved';
+  // Show draft in sidebar for non-active chats only (active chat shows draft in composer)
+  const draftText = useDraftStore(s => (!isActive ? (s.drafts[chat.id] ?? '') : ''));
 
   const avatarUser = chat.type === 'group'
     ? { id: chat.id, display_name: chat.name, avatar_url: chat.avatar_url ?? null }
@@ -216,7 +219,14 @@ export function ChatItem({
         </div>
 
         <div className="ciBottom">
-          <LastMessagePreview msg={chat.last_message} typingPreview={typingPreview} />
+          {draftText && !typingPreview ? (
+            <span className="ciPreview">
+              <span className="ciDraftLabel">Черновик:</span>
+              <span className="ciPreviewText">{stripPreview(draftText)}</span>
+            </span>
+          ) : (
+            <LastMessagePreview msg={chat.last_message} typingPreview={typingPreview} />
+          )}
 
           {/* Right slot: mute icon + pin icon (if no unread) + badge */}
           <div className="ciRightSlot">

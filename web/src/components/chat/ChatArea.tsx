@@ -3,6 +3,7 @@
  * ✅ Added: pin/unpin messages, pin navigation, long message auto-split.
  */
 import { useState, useCallback, useMemo, useRef, useEffect, useLayoutEffect, lazy, Suspense } from 'react';
+import { useDraftStore } from '../../store/useDraftStore';
 import { useChatsStore, selectActiveChat } from '../../store/useChatsStore';
 import { useSessionStore } from '../../store/useSessionStore';
 import { useAppStore } from '../../store/useAppStore';
@@ -72,6 +73,13 @@ export function ChatArea() {
 
   const [messageText, setMessageText] = useState('');
   const [editingId, setEditingId] = useState<string | null>(null);
+
+  // ── Draft support: refs keep current values accessible in effects/callbacks ─
+  const prevChatIdRef  = useRef<string | null>(null);
+  const messageTextRef = useRef('');
+  const editingIdRef   = useRef<string | null>(null);
+  useLayoutEffect(() => { messageTextRef.current = messageText; });
+  useLayoutEffect(() => { editingIdRef.current   = editingId;   });
   const [mentionBannerId, setMentionBannerId] = useState<string | null>(null);
   const [loadingMore, setLoadingMore] = useState(false);
   const [showPollCreator, setShowPollCreator] = useState(false);
@@ -87,6 +95,32 @@ export function ChatArea() {
     await loadOlderMessages();
     setLoadingMore(false);
   }, [loadingMore, loadOlderMessages]);
+
+  // ── Draft: save for old chat / restore for new chat on every switch ────────
+  useEffect(() => {
+    const prevId = prevChatIdRef.current;
+    // Save draft for the chat we're leaving (skip when in edit mode)
+    if (prevId && !editingIdRef.current) {
+      const t = messageTextRef.current;
+      if (t.trim()) useDraftStore.getState().setDraft(prevId, t);
+      else          useDraftStore.getState().clearDraft(prevId);
+    }
+    // Restore draft for the newly selected chat
+    if (!editingIdRef.current) {
+      setMessageText(activeChatId ? (useDraftStore.getState().drafts[activeChatId] ?? '') : '');
+    }
+    prevChatIdRef.current = activeChatId;
+  }, [activeChatId]); // eslint-disable-line
+
+  // ── Draft: persist to localStorage as user types (debounced 500ms) ──────────
+  useEffect(() => {
+    if (!activeChatId || editingId) return;
+    const tid = setTimeout(() => {
+      if (messageText.trim()) useDraftStore.getState().setDraft(activeChatId, messageText);
+      else                    useDraftStore.getState().clearDraft(activeChatId);
+    }, 500);
+    return () => clearTimeout(tid);
+  }, [messageText, activeChatId, editingId]); // eslint-disable-line
 
   // ── Reply state ───────────────────────────────────────────────────────────
   const [replyTo, setReplyTo] = useState<{
@@ -341,6 +375,13 @@ export function ChatArea() {
   const handleStartEdit = useCallback((msgId: string) => {
     const msg = useChatsStore.getState().messages.find(m => m.id === msgId);
     if (!msg) return;
+    // Flush draft immediately (debounce might not have fired yet)
+    const cid = useChatsStore.getState().activeChatId;
+    if (cid) {
+      const t = messageTextRef.current;
+      if (t.trim()) useDraftStore.getState().setDraft(cid, t);
+      else          useDraftStore.getState().clearDraft(cid);
+    }
     setEditingId(msgId);
     setMessageText(msg.text || '');
     setReplyTo(null);
@@ -349,7 +390,8 @@ export function ChatArea() {
 
   const handleCancelEdit = useCallback(() => {
     setEditingId(null);
-    setMessageText('');
+    const cid = useChatsStore.getState().activeChatId;
+    setMessageText(cid ? (useDraftStore.getState().drafts[cid] ?? '') : '');
   }, []);
 
   // ── Mark-read via scroll ──────────────────────────────────────────────────
@@ -402,7 +444,10 @@ export function ChatArea() {
     setMessageText('');
     // Stop typing indicator immediately on send
     const cid = useChatsStore.getState().activeChatId;
-    if (cid) emitTypingStop(cid);
+    if (cid) {
+      emitTypingStop(cid);
+      if (!editingId) useDraftStore.getState().clearDraft(cid);
+    }
 
     if (editingId) {
       const chatId = useChatsStore.getState().activeChatId;
