@@ -7,11 +7,19 @@ const { generateOtp } = require('../utils/otp');
 const { sendOtpEmail, sendPasswordResetEmail } = require('../config/email');
 const crypto = require('crypto');
 
-// ✅ sanitizeUser imported from userService (includes hide_avatar, privacy fields)
+// Pre-computed bcrypt hash used only for constant-time dummy comparison.
+// Ensures "user not found" and "wrong password" take the same time to respond,
+// preventing timing-based account enumeration.
+const DUMMY_HASH = bcrypt.hashSync('__dummy_timing_normalization__', 10);
+
+// Single generic message returned for all login failures — prevents
+// distinguishing "user not found" from "wrong password" by error text.
+const authError = () => Object.assign(new Error('Неверный логин или пароль'), { status: 401 });
 
 /**
- * Login by username or email + optional password.
+ * Login by username or email + password.
  * If login contains '@' — looks up by email, otherwise by username.
+ * Passwordless login is intentionally not supported.
  */
 async function loginOrRegister(login, password, userAgent = '', ipAddress = '') {
   const db = getDb();
@@ -22,9 +30,6 @@ async function loginOrRegister(login, password, userAgent = '', ipAddress = '') 
 
   if (clean.includes('@')) {
     user = db.prepare('SELECT * FROM users WHERE email = ?').get(clean);
-    if (!user) {
-      throw Object.assign(new Error('Пользователь с таким email не найден'), { status: 404 });
-    }
   } else {
     if (!/^[a-z0-9_]{3,32}$/.test(clean)) {
       throw Object.assign(
@@ -35,21 +40,14 @@ async function loginOrRegister(login, password, userAgent = '', ipAddress = '') 
     user = db.prepare('SELECT * FROM users WHERE username = ?').get(clean);
   }
 
-  if (!user) {
-    throw Object.assign(new Error('Пользователь не найден'), { status: 404 });
-  }
+  // Always run bcrypt regardless of whether the user exists or has a password hash.
+  // This normalizes response time so attackers cannot detect account existence via timing.
+  const hashToCompare = user?.password_hash || DUMMY_HASH;
+  const valid = await bcrypt.compare(password || '', hashToCompare);
 
-  if (password) {
-    if (!user.password_hash) {
-      throw Object.assign(
-        new Error('У этого аккаунта нет пароля. Войдите просто по username.'),
-        { status: 400 }
-      );
-    }
-    const valid = await bcrypt.compare(password, user.password_hash);
-    if (!valid) {
-      throw Object.assign(new Error('Неверный пароль'), { status: 401 });
-    }
+  // Reject if: user not found, no password supplied, hash mismatch, or account has no hash
+  if (!user || !password || !user.password_hash || !valid) {
+    throw authError();
   }
 
   db.prepare('UPDATE users SET last_seen_at = ? WHERE id = ?').run([now, user.id]);
@@ -339,7 +337,8 @@ async function initiateForgotPassword(email) {
 
   const user = db.prepare('SELECT id FROM users WHERE email = ?').get(cleanEmail);
   if (!user) {
-    throw Object.assign(new Error('Аккаунт с таким email не найден'), { status: 404 });
+    // Silently succeed — do not reveal whether the email is registered
+    return { sent: true };
   }
 
   // Invalidate any prior reset tokens for this email
