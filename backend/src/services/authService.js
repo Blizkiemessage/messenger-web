@@ -423,6 +423,7 @@ module.exports = {
   sanitizeUser: sanitizeUserFull,
   registerWithPassword,
   setUserPassword,
+  validatePassword,
   initiateRegistration,
   verifyEmailAndCreateAccount,
   initiateEmailChange,
