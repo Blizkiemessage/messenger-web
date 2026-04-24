@@ -1,5 +1,6 @@
 const express = require('express');
 const { authMiddleware } = require('../middleware/auth');
+const { friendRequestLimiter } = require('../middleware/rateLimits');
 const {
   createFriendRequest,
   acceptFriendRequest,
@@ -33,7 +34,7 @@ router.get('/status', (req, res) => {
 });
 
 // POST /friends/request { userId }
-router.post('/request', (req, res, next) => {
+router.post('/request', friendRequestLimiter, (req, res, next) => {
   try {
     const { userId } = req.body;
     res.json(createFriendRequest(req.userId, userId));
@@ -43,7 +44,7 @@ router.post('/request', (req, res, next) => {
 });
 
 // POST /friends/accept { userId }   // userId = who requested you
-router.post('/accept', (req, res, next) => {
+router.post('/accept', friendRequestLimiter, (req, res, next) => {
   try {
     const { userId } = req.body;
     res.json(acceptFriendRequest(req.userId, userId));

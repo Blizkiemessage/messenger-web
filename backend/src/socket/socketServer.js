@@ -25,6 +25,12 @@ const onlineUsers = new Set();
 // Track which chat each user currently has open (userId → chatId | null)
 const userActiveChat = new Map();
 
+// Per-socket typing throttle: Map<"socketId:chatId", lastEmitTimestamp>
+// Prevents flooding — typing-start is suppressed if < TYPING_THROTTLE_MS since last emit.
+// Cleaned up on disconnect to avoid unbounded growth.
+const typingThrottle = new Map();
+const TYPING_THROTTLE_MS = 1500;
+
 function initSocket(httpServer) {
   const io = new Server(httpServer, {
     cors: {
@@ -110,16 +116,29 @@ function initSocket(httpServer) {
       userActiveChat.set(userId, chatId || null);
     });
 
-    // Typing indicators
+    // Typing indicators — throttled to prevent event flooding
     socket.on('typing-start', ({ chatId }) => {
+      if (!chatId) return;
+      const key = `${socket.id}:${chatId}`;
+      const now = Date.now();
+      if (now - (typingThrottle.get(key) || 0) < TYPING_THROTTLE_MS) return;
+      typingThrottle.set(key, now);
       socket.to(`chat:${chatId}`).emit('user-typing', { userId, chatId });
     });
     socket.on('typing-stop', ({ chatId }) => {
+      if (!chatId) return;
+      // Always let stop through (important for UX); clean up throttle entry
+      typingThrottle.delete(`${socket.id}:${chatId}`);
       socket.to(`chat:${chatId}`).emit('user-stopped-typing', { userId, chatId });
     });
 
     // ── Disconnect ───────────────────────────────────────────────────────────
     socket.on('disconnect', () => {
+      // Clean up all throttle entries for this socket to prevent unbounded Map growth
+      const prefix = `${socket.id}:`;
+      for (const key of typingThrottle.keys()) {
+        if (key.startsWith(prefix)) typingThrottle.delete(key);
+      }
       onlineUsers.delete(userId);
       userActiveChat.delete(userId);
       const lastSeenAt = Date.now();

@@ -10,6 +10,7 @@
 
 const express = require('express');
 const { authMiddleware } = require('../middleware/auth');
+const { linkPreviewLimiter } = require('../middleware/rateLimits');
 const { getDb } = require('../config/database');
 
 const router = express.Router();
@@ -50,7 +51,7 @@ function extractMeta(html) {
   return { title, description, image };
 }
 
-router.get('/', async (req, res) => {
+router.get('/', linkPreviewLimiter, async (req, res) => {
   const url = (req.query.url || '').trim();
 
   if (!isSafeUrl(url)) {

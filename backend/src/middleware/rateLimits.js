@@ -38,4 +38,39 @@ const adminLoginLimiter = rateLimit({
   legacyHeaders: false,
 });
 
-module.exports = { loginLimiter, emailSendLimiter, otpVerifyLimiter, adminLoginLimiter };
+// Global search — 30 req / min per IP (search hits the DB / FTS index on every call)
+const searchLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 30,
+  message: { error: 'Слишком много поисковых запросов. Подождите немного.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+// Friend requests — 20 actions / hour per IP (sending requests is the main abuse vector)
+const friendRequestLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 20,
+  message: { error: 'Слишком много запросов в друзья. Попробуйте через час.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+// Link preview fetches — 60 req / min per IP (background fetch per message)
+const linkPreviewLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 60,
+  message: { error: 'Слишком много запросов предпросмотра ссылок.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+module.exports = {
+  loginLimiter,
+  emailSendLimiter,
+  otpVerifyLimiter,
+  adminLoginLimiter,
+  searchLimiter,
+  friendRequestLimiter,
+  linkPreviewLimiter,
+};

@@ -13,13 +13,14 @@
 
 const express = require('express');
 const { authMiddleware } = require('../middleware/auth');
+const { searchLimiter } = require('../middleware/rateLimits');
 const { getDb } = require('../config/database');
 const { searchUsers } = require('../services/userService');
 
 const router = express.Router();
 router.use(authMiddleware);
 
-router.get('/', (req, res) => {
+router.get('/', searchLimiter, (req, res) => {
   const q = (req.query.q || '').trim();
   if (q.length < 1) return res.json({ users: [], chats: [], messages: [] });
 
