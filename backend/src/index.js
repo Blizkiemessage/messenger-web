@@ -89,14 +89,17 @@ app.use((req, res, next) => {
   return helmet.contentSecurityPolicy({
     directives: {
       defaultSrc:  ["'self'"],
-      scriptSrc:   isAdmin
+      scriptSrc:     isAdmin
         ? ["'self'", "'unsafe-inline'", 'https://cdn.jsdelivr.net']
         : ["'self'"],
-      styleSrc:    ["'self'", "'unsafe-inline'", 'https://cdn.jsdelivr.net'],
-      imgSrc:      ["'self'", 'data:', 'blob:', ...(_s3Origin ? [_s3Origin] : [])],
-      mediaSrc:    ["'self'", 'blob:', ...(_s3Origin ? [_s3Origin] : [])],
-      connectSrc:  ["'self'"],
-      fontSrc:     ["'self'", 'data:', 'https://cdn.jsdelivr.net'],
+      scriptSrcAttr: isAdmin ? ["'unsafe-inline'"] : ["'none'"],
+      styleSrc:      ["'self'", "'unsafe-inline'", 'https://cdn.jsdelivr.net'],
+      imgSrc:        ["'self'", 'data:', 'blob:', ...(_s3Origin ? [_s3Origin] : [])],
+      mediaSrc:      ["'self'", 'blob:', ...(_s3Origin ? [_s3Origin] : [])],
+      connectSrc:    isAdmin
+        ? ["'self'", 'https://cdn.jsdelivr.net']
+        : ["'self'"],
+      fontSrc:       ["'self'", 'data:', 'https://cdn.jsdelivr.net'],
       objectSrc:   ["'none'"],
       frameAncestors: ["'none'"],
       // upgrade-insecure-requests breaks local HTTP dev; production only
