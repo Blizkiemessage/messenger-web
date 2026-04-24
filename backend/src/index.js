@@ -44,6 +44,7 @@ const cookieParser = require('cookie-parser');
 const { runMigrations } = require('./db/migrations');
 const { initSocket } = require('./socket/socketServer');
 const { errorHandler } = require('./middleware/errorHandler');
+const { corsOriginCallback } = require('./utils/corsOrigin');
 
 const authRoutes = require('./routes/auth');
 const usersRoutes = require('./routes/users');
@@ -104,32 +105,7 @@ app.use((req, res, next) => {
   })(req, res, next);
 });
 app.use(cors({
-  origin: (origin, cb) => {
-    // Allow non-browser clients (curl, mobile, etc.)
-    if (!origin) return cb(null, true);
-
-    // Allow local dev + common private LAN hostnames
-    if (
-      /^https?:\/\/localhost(:\d+)?$/.test(origin) ||
-      /^https?:\/\/127\.0\.0\.1(:\d+)?$/.test(origin) ||
-      /^https?:\/\/10\.\d+\.\d+\.\d+(:\d+)?$/.test(origin) ||
-      /^https?:\/\/192\.168\.\d+\.\d+(:\d+)?$/.test(origin) ||
-      /^https?:\/\/172\.(1[6-9]|2\d|3[0-1])\.\d+\.\d+(:\d+)?$/.test(origin)
-    ) {
-      return cb(null, true);
-    }
-// Allow Vercel deployments
-if (/^https:\/\/.*\.vercel\.app$/.test(origin)) {
-  return cb(null, true);
-}
-
-// Allow custom domain from env
-const allowed = process.env.ALLOWED_ORIGIN;
-if (allowed && origin === allowed) {
-  return cb(null, true);
-}
-    return cb(new Error(`CORS blocked origin: ${origin}`));
-  },
+  origin: corsOriginCallback,
   credentials: true,
 }));
 app.use(cookieParser());

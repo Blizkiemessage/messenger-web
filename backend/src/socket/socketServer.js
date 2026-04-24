@@ -17,6 +17,7 @@ const { verify } = require('../utils/jwt');
 const { getDb } = require('../config/database');
 const { getUserChats } = require('../services/chatService');
 const { saveMessage } = require('../services/messageService');
+const { corsOriginCallback } = require('../utils/corsOrigin');
 
 // Track which userIds are currently connected
 const onlineUsers = new Set();
@@ -27,18 +28,7 @@ const userActiveChat = new Map();
 function initSocket(httpServer) {
   const io = new Server(httpServer, {
     cors: {
-      origin: (origin, cb) => {
-        if (!origin) return cb(null, true);
-        if (
-          /^https?:\/\/localhost(:\d+)?$/.test(origin) ||
-          /^https?:\/\/127\.0\.0\.1(:\d+)?$/.test(origin) ||
-          /^https?:\/\/10\.\d+\.\d+\.\d+(:\d+)?$/.test(origin) ||
-          /^https?:\/\/192\.168\.\d+\.\d+(:\d+)?$/.test(origin) ||
-          /^https:\/\/.*\.vercel\.app$/.test(origin) ||
-          (process.env.ALLOWED_ORIGIN && origin === process.env.ALLOWED_ORIGIN)
-        ) return cb(null, true);
-        return cb(new Error(`CORS blocked: ${origin}`));
-      },
+      origin: corsOriginCallback,
       methods: ['GET', 'POST'],
       credentials: true,
     },
