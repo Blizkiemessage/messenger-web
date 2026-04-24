@@ -16,6 +16,19 @@ const DUMMY_HASH = bcrypt.hashSync('__dummy_timing_normalization__', 10);
 // distinguishing "user not found" from "wrong password" by error text.
 const authError = () => Object.assign(new Error('Неверный логин или пароль'), { status: 401 });
 
+// Enforces min-8 + at least one digit or special character.
+function validatePassword(password) {
+  if (!password || password.length < 8) {
+    throw Object.assign(new Error('Пароль: минимум 8 символов'), { status: 400 });
+  }
+  if (!/[0-9!@#$%^&*()\-_=+[\]{}|;:'",.<>?/\\`~]/.test(password)) {
+    throw Object.assign(
+      new Error('Пароль должен содержать хотя бы одну цифру или специальный символ'),
+      { status: 400 }
+    );
+  }
+}
+
 /**
  * Login by username or email + password.
  * If login contains '@' — looks up by email, otherwise by username.
@@ -74,9 +87,7 @@ async function registerWithPassword(username, password, userAgent = '', ipAddres
       { status: 400 }
     );
   }
-  if (!password || password.length < 6) {
-    throw Object.assign(new Error('Пароль: минимум 6 символов'), { status: 400 });
-  }
+  validatePassword(password);
 
   const existing = db.prepare('SELECT id FROM users WHERE username = ?').get(clean);
   if (existing) {
@@ -110,9 +121,7 @@ async function setUserPassword(userId, newPassword, currentPassword) {
   const user = db.prepare('SELECT * FROM users WHERE id = ?').get(userId);
   if (!user) throw Object.assign(new Error('User not found'), { status: 404 });
 
-  if (!newPassword || newPassword.length < 6) {
-    throw Object.assign(new Error('Пароль: минимум 6 символов'), { status: 400 });
-  }
+  validatePassword(newPassword);
 
   if (user.password_hash) {
     if (!currentPassword) {
@@ -147,9 +156,7 @@ async function initiateRegistration(username, email, password) {
   if (!cleanEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail)) {
     throw Object.assign(new Error('Введите корректный email'), { status: 400 });
   }
-  if (!password || password.length < 6) {
-    throw Object.assign(new Error('Пароль: минимум 6 символов'), { status: 400 });
-  }
+  validatePassword(password);
 
   const existingUser = db.prepare('SELECT id FROM users WHERE username = ?').get(cleanUser);
   if (existingUser) {
@@ -374,9 +381,7 @@ async function resetPassword(id, rawToken, newPassword) {
   if (!id || !rawToken) {
     throw Object.assign(new Error('Недействительная ссылка сброса пароля'), { status: 400 });
   }
-  if (!newPassword || newPassword.length < 6) {
-    throw Object.assign(new Error('Пароль: минимум 6 символов'), { status: 400 });
-  }
+  validatePassword(newPassword);
 
   const row = db.prepare(
     `SELECT * FROM otps WHERE id = ? AND used = 0 AND expires_at > ? AND meta IS NOT NULL`

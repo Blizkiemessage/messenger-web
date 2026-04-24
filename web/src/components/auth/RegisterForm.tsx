@@ -38,10 +38,14 @@ export function RegisterForm({ onAuthenticated, onSwitchTab }: Props) {
   const passwordsMatch = password === passwordConfirm;
   const showMismatch   = touchedConf && passwordConfirm.length > 0 && !passwordsMatch;
 
+  const pwLongEnough  = password.length >= 8;
+  const pwHasDigitOrSpecial = /[0-9!@#$%^&*()\-_=+[\]{}|;:'",.<>?/\\`~]/.test(password);
+  const pwStrong = pwLongEnough && pwHasDigitOrSpecial;
+
   const ready =
     username.trim().length >= 3 &&
     emailValid &&
-    password.length >= 6 &&
+    pwStrong &&
     passwordsMatch &&
     passwordConfirm.length > 0;
 
@@ -121,11 +125,18 @@ export function RegisterForm({ onAuthenticated, onSwitchTab }: Props) {
         value={password}
         onChange={setPassword}
         onFocus={() => setTouchedPass(true)}
-        placeholder="Минимум 6 символов"
+        placeholder="Минимум 8 символов"
         onKeyDown={handleKeyDown}
       />
-      {touchedPass && password.length > 0 && password.length < 6 && (
-        <div className="authFieldHint">Пароль должен быть не менее 6 символов</div>
+      {touchedPass && password.length > 0 && (
+        <div className="pwStrength">
+          <span className={pwLongEnough ? 'pwReqOk' : 'pwReqNo'}>
+            {pwLongEnough ? '✓' : '✗'} Минимум 8 символов
+          </span>
+          <span className={pwHasDigitOrSpecial ? 'pwReqOk' : 'pwReqNo'}>
+            {pwHasDigitOrSpecial ? '✓' : '✗'} Цифра или спецсимвол
+          </span>
+        </div>
       )}
 
       {/* Confirm password */}

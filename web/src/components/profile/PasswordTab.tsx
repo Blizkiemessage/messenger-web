@@ -10,6 +10,8 @@ import { type User } from '../../types';
 import { PasswordInput } from '../ui/PasswordInput';
 import { authSetPassword } from '../../api/auth';
 
+const PW_DIGIT_OR_SPECIAL = /[0-9!@#$%^&*()\-_=+[\]{}|;:'",.<>?/\\`~]/;
+
 interface Props {
   me: User;
   onUpdate: (u: User) => void;
@@ -23,9 +25,17 @@ export function PasswordTab({ me, onUpdate }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [ok, setOk] = useState(false);
 
+  const pwLongEnough       = pwNew.length >= 8;
+  const pwHasDigitOrSpecial = PW_DIGIT_OR_SPECIAL.test(pwNew);
+  const pwStrong            = pwLongEnough && pwHasDigitOrSpecial;
+
   async function onSave() {
     setError(null); setOk(false);
-    if (pwNew.length < 6) return setError('Пароль: минимум 6 символов');
+    if (!pwStrong) return setError(
+      !pwLongEnough
+        ? 'Пароль: минимум 8 символов'
+        : 'Пароль должен содержать хотя бы одну цифру или спецсимвол'
+    );
     if (pwNew !== pwConfirm) return setError('Пароли не совпадают');
     setBusy(true);
     try {
@@ -59,7 +69,17 @@ export function PasswordTab({ me, onUpdate }: Props) {
 
       <div className="psField">
         <label className="psLabel">Новый пароль</label>
-        <PasswordInput value={pwNew} onChange={setPwNew} placeholder="Минимум 6 символов" className="psInput" wrapClass="psInputWrap" eyeClass="psEye" />
+        <PasswordInput value={pwNew} onChange={setPwNew} placeholder="Минимум 8 символов" className="psInput" wrapClass="psInputWrap" eyeClass="psEye" />
+        {pwNew.length > 0 && (
+          <div className="pwStrength pwStrengthPs">
+            <span className={pwLongEnough ? 'pwReqOk' : 'pwReqNo'}>
+              {pwLongEnough ? '✓' : '✗'} Минимум 8 символов
+            </span>
+            <span className={pwHasDigitOrSpecial ? 'pwReqOk' : 'pwReqNo'}>
+              {pwHasDigitOrSpecial ? '✓' : '✗'} Цифра или спецсимвол
+            </span>
+          </div>
+        )}
       </div>
 
       <div className="psField">
