@@ -173,6 +173,9 @@ function runMigrations() {
     `CREATE VIRTUAL TABLE IF NOT EXISTS messages_fts USING fts5(search_text, content=messages, content_rowid=rowid)`,
     `CREATE TRIGGER IF NOT EXISTS messages_fts_insert AFTER INSERT ON messages WHEN new.search_text IS NOT NULL BEGIN INSERT INTO messages_fts(rowid, search_text) VALUES (new.rowid, new.search_text); END`,
     `CREATE TRIGGER IF NOT EXISTS messages_fts_update AFTER UPDATE OF search_text ON messages WHEN new.search_text IS NOT NULL BEGIN INSERT INTO messages_fts(messages_fts, rowid, search_text) VALUES('delete', old.rowid, old.search_text); INSERT INTO messages_fts(rowid, search_text) VALUES(new.rowid, new.search_text); END`,
+    // Fires when search_text is cleared (soft-delete): removes the stale FTS entry.
+    // The existing fts_update trigger only handles WHEN new IS NOT NULL, so this covers the NULL case.
+    `CREATE TRIGGER IF NOT EXISTS messages_fts_delete AFTER UPDATE OF search_text ON messages WHEN old.search_text IS NOT NULL AND new.search_text IS NULL BEGIN INSERT INTO messages_fts(messages_fts, rowid, search_text) VALUES('delete', old.rowid, old.search_text); END`,
     // ✅ NEW: blocked users list
     `CREATE TABLE IF NOT EXISTS blocked_users (
       blocker_id TEXT NOT NULL,

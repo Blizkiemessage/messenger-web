@@ -145,7 +145,8 @@ function deleteMessages(chatId, userId, messageIds) {
     if (!msg) continue;
     // Only allow: author of the message, or admin/moderator in a group chat
     if (msg.sender_id !== userId && !isPrivileged) continue;
-    db.prepare('UPDATE messages SET deleted_at = ? WHERE id = ?').run([now, msgId]);
+    // Clear search_text alongside deleted_at so the FTS trigger removes the stale index entry
+    db.prepare('UPDATE messages SET deleted_at = ?, search_text = NULL WHERE id = ?').run([now, msgId]);
     deleted.push(msgId);
     if (msg.attachment_url) deleteFromS3(msg.attachment_url); // fire-and-forget
   }
@@ -296,10 +297,12 @@ function editMessage(chatId, msgId, senderId, newText) {
   if (!msg) throw Object.assign(new Error('Message not found'), { status: 404 });
   if (msg.sender_id !== senderId) throw Object.assign(new Error('Forbidden'), { status: 403 });
   if (msg.attachment_url) throw Object.assign(new Error('Cannot edit attachment messages'), { status: 400 });
-  const { ciphertext, iv, authTag } = encrypt(newText.trim());
+  const trimmed = newText.trim();
+  const { ciphertext, iv, authTag } = encrypt(trimmed);
   const now = Date.now();
-  db.prepare('UPDATE messages SET ciphertext = ?, iv = ?, auth_tag = ?, edited_at = ? WHERE id = ?')
-    .run([ciphertext, iv, authTag, now, msgId]);
+  // search_text updated together with ciphertext so FTS index stays in sync
+  db.prepare('UPDATE messages SET ciphertext = ?, iv = ?, auth_tag = ?, edited_at = ?, search_text = ? WHERE id = ?')
+    .run([ciphertext, iv, authTag, now, trimmed, msgId]);
   return decryptMessage(db.prepare('SELECT * FROM messages WHERE id = ?').get(msgId));
 }
 
