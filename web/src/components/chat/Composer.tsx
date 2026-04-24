@@ -5,7 +5,7 @@
  * - Preview: mini player with real waveform bars + play-before-send
  * - Lock mode: drag-up to hands-free recording
  */
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect, useCallback, lazy, Suspense } from 'react';
 import { createPortal } from 'react-dom';
 import { uploadFile } from '../../api/upload';
 import type { UploadResult } from '../../api/upload';
@@ -14,7 +14,7 @@ import { MentionPopup }   from './MentionPopup';
 import { CameraOverlay }  from './CameraOverlay';
 import { FormatToolbar }  from './FormatToolbar';
 import { mdToHtml, htmlToMd, getTextBeforeCursor } from '../../utils/richText';
-import { EmojiStickerPanel } from './EmojiStickerPanel';
+const EmojiStickerPanel = lazy(() => import('./EmojiStickerPanel').then(m => ({ default: m.EmojiStickerPanel })));
 
 
 function fmt(sec: number): string {
@@ -1318,17 +1318,19 @@ export function Composer({ value, onChange, onSend, onSendAttachment, externalFi
                   </button>
                   {emojiOpen && (
                     <div className="composerEmojiPanel">
-                      <EmojiStickerPanel
-                        onEmojiSelect={(e: { native: string }) => insertEmoji(e.native)}
-                        onSendGif={async (url) => { await onSendGif?.(url); setEmojiOpen(false); }}
-                        onSendSticker={async (url, itemId, packId) => { await onSendSticker?.(url, itemId, packId); setEmojiOpen(false); }}
-                        onSendCustomEmoji={(packId, itemId, fileUrl) => {
-                          insertCustomEmoji(packId, itemId, fileUrl);
-                          setEmojiOpen(false);
-                        }}
-                        onOpenStudio={() => { setEmojiOpen(false); onOpenStudio?.(); }}
-                        theme={document.documentElement.dataset.theme === 'light' ? 'light' : 'dark'}
-                      />
+                      <Suspense fallback={null}>
+                        <EmojiStickerPanel
+                          onEmojiSelect={(e: { native: string }) => insertEmoji(e.native)}
+                          onSendGif={async (url) => { await onSendGif?.(url); setEmojiOpen(false); }}
+                          onSendSticker={async (url, itemId, packId) => { await onSendSticker?.(url, itemId, packId); setEmojiOpen(false); }}
+                          onSendCustomEmoji={(packId, itemId, fileUrl) => {
+                            insertCustomEmoji(packId, itemId, fileUrl);
+                            setEmojiOpen(false);
+                          }}
+                          onOpenStudio={() => { setEmojiOpen(false); onOpenStudio?.(); }}
+                          theme={document.documentElement.dataset.theme === 'light' ? 'light' : 'dark'}
+                        />
+                      </Suspense>
                     </div>
                   )}
                 </div>

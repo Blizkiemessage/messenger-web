@@ -4,11 +4,11 @@
  * ✅ "Удалить" button wired to onDeleteSingle — selects + opens confirm modal.
  * ✅ Explicit background colors as fallback for CSS var(--card).
  */
-import { useRef, useEffect, useLayoutEffect, useState, useCallback } from 'react';
+import { useRef, useEffect, useLayoutEffect, useState, useCallback, lazy, Suspense } from 'react';
 import { type Message, type Chat, type MessageReaction } from '../../types';
 import { MessageBubble } from './MessageBubble';
 import { Portal } from '../ui/Portal';
-import { EmojiPicker } from '../ui/EmojiPicker';
+const EmojiPicker = lazy(() => import('../ui/EmojiPicker').then(m => ({ default: m.EmojiPicker })));
 import { MessageReadersModal } from './MessageReadersModal';
 import { StickerPackPreviewModal } from '../modals/StickerPackPreviewModal';
 import { getPackById } from '../../api/sticker-packs';
@@ -367,12 +367,14 @@ export function MessageList({
 
       {/* ✅ Emoji picker portal */}
       {emojiTarget && (
-        <EmojiPicker
-          x={emojiTarget.x}
-          y={emojiTarget.y}
-          onPick={(emoji) => { onReact(emojiTarget.msgId, emoji); }}
-          onClose={() => setEmojiTarget(null)}
-        />
+        <Suspense fallback={null}>
+          <EmojiPicker
+            x={emojiTarget.x}
+            y={emojiTarget.y}
+            onPick={(emoji) => { onReact(emojiTarget.msgId, emoji); }}
+            onClose={() => setEmojiTarget(null)}
+          />
+        </Suspense>
       )}
 
       {/* ✅ Portal: context menu renders at document.body level */}

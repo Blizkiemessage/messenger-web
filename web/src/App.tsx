@@ -3,7 +3,7 @@
  * ✅ Updated: closeGroup, transferAdmin wired to GroupInfoModal
  * ✅ Updated: admin leaving a group → closes group instead of removing chat
  */
-import { useEffect } from 'react';
+import { useEffect, lazy, Suspense } from 'react';
 import './app.css';
 
 import { useSessionStore } from './store/useSessionStore';
@@ -15,15 +15,17 @@ import { useMessages } from './hooks/useMessages';
 import { AuthScreen } from './components/auth/AuthScreen';
 import { Sidebar } from './components/sidebar/Sidebar';
 import { ChatArea } from './components/chat/ChatArea';
-import { UserProfileModal } from './components/modals/UserProfileModal';
-import { GroupInfoModal } from './components/modals/GroupInfoModal';
-import { ProfileSettingsModal } from './components/modals/ProfileSettingsModal';
-import { CreateGroupModal } from './components/modals/CreateGroupModal';
 import {
   DeleteConfirmModal,
   ChatActionConfirmModal,
   ChatContextMenu,
 } from './components/modals/ConfirmModals';
+
+// Heavy modals — loaded on demand, not part of the initial bundle
+const UserProfileModal     = lazy(() => import('./components/modals/UserProfileModal').then(m => ({ default: m.UserProfileModal })));
+const GroupInfoModal       = lazy(() => import('./components/modals/GroupInfoModal').then(m => ({ default: m.GroupInfoModal })));
+const ProfileSettingsModal = lazy(() => import('./components/modals/ProfileSettingsModal').then(m => ({ default: m.ProfileSettingsModal })));
+const CreateGroupModal     = lazy(() => import('./components/modals/CreateGroupModal').then(m => ({ default: m.CreateGroupModal })));
 
 import { deleteAccount as apiDeleteAccount } from './api/auth';
 import { getMe } from './api/users';
@@ -142,9 +144,74 @@ export default function App() {
 
   return (
     <>
-      {showCreateGroup && (
-        <CreateGroupModal onClose={() => setShowCreateGroup(false)} />
-      )}
+      <Suspense fallback={null}>
+        {showCreateGroup && (
+          <CreateGroupModal onClose={() => setShowCreateGroup(false)} />
+        )}
+
+        {showProfileSettings && (
+          <ProfileSettingsModal
+            me={me}
+            onClose={() => setShowProfileSettings(false)}
+            onUpdate={updateMe}
+            onDeleteAccount={onDeleteAccount}
+          />
+        )}
+
+        {viewUserId && (
+          <UserProfileModal
+            userId={viewUserId}
+            onClose={() => setViewUserId(null)}
+            onStartChat={viewUserId !== me.id ? async (u) => {
+              const chat = await createDirectChat(u.id);
+              useChatsStore.getState().upsertChat(chat);
+              useChatsStore.getState().setActiveChatId(chat.id);
+              setViewUserId(null);
+            } : undefined}
+            onJumpToMessage={(msgId) => {
+              setViewUserId(null);
+              setTimeout(() => {
+                const el = document.querySelector(`[data-msg-id="${msgId}"]`) as HTMLElement | null;
+                if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+              }, 200);
+            }}
+          />
+        )}
+
+        {showGroupInfo && activeChat && (
+          <GroupInfoModal
+            chat={activeChat}
+            onClose={() => setShowGroupInfo(false)}
+            onViewUser={id => { setShowGroupInfo(false); setViewUserId(id); }}
+            meId={me.id}
+            onUpdateChat={async (name, description) => {
+              const updated = await apiUpdateGroupChat(activeChat.id, { name, description });
+              useChatsStore.getState().upsertChat(updated);
+            }}
+            onRemoveMember={async (userId) => {
+              await apiRemoveGroupMember(activeChat.id, userId);
+            }}
+            onCloseGroup={async () => {
+              await apiCloseGroup(activeChat.id);
+            }}
+            onUpdateAvatar={async (url) => {
+              const updated = await apiUpdateGroupAvatar(activeChat.id, url);
+              useChatsStore.getState().upsertChat(updated);
+            }}
+            onTransferAdmin={async (userId) => {
+              const updated = await apiTransferAdminRights(activeChat.id, userId);
+              useChatsStore.getState().upsertChat(updated);
+            }}
+            onJumpToMessage={(msgId) => {
+              setShowGroupInfo(false);
+              setTimeout(() => {
+                const el = document.querySelector(`[data-msg-id="${msgId}"]`) as HTMLElement | null;
+                if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+              }, 200);
+            }}
+          />
+        )}
+      </Suspense>
 
       {showDeleteConfirm && (
         <DeleteConfirmModal
@@ -155,73 +222,6 @@ export default function App() {
           onConfirm={deleteSelected}
           onCancel={() => setShowDeleteConfirm(false)}
           busy={deleteBusy}
-        />
-      )}
-
-      {showProfileSettings && (
-        <ProfileSettingsModal
-          me={me}
-          onClose={() => setShowProfileSettings(false)}
-          onUpdate={updateMe}
-          onDeleteAccount={onDeleteAccount}
-        />
-      )}
-
-      {viewUserId && (
-        <UserProfileModal
-          userId={viewUserId}
-          onClose={() => setViewUserId(null)}
-          onStartChat={viewUserId !== me.id ? async (u) => {
-            const chat = await createDirectChat(u.id);
-            useChatsStore.getState().upsertChat(chat);
-            useChatsStore.getState().setActiveChatId(chat.id);
-            setViewUserId(null);
-          } : undefined}
-          onJumpToMessage={(msgId) => {
-            setViewUserId(null);
-            setTimeout(() => {
-              const el = document.querySelector(`[data-msg-id="${msgId}"]`) as HTMLElement | null;
-              if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            }, 200);
-          }}
-        />
-      )}
-
-      {showGroupInfo && activeChat && (
-        <GroupInfoModal
-          chat={activeChat}
-          onClose={() => setShowGroupInfo(false)}
-          onViewUser={id => { setShowGroupInfo(false); setViewUserId(id); }}
-          meId={me.id}
-          onUpdateChat={async (name, description) => {
-            const updated = await apiUpdateGroupChat(activeChat.id, { name, description });
-            useChatsStore.getState().upsertChat(updated);
-          }}
-          onRemoveMember={async (userId) => {
-            await apiRemoveGroupMember(activeChat.id, userId);
-          }}
-          // ✅ Close group — group stays in list but is_closed=true
-          onCloseGroup={async () => {
-            await apiCloseGroup(activeChat.id);
-            // Socket 'chat-updated' will update the store automatically
-          }}
-          // ✅ Update group avatar — sends system message to group
-          onUpdateAvatar={async (url) => {
-            const updated = await apiUpdateGroupAvatar(activeChat.id, url);
-            useChatsStore.getState().upsertChat(updated);
-          }}
-          // ✅ Transfer admin — new admin takes over, system message is sent
-          onTransferAdmin={async (userId) => {
-            const updated = await apiTransferAdminRights(activeChat.id, userId);
-            useChatsStore.getState().upsertChat(updated);
-          }}
-          onJumpToMessage={(msgId) => {
-            setShowGroupInfo(false);
-            setTimeout(() => {
-              const el = document.querySelector(`[data-msg-id="${msgId}"]`) as HTMLElement | null;
-              if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            }, 200);
-          }}
         />
       )}
 

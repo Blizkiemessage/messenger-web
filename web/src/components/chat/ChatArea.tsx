@@ -2,7 +2,7 @@
  * ChatArea.tsx
  * ✅ Added: pin/unpin messages, pin navigation, long message auto-split.
  */
-import { useState, useCallback, useMemo, useRef, useEffect, useLayoutEffect } from 'react';
+import { useState, useCallback, useMemo, useRef, useEffect, useLayoutEffect, lazy, Suspense } from 'react';
 import { useChatsStore, selectActiveChat } from '../../store/useChatsStore';
 import { useSessionStore } from '../../store/useSessionStore';
 import { useAppStore } from '../../store/useAppStore';
@@ -12,7 +12,7 @@ import { MessageList } from './MessageList';
 import { Composer } from './Composer';
 import { EmptyState } from './EmptyState';
 import { ReplyPreviewBar } from './ReplyPreviewBar';
-import { StickerStudioModal } from '../modals/StickerStudioModal';
+const StickerStudioModal = lazy(() => import('../modals/StickerStudioModal').then(m => ({ default: m.StickerStudioModal })));
 import { sendChatMessage, getPinnedMessages, pinMessage as apiPin, unpinMessage as apiUnpin, reactToMessage, editMessage as apiEditMessage } from '../../api/chats';
 import { createPoll, votePoll, retractVote } from '../../api/polls';
 import { emitTypingStart, emitTypingStop } from '../../socket/socketClient';
@@ -810,7 +810,11 @@ export function ChatArea() {
             blockedByThem={activeChat.type === 'direct' && !!(activeChat.members?.find(m => m.id !== me.id) as any)?.blocked_by_them}
             partnerName={activeChat.type === 'direct' ? (activeChat.members?.find(m => m.id !== me.id)?.display_name || activeChat.members?.find(m => m.id !== me.id)?.username || undefined) : undefined}
           />
-          {showStudio && <StickerStudioModal onClose={() => setShowStudio(false)} />}
+          {showStudio && (
+            <Suspense fallback={null}>
+              <StickerStudioModal onClose={() => setShowStudio(false)} />
+            </Suspense>
+          )}
         </>
       )}
       </div>
