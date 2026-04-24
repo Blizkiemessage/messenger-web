@@ -132,13 +132,19 @@ function saveMessage(chatId, senderId, text, attachment = {}, isSystem = false, 
 
 function deleteMessages(chatId, userId, messageIds) {
   const db = getDb();
-  const member = db.prepare('SELECT 1 FROM chat_members WHERE chat_id = ? AND user_id = ?').get([chatId, userId]);
+  const member = db.prepare('SELECT role FROM chat_members WHERE chat_id = ? AND user_id = ?').get([chatId, userId]);
   if (!member) throw Object.assign(new Error('Forbidden'), { status: 403 });
+
+  const chat = db.prepare('SELECT type FROM chats WHERE id = ?').get(chatId);
+  const isPrivileged = chat?.type === 'group' && (member.role === 'admin' || member.role === 'moderator');
+
   const now = Date.now();
   const deleted = [];
   for (const msgId of messageIds) {
     const msg = db.prepare('SELECT id, sender_id, attachment_url FROM messages WHERE id = ? AND chat_id = ? AND deleted_at IS NULL').get([msgId, chatId]);
-    if (!msg) continue; // any chat member may delete any message for everyone
+    if (!msg) continue;
+    // Only allow: author of the message, or admin/moderator in a group chat
+    if (msg.sender_id !== userId && !isPrivileged) continue;
     db.prepare('UPDATE messages SET deleted_at = ? WHERE id = ?').run([now, msgId]);
     deleted.push(msgId);
     if (msg.attachment_url) deleteFromS3(msg.attachment_url); // fire-and-forget
