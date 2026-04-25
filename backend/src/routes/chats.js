@@ -98,7 +98,7 @@ router.post('/group', (req, res, next) => {
 // Query params: tab=media|audio|files|stickers, before=<ts>, limit=<n>
 router.get('/:id/media', async (req, res, next) => {
   try {
-    const VALID_TABS = ['media', 'audio', 'files', 'stickers'];
+    const VALID_TABS = ['media', 'audio', 'files', 'stickers', 'links'];
     const tab    = VALID_TABS.includes(req.query.tab) ? req.query.tab : 'media';
     const before = req.query.before ? Number(req.query.before) : null;
     const limit  = Math.min(parseInt(req.query.limit) || 30, 100);

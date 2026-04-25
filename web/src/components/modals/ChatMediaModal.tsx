@@ -1,10 +1,11 @@
 /**
- * ChatMediaModal — E5: media / files / audio / stickers gallery for a chat.
+ * ChatMediaModal — E5: media / files / audio / stickers / links gallery for a chat.
  * Lazy-loaded. Works for both direct and group chats.
  */
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { getChatMedia, type MediaTab } from '../../api/chats';
 import type { Message } from '../../types';
+import client from '../../api/client';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -13,6 +14,7 @@ const TAB_LABELS: Record<MediaTab, string> = {
   files:    'Файлы',
   audio:    'Аудио',
   stickers: 'Стикеры',
+  links:    'Ссылки',
 };
 
 function formatSize(bytes: number | null | undefined): string {
@@ -37,6 +39,14 @@ function formatDate(ts: number): string {
 function getFileExt(name: string | null | undefined): string {
   if (!name) return '?';
   return (name.split('.').pop() || '').toUpperCase().slice(0, 5) || '?';
+}
+
+const URL_RE = /https?:\/\/[^\s<>"')\]]+/g;
+function extractUrls(text: string | null | undefined): string[] {
+  return text?.match(URL_RE) ?? [];
+}
+function getDomain(url: string): string {
+  try { return new URL(url).hostname.replace(/^www\./, ''); } catch { return url; }
 }
 
 // ── Sub-components ────────────────────────────────────────────────────────────
@@ -201,6 +211,100 @@ function StickersGrid({ items }: { items: Message[] }) {
   );
 }
 
+// ── Link preview ──────────────────────────────────────────────────────────────
+
+interface OgMeta {
+  title?: string | null;
+  description?: string | null;
+  image?: string | null;
+}
+
+/** Single link card — fetches OG preview on mount */
+function LinkCard({ url, date }: { url: string; date: number }) {
+  const [meta, setMeta] = useState<OgMeta | null>(null);
+  const [loaded, setLoaded] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    client.get<OgMeta>('/link-preview', { params: { url } })
+      .then(r => { if (!cancelled) setMeta(r.data); })
+      .catch(() => { /* silently fail – show bare link */ })
+      .finally(() => { if (!cancelled) setLoaded(true); });
+    return () => { cancelled = true; };
+  }, [url]);
+
+  const domain = getDomain(url);
+
+  return (
+    <a className="cmLinkCard" href={url} target="_blank" rel="noreferrer noopener">
+      {/* Thumbnail / placeholder */}
+      <div className="cmLinkThumb">
+        {meta?.image ? (
+          <img src={meta.image} alt="" className="cmLinkThumbImg" loading="lazy" />
+        ) : loaded ? (
+          <div className="cmLinkThumbFallback">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
+              <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
+              <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
+            </svg>
+          </div>
+        ) : (
+          <div className="cmLinkThumbFallback">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" className="cmSpinner">
+              <path d="M21 12a9 9 0 1 1-6.219-8.56"/>
+            </svg>
+          </div>
+        )}
+      </div>
+
+      {/* Text */}
+      <div className="cmLinkMeta">
+        <div className="cmLinkDomain">{domain}</div>
+        {meta?.title && <div className="cmLinkTitle">{meta.title}</div>}
+        {meta?.description && <div className="cmLinkDesc">{meta.description}</div>}
+        <div className="cmLinkUrl">{url}</div>
+        <div className="cmLinkDate">{formatDate(date)}</div>
+      </div>
+
+      {/* External arrow */}
+      <div className="cmLinkArrow">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
+          <polyline points="15 3 21 3 21 9"/>
+          <line x1="10" y1="14" x2="21" y2="3"/>
+        </svg>
+      </div>
+    </a>
+  );
+}
+
+/** Flat list of links extracted from message texts, deduplicated */
+function LinksList({ items }: { items: Message[] }) {
+  // Extract all unique (url, date) pairs, earliest occurrence per URL
+  const seen = new Set<string>();
+  const links: { url: string; date: number }[] = [];
+
+  // items are sorted newest-first from server — iterate to collect them all
+  for (const msg of items) {
+    for (const url of extractUrls(msg.text)) {
+      if (!seen.has(url)) {
+        seen.add(url);
+        links.push({ url, date: msg.created_at });
+      }
+    }
+  }
+
+  if (!links.length) return null;
+
+  return (
+    <div className="cmList cmLinkList">
+      {links.map(({ url, date }) => (
+        <LinkCard key={url} url={url} date={date} />
+      ))}
+    </div>
+  );
+}
+
 // ── Lightbox ──────────────────────────────────────────────────────────────────
 
 function Lightbox({ url, onClose }: { url: string; onClose: () => void }) {
@@ -269,6 +373,10 @@ export function ChatMediaModal({ chatId, onClose }: Props) {
     return () => document.removeEventListener('keydown', handler);
   }, [onClose, lightbox]);
 
+  // Check whether the current items yield any links (for the empty-state check on links tab)
+  const hasLinks = tab === 'links' && items.some(m => extractUrls(m.text).length > 0);
+  const isEmpty  = !loading && (tab === 'links' ? !hasLinks : items.length === 0);
+
   return (
     <>
       <div className="cmOverlay" onClick={onClose}>
@@ -298,13 +406,14 @@ export function ChatMediaModal({ chatId, onClose }: Props) {
 
           {/* Content */}
           <div className="cmContent">
-            {!loading && items.length === 0 ? (
+            {isEmpty ? (
               <div className="cmEmpty">
                 <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ opacity: 0.3 }}>
                   {tab === 'media'    && <><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></>}
                   {tab === 'files'    && <><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></>}
                   {tab === 'audio'    && <><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></>}
                   {tab === 'stickers' && <><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/></>}
+                  {tab === 'links'    && <><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></>}
                 </svg>
                 <span>Нет вложений</span>
               </div>
@@ -314,6 +423,7 @@ export function ChatMediaModal({ chatId, onClose }: Props) {
                 {tab === 'files'    && <FilesList   items={items} />}
                 {tab === 'audio'    && <AudioList   items={items} />}
                 {tab === 'stickers' && <StickersGrid items={items} />}
+                {tab === 'links'    && <LinksList   items={items} />}
 
                 {loading && (
                   <div className="cmLoading">

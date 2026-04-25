@@ -168,13 +168,6 @@ export default function App() {
               useChatsStore.getState().setActiveChatId(chat.id);
               setViewUserId(null);
             } : undefined}
-            onJumpToMessage={(msgId) => {
-              setViewUserId(null);
-              setTimeout(() => {
-                const el = document.querySelector(`[data-msg-id="${msgId}"]`) as HTMLElement | null;
-                if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-              }, 200);
-            }}
           />
         )}
 
@@ -201,13 +194,6 @@ export default function App() {
             onTransferAdmin={async (userId) => {
               const updated = await apiTransferAdminRights(activeChat.id, userId);
               useChatsStore.getState().upsertChat(updated);
-            }}
-            onJumpToMessage={(msgId) => {
-              setShowGroupInfo(false);
-              setTimeout(() => {
-                const el = document.querySelector(`[data-msg-id="${msgId}"]`) as HTMLElement | null;
-                if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-              }, 200);
             }}
           />
         )}

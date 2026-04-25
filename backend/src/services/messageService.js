@@ -307,8 +307,8 @@ function editMessage(chatId, msgId, senderId, newText) {
 }
 
 /**
- * getChatMedia — returns paginated messages that have attachments, filtered by tab.
- * Tabs: 'media' (image/video/gif), 'audio', 'files' (documents), 'stickers'.
+ * getChatMedia — returns paginated messages that have attachments or URLs, filtered by tab.
+ * Tabs: 'media' (image/video/gif), 'audio', 'files' (documents), 'stickers', 'links' (messages with URLs).
  * Returns { items: Message[], hasMore: boolean }.
  */
 function getChatMedia(chatId, userId, { tab = 'media', limit = 30, before = null } = {}) {
@@ -330,6 +330,10 @@ function getChatMedia(chatId, userId, { tab = 'media', limit = 30, before = null
       break;
     case 'stickers':
       typeFilter = `attachment_type = 'sticker'`;
+      break;
+    case 'links':
+      // Messages whose decrypted text contains a URL — we search the search_text index column
+      typeFilter = `(search_text LIKE '%http://%' OR search_text LIKE '%https://%')`;
       break;
     default:
       typeFilter = `attachment_type IS NOT NULL`;

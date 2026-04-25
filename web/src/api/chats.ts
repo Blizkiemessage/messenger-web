@@ -164,7 +164,7 @@ export async function editMessage(chatId: string, messageId: string, text: strin
 
 // ── E5: Media gallery ─────────────────────────────────────────────────────────
 
-export type MediaTab = 'media' | 'audio' | 'files' | 'stickers';
+export type MediaTab = 'media' | 'audio' | 'files' | 'stickers' | 'links';
 
 export interface ChatMediaResult {
   items: import('../types').Message[];
