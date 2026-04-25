@@ -289,11 +289,16 @@ export function Composer({ value, onChange, onSend, onSendAttachment, externalFi
     if (externalFiles && externalFiles.length > 0) { addFiles(externalFiles); onExternalFileConsumed?.(); }
   }, [externalFiles]); // eslint-disable-line
 
-  // Sync external value changes → innerHTML (but not changes caused by typing)
+  // Sync external value changes → innerHTML (but not changes caused by typing).
+  // We intentionally do NOT skip when lastMdRef.current === value here —
+  // the guard only prevents loops from onInput, but draft restores must always
+  // reach the DOM. We skip only when the editor itself produced the value.
   useEffect(() => {
     const editor = editorRef.current;
     if (!editor) return;
     if (value === lastMdRef.current) return; // came from editor input, skip
+    // External change (draft restore, edit-mode populate, cancel edit, send) —
+    // always sync to DOM
     lastMdRef.current = value;
     editor.innerHTML = value ? mdToHtml(value) : '';
     // Place cursor at end

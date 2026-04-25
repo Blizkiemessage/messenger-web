@@ -73,6 +73,12 @@ export function ChatArea() {
 
   const [messageText, setMessageText] = useState('');
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [replyTo, setReplyTo] = useState<{
+    messageId: string;
+    senderId: string;
+    senderName: string;
+    quotedText: string;
+  } | null>(null);
 
   // ── Draft support: refs keep current values accessible in effects/callbacks ─
   const prevChatIdRef  = useRef<string | null>(null);
@@ -99,16 +105,19 @@ export function ChatArea() {
   // ── Draft: save for old chat / restore for new chat on every switch ────────
   useEffect(() => {
     const prevId = prevChatIdRef.current;
-    // Save draft for the chat we're leaving (skip when in edit mode)
+    // Save draft for the chat we're leaving (skip when in edit mode so we
+    // don't accidentally persist an in-progress edit as a draft)
     if (prevId && !editingIdRef.current) {
       const t = messageTextRef.current;
       if (t.trim()) useDraftStore.getState().setDraft(prevId, t);
       else          useDraftStore.getState().clearDraft(prevId);
     }
-    // Restore draft for the newly selected chat
-    if (!editingIdRef.current) {
-      setMessageText(activeChatId ? (useDraftStore.getState().drafts[activeChatId] ?? '') : '');
-    }
+    // Reset editor state and restore the saved draft for the incoming chat.
+    // All three state updates live in this single effect so nothing can
+    // overwrite the restored messageText with '' afterwards.
+    setEditingId(null);
+    setReplyTo(null);
+    setMessageText(activeChatId ? (useDraftStore.getState().drafts[activeChatId] ?? '') : '');
     prevChatIdRef.current = activeChatId;
   }, [activeChatId]); // eslint-disable-line
 
@@ -121,14 +130,6 @@ export function ChatArea() {
     }, 500);
     return () => clearTimeout(tid);
   }, [messageText, activeChatId, editingId]); // eslint-disable-line
-
-  // ── Reply state ───────────────────────────────────────────────────────────
-  const [replyTo, setReplyTo] = useState<{
-    messageId: string;
-    senderId: string;
-    senderName: string;
-    quotedText: string;
-  } | null>(null);
 
   const [scrollTargetId, setScrollTargetId] = useState<string | null>(null);
 
@@ -152,12 +153,9 @@ export function ChatArea() {
     return () => ro.disconnect();
   }, [activeChatId]);
 
-  // ── Clear stale input state on chat switch ────────────────────────────────
-  useEffect(() => {
-    setMessageText('');
-    setEditingId(null);
-    setReplyTo(null);
-  }, [activeChatId]); // eslint-disable-line
+  // NOTE: setMessageText / setEditingId / setReplyTo on chat switch are now
+  // handled inside the draft save/restore effect above to prevent a second
+  // effect from overwriting the restored draft with an empty string.
 
   // ── Global search scroll target ───────────────────────────────────────────
   const scrollToMessageId    = useChatsStore(s => s.scrollToMessageId);
