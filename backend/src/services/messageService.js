@@ -306,4 +306,44 @@ function editMessage(chatId, msgId, senderId, newText) {
   return decryptMessage(db.prepare('SELECT * FROM messages WHERE id = ?').get(msgId));
 }
 
-module.exports = { decryptMessage, saveMessage, getChatMessages, deleteMessages, hideMessages, toggleReaction, toggleEmojiReaction, pinMessage, unpinMessage, getPinnedMessages, forwardMessages, editMessage };
+/**
+ * getChatMedia — returns paginated messages that have attachments, filtered by tab.
+ * Tabs: 'media' (image/video/gif), 'audio', 'files' (documents), 'stickers'.
+ * Returns { items: Message[], hasMore: boolean }.
+ */
+function getChatMedia(chatId, userId, { tab = 'media', limit = 30, before = null } = {}) {
+  const db = getDb();
+  const member = db.prepare('SELECT 1 FROM chat_members WHERE chat_id = ? AND user_id = ?').get([chatId, userId]);
+  if (!member) throw Object.assign(new Error('Forbidden'), { status: 403 });
+
+  let typeFilter;
+  switch (tab) {
+    case 'media':
+      typeFilter = `attachment_type IN ('image','video','video_note','gif_tenor','gif_custom')`;
+      break;
+    case 'audio':
+      typeFilter = `attachment_type = 'audio'`;
+      break;
+    case 'files':
+      // Everything with an attachment that isn't a known media/audio/sticker type
+      typeFilter = `attachment_type IS NOT NULL AND attachment_type NOT IN ('image','video','video_note','gif_tenor','gif_custom','audio','sticker')`;
+      break;
+    case 'stickers':
+      typeFilter = `attachment_type = 'sticker'`;
+      break;
+    default:
+      typeFilter = `attachment_type IS NOT NULL`;
+  }
+
+  const fetchLimit = limit + 1; // fetch one extra to detect whether there is a next page
+  const rows = before
+    ? db.prepare(`SELECT * FROM messages WHERE chat_id = ? AND deleted_at IS NULL AND ${typeFilter} AND created_at < ? ORDER BY created_at DESC LIMIT ?`).all([chatId, before, fetchLimit])
+    : db.prepare(`SELECT * FROM messages WHERE chat_id = ? AND deleted_at IS NULL AND ${typeFilter} ORDER BY created_at DESC LIMIT ?`).all([chatId, fetchLimit]);
+
+  const hasMore = rows.length > limit;
+  if (hasMore) rows.pop();
+
+  return { items: rows.map(decryptMessage), hasMore };
+}
+
+module.exports = { decryptMessage, saveMessage, getChatMessages, deleteMessages, hideMessages, toggleReaction, toggleEmojiReaction, pinMessage, unpinMessage, getPinnedMessages, forwardMessages, editMessage, getChatMedia };

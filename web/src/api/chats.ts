@@ -162,6 +162,27 @@ export async function editMessage(chatId: string, messageId: string, text: strin
   return res.data;
 }
 
+// ── E5: Media gallery ─────────────────────────────────────────────────────────
+
+export type MediaTab = 'media' | 'audio' | 'files' | 'stickers';
+
+export interface ChatMediaResult {
+  items: import('../types').Message[];
+  hasMore: boolean;
+}
+
+export async function getChatMedia(
+  chatId: string,
+  tab: MediaTab,
+  before?: number,
+  limit = 30,
+): Promise<ChatMediaResult> {
+  const res = await client.get<ChatMediaResult>(`/chats/${chatId}/media`, {
+    params: { tab, limit, ...(before !== undefined ? { before } : {}) },
+  });
+  return res.data;
+}
+
 /** ✅ Assign or remove moderator role for a group member (admin only) */
 export async function setMemberRole(chatId: string, userId: string, role: 'member' | 'moderator'): Promise<Chat> {
   const res = await client.patch<Chat>(`/chats/${chatId}/members/${userId}/role`, { role });

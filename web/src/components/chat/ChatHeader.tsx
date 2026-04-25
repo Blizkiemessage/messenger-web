@@ -37,6 +37,7 @@ interface Props {
   onSearchPrev: () => void;
   onSearchClose: () => void;
   typingText?: string;
+  onOpenMedia: () => void;
 }
 
 export function ChatHeader({
@@ -46,7 +47,7 @@ export function ChatHeader({
   searchOpen, searchQuery, searchTotal, searchCurrent,
   onToggleSearch, onSearchChange, onSearchNext, onSearchPrev, onSearchClose,
   pinnedCount, pinnedOpen, pinnedIndex, onTogglePinned, onPinnedNext, onPinnedPrev,
-  typingText,
+  typingText, onOpenMedia,
 }: Props) {
   const setActiveChatId = useChatsStore(s => s.setActiveChatId);
   const onlineUsers = useChatsStore(s => s.onlineUsers);
@@ -173,6 +174,19 @@ export function ChatHeader({
             <path d="M16 3a1 1 0 0 0-1 1v1H9V4a1 1 0 0 0-2 0v1a3 3 0 0 0-3 3v1l2 2v4H4a1 1 0 0 0 0 2h7v3a1 1 0 0 0 2 0v-3h7a1 1 0 0 0 0-2h-2v-4l2-2V8a3 3 0 0 0-3-3V4a1 1 0 0 0-1-1z"/>
           </svg>
           {pinnedCount > 0 && <span className="chPinCount">{pinnedCount}</span>}
+        </button>
+
+        {/* Media gallery button */}
+        <button
+          className="chSearchToggle"
+          onClick={onOpenMedia}
+          title="Медиа и файлы"
+        >
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <rect x="3" y="3" width="18" height="18" rx="2"/>
+            <circle cx="8.5" cy="8.5" r="1.5"/>
+            <polyline points="21 15 16 10 5 21"/>
+          </svg>
         </button>
 
         <button

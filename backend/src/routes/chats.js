@@ -19,7 +19,8 @@ const {
   updateChatPinOrder,
   setMemberRole,
 } = require('../services/chatService');
-const { signFullChatObjects, signFullChatObject } = require('../utils/s3Sign');
+const { getChatMedia } = require('../services/messageService');
+const { signFullChatObjects, signFullChatObject, signMessageUrls } = require('../utils/s3Sign');
 
 const router = express.Router();
 router.use(authMiddleware);
@@ -91,6 +92,21 @@ router.post('/group', (req, res, next) => {
   } catch (err) {
     next(err);
   }
+});
+
+// GET /chats/:id/media — paginated attachment gallery for a chat
+// Query params: tab=media|audio|files|stickers, before=<ts>, limit=<n>
+router.get('/:id/media', async (req, res, next) => {
+  try {
+    const VALID_TABS = ['media', 'audio', 'files', 'stickers'];
+    const tab    = VALID_TABS.includes(req.query.tab) ? req.query.tab : 'media';
+    const before = req.query.before ? Number(req.query.before) : null;
+    const limit  = Math.min(parseInt(req.query.limit) || 30, 100);
+
+    const { items, hasMore } = getChatMedia(req.params.id, req.userId, { tab, limit, before });
+    await signMessageUrls(items);
+    res.json({ items, hasMore });
+  } catch (err) { next(err); }
 });
 
 // GET /chats/:id

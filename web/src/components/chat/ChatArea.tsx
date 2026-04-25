@@ -14,6 +14,7 @@ import { Composer } from './Composer';
 import { EmptyState } from './EmptyState';
 import { ReplyPreviewBar } from './ReplyPreviewBar';
 const StickerStudioModal = lazy(() => import('../modals/StickerStudioModal').then(m => ({ default: m.StickerStudioModal })));
+const ChatMediaModal     = lazy(() => import('../modals/ChatMediaModal').then(m => ({ default: m.ChatMediaModal })));
 import { sendChatMessage, getPinnedMessages, pinMessage as apiPin, unpinMessage as apiUnpin, reactToMessage, editMessage as apiEditMessage } from '../../api/chats';
 import { createPoll, votePoll, retractVote } from '../../api/polls';
 import { emitTypingStart, emitTypingStop } from '../../socket/socketClient';
@@ -542,7 +543,8 @@ export function ChatArea() {
   }, []);
 
   // ── Studio modal ──────────────────────────────────────────────────────────
-  const [showStudio, setShowStudio] = useState(false);
+  const [showStudio,     setShowStudio]     = useState(false);
+  const [showMediaModal, setShowMediaModal] = useState(false);
 
 
   // ── Drag & drop ───────────────────────────────────────────────────────────
@@ -743,6 +745,7 @@ export function ChatArea() {
         onPinnedNext={handlePinnedNext}
         onPinnedPrev={handlePinnedPrev}
         typingText={typingText}
+        onOpenMedia={() => setShowMediaModal(true)}
       />
 
       {/* Mini player — appears below header while audio/video is playing */}
@@ -861,6 +864,13 @@ export function ChatArea() {
         </>
       )}
       </div>
+
+      {/* E5: Media gallery modal — rendered outside bottom-area so it covers the full chat */}
+      {showMediaModal && activeChat && (
+        <Suspense fallback={null}>
+          <ChatMediaModal chatId={activeChat.id} onClose={() => setShowMediaModal(false)} />
+        </Suspense>
+      )}
     </div>
     </MediaPlayerProvider>
   );
