@@ -45,7 +45,8 @@ function getChatById(chatId, userId) {
   const rawMembers = db.prepare(`
     SELECT cm.last_read_at AS member_last_read_at, cm.role,
            u.id, u.username, u.display_name, u.avatar_url, u.last_seen_at,
-           u.hide_avatar, u.avatar_exceptions
+           u.hide_avatar, u.avatar_exceptions,
+           u.presence_status, u.presence_note, u.presence_expires_at
     FROM chat_members cm
     JOIN users u ON u.id = cm.user_id
     WHERE cm.chat_id = ?
@@ -133,7 +134,8 @@ function getUserChats(userId) {
   const allMembers = db.prepare(`
     SELECT cm.chat_id, cm.last_read_at AS member_last_read_at, cm.role,
            u.id, u.username, u.display_name, u.avatar_url, u.last_seen_at,
-           u.hide_avatar, u.avatar_exceptions
+           u.hide_avatar, u.avatar_exceptions,
+           u.presence_status, u.presence_note, u.presence_expires_at
     FROM chat_members cm
     JOIN users u ON u.id = cm.user_id
     WHERE cm.chat_id IN (${placeholders})

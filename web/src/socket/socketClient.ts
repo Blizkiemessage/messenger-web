@@ -4,7 +4,10 @@ import { SOCKET_URL } from '../config';
 let socket: Socket | null = null;
 
 export function connectSocket(): Socket {
-  if (socket?.connected) return socket;
+  // Reuse existing socket even if still connecting — creating a second io()
+  // while the first handshake is in-flight causes the browser warning
+  // "WebSocket is closed before the connection is established".
+  if (socket) return socket;
 
   socket = io(SOCKET_URL, {
     withCredentials: true, // send HttpOnly session cookie on WS handshake

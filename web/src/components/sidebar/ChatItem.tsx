@@ -203,14 +203,18 @@ export function ChatItem({
           </div>
         ) : (
           <div className={`ciAvatar${chat.type === 'group' ? ' group' : ''}${hasPhoto ? ' ciAvatarPhoto' : ''}`}>
-            {hasPhoto
+            {/* Always use Avatar for direct chats so the presence ring renders
+                even when the user has no photo (Avatar handles letter fallback). */}
+            {chat.type === 'direct' && avatarUser
               ? <Avatar
                   user={avatarUser}
                   size={42}
                   radius={13}
-                  presenceStatus={chat.type === 'direct' ? (avatarUser as any)?.presence_status ?? null : null}
+                  presenceStatus={(avatarUser as any)?.presence_status ?? null}
                 />
-              : avatarLetter(title)
+              : hasPhoto
+                ? <Avatar user={avatarUser} size={42} radius={13} presenceStatus={null} />
+                : avatarLetter(title)
             }
           </div>
         )}

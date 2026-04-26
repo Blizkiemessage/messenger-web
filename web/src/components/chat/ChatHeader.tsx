@@ -153,13 +153,20 @@ export function ChatHeader({
               <div className="chSub">Ваши заметки</div>
             ) : typingText ? (
               <div className="chSub chSubTyping">{typingText}</div>
-            ) : partnerPresence && partner?.presence_note ? (
-              // F3: show status + note as a pill when partner has a presence note
+            ) : partnerPresence ? (
+              // F3: show status pill when partner has a presence status.
+              // Note is truncated to 22 chars in the header — full note is visible in their profile.
               <div className="chSub chSubPresence">
                 <span className="chPresencePill" data-status={partnerPresence}>
                   {PRESENCE_EMOJI[partnerPresence]}&nbsp;
                   <span className="chPresenceLabel">{PRESENCE_LABELS[partnerPresence]}</span>
-                  <span className="chPresenceNote">{partner.presence_note}</span>
+                  {partner?.presence_note && (
+                    <span className="chPresenceNote">
+                      — {partner.presence_note.length > 22
+                          ? partner.presence_note.slice(0, 22) + '…'
+                          : partner.presence_note}
+                    </span>
+                  )}
                 </span>
               </div>
             ) : (

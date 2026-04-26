@@ -10544,27 +10544,31 @@ input[type="date"].psInput::-webkit-calendar-picker-indicator {
 /* ── UserProfileModal presence card ──────────────────────────────── */
 .upPresenceCard {
   display: inline-flex;
-  align-items: center;
-  gap: 5px;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: 4px 5px;
   margin-top: 6px;
-  padding: 4px 12px 4px 8px;
-  border-radius: 20px;
+  padding: 5px 14px 5px 10px;
+  border-radius: 14px;
   border: 1.5px solid var(--up-presence-color, #22c55e);
   background: color-mix(in srgb, var(--up-presence-color, #22c55e) 10%, transparent);
   color: var(--up-presence-color, #22c55e);
   font-size: 12px;
   font-weight: 600;
-  max-width: 240px;
-  overflow: hidden;
+  max-width: 260px;
+  /* Allow the note to wrap onto a second line so full text is visible */
 }
-.upPresenceEmoji { font-size: 13px; line-height: 1; flex-shrink: 0; }
-.upPresenceLabel { white-space: nowrap; flex-shrink: 0; }
+.upPresenceEmoji { font-size: 14px; line-height: 1.4; flex-shrink: 0; }
+.upPresenceLabel { white-space: nowrap; flex-shrink: 0; line-height: 1.4; }
 .upPresenceNote {
   font-weight: 400;
-  opacity: 0.8;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  opacity: 0.85;
+  /* Wrap freely — no truncation in the profile card */
+  white-space: normal;
+  word-break: break-word;
+  line-height: 1.4;
+  flex-basis: 100%; /* push the note to its own line when it's long */
+  padding-left: 18px; /* align under the label, past the emoji */
 }
 
 /* ── SidebarBottom status row ─────────────────────────────────────── */
