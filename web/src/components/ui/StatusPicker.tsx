@@ -5,22 +5,34 @@
  * Shows current status + expands to let the user change it.
  *
  * Statuses: free | busy | dnd | null (clear)
- * Optional note (max 60 chars) and optional auto-expiry.
+ * Optional note (max 60 chars) and optional auto-expiry (presets + custom duration).
  */
 import { useState, useRef, useEffect } from 'react';
 import { PRESENCE_LABELS, PRESENCE_COLORS, PRESENCE_EMOJI } from './Avatar';
 import { setPresenceStatus, type PresenceStatus } from '../../api/presence';
 import { useSessionStore } from '../../store/useSessionStore';
 
-type ExpiryOption = '1h' | '4h' | 'today' | 'none';
+type ExpiryOption = '30m' | '1h' | '4h' | 'today' | 'custom' | 'none';
+type CustomUnit   = 'min' | 'h' | 'd';
 
-function getExpiryMs(opt: ExpiryOption): number | null {
+function getExpiryMs(
+  opt: ExpiryOption,
+  customVal: number,
+  customUnit: CustomUnit,
+): number | null {
   const now = Date.now();
-  if (opt === '1h')   return now + 60 * 60 * 1000;
-  if (opt === '4h')   return now + 4 * 60 * 60 * 1000;
+  if (opt === '30m')   return now + 30 * 60 * 1000;
+  if (opt === '1h')    return now + 60 * 60 * 1000;
+  if (opt === '4h')    return now + 4 * 60 * 60 * 1000;
   if (opt === 'today') {
     const end = new Date(); end.setHours(23, 59, 59, 999);
     return end.getTime();
+  }
+  if (opt === 'custom' && customVal > 0) {
+    const ms = customUnit === 'min' ? customVal * 60 * 1000
+             : customUnit === 'h'   ? customVal * 60 * 60 * 1000
+             :                        customVal * 24 * 60 * 60 * 1000;
+    return now + ms;
   }
   return null;
 }
@@ -42,6 +54,8 @@ export function StatusPicker({ currentStatus, currentNote, currentExpiresAt: _cu
   const [selected,    setSelected]    = useState<PresenceStatus>(currentStatus);
   const [note,        setNote]        = useState(currentNote ?? '');
   const [expiry,      setExpiry]      = useState<ExpiryOption>('none');
+  const [customVal,   setCustomVal]   = useState<number>(1);
+  const [customUnit,  setCustomUnit]  = useState<CustomUnit>('h');
   const [busy,        setBusy]        = useState(false);
   const wrapRef = useRef<HTMLDivElement>(null);
   const updateMe = useSessionStore(s => s.updateMe);
@@ -66,7 +80,7 @@ export function StatusPicker({ currentStatus, currentNote, currentExpiresAt: _cu
     setSelected(status);
     setBusy(true);
     try {
-      const expiresAt = status ? getExpiryMs(expiry) : null;
+      const expiresAt = status ? getExpiryMs(expiry, customVal, customUnit) : null;
       const updated = await setPresenceStatus({
         status,
         note: (status && note.trim()) ? note.trim() : null,
@@ -146,10 +160,37 @@ export function StatusPicker({ currentStatus, currentNote, currentExpiresAt: _cu
                 onChange={e => setExpiry(e.target.value as ExpiryOption)}
               >
                 <option value="none">Без истечения</option>
+                <option value="30m">Через 30 минут</option>
                 <option value="1h">Через 1 час</option>
                 <option value="4h">Через 4 часа</option>
                 <option value="today">До конца дня</option>
+                <option value="custom">Своё время…</option>
               </select>
+
+              {expiry === 'custom' && (
+                <div className="statusPickerCustomRow">
+                  <input
+                    className="statusPickerCustomNum"
+                    type="number"
+                    min={1}
+                    max={999}
+                    value={customVal}
+                    onChange={e => {
+                      const v = Math.max(1, Math.min(999, parseInt(e.target.value) || 1));
+                      setCustomVal(v);
+                    }}
+                  />
+                  <select
+                    className="statusPickerCustomUnit"
+                    value={customUnit}
+                    onChange={e => setCustomUnit(e.target.value as CustomUnit)}
+                  >
+                    <option value="min">минут</option>
+                    <option value="h">часов</option>
+                    <option value="d">дней</option>
+                  </select>
+                </div>
+              )}
             </>
           )}
 

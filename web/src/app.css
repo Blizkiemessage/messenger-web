@@ -10693,6 +10693,40 @@ input[type="date"].psInput::-webkit-calendar-picker-indicator {
 }
 .statusPickerExpiry:focus { border-color: var(--accent); }
 
+/* Custom duration row */
+.statusPickerCustomRow {
+  display: flex;
+  gap: 6px;
+  margin-top: 2px;
+}
+.statusPickerCustomNum {
+  width: 72px;
+  padding: 6px 8px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--input-bg, var(--panel));
+  color: var(--text);
+  font-size: 13px;
+  outline: none;
+  text-align: center;
+  -moz-appearance: textfield;
+}
+.statusPickerCustomNum::-webkit-outer-spin-button,
+.statusPickerCustomNum::-webkit-inner-spin-button { -webkit-appearance: none; }
+.statusPickerCustomNum:focus { border-color: var(--accent); }
+.statusPickerCustomUnit {
+  flex: 1;
+  padding: 6px 8px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--input-bg, var(--panel));
+  color: var(--text);
+  font-size: 13px;
+  outline: none;
+  cursor: pointer;
+}
+.statusPickerCustomUnit:focus { border-color: var(--accent); }
+
 /* Apply / Clear actions */
 .statusPickerActions {
   display: flex;
