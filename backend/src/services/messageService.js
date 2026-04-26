@@ -214,7 +214,9 @@ function deliverPendingMessages() {
 
   if (due.length === 0) return [];
 
-  const deliverStmt   = db.prepare('UPDATE messages SET is_delivered = 1 WHERE id = ?');
+  const deliverStmt   = db.prepare(
+    'UPDATE messages SET is_delivered = 1, created_at = ? WHERE id = ?'
+  );
   const unreadStmt    = db.prepare(
     `UPDATE chat_members SET unread_count = unread_count + 1
      WHERE chat_id = ? AND user_id != ?`
@@ -222,9 +224,9 @@ function deliverPendingMessages() {
 
   const delivered = [];
   for (const row of due) {
-    deliverStmt.run(row.id);
+    deliverStmt.run(now, row.id);
     unreadStmt.run([row.chat_id, row.sender_id]);
-    delivered.push(decryptMessage({ ...row, is_delivered: 1 }));
+    delivered.push(decryptMessage({ ...row, is_delivered: 1, created_at: now }));
   }
   return delivered;
 }
