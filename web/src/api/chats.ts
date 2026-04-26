@@ -221,3 +221,15 @@ export async function fetchScheduledMessages(chatId: string): Promise<import('..
 export async function cancelScheduledMessage(chatId: string, msgId: string): Promise<void> {
   await client.delete(`/chats/${chatId}/messages/scheduled/${msgId}`);
 }
+
+export async function updateScheduledMessage(
+  chatId: string,
+  msgId: string,
+  payload: { text?: string; deliver_at?: number },
+): Promise<import('../types').Message> {
+  const res = await client.patch<import('../types').Message>(
+    `/chats/${chatId}/messages/scheduled/${msgId}`,
+    payload,
+  );
+  return res.data;
+}

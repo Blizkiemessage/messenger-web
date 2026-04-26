@@ -2152,6 +2152,36 @@ input { font: inherit; color: inherit; background: transparent; }
 .psBody::-webkit-scrollbar { width: 4px; }
 .psBody::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
 
+/* Section label (e.g. "Пароль" above the fields) */
+.psSectionLabel {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  margin-bottom: -4px;
+}
+
+/* Divider with centered text between two sections */
+.psSectionDivider {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  margin: 4px 0;
+}
+.psSectionDivider::before,
+.psSectionDivider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--border);
+}
+
 /* Hub screen */
 .psHub {
   display: flex;
@@ -11210,3 +11240,112 @@ input[type="date"].psInput::-webkit-calendar-picker-indicator {
 }
 .smCancelBtn:hover:not(:disabled) { background: rgba(239,68,68,.15); color: #ef4444; }
 .smCancelBtn:disabled { opacity: 0.4; cursor: default; }
+
+/* Edit button (pencil) */
+.smEditBtn {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  border-radius: 50%;
+  transition: background 0.12s, color 0.12s;
+}
+.smEditBtn:hover { background: rgba(88,166,255,.12); color: var(--accent); }
+
+/* Edit card (expanded below the item) */
+.smEditCard {
+  margin: 0 12px 6px;
+  padding: 12px 14px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.smEditField {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.smEditLabel {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.smEditTextarea {
+  width: 100%;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--panel);
+  color: var(--text);
+  font-size: 13px;
+  line-height: 1.5;
+  resize: vertical;
+  min-height: 60px;
+  outline: none;
+  box-sizing: border-box;
+  font-family: inherit;
+  transition: border-color 0.15s;
+}
+.smEditTextarea:focus { border-color: var(--accent); }
+
+.smEditTimeBtn {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 7px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--panel);
+  color: var(--text);
+  font-size: 13px;
+  cursor: pointer;
+  text-align: left;
+  transition: border-color 0.15s, background 0.12s;
+}
+.smEditTimeBtn:hover { border-color: var(--accent); background: var(--hover); }
+.smEditTimeBtn svg:last-child { margin-left: auto; color: var(--muted); }
+
+.smEditError {
+  font-size: 12px;
+  color: #ef4444;
+}
+.smEditActions {
+  display: flex;
+  gap: 8px;
+}
+.smEditSaveBtn {
+  flex: 1;
+  padding: 7px 0;
+  border-radius: 8px;
+  border: none;
+  background: var(--accent);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: filter 0.15s;
+}
+.smEditSaveBtn:hover:not(:disabled) { filter: brightness(1.1); }
+.smEditSaveBtn:disabled { opacity: 0.5; cursor: default; }
+.smEditCancelBtn {
+  padding: 7px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--muted);
+  font-size: 13px;
+  cursor: pointer;
+  transition: background 0.12s, color 0.12s;
+}
+.smEditCancelBtn:hover:not(:disabled) { background: var(--hover); color: var(--text); }

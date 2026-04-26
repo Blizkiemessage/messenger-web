@@ -200,6 +200,42 @@ function cancelScheduledMessage(chatId, senderId, msgId) {
 }
 
 /**
+ * Edit text and/or delivery time of a not-yet-delivered scheduled message.
+ * Only the sender can edit their own scheduled message.
+ */
+function updateScheduledMessage(chatId, senderId, msgId, { text, deliverAt }) {
+  const db = getDb();
+  const msg = db.prepare(
+    `SELECT * FROM messages
+     WHERE id = ? AND chat_id = ? AND sender_id = ? AND is_delivered = 0 AND deleted_at IS NULL`
+  ).get([msgId, chatId, senderId]);
+  if (!msg) throw Object.assign(new Error('Not found'), { status: 404 });
+
+  const sets = [];
+  const vals = [];
+
+  if (text !== undefined) {
+    const { ciphertext, iv, authTag } = encrypt(text.trim() || '');
+    sets.push('ciphertext = ?', 'iv = ?', 'auth_tag = ?');
+    vals.push(ciphertext, iv, authTag);
+  }
+  if (deliverAt !== undefined) {
+    if (typeof deliverAt !== 'number' || deliverAt <= Date.now()) {
+      throw Object.assign(new Error('deliver_at must be a future timestamp'), { status: 400 });
+    }
+    sets.push('deliver_at = ?');
+    vals.push(deliverAt);
+  }
+  if (sets.length === 0) throw Object.assign(new Error('Nothing to update'), { status: 400 });
+
+  vals.push(msgId);
+  db.prepare(`UPDATE messages SET ${sets.join(', ')} WHERE id = ?`).run(vals);
+
+  const updated = db.prepare('SELECT * FROM messages WHERE id = ?').get(msgId);
+  return decryptMessage(updated);
+}
+
+/**
  * Delivery job — called by a setInterval in socketServer.
  * Finds all messages whose deliver_at has passed, marks them delivered,
  * updates unread counts, and returns them grouped by chatId for socket broadcast.
@@ -458,5 +494,6 @@ module.exports = {
   pinMessage, unpinMessage, getPinnedMessages,
   forwardMessages, editMessage, getChatMedia,
   // F1: scheduled messages
-  saveScheduledMessage, getScheduledMessages, cancelScheduledMessage, deliverPendingMessages,
+  saveScheduledMessage, getScheduledMessages, cancelScheduledMessage,
+  updateScheduledMessage, deliverPendingMessages,
 };

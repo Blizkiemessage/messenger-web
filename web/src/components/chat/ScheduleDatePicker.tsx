@@ -9,6 +9,8 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 interface Props {
   onConfirm: (deliverAt: number) => void;
   onClose: () => void;
+  /** Pre-fill with an existing timestamp (edit mode) */
+  initialDeliverAt?: number;
 }
 
 const MONTH_NAMES = [
@@ -99,13 +101,18 @@ function SpinInput({ value, min, max, onChange, wrap = true }: SpinProps) {
 }
 
 /* ── Main component ─────────────────────────────────────────────────── */
-export function ScheduleDatePicker({ onConfirm, onClose }: Props) {
+export function ScheduleDatePicker({ onConfirm, onClose, initialDeliverAt }: Props) {
   const now = new Date();
 
-  // Start with tomorrow as default selection
-  const defaultDate = new Date(now);
-  defaultDate.setDate(defaultDate.getDate() + 1);
-  defaultDate.setHours(9, 0, 0, 0);
+  // Start with tomorrow 09:00, or the existing scheduled time in edit mode
+  const defaultDate = initialDeliverAt
+    ? new Date(initialDeliverAt)
+    : (() => {
+        const d = new Date(now);
+        d.setDate(d.getDate() + 1);
+        d.setHours(9, 0, 0, 0);
+        return d;
+      })();
 
   const [viewYear,  setViewYear]  = useState(defaultDate.getFullYear());
   const [viewMonth, setViewMonth] = useState(defaultDate.getMonth());

@@ -14,7 +14,7 @@
 const express = require('express');
 const rateLimit = require('express-rate-limit');
 const { authMiddleware } = require('../middleware/auth');
-const { getChatMessages, saveMessage, toggleReaction, toggleEmojiReaction, deleteMessages, hideMessages, pinMessage, unpinMessage, getPinnedMessages, forwardMessages, editMessage, saveScheduledMessage, getScheduledMessages, cancelScheduledMessage } = require('../services/messageService');
+const { getChatMessages, saveMessage, toggleReaction, toggleEmojiReaction, deleteMessages, hideMessages, pinMessage, unpinMessage, getPinnedMessages, forwardMessages, editMessage, saveScheduledMessage, getScheduledMessages, cancelScheduledMessage, updateScheduledMessage } = require('../services/messageService');
 const { isBlocked } = require('../services/userService');
 const { getDb } = require('../config/database');
 const { signUrl, signMessageUrls } = require('../utils/s3Sign');
@@ -164,6 +164,24 @@ router.delete('/:chatId/messages/scheduled/:msgId', (req, res, next) => {
   try {
     const result = cancelScheduledMessage(req.params.chatId, req.userId, req.params.msgId);
     res.json(result);
+  } catch (err) { next(err); }
+});
+
+// PATCH /chats/:chatId/messages/scheduled/:msgId — edit text and/or delivery time
+router.patch('/:chatId/messages/scheduled/:msgId', async (req, res, next) => {
+  try {
+    const { text, deliver_at } = req.body;
+    if (deliver_at !== undefined && (typeof deliver_at !== 'number' || deliver_at <= Date.now())) {
+      return res.status(400).json({ error: 'deliver_at must be a future Unix timestamp (ms)' });
+    }
+    if (deliver_at !== undefined && deliver_at > Date.now() + 365 * 24 * 60 * 60 * 1000) {
+      return res.status(400).json({ error: 'deliver_at cannot be more than 1 year in the future' });
+    }
+    const msg = updateScheduledMessage(
+      req.params.chatId, req.userId, req.params.msgId,
+      { text, deliverAt: deliver_at }
+    );
+    res.json(msg);
   } catch (err) { next(err); }
 });
 
