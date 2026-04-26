@@ -33,10 +33,13 @@ export function scheduleMarkRead(chatId: string, readUntil?: number) {
 }
 
 export function useSocket() {
-  const me = useSessionStore(s => s.me);
+  // Select only the user id so that store updates to `me` (e.g. presence,
+  // avatar) do NOT re-run this effect and reconnect the socket mid-flight.
+  // The socket only needs to reconnect when the logged-in user changes.
+  const meId = useSessionStore(s => s.me?.id);
 
   useEffect(() => {
-    if (!me) return;
+    if (!meId) return;
     connectSocket();
     const socket = getSocket();
     if (!socket) return;
@@ -207,5 +210,5 @@ export function useSocket() {
       if (_markReadTimer) clearTimeout(_markReadTimer);
       disconnectSocket();
     };
-  }, [me]); // eslint-disable-line
+  }, [meId]); // eslint-disable-line
 }

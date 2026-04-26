@@ -147,24 +147,23 @@ export function ChatHeader({
               </div>
             )}
           </div>
-          <div>
+          {/* min-width:0 + overflow:hidden are essential so the text block
+              shrinks correctly and never pushes the action buttons off-screen */}
+          <div className="chHeaderInfo">
             <div className="chName">{chatTitle(chat, meId)}</div>
             {isSaved ? (
               <div className="chSub">Ваши заметки</div>
             ) : typingText ? (
               <div className="chSub chSubTyping">{typingText}</div>
             ) : partnerPresence ? (
-              // F3: show status pill when partner has a presence status.
-              // Note is truncated to 22 chars in the header — full note is visible in their profile.
+              // F3: pill is width-clamped; full note readable in the user profile.
               <div className="chSub chSubPresence">
                 <span className="chPresencePill" data-status={partnerPresence}>
                   {PRESENCE_EMOJI[partnerPresence]}&nbsp;
                   <span className="chPresenceLabel">{PRESENCE_LABELS[partnerPresence]}</span>
                   {partner?.presence_note && (
                     <span className="chPresenceNote">
-                      — {partner.presence_note.length > 22
-                          ? partner.presence_note.slice(0, 22) + '…'
-                          : partner.presence_note}
+                      &nbsp;— {partner.presence_note}
                     </span>
                   )}
                 </span>

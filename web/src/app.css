@@ -748,8 +748,10 @@ input { font: inherit; color: inherit; background: transparent; }
   font-weight: 700; font-size: 16px;
   flex-shrink: 0;
 }
-.chName { font-size: 15px; font-weight: 700; }
-.chSub { font-size: 12px; color: var(--muted); margin-top: 1px; }
+.chName { font-size: 15px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.chSub { font-size: 12px; color: var(--muted); margin-top: 1px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* Info block inside chHeaderBtn — must shrink to leave room for action buttons */
+.chHeaderInfo { min-width: 0; overflow: hidden; flex: 1; }
 
 /* ════════════════════════════════════════════════════════════════════
    MINI PLAYER — sticky bar below header while audio/video is playing
@@ -4177,10 +4179,12 @@ input[type="date"].psInput::-webkit-calendar-picker-indicator {
 }
 .fileStagingCancel:hover { background: var(--danger); color: #fff; }
 
-/* Chat header: wrapper for Avatar component */
+/* Chat header: wrapper for Avatar component.
+   overflow:visible so the outline-based presence ring is not clipped. */
 .chAvatarWrap {
   width: 38px; height: 38px; flex-shrink: 0;
-  border-radius: 12px; overflow: hidden;
+  border-radius: 12px;
+  overflow: visible;
 }
 .chAvatarWrap.group { border-radius: 14px; }
 
@@ -4212,12 +4216,12 @@ input[type="date"].psInput::-webkit-calendar-picker-indicator {
 }
 .fileStagingCancel:hover { background: var(--danger); color: #fff; }
 
-/* Chat header: wrapper lets Avatar component render in the header */
+/* Chat header: overflow:visible so the outline ring is not clipped */
 .chAvatarWrap {
   width: 38px; height: 38px;
   flex-shrink: 0;
   border-radius: 12px;
-  overflow: hidden;
+  overflow: visible;
 }
 .chAvatarWrap.group { border-radius: 14px; }
 
@@ -10484,24 +10488,30 @@ input[type="date"].psInput::-webkit-calendar-picker-indicator {
    (ciOnlineDot, positioned absolute by parent) is never displaced.
    Animation runs only for the "free" status; busy/dnd are static.
 */
+/*
+  Presence ring uses `outline` instead of `box-shadow` because outline is
+  drawn outside the border-box and is NOT clipped by any parent's
+  overflow:hidden — making it work even inside .chAvatarWrap / .ciAvatar.
+  outline respects border-radius in all modern browsers (Chrome 94+, FF 88+).
+*/
 .presenceRingEl {
-  /* Default: no ring */
-  box-shadow: 0 0 0 0 transparent;
+  outline: 2.5px solid transparent;
+  outline-offset: 1.5px;
 }
 .presenceRingEl.presenceRing--free {
-  box-shadow: 0 0 0 2.5px #22c55e;
+  outline-color: #22c55e;
   animation: presenceRingPulse 2.8s ease-in-out infinite;
 }
 .presenceRingEl.presenceRing--busy {
-  box-shadow: 0 0 0 2.5px #f59e0b;
+  outline-color: #f59e0b;
 }
 .presenceRingEl.presenceRing--dnd {
-  box-shadow: 0 0 0 2.5px #ef4444;
+  outline-color: #ef4444;
 }
 
 @keyframes presenceRingPulse {
-  0%, 100% { box-shadow: 0 0 0 2.5px #22c55e; }
-  50%       { box-shadow: 0 0 0 2.5px rgba(34,197,94,.35); }
+  0%, 100% { outline-color: #22c55e; }
+  50%       { outline-color: rgba(34,197,94,.3); }
 }
 
 /* ── Sidebar chat-item custom emoji thumbnail ─────────────────────── */
@@ -10513,7 +10523,7 @@ input[type="date"].psInput::-webkit-calendar-picker-indicator {
 }
 
 /* ── ChatHeader presence pill (subtitle area) ─────────────────────── */
-.chSubPresence { display: flex; align-items: center; gap: 4px; }
+.chSubPresence { display: flex; align-items: center; overflow: hidden; }
 .chPresencePill {
   display: inline-flex;
   align-items: center;
@@ -10525,20 +10535,23 @@ input[type="date"].psInput::-webkit-calendar-picker-indicator {
   background: color-mix(in srgb, var(--pill-color, #22c55e) 12%, transparent);
   color: var(--pill-color, #22c55e);
   border: 1px solid color-mix(in srgb, var(--pill-color, #22c55e) 30%, transparent);
-  white-space: nowrap;
+  /* Pill never exceeds the available width — note overflows with ellipsis */
+  min-width: 0;
+  max-width: 100%;
   overflow: hidden;
-  max-width: 240px;
 }
 .chPresencePill[data-status="free"]  { --pill-color: #22c55e; }
 .chPresencePill[data-status="busy"]  { --pill-color: #f59e0b; }
 .chPresencePill[data-status="dnd"]   { --pill-color: #ef4444; }
-.chPresenceLabel { letter-spacing: 0.01em; }
+.chPresenceLabel { letter-spacing: 0.01em; white-space: nowrap; flex-shrink: 0; }
 .chPresenceNote {
   opacity: 0.8;
   font-weight: 400;
+  /* Clip with ellipsis when note is too long — full text in user profile */
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  min-width: 0;
 }
 
 /* ── UserProfileModal presence card ──────────────────────────────── */
