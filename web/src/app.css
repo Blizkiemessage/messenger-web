@@ -10805,39 +10805,40 @@ input[type="date"].psInput::-webkit-calendar-picker-indicator {
 .composerScheduledListBtn:hover { color: var(--accent); background: var(--accent-faint, rgba(88,166,255,.1)); }
 
 /* ═══════════════════════════════════════════════════════════════════════════
-   F1 — ScheduleDatePicker popup
+   F1 — ScheduleDatePicker  (custom calendar + time picker)
    ═══════════════════════════════════════════════════════════════════════════ */
 
 .sdpBackdrop {
   position: fixed;
   inset: 0;
   z-index: 1200;
-  background: rgba(0,0,0,.45);
+  background: rgba(0,0,0,.5);
   display: flex;
-  align-items: flex-end;
+  align-items: center;
   justify-content: center;
-  padding-bottom: 80px; /* sit above the composer */
   animation: sdpFadeIn 0.15s ease;
 }
 @keyframes sdpFadeIn { from { opacity: 0; } to { opacity: 1; } }
 
 .sdpPanel {
-  width: 320px;
+  width: 340px;
   background: var(--panel);
-  border-radius: 14px;
+  border-radius: 16px;
   border: 1px solid var(--border);
-  padding: 14px 16px 16px;
+  padding: 18px 20px 20px;
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  box-shadow: 0 8px 32px rgba(0,0,0,.5);
-  animation: sdpSlideUp 0.18s cubic-bezier(.22,.68,0,1.2);
+  gap: 14px;
+  box-shadow: 0 16px 48px rgba(0,0,0,.6);
+  animation: sdpSlideUp 0.2s cubic-bezier(.22,.68,0,1.2);
+  user-select: none;
 }
 @keyframes sdpSlideUp {
-  from { transform: translateY(16px); opacity: 0; }
-  to   { transform: translateY(0);    opacity: 1; }
+  from { transform: translateY(20px) scale(.97); opacity: 0; }
+  to   { transform: translateY(0)    scale(1);   opacity: 1; }
 }
 
+/* ── Header ── */
 .sdpHeader {
   display: flex;
   align-items: center;
@@ -10846,8 +10847,8 @@ input[type="date"].psInput::-webkit-calendar-picker-indicator {
 .sdpTitle {
   display: flex;
   align-items: center;
-  gap: 6px;
-  font-size: 13px;
+  gap: 7px;
+  font-size: 14px;
   font-weight: 600;
   color: var(--text);
 }
@@ -10855,8 +10856,8 @@ input[type="date"].psInput::-webkit-calendar-picker-indicator {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 24px;
-  height: 24px;
+  width: 28px;
+  height: 28px;
   border: none;
   background: transparent;
   color: var(--muted);
@@ -10866,61 +10867,202 @@ input[type="date"].psInput::-webkit-calendar-picker-indicator {
 }
 .sdpClose:hover { background: var(--hover); color: var(--text); }
 
-.sdpPresets {
+/* ── Calendar ── */
+.sdpCalendar {
   display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-}
-.sdpPreset {
-  padding: 5px 10px;
-  border-radius: 20px;
-  border: 1px solid var(--border);
-  background: var(--bg);
-  color: var(--text);
-  font-size: 12px;
-  cursor: pointer;
-  transition: background 0.13s, border-color 0.13s, color 0.13s;
-}
-.sdpPreset:hover {
-  background: var(--accent);
-  border-color: var(--accent);
-  color: #fff;
-}
-
-.sdpInput {
-  width: 100%;
-  padding: 8px 10px;
-  border-radius: 9px;
-  border: 1px solid var(--border);
-  background: var(--bg);
-  color: var(--text);
-  font-size: 13px;
-  outline: none;
-  box-sizing: border-box;
-  transition: border-color 0.15s;
-  color-scheme: dark;
-}
-.sdpInput:focus { border-color: var(--accent); }
-
-.sdpError {
-  font-size: 12px;
-  color: #ef4444;
-  padding: 2px 2px;
-}
-
-.sdpActions {
-  display: flex;
+  flex-direction: column;
   gap: 8px;
-  margin-top: 2px;
 }
-.sdpConfirm {
-  flex: 1;
+
+.sdpMonthNav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 2px;
+}
+.sdpMonthLabel {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+  letter-spacing: 0.01em;
+}
+.sdpMonthBtn {
   display: flex;
   align-items: center;
   justify-content: center;
+  width: 30px;
+  height: 30px;
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  border-radius: 50%;
+  transition: background 0.12s, color 0.12s;
+}
+.sdpMonthBtn:hover { background: var(--hover); color: var(--text); }
+
+.sdpDowRow {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  text-align: center;
+}
+.sdpDowCell {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--muted);
+  padding: 4px 0;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.sdpDayGrid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 2px;
+}
+.sdpDayEmpty { height: 34px; }
+
+.sdpDay {
+  height: 34px;
+  border: none;
+  background: transparent;
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  border-radius: 50%;
+  transition: background 0.12s, color 0.12s;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  aspect-ratio: 1;
+  margin: 0 auto;
+  width: 34px;
+}
+.sdpDay:hover:not(:disabled):not(.sdpDaySelected) {
+  background: var(--hover);
+}
+.sdpDayPast {
+  color: var(--muted);
+  opacity: 0.4;
+  cursor: default;
+}
+.sdpDayToday:not(.sdpDaySelected) {
+  color: var(--accent);
+  font-weight: 700;
+}
+.sdpDayToday:not(.sdpDaySelected)::after {
+  content: '';
+  position: absolute;
+  bottom: 3px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+.sdpDaySelected {
+  background: var(--accent) !important;
+  color: #fff !important;
+  font-weight: 700;
+}
+.sdpDaySelected::after { display: none; }
+
+/* ── Time picker ── */
+.sdpTimePicker {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 10px 14px;
+}
+.sdpTimeLabel {
+  font-size: 13px;
+  color: var(--muted);
+}
+.sdpTimeInputs {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.sdpTimeSep {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--text);
+  line-height: 1;
+  margin-bottom: 2px;
+  opacity: 0.8;
+}
+
+/* Spin widget */
+.sdpSpinWrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+.sdpSpinArrow {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 18px;
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  border-radius: 6px;
+  transition: background 0.1s, color 0.1s;
+}
+.sdpSpinArrow:hover { background: var(--hover); color: var(--text); }
+.sdpSpinInput {
+  width: 38px;
+  height: 36px;
+  text-align: center;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--panel);
+  color: var(--text);
+  font-size: 20px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  outline: none;
+  transition: border-color 0.15s;
+}
+.sdpSpinInput:focus { border-color: var(--accent); }
+
+/* ── Summary line ── */
+.sdpSummary {
+  display: flex;
+  align-items: center;
   gap: 6px;
-  padding: 8px 0;
-  border-radius: 9px;
+  font-size: 12px;
+  color: var(--muted);
+  background: var(--bg);
+  border-radius: 8px;
+  padding: 7px 10px;
+}
+
+/* ── Error ── */
+.sdpError {
+  font-size: 12px;
+  color: #ef4444;
+  padding: 0 2px;
+}
+
+/* ── Actions ── */
+.sdpActions {
+  display: flex;
+  gap: 8px;
+}
+.sdpConfirm {
+  flex: 1;
+  padding: 9px 0;
+  border-radius: 10px;
   border: none;
   background: var(--accent);
   color: #fff;
@@ -10929,10 +11071,10 @@ input[type="date"].psInput::-webkit-calendar-picker-indicator {
   cursor: pointer;
   transition: filter 0.15s;
 }
-.sdpConfirm:hover { filter: brightness(1.1); }
+.sdpConfirm:hover { filter: brightness(1.12); }
 .sdpCancel {
-  padding: 8px 14px;
-  border-radius: 9px;
+  padding: 9px 16px;
+  border-radius: 10px;
   border: 1px solid var(--border);
   background: transparent;
   color: var(--muted);
