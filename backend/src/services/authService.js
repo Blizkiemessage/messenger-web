@@ -63,6 +63,11 @@ async function loginOrRegister(login, password, userAgent = '', ipAddress = '') 
     throw authError();
   }
 
+  // If TOTP is enabled, signal to the caller — do NOT create a session yet
+  if (user.totp_enabled) {
+    return { totpRequired: true, userId: user.id };
+  }
+
   db.prepare('UPDATE users SET last_seen_at = ? WHERE id = ?').run([now, user.id]);
 
   const sessionId = uuidv4();

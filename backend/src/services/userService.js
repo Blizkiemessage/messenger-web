@@ -40,6 +40,7 @@ function sanitizeUser(u, { showPrivate = false, viewerId = null } = {}, alias = 
     avatar_exceptions: showPrivate ? (u.avatar_exceptions || '[]')        : undefined,
     hide_last_seen:    showPrivate ? (u.hide_last_seen    ? true : false) : undefined,
     has_password:      showPrivate ? !!u.password_hash : undefined,
+    totp_enabled:      showPrivate ? (u.totp_enabled ? true : false) : undefined,
     // Appearance — always returned to self (showPrivate), ignored for others
     theme:        showPrivate ? (u.theme        || 'dark')     : undefined,
     accent_color: showPrivate ? (u.accent_color || '#2f81f7')  : undefined,

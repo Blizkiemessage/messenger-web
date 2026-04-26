@@ -55,3 +55,13 @@ export async function authResetPassword(
 ): Promise<void> {
   await client.post('/auth/reset-password', { id, token, newPassword });
 }
+
+/**
+ * Second step of login when 2FA is enabled.
+ * Reads the totp_pending HttpOnly cookie set by /auth/login.
+ * code can be a 6-digit TOTP code or a backup code (XXXXXX-XXXXXX).
+ */
+export async function authTotpVerify(code: string): Promise<AuthResponse> {
+  const res = await client.post<AuthResponse>('/auth/totp-verify', { code });
+  return res.data;
+}

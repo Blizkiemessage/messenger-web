@@ -65,6 +65,15 @@ const linkPreviewLimiter = rateLimit({
   legacyHeaders: false,
 });
 
+// TOTP verification during login — tight: 5 attempts / 15 min per IP
+const totpVerifyLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 5,
+  message: { error: 'Слишком много попыток. Попробуйте через 15 минут.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
 module.exports = {
   loginLimiter,
   emailSendLimiter,
@@ -73,4 +82,5 @@ module.exports = {
   searchLimiter,
   friendRequestLimiter,
   linkPreviewLimiter,
+  totpVerifyLimiter,
 };

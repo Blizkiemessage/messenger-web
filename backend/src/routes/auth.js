@@ -9,8 +9,12 @@ const {
   resetPassword,
 } = require('../services/authService');
 const { authMiddleware } = require('../middleware/auth');
-const { loginLimiter, emailSendLimiter, otpVerifyLimiter } = require('../middleware/rateLimits');
+const { loginLimiter, emailSendLimiter, otpVerifyLimiter, totpVerifyLimiter } = require('../middleware/rateLimits');
 const { getDb } = require('../config/database');
+const { sign, verify } = require('../utils/jwt');
+const { sanitizeUser } = require('../services/userService');
+const { v4: uuidv4 } = require('uuid');
+const { verifyToken, verifyAndConsumeBackupCode } = require('../utils/totp');
 
 const router = express.Router();
 
@@ -36,6 +40,27 @@ function clearSessionCookie(res) {
   });
 }
 
+// Short-lived cookie used to carry the pending user identity during 2FA step
+function setTotpPendingCookie(res, userId) {
+  const token = sign({ sub: userId, purpose: 'totp_pending' }, { expiresIn: '5m' });
+  res.cookie('totp_pending', token, {
+    httpOnly: true,
+    secure: isProduction,
+    sameSite: isProduction ? 'none' : 'lax',
+    maxAge: 5 * 60 * 1000,
+    path: '/',
+  });
+}
+
+function clearTotpPendingCookie(res) {
+  res.clearCookie('totp_pending', {
+    httpOnly: true,
+    secure: isProduction,
+    sameSite: isProduction ? 'none' : 'lax',
+    path: '/',
+  });
+}
+
 function getClientIp(req) {
   return req.headers['x-forwarded-for']?.split(',')[0]?.trim()
     || req.socket.remoteAddress
@@ -43,15 +68,97 @@ function getClientIp(req) {
 }
 
 // POST /auth/login — login by username or email + password
+// If 2FA is enabled, sets a short-lived totp_pending cookie and returns { requires2FA: true }
 router.post('/login', loginLimiter, async (req, res, next) => {
   try {
     const { login, password } = req.body;
     if (!login || typeof login !== 'string' || login.trim().length < 3) {
       return res.status(400).json({ error: 'Введите username или email' });
     }
-    const { token, user, sessionId } = await loginOrRegister(login, password || null, req.headers['user-agent'] || '', getClientIp(req));
+    const result = await loginOrRegister(login, password || null, req.headers['user-agent'] || '', getClientIp(req));
+
+    // Check if 2FA is required before issuing the full session
+    if (result.totpRequired) {
+      setTotpPendingCookie(res, result.userId);
+      return res.json({ requires2FA: true });
+    }
+
+    setSessionCookie(res, result.token);
+    res.json({ user: result.user, sessionId: result.sessionId });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// POST /auth/totp-verify — second step of login when 2FA is enabled
+router.post('/totp-verify', totpVerifyLimiter, async (req, res, next) => {
+  try {
+    const { code } = req.body;
+    if (!code || typeof code !== 'string') {
+      return res.status(400).json({ error: 'Введите код' });
+    }
+
+    const pendingToken = req.cookies?.totp_pending;
+    if (!pendingToken) {
+      return res.status(401).json({ error: 'Сессия истекла. Выполните вход заново.' });
+    }
+
+    let payload;
+    try {
+      payload = verify(pendingToken);
+    } catch {
+      clearTotpPendingCookie(res);
+      return res.status(401).json({ error: 'Сессия истекла. Выполните вход заново.' });
+    }
+
+    if (payload.purpose !== 'totp_pending') {
+      clearTotpPendingCookie(res);
+      return res.status(401).json({ error: 'Неверная сессия' });
+    }
+
+    const userId = payload.sub;
+    const db = getDb();
+    const user = db.prepare('SELECT * FROM users WHERE id = ?').get(userId);
+    if (!user) {
+      clearTotpPendingCookie(res);
+      return res.status(401).json({ error: 'Пользователь не найден' });
+    }
+
+    // If 2FA was disabled during this flow, reject and force re-login
+    if (!user.totp_enabled) {
+      clearTotpPendingCookie(res);
+      return res.status(401).json({ error: 'Двухфакторная аутентификация отключена. Выполните вход заново.' });
+    }
+
+    const trimmed = code.trim();
+    let authenticated = false;
+
+    if (/^\d{6}$/.test(trimmed)) {
+      authenticated = verifyToken(user.totp_secret, trimmed);
+    } else {
+      // Backup code format: XXXXXX-XXXXXX
+      authenticated = await verifyAndConsumeBackupCode(userId, trimmed, db);
+    }
+
+    if (!authenticated) {
+      return res.status(401).json({ error: 'Неверный код' });
+    }
+
+    // Clear the pending cookie before issuing the full session
+    clearTotpPendingCookie(res);
+
+    const now = Date.now();
+    db.prepare('UPDATE users SET last_seen_at = ? WHERE id = ?').run(now, userId);
+
+    const sessionId = uuidv4();
+    db.prepare(
+      'INSERT INTO sessions (id, user_id, created_at, revoked, user_agent, last_used_at, ip_address) VALUES (?, ?, ?, 0, ?, ?, ?)'
+    ).run(sessionId, userId, now, req.headers['user-agent'] || '', now, getClientIp(req));
+
+    const token = sign({ sub: userId, jti: sessionId });
     setSessionCookie(res, token);
-    res.json({ user, sessionId });
+
+    res.json({ user: sanitizeUser(user, { showPrivate: true }), sessionId });
   } catch (err) {
     next(err);
   }

@@ -61,6 +61,7 @@ const sessionsRoutes    = require('./routes/sessions');
 const linkPreviewRoutes = require('./routes/linkPreview');
 const { stickerPacksRouter, quotaRouter } = require('./routes/sticker-packs');
 const gifRoutes         = require('./routes/gif');
+const totpRoutes        = require('./routes/totp');
 const path = require('path');
 
 const app = express();
@@ -130,6 +131,7 @@ app.use('/link-preview', linkPreviewRoutes);
 app.use('/sticker-packs', stickerPacksRouter);
 app.use('/quota',         quotaRouter);
 app.use('/gif',           gifRoutes);
+app.use('/totp',          totpRoutes);
 
 app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 app.use('/admin', express.static(path.join(__dirname, '../public/admin')));
