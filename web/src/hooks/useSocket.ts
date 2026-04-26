@@ -3,12 +3,15 @@
  * ✅ Added: message-pinned / message-unpinned socket events.
  */
 import { useEffect } from 'react';
-import { type Chat, type Message } from '../types';
+import { type Chat, type Message, type User } from '../types';
 import { connectSocket, disconnectSocket, getSocket } from '../socket/socketClient';
+import { emitCallReject } from '../socket/socketClient';
 import { markChatRead as apiMarkChatRead } from '../api/chats';
 import { useSessionStore } from '../store/useSessionStore';
 import { useChatsStore } from '../store/useChatsStore';
 import { useStickerStore } from '../store/useStickerStore';
+import { useCallStore } from '../store/useCallStore';
+import { webrtcManager } from '../services/webrtcManager';
 import { registerPush } from '../utils/push';
 
 let _markReadTimer: ReturnType<typeof setTimeout> | null = null;
@@ -185,6 +188,81 @@ export function useSocket() {
     socket.on('block-status-changed',      onBlockStatusChanged);   // ✅
     socket.on('presence-status-update',   onPresenceStatusUpdate); // ✅ F3
 
+    // ── E3: Call signaling ───────────────────────────────────────────────────────
+
+    const onCallIncoming = ({
+      callId, callerId, chatId, callType, callerInfo,
+    }: { callId: string; callerId: string; chatId: string; callType: 'audio' | 'video'; callerInfo: User }) => {
+      const callStore = useCallStore.getState();
+      // Auto-reject if already in a call
+      if (callStore.status !== 'idle') {
+        emitCallReject(callId);
+        return;
+      }
+      callStore.handleIncomingCall({ callId, chatId, callType, peerId: callerId, peerInfo: callerInfo });
+    };
+
+    const onCallAccepted = ({ callId }: { callId: string }) => {
+      const callStore = useCallStore.getState();
+      if (callStore.callId !== callId) return;
+      // Caller: kick off the WebRTC offer now that the callee picked up
+      webrtcManager.initiateOffer(callId, callStore.callType);
+    };
+
+    const onCallRejected = ({ callId }: { callId: string }) => {
+      const callStore = useCallStore.getState();
+      if (callStore.callId !== callId) return;
+      webrtcManager.hangup(null, false);
+    };
+
+    const onCallOffer = ({ callId, sdp }: { callId: string; sdp: RTCSessionDescriptionInit }) => {
+      const callStore = useCallStore.getState();
+      if (callStore.callId !== callId) return;
+      webrtcManager.handleOffer(callId, callStore.callType, sdp);
+    };
+
+    const onCallAnswer = ({ callId, sdp }: { callId: string; sdp: RTCSessionDescriptionInit }) => {
+      const callStore = useCallStore.getState();
+      if (callStore.callId !== callId) return;
+      webrtcManager.handleAnswer(sdp);
+    };
+
+    const onCallIceCandidate = ({
+      callId, candidate,
+    }: { callId: string; candidate: RTCIceCandidateInit }) => {
+      const callStore = useCallStore.getState();
+      if (callStore.callId !== callId) return;
+      webrtcManager.addIceCandidate(candidate);
+    };
+
+    const onCallEnded = ({ callId }: { callId: string }) => {
+      const callStore = useCallStore.getState();
+      if (callStore.callId !== callId) return;
+      webrtcManager.hangup(null, false);
+    };
+
+    const onCallBusy = ({ callId }: { callId: string }) => {
+      const callStore = useCallStore.getState();
+      if (callStore.callId !== callId) return;
+      webrtcManager.hangup(null, false);
+    };
+
+    const onCallError = ({ callId }: { callId: string }) => {
+      const callStore = useCallStore.getState();
+      if (callStore.callId !== callId) return;
+      webrtcManager.hangup(null, false);
+    };
+
+    socket.on('call:incoming',      onCallIncoming);     // ✅ E3
+    socket.on('call:accepted',      onCallAccepted);     // ✅ E3
+    socket.on('call:rejected',      onCallRejected);     // ✅ E3
+    socket.on('call:offer',         onCallOffer);        // ✅ E3
+    socket.on('call:answer',        onCallAnswer);       // ✅ E3
+    socket.on('call:ice-candidate', onCallIceCandidate); // ✅ E3
+    socket.on('call:ended',         onCallEnded);        // ✅ E3
+    socket.on('call:busy',          onCallBusy);         // ✅ E3
+    socket.on('call:error',         onCallError);        // ✅ E3
+
     return () => {
       socket.off('connect',              onConnect);
       socket.off('new-message',          onNewMessage);
@@ -206,6 +284,15 @@ export function useSocket() {
       socket.off('user-stopped-typing',  onUserStoppedTyping);
       socket.off('block-status-changed',      onBlockStatusChanged);
       socket.off('presence-status-update',   onPresenceStatusUpdate);
+      socket.off('call:incoming',      onCallIncoming);
+      socket.off('call:accepted',      onCallAccepted);
+      socket.off('call:rejected',      onCallRejected);
+      socket.off('call:offer',         onCallOffer);
+      socket.off('call:answer',        onCallAnswer);
+      socket.off('call:ice-candidate', onCallIceCandidate);
+      socket.off('call:ended',         onCallEnded);
+      socket.off('call:busy',          onCallBusy);
+      socket.off('call:error',         onCallError);
       clearTimeout(pushTimer);
       if (_markReadTimer) clearTimeout(_markReadTimer);
       disconnectSocket();

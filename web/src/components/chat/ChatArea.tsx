@@ -17,7 +17,8 @@ const StickerStudioModal = lazy(() => import('../modals/StickerStudioModal').the
 const ChatMediaModal     = lazy(() => import('../modals/ChatMediaModal').then(m => ({ default: m.ChatMediaModal })));
 import { sendChatMessage, getPinnedMessages, pinMessage as apiPin, unpinMessage as apiUnpin, reactToMessage, editMessage as apiEditMessage, scheduleMessage } from '../../api/chats';
 import { createPoll, votePoll, retractVote } from '../../api/polls';
-import { emitTypingStart, emitTypingStop } from '../../socket/socketClient';
+import { emitTypingStart, emitTypingStop, emitCallInvite } from '../../socket/socketClient';
+import { useCallStore } from '../../store/useCallStore';
 import { scheduleMarkRead } from '../../hooks/useSocket';
 import type { CreatePollData } from '../../api/polls';
 import type { UploadResult } from '../../api/upload';
@@ -62,6 +63,20 @@ export function ChatArea() {
   const clearSelection  = useChatsStore(s => s.clearSelection);
   const hasSelection    = selectedIds.size > 0;
   const partnerReadAt   = activeChat?.partner_last_read_at ?? 0;
+
+  // ── E3: Call actions ─────────────────────────────────────────────────────
+  const callStatus = useCallStore(s => s.status);
+
+  const startCall = useCallback((callType: 'audio' | 'video') => {
+    if (!activeChat || callStatus !== 'idle') return;
+    const partner = activeChat.members.find(m => m.id !== me.id);
+    if (!partner) return;
+    const callId = crypto.randomUUID();
+    useCallStore.getState().startOutgoingCall({
+      callId, chatId: activeChat.id, callType, peerId: partner.id, peerInfo: partner,
+    });
+    emitCallInvite({ callId, calleeId: partner.id, chatId: activeChat.id, callType });
+  }, [activeChat, me.id, callStatus]);
 
   const setShowDeleteConfirm  = useAppStore(s => s.setShowDeleteConfirm);
   const setDeleteForEveryone  = useAppStore(s => s.setDeleteForEveryone);
@@ -782,6 +797,8 @@ export function ChatArea() {
         onPinnedPrev={handlePinnedPrev}
         typingText={typingText}
         onOpenMedia={() => setShowMediaModal(true)}
+        onAudioCall={activeChat?.type === 'direct' ? () => startCall('audio') : undefined}
+        onVideoCall={activeChat?.type === 'direct' ? () => startCall('video') : undefined}
       />
 
       {/* Mini player — appears below header while audio/video is playing */}

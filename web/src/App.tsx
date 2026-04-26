@@ -15,6 +15,8 @@ import { useMessages } from './hooks/useMessages';
 import { AuthScreen } from './components/auth/AuthScreen';
 import { Sidebar } from './components/sidebar/Sidebar';
 import { ChatArea } from './components/chat/ChatArea';
+import { CallOverlay } from './components/call/CallOverlay';
+import { IncomingCallModal } from './components/call/IncomingCallModal';
 import {
   DeleteConfirmModal,
   ChatActionConfirmModal,
@@ -246,6 +248,10 @@ export default function App() {
           busy={chatActionBusy}
         />
       )}
+
+      {/* ── E3: WebRTC call UI — rendered above everything ──────────────── */}
+      <IncomingCallModal />
+      <CallOverlay />
 
       <div className={`layout${hasSelection ? ' selecting' : ''}${activeChat ? ' chatOpen' : ''}`}>
         <Sidebar />

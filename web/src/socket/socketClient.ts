@@ -54,3 +54,23 @@ export function emitTypingStart(chatId: string): void {
 export function emitTypingStop(chatId: string): void {
   socket?.emit('typing-stop', { chatId });
 }
+
+// ── E3: Call signaling emitters ───────────────────────────────────────────────
+
+export function emitCallInvite(p: {
+  callId: string; calleeId: string; chatId: string; callType: 'audio' | 'video';
+}): void {
+  socket?.emit('call:invite', p);
+}
+
+export function emitCallAccept(callId: string): void {
+  socket?.emit('call:accept', { callId });
+}
+
+export function emitCallReject(callId: string): void {
+  socket?.emit('call:reject', { callId });
+}
+
+export function emitCallEnd(callId: string): void {
+  socket?.emit('call:end', { callId });
+}

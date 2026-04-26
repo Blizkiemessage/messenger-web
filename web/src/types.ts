@@ -200,6 +200,35 @@ export type Purchase = {
   created_at: number;
 };
 
+// ── E3: WebRTC Calls ──────────────────────────────────────────────────────────
+
+export type CallType = 'audio' | 'video';
+
+export type CallStatus =
+  | 'idle'        // No active call
+  | 'calling'     // Outgoing call, waiting for callee
+  | 'incoming'    // Incoming call, waiting for user to respond
+  | 'connecting'  // Call accepted, WebRTC handshake in progress
+  | 'active'      // Call connected
+  | 'ended';      // Call just ended (shown briefly before resetting to idle)
+
+export type CallRecord = {
+  id: string;
+  chat_id: string;
+  caller_id: string;
+  callee_id: string;
+  call_type: CallType;
+  status: 'pending' | 'active' | 'ended' | 'rejected' | 'missed';
+  started_at: number | null;
+  ended_at: number | null;
+  duration: number | null;
+  created_at: number;
+  caller_username?: string | null;
+  caller_display_name?: string | null;
+  callee_username?: string | null;
+  callee_display_name?: string | null;
+};
+
 // ── GIF (Giphy) ───────────────────────────────────────────────────────────────
 
 export type GifResult = {

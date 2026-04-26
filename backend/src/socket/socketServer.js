@@ -26,6 +26,27 @@ const { clearExpiredPresenceStatuses } = require('../services/userService');
 // tab incorrectly marked the user offline while other tabs were still open.
 const onlineUsers = new Map();
 
+// ── E3: In-flight WebRTC calls ─────────────────────────────────────────────────
+// callId → { callerId, calleeId, chatId, callType, createdAt, startedAt? }
+const activeCalls = new Map();
+
+function saveCallRecord(callId, call, status, endedAt = null, duration = null) {
+  try {
+    const db = getDb();
+    db.prepare(`
+      INSERT OR IGNORE INTO calls
+        (id, chat_id, caller_id, callee_id, call_type, status, started_at, ended_at, duration, created_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).run([
+      callId, call.chatId, call.callerId, call.calleeId,
+      call.callType, status, call.startedAt || null,
+      endedAt, duration, Date.now(),
+    ]);
+  } catch (err) {
+    console.error('[Call] saveCallRecord error:', err.message);
+  }
+}
+
 // Track which chat each socket currently has open (socketId → chatId | null).
 // Keyed by socketId (not userId) so each tab can independently set its active chat.
 const userActiveChat = new Map();
@@ -143,6 +164,127 @@ function initSocket(httpServer) {
       socket.to(`chat:${chatId}`).emit('user-stopped-typing', { userId, chatId });
     });
 
+    // ── E3: WebRTC Call Signaling ──────────────────────────────────────────────
+
+    // CALLER → Server: initiate a call to another user
+    socket.on('call:invite', ({ callId, calleeId, chatId, callType }) => {
+      if (!callId || !calleeId || !chatId) return;
+      if (activeCalls.has(callId)) return; // duplicate
+
+      // Reject if caller is already in a call
+      const callerBusy = [...activeCalls.values()].some(
+        c => c.callerId === userId || c.calleeId === userId
+      );
+      if (callerBusy) {
+        socket.emit('call:error', { callId, reason: 'already_in_call' });
+        return;
+      }
+
+      // Reject if callee is already in a call
+      const calleeBusy = [...activeCalls.values()].some(
+        c => c.callerId === calleeId || c.calleeId === calleeId
+      );
+      if (calleeBusy) {
+        socket.emit('call:busy', { callId });
+        return;
+      }
+
+      // Verify callee is a member of the chat (security check)
+      try {
+        const db = getDb();
+        const callerMember = db.prepare(
+          'SELECT 1 FROM chat_members WHERE chat_id = ? AND user_id = ?'
+        ).get([chatId, userId]);
+        const calleeMember = db.prepare(
+          'SELECT 1 FROM chat_members WHERE chat_id = ? AND user_id = ?'
+        ).get([chatId, calleeId]);
+        if (!callerMember || !calleeMember) {
+          socket.emit('call:error', { callId, reason: 'not_member' });
+          return;
+        }
+
+        const callerInfo = db.prepare(
+          'SELECT id, username, display_name, avatar_url FROM users WHERE id = ?'
+        ).get(userId);
+
+        activeCalls.set(callId, {
+          callerId: userId, calleeId, chatId,
+          callType: callType || 'audio',
+          createdAt: Date.now(), startedAt: null,
+        });
+
+        io.to(`user:${calleeId}`).emit('call:incoming', {
+          callId, callerId: userId, chatId,
+          callType: callType || 'audio',
+          callerInfo,
+        });
+
+        console.log(`[Call] ${userId} → ${calleeId} (${callType}) id=${callId}`);
+      } catch (err) {
+        console.error('[Call] call:invite error:', err.message);
+      }
+    });
+
+    // CALLEE → Server: accept the call
+    socket.on('call:accept', ({ callId }) => {
+      const call = activeCalls.get(callId);
+      if (!call || call.calleeId !== userId) return;
+      io.to(`user:${call.callerId}`).emit('call:accepted', { callId });
+      console.log(`[Call] accepted id=${callId}`);
+    });
+
+    // CALLEE → Server: reject the call
+    socket.on('call:reject', ({ callId }) => {
+      const call = activeCalls.get(callId);
+      if (!call || call.calleeId !== userId) return;
+      activeCalls.delete(callId);
+      saveCallRecord(callId, call, 'rejected');
+      io.to(`user:${call.callerId}`).emit('call:rejected', { callId });
+      console.log(`[Call] rejected id=${callId}`);
+    });
+
+    // CALLER → Server: relay SDP offer to callee
+    socket.on('call:offer', ({ callId, sdp }) => {
+      const call = activeCalls.get(callId);
+      if (!call || call.callerId !== userId) return;
+      io.to(`user:${call.calleeId}`).emit('call:offer', { callId, sdp });
+    });
+
+    // CALLEE → Server: relay SDP answer to caller
+    socket.on('call:answer', ({ callId, sdp }) => {
+      const call = activeCalls.get(callId);
+      if (!call || call.calleeId !== userId) return;
+      call.startedAt = Date.now();
+      io.to(`user:${call.callerId}`).emit('call:answer', { callId, sdp });
+    });
+
+    // Either → Server: relay ICE candidate to the other party
+    socket.on('call:ice-candidate', ({ callId, candidate }) => {
+      const call = activeCalls.get(callId);
+      if (!call) return;
+      if (call.callerId !== userId && call.calleeId !== userId) return;
+      const targetId = call.callerId === userId ? call.calleeId : call.callerId;
+      io.to(`user:${targetId}`).emit('call:ice-candidate', { callId, candidate });
+    });
+
+    // Either → Server: end the call
+    socket.on('call:end', ({ callId }) => {
+      const call = activeCalls.get(callId);
+      if (!call) return;
+      if (call.callerId !== userId && call.calleeId !== userId) return;
+
+      const endedAt  = Date.now();
+      const duration = call.startedAt ? Math.floor((endedAt - call.startedAt) / 1000) : 0;
+      const status   = call.startedAt ? 'ended' : 'missed';
+      activeCalls.delete(callId);
+
+      saveCallRecord(callId, call, status, endedAt, duration);
+
+      io.to(`user:${call.callerId}`).emit('call:ended', { callId, duration });
+      io.to(`user:${call.calleeId}`).emit('call:ended', { callId, duration });
+      console.log(`[Call] ended id=${callId} status=${status} duration=${duration}s`);
+    });
+
     // ── Disconnect ───────────────────────────────────────────────────────────
     socket.on('disconnect', () => {
       // Clean up all throttle entries for this socket to prevent unbounded Map growth
@@ -159,6 +301,19 @@ function initSocket(httpServer) {
         onlineUsers.set(userId, remaining);
         console.log(`[Socket] Disconnected: ${userId} (sockets remaining: ${remaining})`);
         return;
+      }
+
+      // Last socket gone — end any active calls for this user
+      for (const [callId, call] of activeCalls) {
+        if (call.callerId === userId || call.calleeId === userId) {
+          const endedAt  = Date.now();
+          const duration = call.startedAt ? Math.floor((endedAt - call.startedAt) / 1000) : 0;
+          const status   = call.startedAt ? 'ended' : 'missed';
+          activeCalls.delete(callId);
+          saveCallRecord(callId, call, status, endedAt, duration);
+          const otherId = call.callerId === userId ? call.calleeId : call.callerId;
+          io.to(`user:${otherId}`).emit('call:ended', { callId, duration });
+        }
       }
 
       // Last socket gone — mark user offline

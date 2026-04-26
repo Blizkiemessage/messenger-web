@@ -348,6 +348,21 @@ function runMigrations() {
     `CREATE INDEX IF NOT EXISTS idx_messages_scheduled
        ON messages(deliver_at, is_delivered)
        WHERE deliver_at IS NOT NULL`,
+    // ✅ E3: WebRTC call history
+    `CREATE TABLE IF NOT EXISTS calls (
+      id TEXT PRIMARY KEY,
+      chat_id TEXT NOT NULL,
+      caller_id TEXT NOT NULL REFERENCES users(id),
+      callee_id TEXT NOT NULL REFERENCES users(id),
+      call_type TEXT NOT NULL DEFAULT 'audio',
+      status TEXT NOT NULL DEFAULT 'pending',
+      started_at INTEGER,
+      ended_at INTEGER,
+      duration INTEGER,
+      created_at INTEGER NOT NULL
+    )`,
+    `CREATE INDEX IF NOT EXISTS idx_calls_chat ON calls(chat_id, created_at DESC)`,
+    `CREATE INDEX IF NOT EXISTS idx_calls_participants ON calls(caller_id, callee_id)`,
   ];
 
   for (const sql of alters) {

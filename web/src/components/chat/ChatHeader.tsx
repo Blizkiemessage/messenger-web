@@ -38,6 +38,8 @@ interface Props {
   onSearchClose: () => void;
   typingText?: string;
   onOpenMedia: () => void;
+  onAudioCall?: () => void;
+  onVideoCall?: () => void;
 }
 
 export function ChatHeader({
@@ -47,7 +49,7 @@ export function ChatHeader({
   searchOpen, searchQuery, searchTotal, searchCurrent,
   onToggleSearch, onSearchChange, onSearchNext, onSearchPrev, onSearchClose,
   pinnedCount, pinnedOpen, pinnedIndex, onTogglePinned, onPinnedNext, onPinnedPrev,
-  typingText, onOpenMedia,
+  typingText, onOpenMedia, onAudioCall, onVideoCall,
 }: Props) {
   const setActiveChatId = useChatsStore(s => s.setActiveChatId);
   const onlineUsers = useChatsStore(s => s.onlineUsers);
@@ -178,6 +180,31 @@ export function ChatHeader({
             )}
           </div>
         </button>
+
+        {/* ── E3: Call buttons (direct chats only) ─────────────────────── */}
+        {!isGroup && !isSaved && onAudioCall && (
+          <button
+            className="chSearchToggle"
+            onClick={onAudioCall}
+            title="Аудиозвонок"
+          >
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12 19.79 19.79 0 0 1 1.61 3.4 2 2 0 0 1 3.6 1.24h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L7.91 8.77a16 16 0 0 0 6.29 6.29l.95-.95a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/>
+            </svg>
+          </button>
+        )}
+        {!isGroup && !isSaved && onVideoCall && (
+          <button
+            className="chSearchToggle"
+            onClick={onVideoCall}
+            title="Видеозвонок"
+          >
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <polygon points="23 7 16 12 23 17 23 7"/>
+              <rect x="1" y="5" width="15" height="14" rx="2" ry="2"/>
+            </svg>
+          </button>
+        )}
 
         {/* ✅ Pin button — always visible, shows badge when messages are pinned */}
         <button
