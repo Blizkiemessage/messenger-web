@@ -17,7 +17,8 @@
 
 const express = require('express');
 const { authMiddleware } = require('../middleware/auth');
-const { getUserById, updateUser, searchUsers, sanitizeUser, toggleBlockUser, isBlocked, setContactAlias, deleteContactAlias, getContactAlias } = require('../services/userService');
+const { getUserById, updateUser, searchUsers, sanitizeUser, toggleBlockUser, isBlocked, setContactAlias, deleteContactAlias, getContactAlias, updatePresenceStatus } = require('../services/userService');
+const { getUserChats } = require('../services/chatService');
 const { deleteAccount } = require('../services/chatService');
 const { deleteFromS3 } = require('../utils/s3Delete');
 const { signAvatarUrl, signUserAvatars } = require('../utils/s3Sign');
@@ -163,6 +164,43 @@ router.get('/:id', async (req, res, next) => {
     sanitized.alias           = alias;
     if (sanitized.avatar_url) sanitized.avatar_url = await signAvatarUrl(sanitized.avatar_url);
     res.json(sanitized);
+  } catch (err) { next(err); }
+});
+
+// PATCH /users/me/status — set or clear presence intention status (F3)
+router.patch('/me/status', async (req, res, next) => {
+  try {
+    const { status, note, expires_at } = req.body;
+    // status=null or status='' clears the status
+    const normalized = (status === '' || status === null || status === undefined) ? null : status;
+
+    const updated = updatePresenceStatus(req.userId, {
+      status: normalized,
+      note: note ?? null,
+      expires_at: expires_at ?? null,
+    });
+
+    const io = req.app.get('io');
+    if (io) {
+      // Broadcast to all chat members so they see the updated status in real-time
+      const chats = getUserChats(req.userId);
+      const notified = new Set();
+      for (const chat of chats) {
+        for (const member of chat.members) {
+          if (member.id !== req.userId && !notified.has(member.id)) {
+            io.to(`user:${member.id}`).emit('presence-status-update', {
+              userId: req.userId,
+              status: updated.presence_status ?? null,
+              note: updated.presence_note ?? null,
+              expires_at: updated.presence_expires_at ?? null,
+            });
+            notified.add(member.id);
+          }
+        }
+      }
+    }
+
+    res.json(sanitizeUser(updated, { showPrivate: true }));
   } catch (err) { next(err); }
 });
 

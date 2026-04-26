@@ -142,6 +142,13 @@ export function useSocket() {
       useChatsStore.getState().updateMemberBlockStatus(blockerId, blocked);
     };
 
+    // ✅ F3: presence intention status update
+    const onPresenceStatusUpdate = ({
+      userId, status, note, expires_at,
+    }: { userId: string; status: 'free' | 'busy' | 'dnd' | null; note: string | null; expires_at: number | null }) => {
+      useChatsStore.getState().updateMemberPresence(userId, status, note, expires_at);
+    };
+
     const onMessageEdited = (msg: Message) => {
       const state = useChatsStore.getState();
       if (state.activeChatId === msg.chat_id) {
@@ -172,7 +179,8 @@ export function useSocket() {
     socket.on('poll-updated',         onPollUpdated);           // ✅
     socket.on('user-typing',          onUserTyping);            // ✅
     socket.on('user-stopped-typing',  onUserStoppedTyping);     // ✅
-    socket.on('block-status-changed', onBlockStatusChanged);   // ✅
+    socket.on('block-status-changed',      onBlockStatusChanged);   // ✅
+    socket.on('presence-status-update',   onPresenceStatusUpdate); // ✅ F3
 
     return () => {
       socket.off('connect',              onConnect);
@@ -193,7 +201,8 @@ export function useSocket() {
       socket.off('poll-updated',         onPollUpdated);
       socket.off('user-typing',          onUserTyping);
       socket.off('user-stopped-typing',  onUserStoppedTyping);
-      socket.off('block-status-changed', onBlockStatusChanged);
+      socket.off('block-status-changed',      onBlockStatusChanged);
+      socket.off('presence-status-update',   onPresenceStatusUpdate);
       clearTimeout(pushTimer);
       if (_markReadTimer) clearTimeout(_markReadTimer);
       disconnectSocket();

@@ -204,7 +204,12 @@ export function ChatItem({
         ) : (
           <div className={`ciAvatar${chat.type === 'group' ? ' group' : ''}${hasPhoto ? ' ciAvatarPhoto' : ''}`}>
             {hasPhoto
-              ? <Avatar user={avatarUser} size={42} radius={13} />
+              ? <Avatar
+                  user={avatarUser}
+                  size={42}
+                  radius={13}
+                  presenceStatus={chat.type === 'direct' ? (avatarUser as any)?.presence_status ?? null : null}
+                />
               : avatarLetter(title)
             }
           </div>

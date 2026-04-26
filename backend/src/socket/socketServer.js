@@ -18,6 +18,7 @@ const { getDb } = require('../config/database');
 const { getUserChats } = require('../services/chatService');
 const { saveMessage } = require('../services/messageService');
 const { corsOriginCallback } = require('../utils/corsOrigin');
+const { clearExpiredPresenceStatuses } = require('../services/userService');
 
 // Track active socket count per user: userId → number.
 // A user is online as long as count > 0; goes offline only when the last socket disconnects.
@@ -180,6 +181,36 @@ function initSocket(httpServer) {
 
   // Expose onlineUsers on the io instance so REST routes can check presence
   io.onlineUsers = onlineUsers;
+
+  // ── Periodic presence expiry check (F3) ──────────────────────────────────────
+  // Every 60 seconds: find users whose status has expired, clear it in DB,
+  // and notify their chat contacts in real-time.
+  setInterval(() => {
+    try {
+      const expiredIds = clearExpiredPresenceStatuses();
+      if (expiredIds.length === 0) return;
+      for (const userId of expiredIds) {
+        const chats = getUserChats(userId);
+        const notified = new Set();
+        for (const chat of chats) {
+          for (const member of chat.members) {
+            if (member.id !== userId && !notified.has(member.id)) {
+              io.to(`user:${member.id}`).emit('presence-status-update', {
+                userId,
+                status: null,
+                note: null,
+                expires_at: null,
+              });
+              notified.add(member.id);
+            }
+          }
+        }
+        console.log(`[Presence] Expired status cleared for user ${userId}`);
+      }
+    } catch (err) {
+      console.error('[Presence] Expiry check error:', err.message);
+    }
+  }, 60 * 1000);
 
   return io;
 }

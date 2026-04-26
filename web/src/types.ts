@@ -20,6 +20,10 @@ export type User = {
   last_seen_at?: number | null;
   has_password?: boolean;
   totp_enabled?: boolean;      // ✅ E1: two-factor auth enabled
+  // F3: presence intention status
+  presence_status?: 'free' | 'busy' | 'dnd' | null;
+  presence_note?: string | null;
+  presence_expires_at?: number | null;
   is_blocked?: boolean;        // viewer has blocked this user
   blocked_by_them?: boolean;   // this user has blocked the viewer
   alias?: string | null;       // viewer's custom nickname for this user

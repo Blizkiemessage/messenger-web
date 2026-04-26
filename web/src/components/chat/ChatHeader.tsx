@@ -4,7 +4,7 @@
  */
 import { type Chat } from '../../types';
 import { chatTitle, chatSubtitle, avatarLetter, formatLastSeen } from '../../utils/format';
-import { Avatar, resolveUrl } from '../ui/Avatar';
+import { Avatar, resolveUrl, PRESENCE_LABELS, PRESENCE_EMOJI } from '../ui/Avatar';
 import { useChatsStore } from '../../store/useChatsStore';
 
 interface Props {
@@ -57,6 +57,7 @@ export function ChatHeader({
   // For direct chats — the other person's user object
   const partner = !isGroup && !isSaved ? chat.members.find(m => m.id !== meId) : null;
   const isPartnerOnline = partner ? onlineUsers.has(partner.id) : false;
+  const partnerPresence = partner?.presence_status ?? null;
 
   // ✅ Build a synthetic "user" object for the Avatar component
   // Groups use chat.avatar_url (new feature); direct chats use partner avatar; saved uses icon
@@ -139,7 +140,7 @@ export function ChatHeader({
                 </svg>
               </div>
             ) : resolveUrl(avatarUser?.avatar_url) ? (
-              <Avatar user={avatarUser} size={38} radius={12} />
+              <Avatar user={avatarUser} size={38} radius={12} presenceStatus={partnerPresence} />
             ) : (
               <div className={`chAvatar${isGroup ? ' group' : ''}`}>
                 {avatarLetter(chatTitle(chat, meId))}
@@ -152,6 +153,15 @@ export function ChatHeader({
               <div className="chSub">Ваши заметки</div>
             ) : typingText ? (
               <div className="chSub chSubTyping">{typingText}</div>
+            ) : partnerPresence && partner?.presence_note ? (
+              // F3: show status + note as a pill when partner has a presence note
+              <div className="chSub chSubPresence">
+                <span className="chPresencePill" data-status={partnerPresence}>
+                  {PRESENCE_EMOJI[partnerPresence]}&nbsp;
+                  <span className="chPresenceLabel">{PRESENCE_LABELS[partnerPresence]}</span>
+                  <span className="chPresenceNote">{partner.presence_note}</span>
+                </span>
+              </div>
             ) : (
               <div className={`chSub${!isGroup && isPartnerOnline ? ' chSubOnline' : ''}`}>
                 {isGroup

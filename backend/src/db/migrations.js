@@ -335,6 +335,10 @@ function runMigrations() {
     'ALTER TABLE users ADD COLUMN totp_pending_secret TEXT',
     'ALTER TABLE users ADD COLUMN totp_enabled INTEGER NOT NULL DEFAULT 0',
     'ALTER TABLE users ADD COLUMN totp_backup_codes TEXT',
+    // ✅ F3: presence intention status (free / busy / dnd)
+    'ALTER TABLE users ADD COLUMN presence_status TEXT',
+    'ALTER TABLE users ADD COLUMN presence_note TEXT',
+    'ALTER TABLE users ADD COLUMN presence_expires_at INTEGER',
   ];
 
   for (const sql of alters) {

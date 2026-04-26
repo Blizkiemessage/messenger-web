@@ -44,6 +44,10 @@ function sanitizeUser(u, { showPrivate = false, viewerId = null } = {}, alias = 
     // Appearance — always returned to self (showPrivate), ignored for others
     theme:        showPrivate ? (u.theme        || 'dark')     : undefined,
     accent_color: showPrivate ? (u.accent_color || '#2f81f7')  : undefined,
+    // F3: presence intention status — intentionally visible to chat members (not sensitive)
+    presence_status:     u.presence_status     || null,
+    presence_note:       u.presence_note       || null,
+    presence_expires_at: u.presence_expires_at || null,
   };
 }
 
@@ -133,4 +137,45 @@ function getContactAlias(userId, targetId) {
   return getDb().prepare('SELECT alias FROM contact_aliases WHERE user_id = ? AND target_id = ?').get([userId, targetId])?.alias ?? null;
 }
 
-module.exports = { sanitizeUser, getUserById, updateUser, searchUsers, toggleBlockUser, isBlocked, setContactAlias, deleteContactAlias, getContactAlias };
+const VALID_STATUSES = ['free', 'busy', 'dnd'];
+
+/**
+ * Update (or clear) the presence intention status for a user.
+ * status=null clears the status entirely.
+ */
+function updatePresenceStatus(userId, { status, note, expires_at }) {
+  if (status !== null && status !== undefined && !VALID_STATUSES.includes(status)) {
+    throw Object.assign(new Error('Неверный статус. Допустимые значения: free, busy, dnd'), { status: 400 });
+  }
+  const trimmedNote = (note && typeof note === 'string') ? note.trim().slice(0, 100) : null;
+  const db = getDb();
+  db.prepare(
+    'UPDATE users SET presence_status = ?, presence_note = ?, presence_expires_at = ? WHERE id = ?'
+  ).run(status || null, trimmedNote || null, expires_at || null, userId);
+  return db.prepare('SELECT * FROM users WHERE id = ?').get(userId);
+}
+
+/**
+ * Clear all expired presence statuses.
+ * Returns array of userId strings whose status was cleared.
+ */
+function clearExpiredPresenceStatuses() {
+  const db = getDb();
+  const now = Date.now();
+  const expired = db.prepare(
+    'SELECT id FROM users WHERE presence_expires_at IS NOT NULL AND presence_expires_at < ? AND presence_status IS NOT NULL'
+  ).all(now);
+  if (expired.length > 0) {
+    db.prepare(
+      'UPDATE users SET presence_status = NULL, presence_note = NULL, presence_expires_at = NULL WHERE presence_expires_at < ? AND presence_expires_at IS NOT NULL'
+    ).run(now);
+  }
+  return expired.map(r => r.id);
+}
+
+module.exports = {
+  sanitizeUser, getUserById, updateUser, searchUsers,
+  toggleBlockUser, isBlocked,
+  setContactAlias, deleteContactAlias, getContactAlias,
+  updatePresenceStatus, clearExpiredPresenceStatuses,
+};

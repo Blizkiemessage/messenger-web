@@ -1,10 +1,12 @@
 /**
  * SidebarBottom — redesigned modern profile popup.
+ * ✅ F3: StatusPicker integrated in profile panel.
  */
 import { type User } from '../../types';
 import { type Theme } from '../../utils/theme';
 import { Avatar } from '../ui/Avatar';
 import { ThemeIcon } from '../ui/icons/ThemeIcon';
+import { StatusPicker } from '../ui/StatusPicker';
 
 interface Props {
   me: User;
@@ -28,12 +30,21 @@ export function SidebarBottom({
           {/* User card */}
           <div className="ppCard">
             <div className="ppCardAvatar">
-              <Avatar user={me} size={48} radius={15} />
+              <Avatar user={me} size={48} radius={15} presenceStatus={me.presence_status ?? null} />
             </div>
             <div className="ppCardInfo">
               <div className="ppCardName">{me.display_name || me.username}</div>
               <div className="ppCardSub">@{me.username}</div>
             </div>
+          </div>
+
+          {/* F3: Status picker */}
+          <div className="ppStatusRow">
+            <StatusPicker
+              currentStatus={me.presence_status ?? null}
+              currentNote={me.presence_note ?? null}
+              currentExpiresAt={me.presence_expires_at ?? null}
+            />
           </div>
 
           {/* Actions */}
@@ -88,10 +99,19 @@ export function SidebarBottom({
       {/* Bottom bar */}
       <div className="sidebarBottomRow">
         <button className="meBtn" onClick={onToggleProfile}>
-          <Avatar user={me} size={36} radius={11} />
+          <div style={{ position: 'relative', flexShrink: 0 }}>
+            <Avatar user={me} size={36} radius={11} presenceStatus={me.presence_status ?? null} />
+          </div>
           <div className="meInfo">
             <div className="meName">{me.display_name || me.username || 'Пользователь'}</div>
-            <div className="meSub">@{me.username || ''}</div>
+            <div className="meSub">
+              {me.presence_status
+                ? <span style={{ color: me.presence_status === 'free' ? '#22c55e' : me.presence_status === 'busy' ? '#f59e0b' : '#ef4444', fontWeight: 600 }}>
+                    {me.presence_status === 'free' ? '🟢 Свободен' : me.presence_status === 'busy' ? '🟡 Занят' : '🔴 Не беспокоить'}
+                  </span>
+                : `@${me.username || ''}`
+              }
+            </div>
           </div>
           <svg
             className={`meChevron${showProfile ? ' meChevronUp' : ''}`}

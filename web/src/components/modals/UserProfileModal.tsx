@@ -6,7 +6,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { type User } from '../../types';
 import { avatarLetter, formatBirthDate, formatLastSeen } from '../../utils/format';
-import { resolveUrl } from '../ui/Avatar';
+import { resolveUrl, PRESENCE_COLORS, PRESENCE_LABELS, PRESENCE_EMOJI } from '../ui/Avatar';
 import { getUserById, blockUser, setAlias, deleteAlias } from '../../api/users';
 import { useChatsStore } from '../../store/useChatsStore';
 
@@ -228,6 +228,19 @@ export function UserProfileModal({ userId, onClose, onStartChat }: Props) {
               <div className={`upOnlineStatus${isOnline ? ' upOnlineStatusOnline' : ''}`}>
                 {formatLastSeen(lastSeenAt, isOnline)}
               </div>
+
+              {user.presence_status && (
+                <div
+                  className="upPresenceCard"
+                  style={{ '--up-presence-color': PRESENCE_COLORS[user.presence_status] } as React.CSSProperties}
+                >
+                  <span className="upPresenceEmoji">{PRESENCE_EMOJI[user.presence_status]}</span>
+                  <span className="upPresenceLabel">{PRESENCE_LABELS[user.presence_status]}</span>
+                  {user.presence_note && (
+                    <span className="upPresenceNote">— {user.presence_note}</span>
+                  )}
+                </div>
+              )}
             </div>
 
             {/* Error bar */}

@@ -79,6 +79,10 @@ interface ChatsState {
   typingUsers: Map<string, string[]>; // chatId → [userId, ...]
   setTyping: (chatId: string, userId: string, isTyping: boolean) => void;
 
+  // ── F3: Presence status ────────────────────────────────────────────────────
+  /** Update presence status fields on all chat members matching userId. */
+  updateMemberPresence: (userId: string, status: 'free' | 'busy' | 'dnd' | null, note: string | null, expires_at: number | null) => void;
+
   // ── Socket-driven updates ──────────────────────────────────────────────────
   /** Incoming new-message event: update last_message + unread count. */
   handleNewMessage: (msg: Message) => void;
@@ -259,6 +263,18 @@ export const useChatsStore = create<ChatsState>((set) => ({
         ),
       };
     }),
+  })),
+
+  // F3: update presence status for a user across all chats they're a member of
+  updateMemberPresence: (userId, status, note, expires_at) => set(state => ({
+    chats: state.chats.map(c => ({
+      ...c,
+      members: c.members.map(m =>
+        m.id === userId
+          ? { ...m, presence_status: status, presence_note: note, presence_expires_at: expires_at }
+          : m
+      ),
+    })),
   })),
 
   // ── Poll updates ───────────────────────────────────────────────────────────
