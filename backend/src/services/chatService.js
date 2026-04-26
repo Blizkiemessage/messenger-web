@@ -84,9 +84,10 @@ function getChatById(chatId, userId) {
     return sanitized;
   });
 
+  // F1: exclude scheduled (undelivered) messages from last_message
   const lastMsg = db
     .prepare(
-      'SELECT * FROM messages WHERE chat_id = ? AND deleted_at IS NULL ORDER BY created_at DESC LIMIT 1'
+      'SELECT * FROM messages WHERE chat_id = ? AND deleted_at IS NULL AND is_delivered = 1 ORDER BY created_at DESC LIMIT 1'
     )
     .get(chatId);
 
@@ -141,17 +142,17 @@ function getUserChats(userId) {
     WHERE cm.chat_id IN (${placeholders})
   `).all(chatIds);
 
-  // 3. Latest message per chat in one query
+  // 3. Latest delivered message per chat in one query (F1: exclude scheduled)
   const lastMessages = db.prepare(`
     SELECT m.*
     FROM messages m
     INNER JOIN (
       SELECT chat_id, MAX(created_at) AS max_ts
       FROM messages
-      WHERE chat_id IN (${placeholders}) AND deleted_at IS NULL
+      WHERE chat_id IN (${placeholders}) AND deleted_at IS NULL AND is_delivered = 1
       GROUP BY chat_id
     ) latest ON m.chat_id = latest.chat_id AND m.created_at = latest.max_ts
-    WHERE m.deleted_at IS NULL
+    WHERE m.deleted_at IS NULL AND m.is_delivered = 1
   `).all(chatIds);
 
   // 4. (removed — unread_count now read directly from chat_members.unread_count)

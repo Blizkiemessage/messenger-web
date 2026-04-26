@@ -80,6 +80,7 @@ router.get('/', searchLimiter, (req, res) => {
     WHERE m.rowid IN (SELECT rowid FROM messages_fts WHERE messages_fts MATCH ?)
       AND m.deleted_at IS NULL
       AND m.is_system = 0
+      AND m.is_delivered = 1
     ORDER BY m.created_at DESC
     LIMIT 20
   `).all([userId, userId, ftsQuery]);

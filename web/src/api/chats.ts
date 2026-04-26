@@ -188,3 +188,36 @@ export async function setMemberRole(chatId: string, userId: string, role: 'membe
   const res = await client.patch<Chat>(`/chats/${chatId}/members/${userId}/role`, { role });
   return res.data;
 }
+
+// ── F1: Scheduled / time-capsule messages ────────────────────────────────────
+
+export type SchedulePayload = {
+  text?: string;
+  attachment_url?: string;
+  attachment_type?: string;
+  attachment_name?: string;
+  attachment_size?: number | null;
+  attachment_duration?: number | null;
+  attachment_meta?: string | null;
+  reply?: {
+    id: string;
+    sender_id?: string | null;
+    sender_username?: string | null;
+    quoted_text?: string | null;
+  } | null;
+  deliver_at: number; // Unix ms
+};
+
+export async function scheduleMessage(chatId: string, payload: SchedulePayload): Promise<import('../types').Message> {
+  const res = await client.post<import('../types').Message>(`/chats/${chatId}/messages/scheduled`, payload);
+  return res.data;
+}
+
+export async function fetchScheduledMessages(chatId: string): Promise<import('../types').Message[]> {
+  const res = await client.get<import('../types').Message[]>(`/chats/${chatId}/messages/scheduled`);
+  return res.data;
+}
+
+export async function cancelScheduledMessage(chatId: string, msgId: string): Promise<void> {
+  await client.delete(`/chats/${chatId}/messages/scheduled/${msgId}`);
+}

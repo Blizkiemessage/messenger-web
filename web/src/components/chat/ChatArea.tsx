@@ -15,7 +15,7 @@ import { EmptyState } from './EmptyState';
 import { ReplyPreviewBar } from './ReplyPreviewBar';
 const StickerStudioModal = lazy(() => import('../modals/StickerStudioModal').then(m => ({ default: m.StickerStudioModal })));
 const ChatMediaModal     = lazy(() => import('../modals/ChatMediaModal').then(m => ({ default: m.ChatMediaModal })));
-import { sendChatMessage, getPinnedMessages, pinMessage as apiPin, unpinMessage as apiUnpin, reactToMessage, editMessage as apiEditMessage } from '../../api/chats';
+import { sendChatMessage, getPinnedMessages, pinMessage as apiPin, unpinMessage as apiUnpin, reactToMessage, editMessage as apiEditMessage, scheduleMessage } from '../../api/chats';
 import { createPoll, votePoll, retractVote } from '../../api/polls';
 import { emitTypingStart, emitTypingStop } from '../../socket/socketClient';
 import { scheduleMarkRead } from '../../hooks/useSocket';
@@ -27,6 +27,8 @@ import { PollCreatorModal } from './PollCreatorModal';
 import { PollVotersModal } from './PollVotersModal';
 import { MediaPlayerProvider } from '../../contexts/MediaPlayerContext';
 import { MiniPlayer } from './MiniPlayer';
+import { ScheduleDatePicker } from './ScheduleDatePicker';
+import { ScheduledMessagesModal } from '../modals/ScheduledMessagesModal';
 
 // ── Max chars per message — split at last word boundary ──────────────────────
 const MAX_MSG_CHARS = 4000;
@@ -91,6 +93,11 @@ export function ChatArea() {
   const [loadingMore, setLoadingMore] = useState(false);
   const [showPollCreator, setShowPollCreator] = useState(false);
   const [voterModal, setVoterModal] = useState<{ pollId: string; optionId: string; optionText: string } | null>(null);
+  // F1: scheduled messages
+  const [showSchedulePicker, setShowSchedulePicker]     = useState(false);
+  const [showScheduledList,  setShowScheduledList]       = useState(false);
+  // Pending schedule payload — set when user opens date picker while having text/attachment ready
+  const [pendingSchedulePayload, setPendingSchedulePayload] = useState<Parameters<typeof scheduleMessage>[1] | null>(null);
   const { loadOlderMessages } = useMessages();
   const hasMoreMessages = useChatsStore(s => s.hasMoreMessages);
   const activeChatId = useChatsStore(s => s.activeChatId);
@@ -481,6 +488,35 @@ export function ChatArea() {
     }
   }, [messageText, replyTo, editingId, sendOptimistic]);
 
+  // ── F1: Open the date picker to schedule current text ─────────────────────
+  const handleOpenSchedule = useCallback(() => {
+    const text = messageText.trim();
+    if (!text) return; // nothing to schedule
+    const chatId = useChatsStore.getState().activeChatId;
+    if (!chatId) return;
+    const replyPayload = replyTo ? {
+      id: replyTo.messageId,
+      sender_id: replyTo.senderId,
+      sender_username: replyTo.senderName,
+      quoted_text: replyTo.quotedText,
+    } : null;
+    setPendingSchedulePayload({ text, reply: replyPayload, deliver_at: 0 });
+    setShowSchedulePicker(true);
+  }, [messageText, replyTo]);
+
+  const handleConfirmSchedule = useCallback(async (deliverAt: number) => {
+    setShowSchedulePicker(false);
+    const chatId = useChatsStore.getState().activeChatId;
+    if (!chatId || !pendingSchedulePayload) return;
+    try {
+      await scheduleMessage(chatId, { ...pendingSchedulePayload, deliver_at: deliverAt });
+      setMessageText('');
+      setReplyTo(null);
+      useDraftStore.getState().clearDraft(chatId);
+    } catch { /* silently ignore, user can retry */ }
+    setPendingSchedulePayload(null);
+  }, [pendingSchedulePayload]);
+
   // ── Send attachment ───────────────────────────────────────────────────────
   const handleSendAttachment = useCallback(async (result: UploadResult, caption: string) => {
     const chatId = useChatsStore.getState().activeChatId;
@@ -836,6 +872,14 @@ export function ChatArea() {
               </button>
             </div>
           )}
+          {/* F1: schedule date picker appears above composer */}
+          {showSchedulePicker && (
+            <ScheduleDatePicker
+              onConfirm={handleConfirmSchedule}
+              onClose={() => { setShowSchedulePicker(false); setPendingSchedulePayload(null); }}
+            />
+          )}
+
           <Composer
             value={messageText}
             onChange={setMessageText}
@@ -855,6 +899,8 @@ export function ChatArea() {
             members={activeChat.type === 'group' ? (activeChat.members ?? []) : []}
             blockedByThem={activeChat.type === 'direct' && !!(activeChat.members?.find(m => m.id !== me.id) as any)?.blocked_by_them}
             partnerName={activeChat.type === 'direct' ? (activeChat.members?.find(m => m.id !== me.id)?.display_name || activeChat.members?.find(m => m.id !== me.id)?.username || undefined) : undefined}
+            onOpenSchedule={handleOpenSchedule}
+            onOpenScheduledList={() => setShowScheduledList(true)}
           />
           {showStudio && (
             <Suspense fallback={null}>
@@ -865,11 +911,19 @@ export function ChatArea() {
       )}
       </div>
 
-      {/* E5: Media gallery modal — rendered outside bottom-area so it covers the full chat */}
+      {/* E5: Media gallery modal */}
       {showMediaModal && activeChat && (
         <Suspense fallback={null}>
           <ChatMediaModal chatId={activeChat.id} onClose={() => setShowMediaModal(false)} />
         </Suspense>
+      )}
+
+      {/* F1: Scheduled messages list */}
+      {showScheduledList && activeChat && (
+        <ScheduledMessagesModal
+          chatId={activeChat.id}
+          onClose={() => setShowScheduledList(false)}
+        />
       )}
     </div>
     </MediaPlayerProvider>

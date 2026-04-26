@@ -86,6 +86,10 @@ export type Message = {
   reply?: MessageReply | null;
   poll_id?: string | null;
   poll?: Poll | null;
+  /** F1: when the message is scheduled for delivery (Unix ms). null = immediate. */
+  deliver_at?: number | null;
+  /** F1: false = pending delivery, true = delivered and visible. */
+  is_delivered?: boolean;
   /** Optimistic-send flag: message is in-flight, not yet confirmed by server. */
   _pending?: boolean;
   /** Optimistic-send flag: send failed; user can tap to retry. */

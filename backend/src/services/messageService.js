@@ -50,6 +50,9 @@ function decryptMessage(msg) {
     poll_id: msg.poll_id || null,
     reply,
     edited_at: msg.edited_at || null,
+    // F1: scheduled delivery fields
+    deliver_at: msg.deliver_at || null,
+    is_delivered: msg.is_delivered != null ? (msg.is_delivered ? true : false) : true,
   };
 }
 
@@ -57,9 +60,10 @@ function getChatMessages(chatId, userId, { limit = 50, before = null } = {}) {
   const db = getDb();
   const member = db.prepare('SELECT 1 FROM chat_members WHERE chat_id = ? AND user_id = ?').get([chatId, userId]);
   if (!member) throw Object.assign(new Error('Forbidden'), { status: 403 });
+  // F1: exclude scheduled (undelivered) messages from the chat history
   const rows = before
-    ? db.prepare(`SELECT * FROM messages WHERE chat_id = ? AND deleted_at IS NULL AND created_at < ? AND id NOT IN (SELECT message_id FROM message_hidden WHERE user_id = ?) ORDER BY created_at DESC LIMIT ?`).all([chatId, before, userId, limit])
-    : db.prepare(`SELECT * FROM messages WHERE chat_id = ? AND deleted_at IS NULL AND id NOT IN (SELECT message_id FROM message_hidden WHERE user_id = ?) ORDER BY created_at DESC LIMIT ?`).all([chatId, userId, limit]);
+    ? db.prepare(`SELECT * FROM messages WHERE chat_id = ? AND deleted_at IS NULL AND is_delivered = 1 AND created_at < ? AND id NOT IN (SELECT message_id FROM message_hidden WHERE user_id = ?) ORDER BY created_at DESC LIMIT ?`).all([chatId, before, userId, limit])
+    : db.prepare(`SELECT * FROM messages WHERE chat_id = ? AND deleted_at IS NULL AND is_delivered = 1 AND id NOT IN (SELECT message_id FROM message_hidden WHERE user_id = ?) ORDER BY created_at DESC LIMIT ?`).all([chatId, userId, limit]);
   const messages = rows.reverse().map(decryptMessage);
 
   // Attach poll payloads for poll messages
@@ -78,12 +82,11 @@ function getChatMessages(chatId, userId, { limit = 50, before = null } = {}) {
   return messages;
 }
 
-function saveMessage(chatId, senderId, text, attachment = {}, isSystem = false, reply = null, pollId = null) {
-  const db = getDb();
-  if (!isSystem) {
-    const member = db.prepare('SELECT 1 FROM chat_members WHERE chat_id = ? AND user_id = ?').get([chatId, senderId]);
-    if (!member) throw Object.assign(new Error('Forbidden'), { status: 403 });
-  }
+/**
+ * Core insert helper used by both saveMessage and saveScheduledMessage.
+ * deliverAt: null = deliver immediately (is_delivered=1); number = scheduled (is_delivered=0)
+ */
+function _insertMessage(db, chatId, senderId, text, attachment, isSystem, reply, pollId, deliverAt) {
   const { ciphertext, iv, authTag } = encrypt(text || '');
   const msgId = uuidv4();
   const now = Date.now();
@@ -104,12 +107,14 @@ function saveMessage(chatId, senderId, text, attachment = {}, isSystem = false, 
     }
   }
 
+  const isScheduled = deliverAt != null;
   db.prepare(
     `INSERT INTO messages (id, chat_id, sender_id, ciphertext, iv, auth_tag, created_at,
        attachment_url, attachment_type, attachment_name, attachment_meta, attachment_size, attachment_duration, is_system,
        reply_to_id, reply_to_sender_id, reply_to_sender_username,
-       reply_to_ciphertext, reply_to_iv, reply_to_auth_tag, poll_id, search_text)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+       reply_to_ciphertext, reply_to_iv, reply_to_auth_tag, poll_id, search_text,
+       deliver_at, is_delivered)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
   ).run([msgId, chatId, senderId, ciphertext, iv, authTag, now,
     attachment.attachment_url || null, attachment.attachment_type || null,
     attachment.attachment_name || null, attachment.attachment_meta || null,
@@ -119,7 +124,22 @@ function saveMessage(chatId, senderId, text, attachment = {}, isSystem = false, 
     replyToId, replyToSenderId, replyToSenderUsername,
     replyToCiphertext, replyToIv, replyToAuthTag,
     pollId || null,
-    isSystem ? null : (text || null)]);
+    isSystem ? null : (text || null),
+    isScheduled ? deliverAt : null,
+    isScheduled ? 0 : 1,
+  ]);
+
+  return msgId;
+}
+
+function saveMessage(chatId, senderId, text, attachment = {}, isSystem = false, reply = null, pollId = null) {
+  const db = getDb();
+  if (!isSystem) {
+    const member = db.prepare('SELECT 1 FROM chat_members WHERE chat_id = ? AND user_id = ?').get([chatId, senderId]);
+    if (!member) throw Object.assign(new Error('Forbidden'), { status: 403 });
+  }
+
+  const msgId = _insertMessage(db, chatId, senderId, text, attachment, isSystem, reply, pollId, null);
 
   // Increment unread_count for all chat members except the sender
   db.prepare(`
@@ -128,6 +148,85 @@ function saveMessage(chatId, senderId, text, attachment = {}, isSystem = false, 
   `).run([chatId, senderId]);
 
   return decryptMessage(db.prepare('SELECT * FROM messages WHERE id = ?').get(msgId));
+}
+
+// ── F1: Scheduled / time-capsule messages ──────────────────────────────────
+
+/**
+ * Save a message for future delivery. Returns the scheduled message object.
+ * The message is invisible to all until deliverAt is reached.
+ */
+function saveScheduledMessage(chatId, senderId, text, attachment = {}, reply = null, deliverAt) {
+  const db = getDb();
+  const member = db.prepare('SELECT 1 FROM chat_members WHERE chat_id = ? AND user_id = ?').get([chatId, senderId]);
+  if (!member) throw Object.assign(new Error('Forbidden'), { status: 403 });
+
+  const msgId = _insertMessage(db, chatId, senderId, text, attachment, false, reply, null, deliverAt);
+  return decryptMessage(db.prepare('SELECT * FROM messages WHERE id = ?').get(msgId));
+}
+
+/**
+ * Return the current user's pending (undelivered) scheduled messages in a chat.
+ */
+function getScheduledMessages(chatId, senderId) {
+  const db = getDb();
+  const member = db.prepare('SELECT 1 FROM chat_members WHERE chat_id = ? AND user_id = ?').get([chatId, senderId]);
+  if (!member) throw Object.assign(new Error('Forbidden'), { status: 403 });
+
+  const rows = db.prepare(
+    `SELECT * FROM messages
+     WHERE chat_id = ? AND sender_id = ? AND is_delivered = 0 AND deleted_at IS NULL
+     ORDER BY deliver_at ASC`
+  ).all([chatId, senderId]);
+  return rows.map(decryptMessage);
+}
+
+/**
+ * Cancel (soft-delete) a scheduled message before it is delivered.
+ * Only the sender can cancel their own scheduled message.
+ */
+function cancelScheduledMessage(chatId, senderId, msgId) {
+  const db = getDb();
+  const msg = db.prepare(
+    `SELECT id, sender_id, attachment_url FROM messages
+     WHERE id = ? AND chat_id = ? AND is_delivered = 0 AND deleted_at IS NULL`
+  ).get([msgId, chatId]);
+  if (!msg) throw Object.assign(new Error('Not found'), { status: 404 });
+  if (msg.sender_id !== senderId) throw Object.assign(new Error('Forbidden'), { status: 403 });
+
+  db.prepare('UPDATE messages SET deleted_at = ?, search_text = NULL WHERE id = ?').run([Date.now(), msgId]);
+  if (msg.attachment_url) deleteFromS3(msg.attachment_url);
+  return { ok: true };
+}
+
+/**
+ * Delivery job — called by a setInterval in socketServer.
+ * Finds all messages whose deliver_at has passed, marks them delivered,
+ * updates unread counts, and returns them grouped by chatId for socket broadcast.
+ */
+function deliverPendingMessages() {
+  const db = getDb();
+  const now = Date.now();
+  const due = db.prepare(
+    `SELECT * FROM messages
+     WHERE is_delivered = 0 AND deliver_at <= ? AND deleted_at IS NULL`
+  ).all(now);
+
+  if (due.length === 0) return [];
+
+  const deliverStmt   = db.prepare('UPDATE messages SET is_delivered = 1 WHERE id = ?');
+  const unreadStmt    = db.prepare(
+    `UPDATE chat_members SET unread_count = unread_count + 1
+     WHERE chat_id = ? AND user_id != ?`
+  );
+
+  const delivered = [];
+  for (const row of due) {
+    deliverStmt.run(row.id);
+    unreadStmt.run([row.chat_id, row.sender_id]);
+    delivered.push(decryptMessage({ ...row, is_delivered: 1 }));
+  }
+  return delivered;
 }
 
 function deleteMessages(chatId, userId, messageIds) {
@@ -350,4 +449,12 @@ function getChatMedia(chatId, userId, { tab = 'media', limit = 30, before = null
   return { items: rows.map(decryptMessage), hasMore };
 }
 
-module.exports = { decryptMessage, saveMessage, getChatMessages, deleteMessages, hideMessages, toggleReaction, toggleEmojiReaction, pinMessage, unpinMessage, getPinnedMessages, forwardMessages, editMessage, getChatMedia };
+module.exports = {
+  decryptMessage, saveMessage, getChatMessages,
+  deleteMessages, hideMessages,
+  toggleReaction, toggleEmojiReaction,
+  pinMessage, unpinMessage, getPinnedMessages,
+  forwardMessages, editMessage, getChatMedia,
+  // F1: scheduled messages
+  saveScheduledMessage, getScheduledMessages, cancelScheduledMessage, deliverPendingMessages,
+};

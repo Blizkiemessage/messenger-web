@@ -14,7 +14,7 @@
 const express = require('express');
 const rateLimit = require('express-rate-limit');
 const { authMiddleware } = require('../middleware/auth');
-const { getChatMessages, saveMessage, toggleReaction, toggleEmojiReaction, deleteMessages, hideMessages, pinMessage, unpinMessage, getPinnedMessages, forwardMessages, editMessage } = require('../services/messageService');
+const { getChatMessages, saveMessage, toggleReaction, toggleEmojiReaction, deleteMessages, hideMessages, pinMessage, unpinMessage, getPinnedMessages, forwardMessages, editMessage, saveScheduledMessage, getScheduledMessages, cancelScheduledMessage } = require('../services/messageService');
 const { isBlocked } = require('../services/userService');
 const { getDb } = require('../config/database');
 const { signUrl, signMessageUrls } = require('../utils/s3Sign');
@@ -101,6 +101,69 @@ router.post('/:chatId/messages', msgLimiter, async (req, res, next) => {
     }, io);
 
     res.status(201).json(msg);
+  } catch (err) { next(err); }
+});
+
+// ── F1: Scheduled messages ────────────────────────────────────────────────
+
+// POST /chats/:chatId/messages/scheduled — save a message for future delivery
+router.post('/:chatId/messages/scheduled', msgLimiter, async (req, res, next) => {
+  try {
+    const { text, attachment_url, attachment_type, attachment_name, attachment_meta,
+            attachment_duration, reply, deliver_at } = req.body;
+    const hasText       = text && typeof text === 'string' && text.trim();
+    const hasAttachment = attachment_url && attachment_type;
+    if (!hasText && !hasAttachment) {
+      return res.status(400).json({ error: 'text or attachment is required' });
+    }
+    if (!deliver_at || typeof deliver_at !== 'number' || deliver_at <= Date.now()) {
+      return res.status(400).json({ error: 'deliver_at must be a future Unix timestamp (ms)' });
+    }
+    // Max schedule horizon: 1 year
+    if (deliver_at > Date.now() + 365 * 24 * 60 * 60 * 1000) {
+      return res.status(400).json({ error: 'deliver_at cannot be more than 1 year in the future' });
+    }
+
+    const attachment = hasAttachment ? {
+      attachment_url, attachment_type, attachment_name,
+      attachment_meta: typeof attachment_meta === 'string' ? attachment_meta : null,
+      attachment_duration: typeof attachment_duration === 'number' && attachment_duration > 0 ? attachment_duration : null,
+    } : {};
+
+    // Block check for direct chats
+    const db2 = getDb();
+    const chat = db2.prepare('SELECT type FROM chats WHERE id = ?').get(req.params.chatId);
+    if (chat?.type === 'direct') {
+      const recipient = db2.prepare(
+        'SELECT user_id FROM chat_members WHERE chat_id = ? AND user_id != ?'
+      ).get([req.params.chatId, req.userId]);
+      if (recipient && isBlocked(recipient.user_id, req.userId)) {
+        return res.status(403).json({ error: 'blocked' });
+      }
+    }
+
+    const replyData = (reply && typeof reply.id === 'string') ? reply : null;
+    const msg = saveScheduledMessage(
+      req.params.chatId, req.userId, hasText ? text.trim() : '',
+      attachment, replyData, deliver_at
+    );
+    res.status(201).json(msg);
+  } catch (err) { next(err); }
+});
+
+// GET /chats/:chatId/messages/scheduled — sender's pending scheduled messages
+router.get('/:chatId/messages/scheduled', (req, res, next) => {
+  try {
+    const msgs = getScheduledMessages(req.params.chatId, req.userId);
+    res.json(msgs);
+  } catch (err) { next(err); }
+});
+
+// DELETE /chats/:chatId/messages/scheduled/:msgId — cancel a scheduled message
+router.delete('/:chatId/messages/scheduled/:msgId', (req, res, next) => {
+  try {
+    const result = cancelScheduledMessage(req.params.chatId, req.userId, req.params.msgId);
+    res.json(result);
   } catch (err) { next(err); }
 });
 

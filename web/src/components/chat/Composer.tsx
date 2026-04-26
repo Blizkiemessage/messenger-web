@@ -148,6 +148,10 @@ interface Props {
   members?: User[];
   blockedByThem?: boolean;
   partnerName?: string;
+  /** F1: open the schedule date picker for current text */
+  onOpenSchedule?: () => void;
+  /** F1: open the scheduled messages list */
+  onOpenScheduledList?: () => void;
 }
 
 type VoiceState = 'idle' | 'recording' | 'preview';
@@ -155,7 +159,7 @@ const LOCK_THRESHOLD = 60;
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
-export function Composer({ value, onChange, onSend, onSendAttachment, externalFiles, onExternalFileConsumed, disabled, isGroup, onOpenPollCreator, onSendGif, onSendSticker, onOpenStudio, onTypingStart, onTypingStop, editingMessageId, onCancelEdit, members, blockedByThem, partnerName }: Props) {
+export function Composer({ value, onChange, onSend, onSendAttachment, externalFiles, onExternalFileConsumed, disabled, isGroup, onOpenPollCreator, onSendGif, onSendSticker, onOpenStudio, onTypingStart, onTypingStop, editingMessageId, onCancelEdit, members, blockedByThem, partnerName, onOpenSchedule, onOpenScheduledList }: Props) {
   // Multi-file staging
   const [stagedFiles,  setStagedFiles]  = useState<File[]>([]);
   const [thumbUrls,    setThumbUrls]    = useState<(string | null)[]>([]);
@@ -1341,6 +1345,36 @@ export function Composer({ value, onChange, onSend, onSendAttachment, externalFi
                 </div>
               )}
             </>
+          )}
+
+          {/* ── F1: Schedule button — appears when text is ready to send ── */}
+          {canSend && !isFileMode && voiceState === 'idle' && videoState === 'idle' && onOpenSchedule && (
+            <button
+              className="composerScheduleBtn"
+              onClick={onOpenSchedule}
+              title="Запланировать отправку"
+              tabIndex={-1}
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="12" r="10"/>
+                <polyline points="12 6 12 12 16 14"/>
+              </svg>
+            </button>
+          )}
+
+          {/* ── F1: Scheduled list button — always shown when there's a handler ── */}
+          {!isFileMode && voiceState === 'idle' && videoState === 'idle' && !value.trim() && onOpenScheduledList && (
+            <button
+              className="composerScheduledListBtn"
+              onClick={onOpenScheduledList}
+              title="Запланированные сообщения"
+              tabIndex={-1}
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="12" r="10"/>
+                <polyline points="12 6 12 12 16 14"/>
+              </svg>
+            </button>
           )}
 
           {/* Waveform / Video-note icon button */}

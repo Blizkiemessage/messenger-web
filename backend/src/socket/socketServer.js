@@ -16,7 +16,7 @@ const { Server } = require('socket.io');
 const { verify } = require('../utils/jwt');
 const { getDb } = require('../config/database');
 const { getUserChats } = require('../services/chatService');
-const { saveMessage } = require('../services/messageService');
+const { saveMessage, deliverPendingMessages } = require('../services/messageService');
 const { corsOriginCallback } = require('../utils/corsOrigin');
 const { clearExpiredPresenceStatuses } = require('../services/userService');
 
@@ -211,6 +211,49 @@ function initSocket(httpServer) {
       console.error('[Presence] Expiry check error:', err.message);
     }
   }, 60 * 1000);
+
+  // ── F1: Scheduled message delivery job ───────────────────────────────────────
+  // Every 30 seconds: find scheduled messages whose deliver_at has passed,
+  // mark them delivered, increment unread counts, and broadcast via socket.
+  setInterval(async () => {
+    try {
+      const delivered = deliverPendingMessages();
+      if (delivered.length === 0) return;
+
+      const { signUrl } = require('../utils/s3Sign');
+      const db2 = getDb();
+
+      for (const msg of delivered) {
+        // Sign attachment URL so it's safe to broadcast
+        if (msg.attachment_url) {
+          try { msg.attachment_url = await signUrl(msg.attachment_url); } catch { /* keep original */ }
+        }
+
+        // Get chat members to broadcast to
+        const members = db2
+          .prepare('SELECT user_id FROM chat_members WHERE chat_id = ?')
+          .all(msg.chat_id);
+
+        for (const m of members) {
+          io.to(`user:${m.user_id}`).emit('new-message', msg);
+        }
+
+        // Fire-and-forget push to offline members
+        try {
+          const { fireAndForgetPush } = require('../services/pushService');
+          fireAndForgetPush(msg.chat_id, msg.sender_id, {
+            text:            msg.text || '',
+            attachment_type: msg.attachment_type || null,
+            attachment_meta: msg.attachment_meta || null,
+          }, io);
+        } catch { /* ignore push errors */ }
+
+        console.log(`[Scheduled] Delivered msg ${msg.id} to chat ${msg.chat_id}`);
+      }
+    } catch (err) {
+      console.error('[Scheduled] Delivery job error:', err.message);
+    }
+  }, 30 * 1000);
 
   return io;
 }

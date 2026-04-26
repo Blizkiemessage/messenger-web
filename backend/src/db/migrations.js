@@ -339,6 +339,15 @@ function runMigrations() {
     'ALTER TABLE users ADD COLUMN presence_status TEXT',
     'ALTER TABLE users ADD COLUMN presence_note TEXT',
     'ALTER TABLE users ADD COLUMN presence_expires_at INTEGER',
+    // ✅ F1: time capsule / scheduled delivery
+    // deliver_at  — Unix ms timestamp when the message should become visible
+    // is_delivered — 0 = pending (hidden from chat), 1 = delivered (visible, default)
+    'ALTER TABLE messages ADD COLUMN deliver_at INTEGER DEFAULT NULL',
+    'ALTER TABLE messages ADD COLUMN is_delivered INTEGER NOT NULL DEFAULT 1',
+    // Index lets the delivery job quickly find messages that are due
+    `CREATE INDEX IF NOT EXISTS idx_messages_scheduled
+       ON messages(deliver_at, is_delivered)
+       WHERE deliver_at IS NOT NULL`,
   ];
 
   for (const sql of alters) {
