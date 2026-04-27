@@ -14,6 +14,7 @@
 import { useCallStore } from '../store/useCallStore';
 import { getSocket } from '../socket/socketClient';
 import { API_BASE_URL } from '../config';
+import { getToken } from '../storage/session';
 import type { CallType } from '../types';
 
 class WebRTCManager {
@@ -24,13 +25,16 @@ class WebRTCManager {
   // ── ICE server config from backend ────────────────────────────────────────
   private async getIceServers(): Promise<RTCConfiguration> {
     try {
+      const token = getToken();
+      const headers: HeadersInit = token ? { Authorization: `Bearer ${token}` } : {};
       const res = await fetch(`${API_BASE_URL}/calls/ice-servers`, {
         credentials: 'include',
+        headers,
       });
-      if (!res.ok) throw new Error('ice-servers fetch failed');
+      if (!res.ok) throw new Error(`ice-servers fetch failed: ${res.status}`);
       return await res.json() as RTCConfiguration;
-    } catch {
-      // Fallback to public STUN — works for same-network / relay-free connections
+    } catch (err) {
+      console.warn('[WebRTC] getIceServers failed, using public STUN:', err);
       return {
         iceServers: [
           { urls: 'stun:stun.l.google.com:19302' },
@@ -84,17 +88,34 @@ class WebRTCManager {
 
   // ── Get user media (audio ± video) ────────────────────────────────────────
   private async getUserMedia(callType: CallType): Promise<MediaStream> {
-    const constraints: MediaStreamConstraints = {
-      audio: {
-        echoCancellation: true,
-        noiseSuppression: true,
-        autoGainControl: true,
-      },
-      video: callType === 'video'
-        ? { width: { ideal: 1280 }, height: { ideal: 720 }, facingMode: 'user' }
-        : false,
+    const audioConstraints = {
+      echoCancellation: true,
+      noiseSuppression: true,
+      autoGainControl: true,
     };
-    const stream = await navigator.mediaDevices.getUserMedia(constraints);
+
+    if (callType === 'video') {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          audio: audioConstraints,
+          video: { width: { ideal: 1280 }, height: { ideal: 720 }, facingMode: 'user' },
+        });
+        useCallStore.getState().setLocalStream(stream);
+        return stream;
+      } catch (err) {
+        const name = err instanceof Error ? err.name : '';
+        // Camera unavailable or locked — degrade to audio-only rather than drop the call
+        if (name === 'NotFoundError' || name === 'NotReadableError' || name === 'OverconstrainedError') {
+          console.warn('[WebRTC] camera unavailable, falling back to audio-only');
+          useCallStore.getState().setIsVideoOff(true);
+          // fall through to audio-only path below
+        } else {
+          throw err; // NotAllowedError (permission denied) — rethrow so caller sees it
+        }
+      }
+    }
+
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: audioConstraints, video: false });
     useCallStore.getState().setLocalStream(stream);
     return stream;
   }
