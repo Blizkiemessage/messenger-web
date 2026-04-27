@@ -16,11 +16,12 @@ const { authMiddleware } = require('../middleware/auth');
 const { searchLimiter } = require('../middleware/rateLimits');
 const { getDb } = require('../config/database');
 const { searchUsers } = require('../services/userService');
+const { signUserAvatars, signAvatarUrl } = require('../utils/s3Sign');
 
 const router = express.Router();
 router.use(authMiddleware);
 
-router.get('/', searchLimiter, (req, res) => {
+router.get('/', searchLimiter, async (req, res) => {
   const q = (req.query.q || '').trim();
   if (q.length < 1) return res.json({ users: [], chats: [], messages: [] });
 
@@ -97,6 +98,12 @@ router.get('/', searchLimiter, (req, res) => {
     sender_display_name: m.sender_display_name || m.sender_username || 'Пользователь',
     sender_username: m.sender_username || null,
     created_at: m.created_at,
+  }));
+
+  // Sign avatar URLs before sending
+  await signUserAvatars(users);
+  await Promise.all(matchedChats.map(async (c) => {
+    if (c.avatar_url) c.avatar_url = await signAvatarUrl(c.avatar_url);
   }));
 
   res.json({ users, chats: matchedChats, messages });

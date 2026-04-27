@@ -139,12 +139,22 @@ async function signUserAvatars(users) {
 }
 
 /**
- * Sign last_message.attachment_url inside a chat object.
- * Does NOT sign avatar URLs (they are permanent public URLs).
+ * Sign avatar + member avatars + last_message URL in a single chat object.
  * Mutates in place. Returns the same object.
  */
 async function signFullChatObject(chat) {
   if (!useS3 || !chat) return chat;
+  // Sign group/direct chat avatar
+  if (chat.avatar_url) {
+    chat.avatar_url = await signAvatarUrl(chat.avatar_url);
+  }
+  // Sign every member's avatar
+  if (Array.isArray(chat.members)) {
+    await Promise.all(chat.members.map(async (m) => {
+      if (m?.avatar_url) m.avatar_url = await signAvatarUrl(m.avatar_url);
+    }));
+  }
+  // Sign last message attachment
   if (chat.last_message?.attachment_url) {
     chat.last_message.attachment_url = await signUrl(chat.last_message.attachment_url);
   }

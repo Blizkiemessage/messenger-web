@@ -20,7 +20,7 @@ const {
   setMemberRole,
 } = require('../services/chatService');
 const { getChatMedia } = require('../services/messageService');
-const { signFullChatObjects, signFullChatObject, signMessageUrls } = require('../utils/s3Sign');
+const { signFullChatObjects, signFullChatObject, signMessageUrls, signAvatarUrl } = require('../utils/s3Sign');
 
 const router = express.Router();
 router.use(authMiddleware);
@@ -33,7 +33,7 @@ router.get('/', async (req, res) => {
 });
 
 // POST /chats — create or get a direct chat with another user
-router.post('/', (req, res, next) => {
+router.post('/', async (req, res, next) => {
   try {
     const { userId } = req.body;
     if (!userId) return res.status(400).json({ error: 'userId is required' });
@@ -53,6 +53,7 @@ router.post('/', (req, res, next) => {
 
     const isNew = !existing;
     const chat = getOrCreateDirectChat(req.userId, userId);
+    await signFullChatObject(chat);
 
     if (isNew) {
       const io = req.app.get('io');
@@ -70,7 +71,7 @@ router.post('/', (req, res, next) => {
 });
 
 // POST /chats/group — create a group chat
-router.post('/group', (req, res, next) => {
+router.post('/group', async (req, res, next) => {
   try {
     const { name, memberIds, description } = req.body;
     if (!name || typeof name !== 'string' || !name.trim()) {
@@ -80,6 +81,7 @@ router.post('/group', (req, res, next) => {
       return res.status(400).json({ error: 'Добавьте хотя бы одного участника' });
     }
     const chat = createGroupChat(name, req.userId, memberIds, description || null);
+    await signFullChatObject(chat);
 
     const io = req.app.get('io');
     if (io) {
@@ -137,11 +139,12 @@ router.post('/:id/read', (req, res, next) => {
 });
 
 // POST /chats/:id/members — add a member (creator only)
-router.post('/:id/members', (req, res, next) => {
+router.post('/:id/members', async (req, res, next) => {
   try {
     const { userId } = req.body;
     if (!userId) return res.status(400).json({ error: 'userId is required' });
     const updatedChat = addChatMember(req.params.id, req.userId, userId);
+    await signFullChatObject(updatedChat);
     const io = req.app.get('io');
     if (io) {
       for (const member of updatedChat.members) {
@@ -156,9 +159,10 @@ router.post('/:id/members', (req, res, next) => {
 });
 
 // DELETE /chats/:id/members/:userId — remove a member (creator only)
-router.delete('/:id/members/:userId', (req, res, next) => {
+router.delete('/:id/members/:userId', async (req, res, next) => {
   try {
     const { updatedChat, sysMsg, remaining } = removeChatMember(req.params.id, req.userId, req.params.userId);
+    await signFullChatObject(updatedChat);
     const io = req.app.get('io');
     if (io) {
       for (const member of updatedChat.members) {
@@ -179,7 +183,7 @@ router.delete('/:id/members/:userId', (req, res, next) => {
 
 // POST /chats/:id/leave — leave a group
 // ✅ If requester is the admin → closes group instead of leaving
-router.post('/:id/leave', (req, res, next) => {
+router.post('/:id/leave', async (req, res, next) => {
   try {
     const { sysMsg, remaining, closed } = leaveGroup(req.params.id, req.userId);
     const io = req.app.get('io');
@@ -187,6 +191,7 @@ router.post('/:id/leave', (req, res, next) => {
       if (closed) {
         // Admin closed the group — broadcast updated chat to all members (including admin)
         const updatedChat = getChatById(req.params.id, req.userId);
+        await signFullChatObject(updatedChat);
         for (const uid of remaining) {
           io.to(`user:${uid}`).emit('chat-updated', updatedChat);
           if (sysMsg) io.to(`user:${uid}`).emit('new-message', sysMsg);
@@ -206,12 +211,13 @@ router.post('/:id/leave', (req, res, next) => {
 });
 
 // ✅ NEW: POST /chats/:id/close — admin explicitly closes the group
-router.post('/:id/close', (req, res, next) => {
+router.post('/:id/close', async (req, res, next) => {
   try {
     const { sysMsg, allMembers } = closeGroup(req.params.id, req.userId);
     const io = req.app.get('io');
     if (io) {
       const updatedChat = getChatById(req.params.id, req.userId);
+      await signFullChatObject(updatedChat);
       for (const uid of allMembers) {
         io.to(`user:${uid}`).emit('chat-updated', updatedChat);
         if (sysMsg) io.to(`user:${uid}`).emit('new-message', sysMsg);
@@ -222,12 +228,13 @@ router.post('/:id/close', (req, res, next) => {
 });
 
 // ✅ NEW: POST /chats/:id/transfer-admin — transfer admin rights to another member
-router.post('/:id/transfer-admin', (req, res, next) => {
+router.post('/:id/transfer-admin', async (req, res, next) => {
   try {
     const { newAdminId } = req.body;
     if (!newAdminId) return res.status(400).json({ error: 'newAdminId is required' });
 
     const { sysMsg, allMembers, updatedChat } = transferAdmin(req.params.id, req.userId, newAdminId);
+    await signFullChatObject(updatedChat);
     const io = req.app.get('io');
     if (io) {
       for (const uid of allMembers) {
@@ -240,13 +247,14 @@ router.post('/:id/transfer-admin', (req, res, next) => {
 });
 
 // PATCH /chats/:id/members/:userId/role — assign moderator/member role
-router.patch('/:id/members/:userId/role', (req, res, next) => {
+router.patch('/:id/members/:userId/role', async (req, res, next) => {
   try {
     const { role } = req.body;
     if (!['member', 'moderator'].includes(role)) {
       return res.status(400).json({ error: 'role must be "member" or "moderator"' });
     }
     const { updatedChat, sysMsg } = setMemberRole(req.params.id, req.userId, req.params.userId, role);
+    await signFullChatObject(updatedChat);
     const io = req.app.get('io');
     if (io) {
       for (const member of updatedChat.members) {
@@ -303,10 +311,11 @@ router.delete('/:id', (req, res, next) => {
 });
 
 // PATCH /chats/:id — update chat metadata (name, description, avatar)
-router.patch('/:id', (req, res, next) => {
+router.patch('/:id', async (req, res, next) => {
   try {
     const { name, description, avatar_url } = req.body;
     const updatedChat = updateChatMetadata(req.params.id, req.userId, { name, description, avatar_url });
+    await signFullChatObject(updatedChat);
 
     const io = req.app.get('io');
     if (io) {
@@ -320,12 +329,13 @@ router.patch('/:id', (req, res, next) => {
 });
 
 // PATCH /chats/:id/avatar — update group avatar with system message
-router.patch('/:id/avatar', (req, res, next) => {
+router.patch('/:id/avatar', async (req, res, next) => {
   try {
     const { avatar_url } = req.body;
     if (!avatar_url) return res.status(400).json({ error: 'avatar_url is required' });
 
     const updatedChat = updateChatMetadata(req.params.id, req.userId, { avatar_url });
+    await signFullChatObject(updatedChat);
 
     // Send system message to group
     const { saveMessage } = require('../services/messageService');
@@ -344,9 +354,10 @@ router.patch('/:id/avatar', (req, res, next) => {
 });
 
 // POST /chats/saved — get or create the current user's self-archive chat
-router.post('/saved', (req, res, next) => {
+router.post('/saved', async (req, res, next) => {
   try {
     const chat = getOrCreateSavedChat(req.userId);
+    await signFullChatObject(chat);
     res.json(chat);
   } catch (err) { next(err); }
 });

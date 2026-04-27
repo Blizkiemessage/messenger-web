@@ -17,7 +17,7 @@ const { authMiddleware } = require('../middleware/auth');
 const { getChatMessages, saveMessage, toggleReaction, toggleEmojiReaction, deleteMessages, hideMessages, pinMessage, unpinMessage, getPinnedMessages, forwardMessages, editMessage, saveScheduledMessage, getScheduledMessages, cancelScheduledMessage, updateScheduledMessage } = require('../services/messageService');
 const { isBlocked } = require('../services/userService');
 const { getDb } = require('../config/database');
-const { signUrl, signMessageUrls } = require('../utils/s3Sign');
+const { signUrl, signMessageUrls, signAvatarUrl } = require('../utils/s3Sign');
 const { parsePagination } = require('../utils/pagination');
 
 const router = express.Router();
@@ -409,10 +409,12 @@ router.get('/:chatId/messages/:msgId/readers', (req, res, next) => {
     `).all([chatId, msg.sender_id, msg.created_at]);
 
     const { sanitizeUser } = require('../services/userService');
-    res.json(rows.map(r => ({
-      user: sanitizeUser(r, { viewerId: userId }),
-      read_at: r.read_at,
-    })));
+    const result = await Promise.all(rows.map(async (r) => {
+      const user = sanitizeUser(r, { viewerId: userId });
+      if (user.avatar_url) user.avatar_url = await signAvatarUrl(user.avatar_url);
+      return { user, read_at: r.read_at };
+    }));
+    res.json(result);
   } catch (err) { next(err); }
 });
 

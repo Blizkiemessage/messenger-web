@@ -10,18 +10,25 @@ const {
   listIncomingRequests,
   getRelationshipStatuses,
 } = require('../services/friendsService');
+const { signUserAvatars, signAvatarUrl } = require('../utils/s3Sign');
 
 const router = express.Router();
 router.use(authMiddleware);
 
 // GET /friends
-router.get('/', (req, res) => {
-  res.json(listFriends(req.userId));
+router.get('/', async (req, res) => {
+  const friends = listFriends(req.userId);
+  await signUserAvatars(friends);
+  res.json(friends);
 });
 
 // GET /friends/requests
-router.get('/requests', (req, res) => {
-  res.json(listIncomingRequests(req.userId));
+router.get('/requests', async (req, res) => {
+  const requests = listIncomingRequests(req.userId);
+  await Promise.all(requests.map(async (r) => {
+    if (r.user?.avatar_url) r.user.avatar_url = await signAvatarUrl(r.user.avatar_url);
+  }));
+  res.json(requests);
 });
 
 // GET /friends/status?ids=a,b,c
