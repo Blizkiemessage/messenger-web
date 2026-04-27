@@ -26,28 +26,24 @@ export function CallOverlay() {
 
   const localVideoRef  = useRef<HTMLVideoElement>(null);
   const remoteVideoRef = useRef<HTMLVideoElement>(null);
+  const remoteAudioRef = useRef<HTMLAudioElement>(null);
 
   // Bind local stream to local video element
   useEffect(() => {
     const el = localVideoRef.current;
     if (!el) return;
-    if (localStream) {
-      el.srcObject = localStream;
-    } else {
-      el.srcObject = null;
-    }
+    el.srcObject = localStream ?? null;
   }, [localStream]);
 
-  // Bind remote stream to remote video element
+  // Bind remote stream to video (video call) or audio (audio call) element.
+  // For audio calls the <video> refs are never mounted, so we need a dedicated
+  // <audio> element — otherwise remoteStream is set in the store but never
+  // attached to any DOM node and the caller hears nothing.
   useEffect(() => {
-    const el = remoteVideoRef.current;
-    if (!el) return;
-    if (remoteStream) {
-      el.srcObject = remoteStream;
-    } else {
-      el.srcObject = null;
-    }
-  }, [remoteStream]);
+    const target = isVideo ? remoteVideoRef.current : remoteAudioRef.current;
+    if (!target) return;
+    target.srcObject = remoteStream ?? null;
+  }, [remoteStream, isVideo]);
 
   // Duration timer — ticks every second when call is active
   useEffect(() => {
@@ -92,6 +88,12 @@ export function CallOverlay() {
 
   return (
     <div className={`callOverlay${isVideo && status === 'active' ? ' callOverlayVideo' : ''}`}>
+      {/* Hidden audio element — used for audio calls to play remote stream.
+          For video calls the <video> element below handles audio+video. */}
+      {!isVideo && (
+        <audio ref={remoteAudioRef} autoPlay />
+      )}
+
       {/* ── Video streams (video call only) ─────────────────────────────────── */}
       {isVideo && (
         <>

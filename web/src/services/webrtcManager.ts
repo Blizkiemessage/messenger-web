@@ -107,6 +107,7 @@ class WebRTCManager {
         // Camera unavailable or locked — degrade to audio-only rather than drop the call
         if (name === 'NotFoundError' || name === 'NotReadableError' || name === 'OverconstrainedError') {
           console.warn('[WebRTC] camera unavailable, falling back to audio-only');
+          useCallStore.getState().setCallType('audio'); // switch UI to audio mode
           useCallStore.getState().setIsVideoOff(true);
           // fall through to audio-only path below
         } else {

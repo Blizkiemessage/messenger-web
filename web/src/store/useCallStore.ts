@@ -33,6 +33,7 @@ interface CallState {
 
   // ── Primitive setters ─────────────────────────────────────────────────────
   setStatus: (s: CallStatus) => void;
+  setCallType: (t: CallType) => void;
   setLocalStream: (s: MediaStream | null) => void;
   setRemoteStream: (s: MediaStream | null) => void;
   setIsMuted: (v: boolean) => void;
@@ -71,6 +72,7 @@ export const useCallStore = create<CallState>((set, get) => ({
   ...IDLE,
 
   setStatus:         (status)         => set({ status }),
+  setCallType:       (callType)       => set({ callType }),
   setLocalStream:    (localStream)    => set({ localStream }),
   setRemoteStream:   (remoteStream)   => set({ remoteStream }),
   setIsMuted:        (isMuted)        => set({ isMuted }),
