@@ -58,10 +58,12 @@ export async function authResetPassword(
 
 /**
  * Second step of login when 2FA is enabled.
- * Reads the totp_pending HttpOnly cookie set by /auth/login.
+ * pendingToken is the short-lived JWT returned by /auth/login in the response body.
+ * Sending it in the body avoids cross-origin third-party cookie blocking
+ * (Chrome incognito / Privacy Sandbox) that breaks the old cookie-based flow.
  * code can be a 6-digit TOTP code or a backup code (XXXXXX-XXXXXX).
  */
-export async function authTotpVerify(code: string): Promise<AuthResponse> {
-  const res = await client.post<AuthResponse>('/auth/totp-verify', { code });
+export async function authTotpVerify(code: string, pendingToken: string): Promise<AuthResponse> {
+  const res = await client.post<AuthResponse>('/auth/totp-verify', { code, pendingToken });
   return res.data;
 }

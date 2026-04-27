@@ -16,9 +16,12 @@ export function LoginForm({ onAuthenticated, onSwitchTab, onForgotPassword }: Pr
   const [error,    setError]    = useState<string | null>(null);
 
   // 2FA step
-  const [requires2FA, setRequires2FA] = useState(false);
-  const [totpCode,    setTotpCode]    = useState('');
-  const [useBackup,   setUseBackup]   = useState(false);
+  const [requires2FA,  setRequires2FA]  = useState(false);
+  const [totpCode,     setTotpCode]     = useState('');
+  const [useBackup,    setUseBackup]    = useState(false);
+  // pendingToken is returned by /auth/login and passed back to /auth/totp-verify.
+  // Kept in React state (not cookie) to avoid cross-origin third-party cookie issues.
+  const [pendingToken, setPendingToken] = useState<string>('');
   const totpInputRef = useRef<HTMLInputElement>(null);
 
   const ready = login.trim().length >= 3 && password.length >= 1;
@@ -35,10 +38,11 @@ export function LoginForm({ onAuthenticated, onSwitchTab, onForgotPassword }: Pr
     try {
       const res = await authLoginPassword(login.trim(), password);
 
-      // Server signals that 2FA is required (totp_pending cookie is set)
+      // Server signals that 2FA is required; store the pending token from the body
       if ((res as any).requires2FA) {
         setRequires2FA(true);
         setTotpCode('');
+        setPendingToken((res as any).pendingToken ?? '');
         return;
       }
 
@@ -56,7 +60,7 @@ export function LoginForm({ onAuthenticated, onSwitchTab, onForgotPassword }: Pr
     setError(null);
     setBusy(true);
     try {
-      const res = await authTotpVerify(code);
+      const res = await authTotpVerify(code, pendingToken);
       onAuthenticated(res.user, res.sessionId ?? null);
     } catch (e: any) {
       setError(e?.message ?? 'Неверный код');

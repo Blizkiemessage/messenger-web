@@ -68,7 +68,10 @@ function getClientIp(req) {
 }
 
 // POST /auth/login — login by username or email + password
-// If 2FA is enabled, sets a short-lived totp_pending cookie and returns { requires2FA: true }
+// If 2FA is enabled, returns a short-lived pendingToken in the response body.
+// We intentionally avoid a totp_pending cookie here because cross-origin
+// (Vercel → Amvera) third-party cookies are blocked by modern browsers
+// (Chrome incognito, Chrome 120+ privacy sandbox) even with SameSite=None.
 router.post('/login', loginLimiter, async (req, res, next) => {
   try {
     const { login, password } = req.body;
@@ -79,8 +82,11 @@ router.post('/login', loginLimiter, async (req, res, next) => {
 
     // Check if 2FA is required before issuing the full session
     if (result.totpRequired) {
-      setTotpPendingCookie(res, result.userId);
-      return res.json({ requires2FA: true });
+      // Use a short-lived JWT in the response body instead of a cookie —
+      // cookies are unreliable for cross-origin (Vercel ↔ Amvera) deployments.
+      const pendingToken = sign({ sub: result.userId, purpose: 'totp_pending' }, { expiresIn: '5m' });
+      clearTotpPendingCookie(res); // clear any stale pending cookie
+      return res.json({ requires2FA: true, pendingToken });
     }
 
     setSessionCookie(res, result.token);
@@ -91,14 +97,17 @@ router.post('/login', loginLimiter, async (req, res, next) => {
 });
 
 // POST /auth/totp-verify — second step of login when 2FA is enabled
+// Accepts pendingToken from the request body (preferred, cross-origin safe)
+// or falls back to the legacy totp_pending cookie for backward compatibility.
 router.post('/totp-verify', totpVerifyLimiter, async (req, res, next) => {
   try {
-    const { code } = req.body;
+    const { code, pendingToken: bodyToken } = req.body;
     if (!code || typeof code !== 'string') {
       return res.status(400).json({ error: 'Введите код' });
     }
 
-    const pendingToken = req.cookies?.totp_pending;
+    // Prefer body token (cross-origin safe); fall back to cookie (same-origin legacy)
+    const pendingToken = bodyToken || req.cookies?.totp_pending;
     if (!pendingToken) {
       return res.status(401).json({ error: 'Сессия истекла. Выполните вход заново.' });
     }
