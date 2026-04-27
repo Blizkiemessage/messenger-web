@@ -1,1 +1,13 @@
 .claude/worktrees/
+
+# Dependencies — never commit node_modules (native binaries are OS-specific)
+node_modules/
+backend/node_modules/
+web/node_modules/
+
+# Build output
+web/dist/
+
+# Local env
+.env
+backend/.env
