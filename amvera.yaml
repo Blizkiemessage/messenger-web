@@ -1,13 +1,11 @@
 meta:
-  environment: nodejs
-  toolVersion: "20"
+  environment: docker
+  toolchain:
+    name: docker
 
 build:
-  dockerfile: false
-  buildDir: backend
-  buildCommand: cd backend && npm install --production
+  dockerfilePath: Dockerfile
 
 run:
   persistenceMount: /data
-  runCommand: node backend/src/index.js
   containerPort: 3000
