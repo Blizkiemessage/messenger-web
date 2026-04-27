@@ -63,6 +63,7 @@ router.post('/login', adminLoginLimiter, async (req, res, next) => {
     const token = sign({ sub: user.id, jti });
     res.json({ token });
   } catch (err) {
+    console.error('[ADMIN LOGIN ERROR]', err?.message, err?.stack);
     next(err);
   }
 });
