@@ -30,8 +30,10 @@ function isAllowedOrigin(origin) {
   const appUrl = (process.env.APP_URL || '').replace(/\/+$/, '');
   if (appUrl && origin === appUrl) return true;
 
-  const allowed = (process.env.ALLOWED_ORIGIN || '').replace(/\/+$/, '');
-  if (allowed && origin === allowed) return true;
+  // ALLOWED_ORIGIN may be a comma-separated list of exact origins
+  const allowedRaw = process.env.ALLOWED_ORIGIN || '';
+  const allowedList = allowedRaw.split(',').map(s => s.trim().replace(/\/+$/, '')).filter(Boolean);
+  if (allowedList.some(a => a === origin)) return true;
 
   return false;
 }
