@@ -123,11 +123,14 @@ app.use(cookieParser());
 app.use(express.json());
 
 // ─── Routes ────────────────────────────────────────────────────────────────
+// Admin API is registered before global CORS so same-origin requests from the
+// admin panel (served by this same server) are never rejected by corsOriginCallback.
+// Security is handled by adminLoginLimiter + JWT auth inside the router itself.
+app.use('/admin/api', adminRoutes);
 app.use('/auth', authRoutes);
 app.use('/users', usersRoutes);
 app.use('/chats', chatsRoutes);
 app.use('/chats', messagesRoutes);
-app.use('/admin/api', adminRoutes);
 app.use('/friends', friendsRoutes);
 app.use('/support', supportRoutes);
 app.use('/polls', pollsRoutes);

@@ -28,6 +28,9 @@ export function CallOverlay() {
   const remoteVideoRef = useRef<HTMLVideoElement>(null);
   const remoteAudioRef = useRef<HTMLAudioElement>(null);
 
+  // Derived early so it can be used in useEffect deps below
+  const isVideo = callType === 'video';
+
   // Bind local stream to local video element
   useEffect(() => {
     const el = localVideoRef.current;
@@ -70,7 +73,6 @@ export function CallOverlay() {
   if (status === 'idle' || status === 'incoming') return null;
 
   const peerName = peerInfo?.display_name || peerInfo?.username || 'Пользователь';
-  const isVideo  = callType === 'video';
 
   function formatDuration(seconds: number): string {
     const h = Math.floor(seconds / 3600);
