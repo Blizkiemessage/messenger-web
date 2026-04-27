@@ -90,7 +90,10 @@ router.post('/login', loginLimiter, async (req, res, next) => {
     }
 
     setSessionCookie(res, result.token);
-    res.json({ user: result.user, sessionId: result.sessionId });
+    // Also return token in body so cross-origin clients (Vercel → Amvera) can
+    // store it in localStorage and send as Authorization: Bearer, bypassing
+    // Chrome's third-party cookie blocking (Privacy Sandbox / incognito).
+    res.json({ user: result.user, sessionId: result.sessionId, token: result.token });
   } catch (err) {
     next(err);
   }
@@ -167,7 +170,8 @@ router.post('/totp-verify', totpVerifyLimiter, async (req, res, next) => {
     const token = sign({ sub: userId, jti: sessionId });
     setSessionCookie(res, token);
 
-    res.json({ user: sanitizeUser(user, { showPrivate: true }), sessionId });
+    // Return token in body for cross-origin clients (same as /auth/login)
+    res.json({ user: sanitizeUser(user, { showPrivate: true }), sessionId, token });
   } catch (err) {
     next(err);
   }
@@ -205,7 +209,8 @@ router.post('/verify-email', otpVerifyLimiter, async (req, res, next) => {
     }
     const { token, user, sessionId, isNew } = await verifyEmailAndCreateAccount(email.trim(), otp.trim(), req.headers['user-agent'] || '', getClientIp(req));
     setSessionCookie(res, token);
-    res.status(201).json({ user, sessionId, isNew });
+    // Return token in body for cross-origin clients (same pattern as /auth/login)
+    res.status(201).json({ user, sessionId, isNew, token });
   } catch (err) {
     next(err);
   }

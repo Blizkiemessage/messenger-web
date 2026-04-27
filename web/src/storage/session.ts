@@ -2,11 +2,15 @@ import { type User } from '../types';
 
 const KEY = 'blizkie.user.v1';
 const LEGACY_KEY = 'blizkie.session.v1';
+const TOKEN_KEY = 'blizkie.token.v1';
 
 /**
  * Public session data stored in localStorage.
- * JWT lives in an HttpOnly cookie — never stored here.
  * sessionId (jti) is the UUID of the DB session row — not a secret.
+ *
+ * JWT is also stored here (TOKEN_KEY) so cross-origin deployments
+ * (Vercel → Amvera) can send it via Authorization: Bearer header,
+ * bypassing Chrome's third-party cookie blocking (Privacy Sandbox).
  */
 export type Session = { user: User; sessionId: string | null };
 
@@ -28,5 +32,16 @@ export function setSession(session: Session): void {
 
 export function clearSession(): void {
   localStorage.removeItem(KEY);
+  localStorage.removeItem(TOKEN_KEY);
   localStorage.removeItem(LEGACY_KEY); // clean up old key if present
+}
+
+/** Store JWT so axios interceptor and socketClient can send it as Bearer token. */
+export function saveToken(token: string): void {
+  localStorage.setItem(TOKEN_KEY, token);
+}
+
+/** Read stored JWT (may be null if cookie-only auth or not yet stored). */
+export function getToken(): string | null {
+  return localStorage.getItem(TOKEN_KEY);
 }

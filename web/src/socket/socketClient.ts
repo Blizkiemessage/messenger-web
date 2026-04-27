@@ -1,5 +1,6 @@
 import { io, type Socket } from 'socket.io-client';
 import { SOCKET_URL } from '../config';
+import { getToken } from '../storage/session';
 
 let socket: Socket | null = null;
 
@@ -9,8 +10,13 @@ export function connectSocket(): Socket {
   // "WebSocket is closed before the connection is established".
   if (socket) return socket;
 
+  // Pass token via socket.io `auth` so the server can authenticate the WS
+  // handshake even when Chrome blocks the HttpOnly session cookie cross-origin.
+  const token = getToken();
+
   socket = io(SOCKET_URL, {
-    withCredentials: true, // send HttpOnly session cookie on WS handshake
+    withCredentials: true, // still send cookie for same-origin / Safari
+    auth: token ? { token } : undefined,
     transports: ['websocket'],
     reconnection: true,
     reconnectionAttempts: 10,

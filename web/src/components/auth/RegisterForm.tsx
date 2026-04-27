@@ -7,6 +7,7 @@ import { type User } from '../../types';
 import { PasswordInput } from '../ui/PasswordInput';
 import { Portal } from '../ui/Portal';
 import { authRegister, authVerifyEmail } from '../../api/auth';
+import { saveToken } from '../../storage/session';
 
 interface Props {
   onAuthenticated: (user: User, sessionId: string | null) => void;
@@ -70,6 +71,8 @@ export function RegisterForm({ onAuthenticated, onSwitchTab }: Props) {
     setOtpBusy(true);
     try {
       const res = await authVerifyEmail(pendingEmail, otp);
+      // Persist token for cross-origin Bearer auth (Vercel → Amvera)
+      if (res.token) saveToken(res.token);
       onAuthenticated(res.user, res.sessionId ?? null);
     } catch (e: any) {
       setOtpError(e?.message ?? 'Неверный код');

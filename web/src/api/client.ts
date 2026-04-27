@@ -1,10 +1,11 @@
 import axios from 'axios';
 import { API_BASE_URL } from '../config';
+import { getToken } from '../storage/session';
 
 const client = axios.create({
   baseURL: API_BASE_URL,
   timeout: 30000,
-  withCredentials: true, // send HttpOnly session cookie on every request
+  withCredentials: true, // send HttpOnly session cookie on every request (same-origin / Safari)
   headers: {
     'Content-Type': 'application/json',
   },
@@ -16,6 +17,15 @@ client.interceptors.request.use((config) => {
   if (config.data instanceof FormData) {
     delete config.headers['Content-Type'];
   }
+
+  // Attach Bearer token so cross-origin deployments (Vercel → Amvera) work even
+  // when Chrome blocks the HttpOnly session cookie (Privacy Sandbox / incognito).
+  // The backend authMiddleware accepts cookie OR Authorization header — whichever arrives first.
+  const token = getToken();
+  if (token) {
+    config.headers['Authorization'] = `Bearer ${token}`;
+  }
+
   return config;
 });
 
