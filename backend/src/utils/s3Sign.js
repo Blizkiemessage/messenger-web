@@ -114,41 +114,34 @@ async function signSingleChatAttachment(chat) {
   return chat;
 }
 
-// ── Avatar helpers (24 h TTL — avatars change rarely) ────────────────────────
+// ── Avatar helpers ────────────────────────────────────────────────────────────
+// Avatars are stored in a publicly-readable S3 bucket — the upload route already
+// returns permanent public URLs (no signing). Signing avatars with a 24h TTL only
+// creates an expiry problem: stored URLs in localStorage/React state go stale,
+// causing intermittent "avatar not loading" issues.
+// → Just return the original URL unchanged for avatars.
 
-/** Sign a single avatar URL (24 h TTL). */
-const signAvatarUrl = (url) => signUrl(url, 86400);
+/** No-op for avatars: bucket is public, permanent URL is best. */
+const signAvatarUrl = (url) => Promise.resolve(url);
 
 /**
- * Sign avatar_url in an array of user/member objects.
- * Mutates in place. Returns the same array.
+ * Pass-through for user avatar URLs (bucket is publicly readable).
+ * Kept for API compatibility — does not modify avatar_url.
  */
 async function signUserAvatars(users) {
-  if (!useS3 || !users?.length) return users;
-  await Promise.all(
-    users.map(async (u) => {
-      if (u?.avatar_url) u.avatar_url = await signAvatarUrl(u.avatar_url);
-    })
-  );
-  return users;
+  return users; // avatars use permanent public S3 URLs — no signing needed
 }
 
 /**
- * Sign avatar_url and all members' avatar_url inside a chat object.
- * Also signs last_message.attachment_url.
+ * Sign last_message.attachment_url inside a chat object.
+ * Does NOT sign avatar URLs (they are permanent public URLs).
  * Mutates in place. Returns the same object.
  */
 async function signFullChatObject(chat) {
   if (!useS3 || !chat) return chat;
-  await Promise.all([
-    chat.avatar_url
-      ? signAvatarUrl(chat.avatar_url).then(s => { chat.avatar_url = s; })
-      : Promise.resolve(),
-    chat.last_message?.attachment_url
-      ? signUrl(chat.last_message.attachment_url).then(s => { chat.last_message.attachment_url = s; })
-      : Promise.resolve(),
-    signUserAvatars(chat.members || []),
-  ]);
+  if (chat.last_message?.attachment_url) {
+    chat.last_message.attachment_url = await signUrl(chat.last_message.attachment_url);
+  }
   return chat;
 }
 
