@@ -4,7 +4,7 @@ meta:
     name: docker
 
 build:
-  dockerfilePath: Dockerfile
+  dockerfile: Dockerfile
 
 run:
   persistenceMount: /data
