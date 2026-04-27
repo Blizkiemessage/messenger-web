@@ -30,6 +30,9 @@ process.on('unhandledRejection', (reason) => {
 });
 
 process.on('uncaughtException', (err) => {
+  // Always print raw stack to stderr so it appears in any log collector (Amvera, PM2, etc.)
+  console.error('[FATAL] Uncaught Exception:', err?.message);
+  console.error(err?.stack || err);
   logger.error('[PROCESS]', 'Uncaught Exception — завершение', err, {});
   // Synchronous crash: state is undefined, exit is the only safe option
   process.exit(1);
@@ -41,11 +44,13 @@ const cors = require('cors');
 const helmet = require('helmet');
 const cookieParser = require('cookie-parser');
 
+console.log('[STARTUP] Loading core modules...');
 const { runMigrations } = require('./db/migrations');
 const { initSocket } = require('./socket/socketServer');
 const { errorHandler } = require('./middleware/errorHandler');
 const { corsOriginCallback } = require('./utils/corsOrigin');
 
+console.log('[STARTUP] Loading route modules...');
 const authRoutes = require('./routes/auth');
 const usersRoutes = require('./routes/users');
 const chatsRoutes = require('./routes/chats');
@@ -63,6 +68,7 @@ const { stickerPacksRouter, quotaRouter } = require('./routes/sticker-packs');
 const gifRoutes         = require('./routes/gif');
 const totpRoutes        = require('./routes/totp');
 const callsRoutes       = require('./routes/calls');
+console.log('[STARTUP] All modules loaded.');
 const path = require('path');
 
 const app = express();
@@ -145,13 +151,16 @@ app.get('/health', (req, res) => res.json({ status: 'ok' }));
 app.use(errorHandler);
 
 // ─── Socket.io ─────────────────────────────────────────────────────────────
+console.log('[STARTUP] Initialising Socket.IO...');
 const io = initSocket(server);
 app.set('io', io);
 
 // ─── Start ─────────────────────────────────────────────────────────────────
 const PORT = process.env.PORT || 3000;
 
+console.log('[STARTUP] Running migrations...');
 runMigrations();
+console.log('[STARTUP] Migrations done.');
 
 server.listen(PORT, () => {
   console.log(`[Server] Blizkie backend running on port ${PORT}`);
