@@ -378,7 +378,7 @@ router.delete('/:chatId/messages/:msgId/pin', (req, res, next) => {
 
 // GET /chats/:chatId/messages/:msgId/readers
 // Returns list of members who have read past this message (last_read_at >= msg.created_at), excluding sender
-router.get('/:chatId/messages/:msgId/readers', (req, res, next) => {
+router.get('/:chatId/messages/:msgId/readers', async (req, res, next) => {
   try {
     const db = getDb();
     const { chatId, msgId } = req.params;
