@@ -5,7 +5,7 @@ meta:
 build:
   dockerfile: false
   buildDir: .
-  buildCommand: npm install --production
+  buildCommand: rm -rf node_modules && npm install --production
 
 run:
   persistenceMount: /data
