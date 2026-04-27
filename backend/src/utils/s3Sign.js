@@ -121,15 +121,21 @@ async function signSingleChatAttachment(chat) {
 // causing intermittent "avatar not loading" issues.
 // → Just return the original URL unchanged for avatars.
 
-/** No-op for avatars: bucket is public, permanent URL is best. */
-const signAvatarUrl = (url) => Promise.resolve(url);
+/**
+ * Sign avatar URLs with a 7-day TTL.
+ * Avatars change rarely so a long TTL avoids stale-URL issues in cached state.
+ * Falls back to original URL if S3 is not configured.
+ */
+const signAvatarUrl = (url) => signUrl(url, 7 * 24 * 3600); // 7 days
 
 /**
- * Pass-through for user avatar URLs (bucket is publicly readable).
- * Kept for API compatibility — does not modify avatar_url.
+ * Sign avatar_url for every user in the array (mutates in place).
  */
 async function signUserAvatars(users) {
-  return users; // avatars use permanent public S3 URLs — no signing needed
+  await Promise.all(users.map(async (u) => {
+    if (u.avatar_url) u.avatar_url = await signAvatarUrl(u.avatar_url);
+  }));
+  return users;
 }
 
 /**
