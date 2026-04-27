@@ -17,9 +17,11 @@ const router = express.Router();
 
 // POST /admin/api/login
 router.post('/login', adminLoginLimiter, async (req, res, next) => {
+  console.log('[ADMIN LOGIN] attempt received, body keys:', Object.keys(req.body || {}));
   try {
     const expectedUser   = process.env.ADMIN_USERNAME      || '';
     const passwordHash   = process.env.ADMIN_PASSWORD_HASH || '';
+    console.log('[ADMIN LOGIN] env check — username set:', !!expectedUser, 'hash set:', !!passwordHash, 'hash prefix:', passwordHash.slice(0, 7));
 
     if (!expectedUser || !passwordHash) {
       return res.status(503).json({ error: 'Admin not configured' });
@@ -30,7 +32,7 @@ router.post('/login', adminLoginLimiter, async (req, res, next) => {
       return res.status(400).json({ error: 'Username и пароль обязательны' });
     }
 
-    // Timing-safe username comparison (prevents length-based leaks too)
+    console.log('[ADMIN LOGIN] running bcrypt compare...');
     let usernameMatch = false;
     try {
       const a = Buffer.from(username.toLowerCase());
@@ -38,9 +40,8 @@ router.post('/login', adminLoginLimiter, async (req, res, next) => {
       usernameMatch = a.length === b.length && crypto.timingSafeEqual(a, b);
     } catch { usernameMatch = false; }
 
-    // bcrypt.compare is timing-safe by design; always run it to avoid
-    // timing difference between "wrong user" and "wrong password" branches.
     const passwordMatch = await bcryptjs.compare(password, passwordHash);
+    console.log('[ADMIN LOGIN] usernameMatch:', usernameMatch, 'passwordMatch:', passwordMatch);
 
     if (!usernameMatch || !passwordMatch) {
       return res.status(401).json({ error: 'Неверный логин или пароль' });
@@ -48,12 +49,12 @@ router.post('/login', adminLoginLimiter, async (req, res, next) => {
 
     const db = getDb();
     const user = db.prepare('SELECT id FROM users WHERE LOWER(username) = ?').get(expectedUser.toLowerCase());
+    console.log('[ADMIN LOGIN] user found in DB:', !!user);
 
     if (!user) {
       return res.status(404).json({ error: 'Admin user not found in DB' });
     }
 
-    // Create a real revocable session
     const jti = uuidv4();
     const now = Date.now();
     const ip = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.socket.remoteAddress || null;
@@ -61,9 +62,11 @@ router.post('/login', adminLoginLimiter, async (req, res, next) => {
       .run([jti, user.id, now, req.headers['user-agent'] || null, now, ip]);
 
     const token = sign({ sub: user.id, jti });
+    console.log('[ADMIN LOGIN] success, token issued');
     res.json({ token });
   } catch (err) {
-    console.error('[ADMIN LOGIN ERROR]', err?.message, err?.stack);
+    console.log('[ADMIN LOGIN ERROR]', err?.message);
+    console.log('[ADMIN LOGIN ERROR STACK]', err?.stack);
     next(err);
   }
 });
