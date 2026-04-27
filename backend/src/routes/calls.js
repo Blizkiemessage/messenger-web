@@ -11,21 +11,35 @@ const { getDb } = require('../config/database');
 
 // ── ICE Servers ──────────────────────────────────────────────────────────────
 // Returns STUN + optional TURN credentials from environment variables.
-// TURN_URL, TURN_USERNAME, TURN_CREDENTIAL must be set for TURN support.
+//
+// Supported env vars:
+//   TURN_URLS        — comma-separated list of TURN URLs (preferred)
+//                      e.g. "turn:relay.example.com:3478,turn:relay.example.com:3478?transport=tcp,turns:relay.example.com:5349"
+//   TURN_URL         — single TURN URL (fallback if TURN_URLS not set)
+//   TURN_USERNAME    — TURN credential username
+//   TURN_CREDENTIAL  — TURN credential password / secret
+//
+// Providing all 3 variants (UDP, TCP, TLS) greatly improves connectivity across
+// restrictive firewalls — TCP/TLS can traverse proxies that block UDP.
 router.get('/ice-servers', authMiddleware, (req, res) => {
   const iceServers = [
     { urls: 'stun:stun.l.google.com:19302' },
     { urls: 'stun:stun1.l.google.com:19302' },
   ];
 
-  // Add TURN server if configured
-  const turnUrl        = process.env.TURN_URL;
   const turnUsername   = process.env.TURN_USERNAME;
   const turnCredential = process.env.TURN_CREDENTIAL;
 
-  if (turnUrl && turnUsername && turnCredential) {
+  // Accept comma-separated list (TURN_URLS) or single URL (TURN_URL)
+  const rawUrls = process.env.TURN_URLS
+    ? process.env.TURN_URLS.split(',').map(s => s.trim()).filter(Boolean)
+    : process.env.TURN_URL ? [process.env.TURN_URL] : [];
+
+  if (rawUrls.length && turnUsername && turnCredential) {
+    // Pass all URLs in a single entry — the browser tries them in order
+    // and picks the first that succeeds (UDP → TCP → TLS).
     iceServers.push({
-      urls: turnUrl,
+      urls: rawUrls,
       username: turnUsername,
       credential: turnCredential,
     });

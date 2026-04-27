@@ -219,6 +219,21 @@ function initSocket(httpServer) {
           callerInfo,
         });
 
+        // ── Server-side safety timeout ───────────────────────────────────────
+        // If the call never reaches 'connected' state within 90 s (e.g. both
+        // parties stall in ICE negotiation), force-end it so neither side hangs
+        // forever in "calling…" / "connecting…" state.
+        setTimeout(() => {
+          const call = activeCalls.get(callId);
+          if (!call) return; // already ended normally
+          if (call.startedAt) return; // call connected — let it run
+          activeCalls.delete(callId);
+          saveCallRecord(callId, call, 'missed');
+          io.to(`user:${call.callerId}`).emit('call:ended', { callId, duration: 0 });
+          io.to(`user:${call.calleeId}`).emit('call:ended', { callId, duration: 0 });
+          console.log(`[Call] timeout (90 s) id=${callId} — ended as missed`);
+        }, 90_000);
+
         console.log(`[Call] ${userId} → ${calleeId} (${callType}) id=${callId}`);
       } catch (err) {
         console.error('[Call] call:invite error:', err.message);

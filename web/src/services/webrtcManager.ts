@@ -10,6 +10,12 @@
  *  Caller:  handleAnswer()   → sets remote description
  *  Both:    addIceCandidate()  → processes ICE candidates (queued before remote desc)
  *  Either:  hangup()         → teardown, optional socket emit
+ *
+ * Reliability measures:
+ *  - iceCandidatePoolSize: 10  — pre-gather candidates immediately, not on offer
+ *  - bundlePolicy: max-bundle  — single ICE pair for all tracks
+ *  - disconnected state timer  — 15 s grace period before declaring failure
+ *  - Local stream reuse        — ICE restart doesn't ask for media again
  */
 import { useCallStore } from '../store/useCallStore';
 import { getSocket } from '../socket/socketClient';
@@ -21,6 +27,7 @@ class WebRTCManager {
   private pc: RTCPeerConnection | null = null;
   private iceCandidateQueue: RTCIceCandidateInit[] = [];
   private remoteDescSet = false;
+  private disconnectedTimer: ReturnType<typeof setTimeout> | null = null;
 
   // ── ICE server config from backend ────────────────────────────────────────
   private async getIceServers(): Promise<RTCConfiguration> {
@@ -49,17 +56,28 @@ class WebRTCManager {
     this.teardownPC(); // close any lingering connection
 
     const config = await this.getIceServers();
-    const pc = new RTCPeerConnection(config);
+    const pc = new RTCPeerConnection({
+      ...config,
+      // Pre-gather ICE candidates immediately (before offer is even created)
+      // so the first offer/answer cycle is much faster.
+      iceCandidatePoolSize: 10,
+      // Single ICE component for all tracks → fewer candidates, faster pairing.
+      bundlePolicy: 'max-bundle',
+      rtcpMuxPolicy: 'require',
+    });
     this.pc = pc;
     this.remoteDescSet = false;
     this.iceCandidateQueue = [];
 
     pc.onicecandidate = ({ candidate }) => {
       if (candidate) {
+        console.log(`[WebRTC] ICE candidate: type=${candidate.type} proto=${candidate.protocol}`);
         getSocket()?.emit('call:ice-candidate', {
           callId,
           candidate: candidate.toJSON(),
         });
+      } else {
+        console.log('[WebRTC] ICE gathering complete');
       }
     };
 
@@ -71,16 +89,45 @@ class WebRTCManager {
     pc.onconnectionstatechange = () => {
       const state = pc.connectionState;
       console.log('[WebRTC] connection state:', state);
+
       if (state === 'connected') {
+        // Clear any pending disconnection timer
+        if (this.disconnectedTimer !== null) {
+          clearTimeout(this.disconnectedTimer);
+          this.disconnectedTimer = null;
+        }
         useCallStore.getState().setStatus('active');
         useCallStore.getState().setStartedAt(Date.now());
+
+      } else if (state === 'disconnected') {
+        // Transient — give 15 s for the network to recover before giving up.
+        // (Chrome can sit in 'disconnected' for 30+ s before transitioning to 'failed')
+        console.log('[WebRTC] Connection disconnected — waiting 15 s before hangup...');
+        this.disconnectedTimer = setTimeout(() => {
+          this.disconnectedTimer = null;
+          const s = this.pc?.connectionState;
+          if (s === 'disconnected' || s === 'failed') {
+            console.warn('[WebRTC] Still disconnected after timeout, hanging up');
+            this.hangup(callId, true);
+          }
+        }, 15_000);
+
       } else if (state === 'failed') {
+        if (this.disconnectedTimer !== null) {
+          clearTimeout(this.disconnectedTimer);
+          this.disconnectedTimer = null;
+        }
+        console.warn('[WebRTC] Connection failed, hanging up');
         this.hangup(callId, true);
       }
     };
 
     pc.oniceconnectionstatechange = () => {
       console.log('[WebRTC] ICE connection state:', pc.iceConnectionState);
+    };
+
+    pc.onicegatheringstatechange = () => {
+      console.log('[WebRTC] ICE gathering state:', pc.iceGatheringState);
     };
 
     return pc;
@@ -107,7 +154,7 @@ class WebRTCManager {
         // Camera unavailable or locked — degrade to audio-only rather than drop the call
         if (name === 'NotFoundError' || name === 'NotReadableError' || name === 'OverconstrainedError') {
           console.warn('[WebRTC] camera unavailable, falling back to audio-only');
-          useCallStore.getState().setCallType('audio'); // switch UI to audio mode
+          useCallStore.getState().setCallType('audio');
           useCallStore.getState().setIsVideoOff(true);
           // fall through to audio-only path below
         } else {
@@ -119,6 +166,15 @@ class WebRTCManager {
     const stream = await navigator.mediaDevices.getUserMedia({ audio: audioConstraints, video: false });
     useCallStore.getState().setLocalStream(stream);
     return stream;
+  }
+
+  // ── Get or acquire local stream (reuse existing to avoid double mic access) ─
+  private async getOrAcquireLocalStream(callType: CallType): Promise<MediaStream> {
+    const existing = useCallStore.getState().localStream;
+    if (existing && existing.getTracks().some(t => t.readyState === 'live')) {
+      return existing;
+    }
+    return this.getUserMedia(callType);
   }
 
   // ── Drain queued ICE candidates (safe: ignores invalid ones) ─────────────
@@ -137,7 +193,7 @@ class WebRTCManager {
     try {
       useCallStore.getState().setStatus('connecting');
       const pc = await this.createPC(callId);
-      const stream = await this.getUserMedia(callType);
+      const stream = await this.getOrAcquireLocalStream(callType);
       stream.getTracks().forEach(track => pc.addTrack(track, stream));
 
       const offer = await pc.createOffer({
@@ -163,7 +219,7 @@ class WebRTCManager {
     try {
       useCallStore.getState().setStatus('connecting');
       const pc = await this.createPC(callId);
-      const stream = await this.getUserMedia(callType);
+      const stream = await this.getOrAcquireLocalStream(callType);
       stream.getTracks().forEach(track => pc.addTrack(track, stream));
 
       await pc.setRemoteDescription(new RTCSessionDescription(offerSdp));
@@ -243,11 +299,16 @@ class WebRTCManager {
 
   // ── Internal: close peer connection without touching store streams ────────
   private teardownPC(): void {
+    if (this.disconnectedTimer !== null) {
+      clearTimeout(this.disconnectedTimer);
+      this.disconnectedTimer = null;
+    }
     if (!this.pc) return;
     this.pc.onicecandidate = null;
     this.pc.ontrack = null;
     this.pc.onconnectionstatechange = null;
     this.pc.oniceconnectionstatechange = null;
+    this.pc.onicegatheringstatechange = null;
     this.pc.close();
     this.pc = null;
     this.iceCandidateQueue = [];
