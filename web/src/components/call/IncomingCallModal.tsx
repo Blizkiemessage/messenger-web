@@ -1,8 +1,5 @@
 /**
  * IncomingCallModal — E3: shown to the callee when a call arrives.
- *
- * Displays caller info, plays a ringtone, and provides Accept / Reject actions.
- * Button design: icon-only (no filled background), green phone-up / red phone-down.
  */
 import { useEffect } from 'react';
 import { useCallStore } from '../../store/useCallStore';
@@ -15,17 +12,14 @@ export function IncomingCallModal() {
   const callType = useCallStore(s => s.callType);
   const peerInfo = useCallStore(s => s.peerInfo);
 
-  // Play ringtone while incoming
   useEffect(() => {
     if (status !== 'incoming') return;
-
     const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
     let stopped = false;
     let handle: ReturnType<typeof setTimeout>;
-
     function ring() {
       if (stopped) return;
-      const osc  = ctx.createOscillator();
+      const osc = ctx.createOscillator();
       const gain = ctx.createGain();
       osc.connect(gain);
       gain.connect(ctx.destination);
@@ -38,14 +32,8 @@ export function IncomingCallModal() {
       osc.stop(ctx.currentTime + 0.5);
       handle = setTimeout(ring, 1500);
     }
-
     ring();
-
-    return () => {
-      stopped = true;
-      clearTimeout(handle);
-      ctx.close();
-    };
+    return () => { stopped = true; clearTimeout(handle); ctx.close(); };
   }, [status]);
 
   if (status !== 'incoming' || !peerInfo) return null;
@@ -57,7 +45,6 @@ export function IncomingCallModal() {
     emitCallAccept(callId);
     useCallStore.getState().setStatus('connecting');
   }
-
   function reject() {
     if (!callId) return;
     emitCallReject(callId);
@@ -67,10 +54,7 @@ export function IncomingCallModal() {
   return (
     <div className="incomingCallOverlay" role="dialog" aria-modal="true" aria-label="Входящий звонок">
       <div className="incomingCallCard">
-        {/* Animated pulse ring */}
-        <div className="incomingCallRing">
-          <div className="incomingCallRingInner" />
-        </div>
+        <div className="incomingCallRing"><div className="incomingCallRingInner" /></div>
 
         <div className="incomingCallAvatar">
           <Avatar user={peerInfo} size={80} radius={40} />
@@ -83,30 +67,35 @@ export function IncomingCallModal() {
 
         <div className="incomingCallActions">
 
-          {/* ── Reject — red phone pointing down ─────────────────────── */}
+          {/* ── Reject: red phone pointing down ──────────────────────── */}
           <div className="incomingCallBtnWrap">
             <button className="callBtnReject" onClick={reject} title="Отклонить">
-              {/* Standard phone icon rotated 135° = receiver pointing down */}
-              <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path
-                  transform="rotate(135, 12, 12)"
-                  d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12 19.79 19.79 0 0 1 1.61 3.4 2 2 0 0 1 3.6 1.24h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L7.91 8.77a16 16 0 0 0 6.29 6.29l.95-.95a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"
-                />
+              {/* overflow:visible lets the rotated stroke render past the 24×24 viewBox */}
+              <svg width="32" height="32" viewBox="0 0 24 24"
+                   style={{ overflow: 'visible' }}
+                   fill="none" stroke="currentColor" strokeWidth="2.2"
+                   strokeLinecap="round" strokeLinejoin="round">
+                <path transform="rotate(135, 12, 12)"
+                      d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12 19.79 19.79 0 0 1 1.61 3.4 2 2 0 0 1 3.6 1.24h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L7.91 8.77a16 16 0 0 0 6.29 6.29l.95-.95a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/>
               </svg>
             </button>
             <span className="incomingCallBtnLabel">Отклонить</span>
           </div>
 
-          {/* ── Accept — green phone (or camera for video) ────────────── */}
+          {/* ── Accept: green phone (or camera for video) ─────────────── */}
           <div className="incomingCallBtnWrap">
             <button className="callBtnAccept" onClick={accept} title="Принять">
               {callType === 'video' ? (
-                <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <svg width="32" height="32" viewBox="0 0 24 24"
+                     fill="none" stroke="currentColor" strokeWidth="2.2"
+                     strokeLinecap="round" strokeLinejoin="round">
                   <polygon points="23 7 16 12 23 17 23 7"/>
                   <rect x="1" y="5" width="15" height="14" rx="2" ry="2"/>
                 </svg>
               ) : (
-                <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <svg width="32" height="32" viewBox="0 0 24 24"
+                     fill="none" stroke="currentColor" strokeWidth="2.2"
+                     strokeLinecap="round" strokeLinejoin="round">
                   <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12 19.79 19.79 0 0 1 1.61 3.4 2 2 0 0 1 3.6 1.24h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L7.91 8.77a16 16 0 0 0 6.29 6.29l.95-.95a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/>
                 </svg>
               )}

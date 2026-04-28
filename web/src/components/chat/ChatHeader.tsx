@@ -2,6 +2,7 @@
  * ChatHeader — with message search panel.
  * ✅ Fixed: uses Avatar component to show real photos instead of just letters.
  */
+import { useState, useRef, useEffect } from 'react';
 import { type Chat } from '../../types';
 import { chatTitle, chatSubtitle, avatarLetter, formatLastSeen } from '../../utils/format';
 import { Avatar, resolveUrl, PRESENCE_LABELS, PRESENCE_EMOJI } from '../ui/Avatar';
@@ -55,6 +56,20 @@ export function ChatHeader({
   const onlineUsers = useChatsStore(s => s.onlineUsers);
   const isGroup = chat.type === 'group';
   const isSaved = chat.type === 'saved';
+
+  const [callMenuOpen, setCallMenuOpen] = useState(false);
+  const [moreMenuOpen, setMoreMenuOpen] = useState(false);
+  const callMenuRef = useRef<HTMLDivElement>(null);
+  const moreMenuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (callMenuRef.current && !callMenuRef.current.contains(e.target as Node)) setCallMenuOpen(false);
+      if (moreMenuRef.current && !moreMenuRef.current.contains(e.target as Node)) setMoreMenuOpen(false);
+    }
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, []);
 
   // For direct chats — the other person's user object
   const partner = !isGroup && !isSaved ? chat.members.find(m => m.id !== meId) : null;
@@ -181,67 +196,79 @@ export function ChatHeader({
           </div>
         </button>
 
-        {/* ── E3: Call buttons (direct chats only) ─────────────────────── */}
-        {!isGroup && !isSaved && onAudioCall && (
+        {/* ── Call button with dropdown (direct chats only) ─────────────── */}
+        {!isGroup && !isSaved && (onAudioCall || onVideoCall) && (
+          <div className="chHeaderDropWrap" ref={callMenuRef}>
+            <button
+              className={`chSearchToggle${callMenuOpen ? ' active' : ''}`}
+              onClick={() => { setCallMenuOpen(v => !v); setMoreMenuOpen(false); }}
+              title="Позвонить"
+            >
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12 19.79 19.79 0 0 1 1.61 3.4 2 2 0 0 1 3.6 1.24h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L7.91 8.77a16 16 0 0 0 6.29 6.29l.95-.95a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/>
+              </svg>
+            </button>
+            {callMenuOpen && (
+              <div className="chHeaderDropMenu">
+                {onAudioCall && (
+                  <button className="chHeaderDropItem" onClick={() => { setCallMenuOpen(false); onAudioCall(); }}>
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12 19.79 19.79 0 0 1 1.61 3.4 2 2 0 0 1 3.6 1.24h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L7.91 8.77a16 16 0 0 0 6.29 6.29l.95-.95a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/>
+                    </svg>
+                    Аудиозвонок
+                  </button>
+                )}
+                {onVideoCall && (
+                  <button className="chHeaderDropItem" onClick={() => { setCallMenuOpen(false); onVideoCall(); }}>
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <polygon points="23 7 16 12 23 17 23 7"/>
+                      <rect x="1" y="5" width="15" height="14" rx="2" ry="2"/>
+                    </svg>
+                    Видеозвонок
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ── Three-dot menu ────────────────────────────────────────────── */}
+        <div className="chHeaderDropWrap" ref={moreMenuRef}>
           <button
-            className="chSearchToggle"
-            onClick={onAudioCall}
-            title="Аудиозвонок"
+            className={`chSearchToggle${moreMenuOpen ? ' active' : ''}`}
+            onClick={() => { setMoreMenuOpen(v => !v); setCallMenuOpen(false); }}
+            title="Ещё"
           >
-            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12 19.79 19.79 0 0 1 1.61 3.4 2 2 0 0 1 3.6 1.24h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L7.91 8.77a16 16 0 0 0 6.29 6.29l.95-.95a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" stroke="none">
+              <circle cx="12" cy="5" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="12" cy="19" r="1.5"/>
             </svg>
           </button>
-        )}
-        {!isGroup && !isSaved && onVideoCall && (
-          <button
-            className="chSearchToggle"
-            onClick={onVideoCall}
-            title="Видеозвонок"
-          >
-            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <polygon points="23 7 16 12 23 17 23 7"/>
-              <rect x="1" y="5" width="15" height="14" rx="2" ry="2"/>
-            </svg>
-          </button>
-        )}
-
-        {/* ✅ Pin button — always visible, shows badge when messages are pinned */}
-        <button
-          className={`chSearchToggle${pinnedOpen ? ' active' : ''}${pinnedCount === 0 ? ' chPinBtnEmpty' : ''}`}
-          onClick={onTogglePinned}
-          title={pinnedCount > 0 ? `Закреплённые (${pinnedCount})` : 'Нет закреплённых'}
-          style={{ position: 'relative' }}
-        >
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" stroke="none">
-            <path d="M16 3a1 1 0 0 0-1 1v1H9V4a1 1 0 0 0-2 0v1a3 3 0 0 0-3 3v1l2 2v4H4a1 1 0 0 0 0 2h7v3a1 1 0 0 0 2 0v-3h7a1 1 0 0 0 0-2h-2v-4l2-2V8a3 3 0 0 0-3-3V4a1 1 0 0 0-1-1z"/>
-          </svg>
-          {pinnedCount > 0 && <span className="chPinCount">{pinnedCount}</span>}
-        </button>
-
-        {/* Media gallery button */}
-        <button
-          className="chSearchToggle"
-          onClick={onOpenMedia}
-          title="Медиа и файлы"
-        >
-          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <rect x="3" y="3" width="18" height="18" rx="2"/>
-            <circle cx="8.5" cy="8.5" r="1.5"/>
-            <polyline points="21 15 16 10 5 21"/>
-          </svg>
-        </button>
-
-        <button
-          className={`chSearchToggle${searchOpen ? ' active' : ''}`}
-          onClick={onToggleSearch}
-          title="Поиск по сообщениям"
-        >
-          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-            <circle cx="11" cy="11" r="8"/>
-            <line x1="21" y1="21" x2="16.65" y2="16.65"/>
-          </svg>
-        </button>
+          {moreMenuOpen && (
+            <div className="chHeaderDropMenu">
+              <button className="chHeaderDropItem" onClick={() => { setMoreMenuOpen(false); onOpenMedia(); }}>
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="3" y="3" width="18" height="18" rx="2"/>
+                  <circle cx="8.5" cy="8.5" r="1.5"/>
+                  <polyline points="21 15 16 10 5 21"/>
+                </svg>
+                Галерея
+              </button>
+              <button className="chHeaderDropItem" onClick={() => { setMoreMenuOpen(false); onToggleSearch(); }}>
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                  <circle cx="11" cy="11" r="8"/>
+                  <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+                </svg>
+                Поиск
+              </button>
+              <button className="chHeaderDropItem" onClick={() => { setMoreMenuOpen(false); onTogglePinned(); }}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" stroke="none">
+                  <path d="M16 3a1 1 0 0 0-1 1v1H9V4a1 1 0 0 0-2 0v1a3 3 0 0 0-3 3v1l2 2v4H4a1 1 0 0 0 0 2h7v3a1 1 0 0 0 2 0v-3h7a1 1 0 0 0 0-2h-2v-4l2-2V8a3 3 0 0 0-3-3V4a1 1 0 0 0-1-1z"/>
+                </svg>
+                Закреплённые{pinnedCount > 0 && <span className="chDropPinBadge">{pinnedCount}</span>}
+              </button>
+            </div>
+          )}
+        </div>
       </div>
 
       {searchOpen && (
