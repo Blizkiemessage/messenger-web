@@ -179,6 +179,10 @@ function NoteEditor({ note, chat, meId, onBack, onDelete }: EditorProps) {
   );
 }
 
+// Stable empty array — prevents Zustand selector from returning a new reference
+// on every render (which would cause an infinite re-render loop).
+const EMPTY_NOTES: SharedNote[] = [];
+
 interface Props {
   chat: Chat;
   onClose: () => void;
@@ -186,7 +190,8 @@ interface Props {
 
 export function NotesPanel({ chat, onClose }: Props) {
   const meId = useSessionStore(s => s.me!.id);
-  const notes = useNotesStore(s => s.notesByChatId[chat.id] ?? []);
+  const notesForChat = useNotesStore(s => s.notesByChatId[chat.id]);
+  const notes = notesForChat ?? EMPTY_NOTES;
   const loading = useNotesStore(s => s.loadingByChatId[chat.id] ?? false);
   const loadNotes = useNotesStore(s => s.loadNotes);
   const upsertNote = useNotesStore(s => s.upsertNote);
@@ -199,14 +204,23 @@ export function NotesPanel({ chat, onClose }: Props) {
     loadNotes(chat.id);
   }, [chat.id, loadNotes]);
 
-  // If a note being edited gets updated from socket, keep local state in sync
+  // If a note being edited gets updated from a remote socket event, sync local state.
+  // We only apply the update when the remote version is newer AND edited by someone else,
+  // so we never overwrite the local user's own in-flight edits.
   useEffect(() => {
     if (!editingNote) return;
     const fresh = notes.find(n => n.id === editingNote.id);
-    if (fresh && fresh.last_edited_by !== meId && fresh.last_edited_at > editingNote.last_edited_at) {
+    if (
+      fresh &&
+      fresh.last_edited_by !== meId &&
+      fresh.last_edited_at > editingNote.last_edited_at
+    ) {
       setEditingNote(fresh);
     }
-  }, [notes, editingNote, meId]);
+    // Intentionally omit editingNote from deps: we only want to react to
+    // external store changes (notes array), not to our own setEditingNote calls.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [notes, meId]);
 
   async function handleCreateNote() {
     if (creating) return;
