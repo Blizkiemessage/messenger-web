@@ -2,7 +2,8 @@
  * ChatHeader — with message search panel.
  * ✅ Fixed: uses Avatar component to show real photos instead of just letters.
  */
-import { useState, useRef, useEffect, createPortal } from 'react';
+import { useState, useRef, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { type Chat } from '../../types';
 import { chatTitle, chatSubtitle, avatarLetter, formatLastSeen } from '../../utils/format';
 import { Avatar, resolveUrl, PRESENCE_LABELS, PRESENCE_EMOJI } from '../ui/Avatar';
