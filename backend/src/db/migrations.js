@@ -363,6 +363,17 @@ function runMigrations() {
     )`,
     `CREATE INDEX IF NOT EXISTS idx_calls_chat ON calls(chat_id, created_at DESC)`,
     `CREATE INDEX IF NOT EXISTS idx_calls_participants ON calls(caller_id, callee_id)`,
+    // ✅ F4: shared notes per chat
+    `CREATE TABLE IF NOT EXISTS chat_notes (
+      id TEXT PRIMARY KEY,
+      chat_id TEXT NOT NULL REFERENCES chats(id) ON DELETE CASCADE,
+      title TEXT NOT NULL DEFAULT 'Заметка',
+      content TEXT NOT NULL DEFAULT '',
+      last_edited_by TEXT REFERENCES users(id),
+      last_edited_at INTEGER NOT NULL,
+      created_at INTEGER NOT NULL
+    )`,
+    `CREATE INDEX IF NOT EXISTS idx_chat_notes_chat ON chat_notes(chat_id, created_at DESC)`,
   ];
 
   for (const sql of alters) {

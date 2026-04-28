@@ -30,6 +30,7 @@ import { MediaPlayerProvider } from '../../contexts/MediaPlayerContext';
 import { MiniPlayer } from './MiniPlayer';
 import { ScheduleDatePicker } from './ScheduleDatePicker';
 import { ScheduledMessagesModal } from '../modals/ScheduledMessagesModal';
+import { NotesPanel } from '../notes/NotesPanel';
 
 // ── Max chars per message — split at last word boundary ──────────────────────
 const MAX_MSG_CHARS = 4000;
@@ -596,6 +597,8 @@ export function ChatArea() {
   // ── Studio modal ──────────────────────────────────────────────────────────
   const [showStudio,     setShowStudio]     = useState(false);
   const [showMediaModal, setShowMediaModal] = useState(false);
+  // ── F4: Notes panel ───────────────────────────────────────────────────────
+  const [showNotes,      setShowNotes]      = useState(false);
 
 
   // ── Drag & drop ───────────────────────────────────────────────────────────
@@ -799,6 +802,7 @@ export function ChatArea() {
         onOpenMedia={() => setShowMediaModal(true)}
         onAudioCall={activeChat?.type === 'direct' ? () => startCall('audio') : undefined}
         onVideoCall={activeChat?.type === 'direct' ? () => startCall('video') : undefined}
+        onOpenNotes={() => setShowNotes(true)}
       />
 
       {/* Mini player — appears below header while audio/video is playing */}
@@ -940,6 +944,14 @@ export function ChatArea() {
         <ScheduledMessagesModal
           chatId={activeChat.id}
           onClose={() => setShowScheduledList(false)}
+        />
+      )}
+
+      {/* F4: Shared notes panel */}
+      {showNotes && activeChat && (
+        <NotesPanel
+          chat={activeChat}
+          onClose={() => setShowNotes(false)}
         />
       )}
     </div>

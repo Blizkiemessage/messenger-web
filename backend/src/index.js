@@ -68,6 +68,7 @@ const { stickerPacksRouter, quotaRouter } = require('./routes/sticker-packs');
 const gifRoutes         = require('./routes/gif');
 const totpRoutes        = require('./routes/totp');
 const callsRoutes       = require('./routes/calls');
+const notesRoutes       = require('./routes/notes');
 console.log('[STARTUP] All modules loaded.');
 const path = require('path');
 
@@ -143,6 +144,7 @@ app.use('/quota',         quotaRouter);
 app.use('/gif',           gifRoutes);
 app.use('/totp',          totpRoutes);
 app.use('/calls',         callsRoutes);
+app.use('/chats',         notesRoutes);
 
 app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 app.use('/admin', express.static(path.join(__dirname, '../public/admin')));

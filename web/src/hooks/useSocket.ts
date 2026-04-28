@@ -3,7 +3,7 @@
  * ✅ Added: message-pinned / message-unpinned socket events.
  */
 import { useEffect } from 'react';
-import { type Chat, type Message, type User } from '../types';
+import { type Chat, type Message, type User, type SharedNote } from '../types';
 import { connectSocket, disconnectSocket, getSocket } from '../socket/socketClient';
 import { emitCallReject } from '../socket/socketClient';
 import { markChatRead as apiMarkChatRead } from '../api/chats';
@@ -13,6 +13,7 @@ import { useStickerStore } from '../store/useStickerStore';
 import { useCallStore } from '../store/useCallStore';
 import { webrtcManager } from '../services/webrtcManager';
 import { registerPush } from '../utils/push';
+import { useNotesStore } from '../store/useNotesStore';
 
 let _markReadTimer: ReturnType<typeof setTimeout> | null = null;
 let _pendingReadUntil: number | undefined = undefined;
@@ -188,6 +189,21 @@ export function useSocket() {
     socket.on('block-status-changed',      onBlockStatusChanged);   // ✅
     socket.on('presence-status-update',   onPresenceStatusUpdate); // ✅ F3
 
+    // ── F4: Shared notes ─────────────────────────────────────────────────────────
+    const onNoteCreated = ({ chatId, note }: { chatId: string; note: SharedNote }) => {
+      useNotesStore.getState().upsertNote(chatId, note);
+    };
+    const onNoteUpdated = ({ chatId, note }: { chatId: string; note: SharedNote }) => {
+      useNotesStore.getState().upsertNote(chatId, note);
+    };
+    const onNoteDeleted = ({ chatId, noteId }: { chatId: string; noteId: string }) => {
+      useNotesStore.getState().removeNote(chatId, noteId);
+    };
+
+    socket.on('note:created', onNoteCreated); // ✅ F4
+    socket.on('note:updated', onNoteUpdated); // ✅ F4
+    socket.on('note:deleted', onNoteDeleted); // ✅ F4
+
     // ── E3: Call signaling ───────────────────────────────────────────────────────
 
     const onCallIncoming = ({
@@ -293,6 +309,9 @@ export function useSocket() {
       socket.off('call:ended',         onCallEnded);
       socket.off('call:busy',          onCallBusy);
       socket.off('call:error',         onCallError);
+      socket.off('note:created', onNoteCreated);
+      socket.off('note:updated', onNoteUpdated);
+      socket.off('note:deleted', onNoteDeleted);
       clearTimeout(pushTimer);
       if (_markReadTimer) clearTimeout(_markReadTimer);
       disconnectSocket();

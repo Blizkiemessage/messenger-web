@@ -230,6 +230,19 @@ export type CallRecord = {
   callee_display_name?: string | null;
 };
 
+// ── F4: Shared Notes ─────────────────────────────────────────────────────────
+
+export type SharedNote = {
+  id: string;
+  chat_id: string;
+  title: string;
+  content: string;
+  last_edited_by: string | null;
+  last_edited_by_name?: string | null;
+  last_edited_at: number;
+  created_at: number;
+};
+
 // ── GIF (Giphy) ───────────────────────────────────────────────────────────────
 
 export type GifResult = {
