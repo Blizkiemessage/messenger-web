@@ -380,20 +380,21 @@ function runMigrations() {
     "ALTER TABLE chat_notes ADD COLUMN edit_exceptions TEXT NOT NULL DEFAULT '[]'",
     "ALTER TABLE chat_notes ADD COLUMN visibility TEXT NOT NULL DEFAULT 'public'",
     "ALTER TABLE chat_notes ADD COLUMN visibility_exceptions TEXT NOT NULL DEFAULT '[]'",
-    // ✅ F2: AI summary cache
+    // ✅ F2: AI summary cache — drop+recreate to fix UNIQUE(chat_id,user_id) → (chat_id,user_id,period,format)
+    // Safe because this is a pure cache table; data loss on restart is acceptable.
+    `DROP TABLE IF EXISTS chat_summary_cache`,
     `CREATE TABLE IF NOT EXISTS chat_summary_cache (
       id TEXT PRIMARY KEY,
       chat_id TEXT NOT NULL,
       user_id TEXT NOT NULL,
+      period TEXT NOT NULL DEFAULT 'all',
+      format TEXT NOT NULL DEFAULT 'normal',
       summary TEXT NOT NULL,
       message_count INTEGER NOT NULL DEFAULT 0,
       generated_at INTEGER NOT NULL,
-      UNIQUE(chat_id, user_id)
+      UNIQUE(chat_id, user_id, period, format)
     )`,
     `CREATE INDEX IF NOT EXISTS idx_summary_cache_lookup ON chat_summary_cache(chat_id, user_id)`,
-    // ✅ F2 v2: add period + format columns for per-option caching
-    `ALTER TABLE chat_summary_cache ADD COLUMN period TEXT NOT NULL DEFAULT 'all'`,
-    `ALTER TABLE chat_summary_cache ADD COLUMN format TEXT NOT NULL DEFAULT 'normal'`,
   ];
 
   for (const sql of alters) {

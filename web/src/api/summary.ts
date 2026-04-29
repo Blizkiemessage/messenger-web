@@ -18,5 +18,10 @@ export async function getChatSummary(
   const { data } = await axios.get<SummaryResult>(`/api/chats/${chatId}/summary`, {
     params: { period, format, _t: Date.now() },
   });
+  // Guard: if server returned error JSON ({error:...}) with 200, surface it
+  if (!data || typeof (data as any).summary !== 'string') {
+    const msg = (data as any)?.error || `Неожиданный ответ: ${JSON.stringify(data)}`;
+    throw new Error(msg);
+  }
   return data;
 }

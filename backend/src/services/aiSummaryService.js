@@ -204,9 +204,16 @@ async function getChatSummary(chatId, userId, { period = 'all', format = 'normal
   const prompt = buildPrompt(messages, formatKey);
   const summary = await callAI(prompt, formatKey, config);
 
-  saveToCache(db, chatId, userId, periodKey, formatKey, summary, messages.length);
+  try {
+    saveToCache(db, chatId, userId, periodKey, formatKey, summary, messages.length);
+  } catch (cacheErr) {
+    // Cache write failing must never break the user-facing response
+    console.error('[AI Summary] cache write error:', cacheErr?.message);
+  }
 
-  return { summary, messageCount: messages.length, fromCache: false };
+  const result = { summary, messageCount: messages.length, fromCache: false };
+  console.log(`[AI Summary] ok — chat=${chatId} period=${periodKey} format=${formatKey} msgs=${messages.length} summaryLen=${summary.length}`);
+  return result;
 }
 
 module.exports = { getChatSummary };
