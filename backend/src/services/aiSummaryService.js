@@ -84,15 +84,9 @@ function getSinceTimestamp(db, chatId, userId, period) {
   return Date.now() - ms;
 }
 
-function collectMessages(db, chatId, userId, period, maxMsg) {
-  const member = db.prepare(
-    'SELECT 1 FROM chat_members WHERE chat_id = ? AND user_id = ?'
-  ).get([chatId, userId]);
-  if (!member) throw Object.assign(new Error('Forbidden'), { status: 403 });
-
-  const sinceTs = getSinceTimestamp(db, chatId, userId, period);
-
-  const rows = db.prepare(`
+function queryMessages(db, chatId, sinceTs, maxMsg) {
+  // is_delivered may be NULL on rows created before the F1 migration — treat NULL as delivered
+  return db.prepare(`
     SELECT m.sender_id, m.ciphertext, m.iv, m.auth_tag,
            m.attachment_type, m.is_system, m.created_at,
            u.display_name, u.username
@@ -100,11 +94,27 @@ function collectMessages(db, chatId, userId, period, maxMsg) {
     LEFT JOIN users u ON u.id = m.sender_id
     WHERE m.chat_id = ?
       AND m.deleted_at IS NULL
-      AND m.is_delivered = 1
+      AND (m.is_delivered IS NULL OR m.is_delivered = 1)
       AND m.created_at >= ?
     ORDER BY m.created_at DESC
     LIMIT ?
   `).all([chatId, sinceTs, maxMsg]);
+}
+
+function collectMessages(db, chatId, userId, period, maxMsg) {
+  const member = db.prepare(
+    'SELECT 1 FROM chat_members WHERE chat_id = ? AND user_id = ?'
+  ).get([chatId, userId]);
+  if (!member) throw Object.assign(new Error('Forbidden'), { status: 403 });
+
+  let sinceTs = getSinceTimestamp(db, chatId, userId, period);
+  let rows = queryMessages(db, chatId, sinceTs, maxMsg);
+
+  // If "unread" returned nothing, fall back to last maxMsg messages of all time
+  if (rows.length === 0 && period === 'unread') {
+    sinceTs = 0;
+    rows = queryMessages(db, chatId, 0, maxMsg);
+  }
 
   return rows.reverse().map(row => {
     let text = '';
