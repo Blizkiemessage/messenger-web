@@ -391,6 +391,9 @@ function runMigrations() {
       UNIQUE(chat_id, user_id)
     )`,
     `CREATE INDEX IF NOT EXISTS idx_summary_cache_lookup ON chat_summary_cache(chat_id, user_id)`,
+    // ✅ F2 v2: add period + format columns for per-option caching
+    `ALTER TABLE chat_summary_cache ADD COLUMN period TEXT NOT NULL DEFAULT 'all'`,
+    `ALTER TABLE chat_summary_cache ADD COLUMN format TEXT NOT NULL DEFAULT 'normal'`,
   ];
 
   for (const sql of alters) {
