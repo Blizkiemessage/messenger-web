@@ -1,4 +1,4 @@
-import axios from 'axios';
+import client from './client';
 
 export type SummaryPeriod = 'all' | '1h' | '6h' | '24h' | '3d' | '7d' | '30d' | 'unread';
 export type SummaryFormat = 'short' | 'normal' | 'detailed';
@@ -15,7 +15,7 @@ export async function getChatSummary(
   format: SummaryFormat = 'normal',
 ): Promise<SummaryResult> {
   // _t busts any browser-level GET cache for this endpoint
-  const { data } = await axios.get<SummaryResult>(`/api/chats/${chatId}/summary`, {
+  const { data } = await client.get<SummaryResult>(`/api/chats/${chatId}/summary`, {
     params: { period, format, _t: Date.now() },
   });
   // Guard: if server returned error JSON ({error:...}) with 200, surface it
