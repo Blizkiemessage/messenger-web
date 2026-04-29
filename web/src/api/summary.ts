@@ -15,7 +15,7 @@ export async function getChatSummary(
   format: SummaryFormat = 'normal',
 ): Promise<SummaryResult> {
   // _t busts any browser-level GET cache for this endpoint
-  const { data } = await client.get<SummaryResult>(`/api/chats/${chatId}/summary`, {
+  const { data } = await client.get<SummaryResult>(`/chats/${chatId}/summary`, {
     params: { period, format, _t: Date.now() },
   });
   // Guard: if server returned error JSON ({error:...}) with 200, surface it
