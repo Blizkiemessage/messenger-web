@@ -1,5 +1,9 @@
 /**
- * routes/notes.js — F4: Shared notes per chat (v2 with permissions).
+ * routes/notes.js — F4: Shared notes per chat (v2 with permissions + presigned URLs).
+ *
+ * S3 private bucket handling:
+ *   - GET:  signs all media URLs inside content blocks (1-hour presigned GET URLs)
+ *   - PUT:  strips presign query params before storing (keeps DB clean with raw URLs)
  *
  * Routes:
  *   GET    /chats/:chatId/notes                        — list visible notes
@@ -9,11 +13,12 @@
  *   DELETE /chats/:chatId/notes/:noteId                — delete note
  */
 
-const express = require('express');
-const rateLimit = require('express-rate-limit');
+const express    = require('express');
+const rateLimit  = require('express-rate-limit');
 const { v4: uuidv4 } = require('uuid');
 const { authMiddleware } = require('../middleware/auth');
-const { getDb } = require('../config/database');
+const { getDb }  = require('../config/database');
+const { signUrl } = require('../utils/s3Sign');
 
 const router = express.Router();
 router.use(authMiddleware);
@@ -26,6 +31,8 @@ const notesLimiter = rateLimit({
   legacyHeaders: false,
 });
 
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
 function getMembership(chatId, userId) {
   const db = getDb();
   return db.prepare(
@@ -37,7 +44,50 @@ function parseJson(str, fallback) {
   try { return JSON.parse(str) || fallback; } catch { return fallback; }
 }
 
-function hydrateNote(note) {
+/**
+ * Sign all media `url` fields inside the content JSON blocks.
+ * Text blocks are skipped. Returns the re-serialized JSON string.
+ */
+async function signNoteContent(contentStr) {
+  if (!contentStr) return contentStr;
+  try {
+    const blocks = JSON.parse(contentStr);
+    if (!Array.isArray(blocks)) return contentStr;
+    await Promise.all(blocks.map(async (block) => {
+      if (block.type !== 'text' && block.url) {
+        block.url = await signUrl(block.url);
+      }
+    }));
+    return JSON.stringify(blocks);
+  } catch {
+    return contentStr; // not JSON (legacy plain text) — return as-is
+  }
+}
+
+/**
+ * Strip presigned query params from any S3 URL inside content blocks before storing.
+ * Keeps the DB free of expiring signed URLs.
+ */
+function normalizeNoteContent(contentStr) {
+  if (!contentStr) return contentStr;
+  const publicUrl = process.env.S3_PUBLIC_URL;
+  if (!publicUrl) return contentStr;
+  try {
+    const blocks = JSON.parse(contentStr);
+    if (!Array.isArray(blocks)) return contentStr;
+    blocks.forEach(block => {
+      if (block.type !== 'text' && block.url && block.url.startsWith(publicUrl)) {
+        const q = block.url.indexOf('?');
+        if (q !== -1) block.url = block.url.slice(0, q);
+      }
+    });
+    return JSON.stringify(blocks);
+  } catch {
+    return contentStr;
+  }
+}
+
+async function hydrateNote(note) {
   if (!note) return null;
   const db = getDb();
 
@@ -53,10 +103,13 @@ function hydrateNote(note) {
     created_by_name = u?.display_name || u?.username || null;
   }
 
+  const signedContent = await signNoteContent(note.content);
+
   return {
     ...note,
-    edit_exceptions: parseJson(note.edit_exceptions, []),
-    visibility_exceptions: parseJson(note.visibility_exceptions, []),
+    content: signedContent,
+    edit_exceptions:        parseJson(note.edit_exceptions, []),
+    visibility_exceptions:  parseJson(note.visibility_exceptions, []),
     last_edited_by_name,
     created_by_name,
   };
@@ -65,16 +118,16 @@ function hydrateNote(note) {
 function canSeeNote(note, userId) {
   if (!note.visibility || note.visibility === 'public') return true;
   if (note.created_by === userId) return true;
-  const exceptions = parseJson(note.visibility_exceptions, []);
-  return exceptions.includes(userId);
+  return parseJson(note.visibility_exceptions, []).includes(userId);
 }
 
 function canEditNote(note, userId) {
   if (!note.edit_mode || note.edit_mode === 'all') return true;
   if (note.created_by === userId) return true;
-  const exceptions = parseJson(note.edit_exceptions, []);
-  return exceptions.includes(userId);
+  return parseJson(note.edit_exceptions, []).includes(userId);
 }
+
+// ─── Routes ───────────────────────────────────────────────────────────────────
 
 // GET /chats/:chatId/notes
 router.get('/:chatId/notes', async (req, res, next) => {
@@ -88,9 +141,11 @@ router.get('/:chatId/notes', async (req, res, next) => {
       'SELECT * FROM chat_notes WHERE chat_id = ? ORDER BY created_at DESC'
     ).all(chatId);
 
-    const visible = notes
-      .filter(n => canSeeNote(n, req.userId))
-      .map(hydrateNote);
+    const visible = await Promise.all(
+      notes
+        .filter(n => canSeeNote(n, req.userId))
+        .map(hydrateNote)
+    );
 
     res.json(visible);
   } catch (err) { next(err); }
@@ -106,9 +161,9 @@ router.post('/:chatId/notes', notesLimiter, async (req, res, next) => {
     let { title } = req.body;
     title = typeof title === 'string' && title.trim() ? title.trim().slice(0, 200) : 'Заметка';
 
-    const db = getDb();
+    const db  = getDb();
     const now = Date.now();
-    const id = uuidv4();
+    const id  = uuidv4();
 
     db.prepare(`
       INSERT INTO chat_notes
@@ -117,7 +172,7 @@ router.post('/:chatId/notes', notesLimiter, async (req, res, next) => {
       VALUES (?, ?, ?, '', ?, ?, ?, ?, 'all', '[]', 'public', '[]')
     `).run([id, chatId, title, req.userId, req.userId, now, now]);
 
-    const note = hydrateNote(db.prepare('SELECT * FROM chat_notes WHERE id = ?').get(id));
+    const note = await hydrateNote(db.prepare('SELECT * FROM chat_notes WHERE id = ?').get(id));
 
     const io = req.app.get('io');
     if (io) io.to(`chat:${chatId}`).emit('note:created', { chatId, note });
@@ -137,21 +192,22 @@ router.put('/:chatId/notes/:noteId', notesLimiter, async (req, res, next) => {
     const existing = db.prepare('SELECT * FROM chat_notes WHERE id = ? AND chat_id = ?').get([noteId, chatId]);
     if (!existing) return res.status(404).json({ error: 'Note not found' });
 
-    if (!canSeeNote(existing, req.userId)) return res.status(403).json({ error: 'Access denied' });
+    if (!canSeeNote(existing, req.userId))  return res.status(403).json({ error: 'Access denied' });
     if (!canEditNote(existing, req.userId)) return res.status(403).json({ error: 'Edit not allowed' });
 
     let { title, content } = req.body;
     const newTitle   = typeof title   === 'string' ? title.trim().slice(0, 200) || existing.title : existing.title;
-    const newContent = typeof content === 'string' ? content.slice(0, 50000) : existing.content;
+    // Normalize (strip presign params) before storing so DB always holds raw URLs
+    const rawContent = typeof content === 'string' ? normalizeNoteContent(content.slice(0, 200000)) : existing.content;
 
     const now = Date.now();
     db.prepare(`
       UPDATE chat_notes
       SET title = ?, content = ?, last_edited_by = ?, last_edited_at = ?
       WHERE id = ?
-    `).run([newTitle, newContent, req.userId, now, noteId]);
+    `).run([newTitle, rawContent, req.userId, now, noteId]);
 
-    const note = hydrateNote(db.prepare('SELECT * FROM chat_notes WHERE id = ?').get(noteId));
+    const note = await hydrateNote(db.prepare('SELECT * FROM chat_notes WHERE id = ?').get(noteId));
 
     const io = req.app.get('io');
     if (io) io.to(`chat:${chatId}`).emit('note:updated', { chatId, note });
@@ -171,7 +227,7 @@ router.patch('/:chatId/notes/:noteId/settings', notesLimiter, async (req, res, n
     const existing = db.prepare('SELECT * FROM chat_notes WHERE id = ? AND chat_id = ?').get([noteId, chatId]);
     if (!existing) return res.status(404).json({ error: 'Note not found' });
 
-    // Allow if: user is the author, OR the note has no author yet (legacy note created before migration)
+    // Allow if: user is the author, OR the note has no author (legacy note before migration)
     const hasAuthor = !!existing.created_by;
     if (hasAuthor && existing.created_by !== req.userId) {
       return res.status(403).json({ error: 'Only the author can change note settings' });
@@ -179,12 +235,12 @@ router.patch('/:chatId/notes/:noteId/settings', notesLimiter, async (req, res, n
 
     const { edit_mode, edit_exceptions, visibility, visibility_exceptions } = req.body;
 
-    const newEditMode    = ['all', 'restricted'].includes(edit_mode)  ? edit_mode  : existing.edit_mode  ?? 'all';
-    const newVisibility  = ['public', 'private'].includes(visibility) ? visibility : existing.visibility ?? 'public';
-    const newEditExc     = Array.isArray(edit_exceptions)        ? JSON.stringify(edit_exceptions)        : existing.edit_exceptions        ?? '[]';
-    const newVisExc      = Array.isArray(visibility_exceptions)  ? JSON.stringify(visibility_exceptions)  : existing.visibility_exceptions  ?? '[]';
+    const newEditMode   = ['all', 'restricted'].includes(edit_mode)  ? edit_mode  : existing.edit_mode  ?? 'all';
+    const newVisibility = ['public', 'private'].includes(visibility) ? visibility : existing.visibility ?? 'public';
+    const newEditExc    = Array.isArray(edit_exceptions)       ? JSON.stringify(edit_exceptions)       : existing.edit_exceptions       ?? '[]';
+    const newVisExc     = Array.isArray(visibility_exceptions) ? JSON.stringify(visibility_exceptions) : existing.visibility_exceptions ?? '[]';
     // Claim authorship if the note had none (legacy record)
-    const newCreatedBy   = existing.created_by ?? req.userId;
+    const newCreatedBy  = existing.created_by ?? req.userId;
 
     db.prepare(`
       UPDATE chat_notes
@@ -192,7 +248,7 @@ router.patch('/:chatId/notes/:noteId/settings', notesLimiter, async (req, res, n
       WHERE id = ?
     `).run([newEditMode, newEditExc, newVisibility, newVisExc, newCreatedBy, noteId]);
 
-    const note = hydrateNote(db.prepare('SELECT * FROM chat_notes WHERE id = ?').get(noteId));
+    const note = await hydrateNote(db.prepare('SELECT * FROM chat_notes WHERE id = ?').get(noteId));
 
     const io = req.app.get('io');
     if (io) io.to(`chat:${chatId}`).emit('note:updated', { chatId, note });
@@ -213,7 +269,8 @@ router.delete('/:chatId/notes/:noteId', notesLimiter, async (req, res, next) => 
     const existing = db.prepare('SELECT * FROM chat_notes WHERE id = ? AND chat_id = ?').get([noteId, chatId]);
     if (!existing) return res.status(404).json({ error: 'Note not found' });
 
-    const chat = db.prepare('SELECT type FROM chats WHERE id = ?').get(chatId);
+    const chat     = db.prepare('SELECT type FROM chats WHERE id = ?').get(chatId);
+    // NULL created_by = legacy note without author → treat as owned by requester
     const isAuthor = !existing.created_by || existing.created_by === req.userId;
 
     if (chat?.type === 'group') {
