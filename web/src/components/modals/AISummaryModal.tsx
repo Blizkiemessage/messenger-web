@@ -158,11 +158,11 @@ export function AISummaryModal({ chatId, chatTitle, onClose }: Props) {
               Обновить
             </button>
           )}
-          {status === 'idle' || status === 'ok' || status === 'error' ? (
-            <button className="aiSummaryGenBtn" onClick={() => generate(period, format)} disabled={status === 'loading'}>
+          {status !== 'loading' && (
+            <button className="aiSummaryGenBtn" onClick={() => generate(period, format)}>
               {status === 'idle' ? 'Сделать сводку' : 'Изменить'}
             </button>
-          ) : null}
+          )}
           <button className="aiSummaryCloseBtn" onClick={onClose}>Закрыть</button>
         </div>
       </div>
