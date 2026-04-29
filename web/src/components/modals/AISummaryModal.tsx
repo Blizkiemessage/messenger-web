@@ -123,12 +123,14 @@ export function AISummaryModal({ chatId, chatTitle, onClose }: Props) {
           {/* Result */}
           {status === 'ok' && result && (
             <div className="aiSummaryResult">
-              <p className="aiSummaryText">{result.summary}</p>
+              <p className="aiSummaryText">
+                {result.summary || 'Нет сообщений для анализа в выбранном периоде.'}
+              </p>
               <div className="aiSummaryMeta">
                 <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
                   <circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/>
                 </svg>
-                <span>{result.messageCount} сообщ. · {periodLabel} · {formatLabel}</span>
+                <span>{result.messageCount ?? '?'} сообщ. · {periodLabel} · {formatLabel}</span>
                 {result.fromCache && <span className="aiSummaryCacheBadge">кеш</span>}
               </div>
             </div>

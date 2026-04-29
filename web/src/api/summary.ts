@@ -14,8 +14,9 @@ export async function getChatSummary(
   period: SummaryPeriod = 'all',
   format: SummaryFormat = 'normal',
 ): Promise<SummaryResult> {
+  // _t busts any browser-level GET cache for this endpoint
   const { data } = await axios.get<SummaryResult>(`/api/chats/${chatId}/summary`, {
-    params: { period, format },
+    params: { period, format, _t: Date.now() },
   });
   return data;
 }
