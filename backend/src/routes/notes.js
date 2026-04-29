@@ -171,7 +171,9 @@ router.patch('/:chatId/notes/:noteId/settings', notesLimiter, async (req, res, n
     const existing = db.prepare('SELECT * FROM chat_notes WHERE id = ? AND chat_id = ?').get([noteId, chatId]);
     if (!existing) return res.status(404).json({ error: 'Note not found' });
 
-    if (existing.created_by !== req.userId) {
+    // Allow if: user is the author, OR the note has no author yet (legacy note created before migration)
+    const hasAuthor = !!existing.created_by;
+    if (hasAuthor && existing.created_by !== req.userId) {
       return res.status(403).json({ error: 'Only the author can change note settings' });
     }
 
@@ -181,12 +183,14 @@ router.patch('/:chatId/notes/:noteId/settings', notesLimiter, async (req, res, n
     const newVisibility  = ['public', 'private'].includes(visibility) ? visibility : existing.visibility ?? 'public';
     const newEditExc     = Array.isArray(edit_exceptions)        ? JSON.stringify(edit_exceptions)        : existing.edit_exceptions        ?? '[]';
     const newVisExc      = Array.isArray(visibility_exceptions)  ? JSON.stringify(visibility_exceptions)  : existing.visibility_exceptions  ?? '[]';
+    // Claim authorship if the note had none (legacy record)
+    const newCreatedBy   = existing.created_by ?? req.userId;
 
     db.prepare(`
       UPDATE chat_notes
-      SET edit_mode = ?, edit_exceptions = ?, visibility = ?, visibility_exceptions = ?
+      SET edit_mode = ?, edit_exceptions = ?, visibility = ?, visibility_exceptions = ?, created_by = ?
       WHERE id = ?
-    `).run([newEditMode, newEditExc, newVisibility, newVisExc, noteId]);
+    `).run([newEditMode, newEditExc, newVisibility, newVisExc, newCreatedBy, noteId]);
 
     const note = hydrateNote(db.prepare('SELECT * FROM chat_notes WHERE id = ?').get(noteId));
 
@@ -210,7 +214,7 @@ router.delete('/:chatId/notes/:noteId', notesLimiter, async (req, res, next) => 
     if (!existing) return res.status(404).json({ error: 'Note not found' });
 
     const chat = db.prepare('SELECT type FROM chats WHERE id = ?').get(chatId);
-    const isAuthor = existing.created_by === req.userId;
+    const isAuthor = !existing.created_by || existing.created_by === req.userId;
 
     if (chat?.type === 'group') {
       const isAdminOrMod = membership.role === 'admin' || membership.role === 'moderator';

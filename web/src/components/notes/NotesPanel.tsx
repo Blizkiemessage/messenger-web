@@ -20,6 +20,9 @@ import { uploadFile } from '../../api/upload';
 const EmojiStickerPanel = lazy(() =>
   import('../chat/EmojiStickerPanel').then(m => ({ default: m.EmojiStickerPanel }))
 );
+const StickerStudioModal = lazy(() =>
+  import('../modals/StickerStudioModal').then(m => ({ default: m.StickerStudioModal }))
+);
 
 // ─── Block types ──────────────────────────────────────────────────────────────
 
@@ -414,10 +417,11 @@ function NoteEditor({ note, chat, meId, onBack, onDelete, onNoteUpdated }: Edito
   const upsertNote = useNotesStore(s => s.upsertNote);
 
   const userCanEdit  = canEdit(note, meId);
-  const isAuthor     = note.created_by === meId || note.created_by == null;
+  const isAuthor     = !note.created_by || note.created_by === meId;
 
   const [readMode, setReadMode]     = useState(true);
   const [showSettings, setSettings] = useState(false);
+  const [showStudio, setShowStudio] = useState(false);
   const [title, setTitle]           = useState(note.title);
   const [blocks, setBlocks]         = useState<NoteBlock[]>(() => parseBlocks(note.content));
   const [saving, setSaving]         = useState(false);
@@ -646,6 +650,7 @@ function NoteEditor({ note, chat, meId, onBack, onDelete, onNoteUpdated }: Edito
   const handleSendGif     = (url: string) => { insertBlock({ id: uid(), type: 'gif',     url }); setShowEmoji(false); };
   const handleSendSticker = (url: string, itemId: string, packId: string) => { insertBlock({ id: uid(), type: 'sticker', url, packId, itemId }); setShowEmoji(false); };
   const handleCustomEmoji = (_pId: string, _iId: string, fileUrl: string) => { insertBlock({ id: uid(), type: 'sticker', url: fileUrl }); setShowEmoji(false); };
+  const handleOpenStudio  = () => { setShowEmoji(false); setShowStudio(true); };
 
   // ── Delete note ─────────────────────────────────────────────────────────────
 
@@ -848,7 +853,7 @@ function NoteEditor({ note, chat, meId, onBack, onDelete, onNoteUpdated }: Edito
                     onSendGif={handleSendGif}
                     onSendSticker={handleSendSticker}
                     onSendCustomEmoji={handleCustomEmoji}
-                    onOpenStudio={() => {}}
+                    onOpenStudio={handleOpenStudio}
                     theme={theme ?? 'dark'}
                   />
                 </Suspense>
@@ -856,6 +861,13 @@ function NoteEditor({ note, chat, meId, onBack, onDelete, onNoteUpdated }: Edito
             )}
           </div>
         </div>
+      )}
+
+      {/* ── Sticker studio ── */}
+      {showStudio && (
+        <Suspense fallback={null}>
+          <StickerStudioModal onClose={() => setShowStudio(false)} />
+        </Suspense>
       )}
 
       {/* ── Delete confirm ── */}
