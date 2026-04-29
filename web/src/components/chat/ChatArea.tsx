@@ -31,6 +31,7 @@ import { MiniPlayer } from './MiniPlayer';
 import { ScheduleDatePicker } from './ScheduleDatePicker';
 import { ScheduledMessagesModal } from '../modals/ScheduledMessagesModal';
 import { NotesPanel } from '../notes/NotesPanel';
+import { AISummaryModal } from '../modals/AISummaryModal';
 
 // ── Max chars per message — split at last word boundary ──────────────────────
 const MAX_MSG_CHARS = 4000;
@@ -599,6 +600,8 @@ export function ChatArea() {
   const [showMediaModal, setShowMediaModal] = useState(false);
   // ── F4: Notes panel ───────────────────────────────────────────────────────
   const [showNotes,      setShowNotes]      = useState(false);
+  // ── F2: AI summary modal ──────────────────────────────────────────────────
+  const [showSummary,    setShowSummary]    = useState(false);
 
 
   // ── Drag & drop ───────────────────────────────────────────────────────────
@@ -803,6 +806,7 @@ export function ChatArea() {
         onAudioCall={activeChat?.type === 'direct' ? () => startCall('audio') : undefined}
         onVideoCall={activeChat?.type === 'direct' ? () => startCall('video') : undefined}
         onOpenNotes={() => setShowNotes(true)}
+        onOpenSummary={() => setShowSummary(true)}
       />
 
       {/* Mini player — appears below header while audio/video is playing */}
@@ -952,6 +956,15 @@ export function ChatArea() {
         <NotesPanel
           chat={activeChat}
           onClose={() => setShowNotes(false)}
+        />
+      )}
+
+      {/* F2: AI summary modal */}
+      {showSummary && activeChat && (
+        <AISummaryModal
+          chatId={activeChat.id}
+          chatTitle={activeChat.type === 'group' ? (activeChat.name ?? 'Группа') : (activeChat.members.find(m => m.id !== me.id)?.display_name || activeChat.members.find(m => m.id !== me.id)?.username || 'Чат')}
+          onClose={() => setShowSummary(false)}
         />
       )}
     </div>

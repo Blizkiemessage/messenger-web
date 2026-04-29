@@ -380,6 +380,17 @@ function runMigrations() {
     "ALTER TABLE chat_notes ADD COLUMN edit_exceptions TEXT NOT NULL DEFAULT '[]'",
     "ALTER TABLE chat_notes ADD COLUMN visibility TEXT NOT NULL DEFAULT 'public'",
     "ALTER TABLE chat_notes ADD COLUMN visibility_exceptions TEXT NOT NULL DEFAULT '[]'",
+    // ✅ F2: AI summary cache
+    `CREATE TABLE IF NOT EXISTS chat_summary_cache (
+      id TEXT PRIMARY KEY,
+      chat_id TEXT NOT NULL,
+      user_id TEXT NOT NULL,
+      summary TEXT NOT NULL,
+      message_count INTEGER NOT NULL DEFAULT 0,
+      generated_at INTEGER NOT NULL,
+      UNIQUE(chat_id, user_id)
+    )`,
+    `CREATE INDEX IF NOT EXISTS idx_summary_cache_lookup ON chat_summary_cache(chat_id, user_id)`,
   ];
 
   for (const sql of alters) {

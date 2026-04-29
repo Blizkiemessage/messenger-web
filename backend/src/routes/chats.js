@@ -362,4 +362,13 @@ router.post('/saved', async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
+// GET /chats/:id/summary — F2: AI chat summary
+router.get('/:id/summary', async (req, res, next) => {
+  try {
+    const { getChatSummary } = require('../services/aiSummaryService');
+    const result = await getChatSummary(req.params.id, req.userId);
+    res.json(result);
+  } catch (err) { next(err); }
+});
+
 module.exports = router;

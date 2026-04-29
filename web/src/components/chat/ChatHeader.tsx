@@ -43,6 +43,7 @@ interface Props {
   onAudioCall?: () => void;
   onVideoCall?: () => void;
   onOpenNotes?: () => void;
+  onOpenSummary?: () => void;
 }
 
 export function ChatHeader({
@@ -52,7 +53,7 @@ export function ChatHeader({
   searchOpen, searchQuery, searchTotal, searchCurrent,
   onToggleSearch, onSearchChange, onSearchNext, onSearchPrev, onSearchClose,
   pinnedCount, pinnedOpen, pinnedIndex, onTogglePinned, onPinnedNext, onPinnedPrev,
-  typingText, onOpenMedia, onAudioCall, onVideoCall, onOpenNotes,
+  typingText, onOpenMedia, onAudioCall, onVideoCall, onOpenNotes, onOpenSummary,
 }: Props) {
   const setActiveChatId = useChatsStore(s => s.setActiveChatId);
   const onlineUsers = useChatsStore(s => s.onlineUsers);
@@ -307,6 +308,15 @@ export function ChatHeader({
                   <polyline points="10 9 9 9 8 9"/>
                 </svg>
                 Заметки
+              </button>
+            )}
+            {onOpenSummary && (
+              <button className="chHeaderDropItem" onMouseDown={e => e.stopPropagation()} onClick={() => { setMoreMenuPos(null); onOpenSummary(); }}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="12" cy="12" r="10"/>
+                  <path d="M12 6v6l4 2"/>
+                </svg>
+                AI-сводка
               </button>
             )}
           </div>,
