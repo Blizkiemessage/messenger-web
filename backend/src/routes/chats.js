@@ -368,11 +368,15 @@ router.get('/:id/summary', async (req, res, next) => {
     const { getChatSummary } = require('../services/aiSummaryService');
     const { period = 'all', format = 'normal' } = req.query;
     const result = await getChatSummary(req.params.id, req.userId, { period, format });
-    // Disable ETag / browser caching — AI responses must never be served stale
     res.set('Cache-Control', 'no-store');
     res.removeHeader('ETag');
     res.json(result);
-  } catch (err) { next(err); }
+  } catch (err) {
+    // Always expose the real error message for this endpoint — no secrets here
+    const status = err.status || 500;
+    res.set('Cache-Control', 'no-store');
+    res.status(status).json({ error: err.message || 'Ошибка сервера' });
+  }
 });
 
 module.exports = router;
