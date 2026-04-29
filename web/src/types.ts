@@ -237,10 +237,16 @@ export type SharedNote = {
   chat_id: string;
   title: string;
   content: string;
+  created_by: string | null;
+  created_by_name?: string | null;
   last_edited_by: string | null;
   last_edited_by_name?: string | null;
   last_edited_at: number;
   created_at: number;
+  edit_mode: 'all' | 'restricted';
+  edit_exceptions: string[];
+  visibility: 'public' | 'private';
+  visibility_exceptions: string[];
 };
 
 // ── GIF (Giphy) ───────────────────────────────────────────────────────────────

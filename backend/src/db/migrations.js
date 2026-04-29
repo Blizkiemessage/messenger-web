@@ -374,6 +374,12 @@ function runMigrations() {
       created_at INTEGER NOT NULL
     )`,
     `CREATE INDEX IF NOT EXISTS idx_chat_notes_chat ON chat_notes(chat_id, created_at DESC)`,
+    // ✅ F4 v2: permissions — author, edit mode, visibility
+    'ALTER TABLE chat_notes ADD COLUMN created_by TEXT REFERENCES users(id)',
+    "ALTER TABLE chat_notes ADD COLUMN edit_mode TEXT NOT NULL DEFAULT 'all'",
+    "ALTER TABLE chat_notes ADD COLUMN edit_exceptions TEXT NOT NULL DEFAULT '[]'",
+    "ALTER TABLE chat_notes ADD COLUMN visibility TEXT NOT NULL DEFAULT 'public'",
+    "ALTER TABLE chat_notes ADD COLUMN visibility_exceptions TEXT NOT NULL DEFAULT '[]'",
   ];
 
   for (const sql of alters) {

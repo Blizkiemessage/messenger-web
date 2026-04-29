@@ -131,6 +131,7 @@ async function compressImage(file: File): Promise<{ blob: Blob; mime: string }> 
 export function uploadFile(
   file: File,
   onProgress: (pct: number) => void,
+  options?: { skipVideoCompress?: boolean },
 ): UploadTask {
   const controller = new AbortController();
 
@@ -191,7 +192,7 @@ export function uploadFile(
       const compressed = await compressImage(workingFile);
       blob = compressed.blob;
       mime = compressed.mime;
-    } else if (isVideo) {
+    } else if (isVideo && !options?.skipVideoCompress) {
       // Skip re-encoding if already WebM — camera recordings land here and are
       // already at the desired bitrate; re-encoding only wastes time + degrades quality.
       if (workingFile.type !== 'video/webm') {

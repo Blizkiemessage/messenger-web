@@ -1,26 +1,18 @@
 /**
- * NotesPanel — F4: Shared notes for a chat.
+ * NotesPanel — F4 v2: Shared notes with permissions, read/edit mode, settings.
  *
- * Rich block-based editor:
- *   - Text blocks (auto-resizing textareas)
- *   - Images (click to lightbox)
- *   - Videos (inline player with progress bar)
- *   - Files (download card)
- *   - GIFs & Stickers (inline)
- *   - Emoji / custom emoji (inserted at cursor)
- *   - File upload via existing pipeline
- *   - Clipboard paste (images, files)
- *   - Auto-save with debounce
- *   - Realtime sync via socket
+ * Read mode (default): clean read-only view, no editing UI.
+ * Edit mode: full rich-block editor with media, emoji, file upload.
+ * Settings (author only): control who can edit / who can see the note.
  */
 
 import {
   useState, useEffect, useRef, useCallback, lazy, Suspense,
 } from 'react';
 import { createPortal } from 'react-dom';
-import type { SharedNote, Chat } from '../../types';
+import type { SharedNote, Chat, User } from '../../types';
 import { useNotesStore } from '../../store/useNotesStore';
-import { createNote, updateNote, deleteNote } from '../../api/notes';
+import { createNote, updateNote, updateNoteSettings, deleteNote } from '../../api/notes';
 import { useSessionStore } from '../../store/useSessionStore';
 import { useAppStore } from '../../store/useAppStore';
 import { uploadFile } from '../../api/upload';
@@ -29,7 +21,7 @@ const EmojiStickerPanel = lazy(() =>
   import('../chat/EmojiStickerPanel').then(m => ({ default: m.EmojiStickerPanel }))
 );
 
-// ─── Content block types ──────────────────────────────────────────────────────
+// ─── Block types ──────────────────────────────────────────────────────────────
 
 type TextBlock    = { id: string; type: 'text'; text: string };
 type ImageBlock   = { id: string; type: 'image'; url: string; name: string; size?: number };
@@ -37,10 +29,9 @@ type VideoBlock_  = { id: string; type: 'video'; url: string; name: string; size
 type FileBlock    = { id: string; type: 'file';  url: string; name: string; size?: number };
 type GifBlock     = { id: string; type: 'gif';   url: string };
 type StickerBlock = { id: string; type: 'sticker'; url: string; packId?: string; itemId?: string };
+type NoteBlock    = TextBlock | ImageBlock | VideoBlock_ | FileBlock | GifBlock | StickerBlock;
 
-type NoteBlock = TextBlock | ImageBlock | VideoBlock_ | FileBlock | GifBlock | StickerBlock;
-
-// ─── Utilities ────────────────────────────────────────────────────────────────
+// ─── Helpers ──────────────────────────────────────────────────────────────────
 
 let _seq = 0;
 function uid(): string { return `nb_${Date.now()}_${++_seq}`; }
@@ -101,6 +92,12 @@ function fileLabel(name: string): string {
   return map[ext] ?? (ext.length <= 4 ? ext : 'FILE');
 }
 
+function canEdit(note: SharedNote, meId: string): boolean {
+  if (note.created_by === meId) return true;
+  if (!note.edit_mode || note.edit_mode === 'all') return true;
+  return (note.edit_exceptions ?? []).includes(meId);
+}
+
 // ─── Small shared components ──────────────────────────────────────────────────
 
 function FileIcon({ name }: { name: string }) {
@@ -128,7 +125,7 @@ function DeleteBlockBtn({ onClick }: { onClick: () => void }) {
   );
 }
 
-// ─── Image lightbox ───────────────────────────────────────────────────────────
+// ─── Lightbox ─────────────────────────────────────────────────────────────────
 
 function Lightbox({ src, onClose }: { src: string; onClose: () => void }) {
   useEffect(() => {
@@ -202,24 +199,26 @@ function MediaBlock({ block, onDelete, readOnly }: { block: NoteBlock; onDelete:
   const [lb, setLb] = useState<string | null>(null);
   if (block.type === 'text') return null;
   if (block.type === 'video') return <NoteVideoBlock block={block} onDelete={onDelete} readOnly={readOnly} />;
+
   if (block.type === 'sticker') return (
     <div className="noteStickerWrap">
       {!readOnly && <DeleteBlockBtn onClick={onDelete} />}
       <img src={block.url} className="noteStickerImg" alt="sticker" />
     </div>
   );
+
   if (block.type === 'image' || block.type === 'gif') return (
-    <div className="noteImgWrap">
-      {!readOnly && <DeleteBlockBtn onClick={onDelete} />}
+    <div className="noteImgWrap" onClick={() => setLb(block.url)}>
+      {!readOnly && <DeleteBlockBtn onClick={() => { onDelete(); }} />}
       <img
         src={block.url}
         className={`noteBlockImg${block.type === 'gif' ? ' noteBlockGif' : ''}`}
         alt={block.type === 'gif' ? 'GIF' : (block as ImageBlock).name}
-        onClick={() => setLb(block.url)}
       />
       {lb && <Lightbox src={lb} onClose={() => setLb(null)} />}
     </div>
   );
+
   if (block.type === 'file') return (
     <div className="noteFileWrap">
       {!readOnly && <DeleteBlockBtn onClick={onDelete} />}
@@ -245,13 +244,161 @@ function MediaBlock({ block, onDelete, readOnly }: { block: NoteBlock; onDelete:
 function UploadBar({ pct }: { pct: number }) {
   return (
     <div className="noteUploadBar">
-      <div className="noteUploadFill" style={{ width: `${pct}%` }} />
-      <span className="noteUploadLabel">Загрузка {pct}%</span>
+      <div className="noteUploadFill" style={{ width: `${Math.max(pct, 2)}%` }} />
+      <span className="noteUploadLabel">
+        {pct <= 1 ? 'Подготовка…' : `Загрузка ${pct}%`}
+      </span>
     </div>
   );
 }
 
-// ─── Rich text editor ─────────────────────────────────────────────────────────
+// ─── Note settings panel ─────────────────────────────────────────────────────
+
+interface SettingsProps {
+  note: SharedNote;
+  chat: Chat;
+  meId: string;
+  onBack: () => void;
+  onSaved: (updated: SharedNote) => void;
+}
+
+function NoteSettings({ note, chat, meId, onBack, onSaved }: SettingsProps) {
+  const [editMode, setEditMode]         = useState<'all' | 'restricted'>(note.edit_mode ?? 'all');
+  const [editExc, setEditExc]           = useState<string[]>(note.edit_exceptions ?? []);
+  const [visibility, setVisibility]     = useState<'public' | 'private'>(note.visibility ?? 'public');
+  const [visExc, setVisExc]             = useState<string[]>(note.visibility_exceptions ?? []);
+  const [saving, setSaving]             = useState(false);
+
+  const members = chat.members.filter(m => m.id !== meId);
+
+  function toggleEditExc(id: string) {
+    setEditExc(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
+  }
+  function toggleVisExc(id: string) {
+    setVisExc(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
+  }
+
+  async function save() {
+    setSaving(true);
+    try {
+      const updated = await updateNoteSettings(chat.id, note.id, {
+        edit_mode: editMode,
+        edit_exceptions: editExc,
+        visibility,
+        visibility_exceptions: visExc,
+      });
+      onSaved(updated);
+      onBack();
+    } catch { /* ignore */ }
+    setSaving(false);
+  }
+
+  return (
+    <div className="notesSettings">
+      <div className="notesSettingsHeader">
+        <button className="notesBackBtn" onClick={onBack} title="Назад">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="15 18 9 12 15 6"/>
+          </svg>
+        </button>
+        <div className="notesSettingsTitle">Настройки заметки</div>
+      </div>
+
+      <div className="notesSettingsBody">
+
+        {/* ── Edit permissions ── */}
+        <div className="nsSection">
+          <div className="nsSectionLabel">Редактирование</div>
+          <div className="nsSegment">
+            <button className={`nsSegBtn${editMode === 'all' ? ' nsActive' : ''}`} onClick={() => setEditMode('all')}>
+              Все участники
+            </button>
+            <button className={`nsSegBtn${editMode === 'restricted' ? ' nsActive' : ''}`} onClick={() => setEditMode('restricted')}>
+              Только избранные
+            </button>
+          </div>
+          {editMode === 'restricted' && (
+            <>
+              <div className="nsSectionDesc">Выберите участников, которым разрешено редактировать эту заметку.</div>
+              <div className="nsMembers">
+                <div className="nsMember">
+                  <MemberAvatar user={null} name="Вы (автор)" />
+                  <span className="nsMemberName">Вы (автор)</span>
+                  <span className="nsFixedLabel">Всегда</span>
+                </div>
+                {members.map(m => (
+                  <button key={m.id} className="nsMember" onClick={() => toggleEditExc(m.id)}>
+                    <MemberAvatar user={m} name={m.display_name || m.username || '?'} />
+                    <span className="nsMemberName">{m.display_name || m.username || 'Участник'}</span>
+                    <div className={`nsMemberCheck${editExc.includes(m.id) ? ' nsChecked' : ''}`}>
+                      {editExc.includes(m.id) && (
+                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                          <polyline points="20 6 9 17 4 12"/>
+                        </svg>
+                      )}
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </>
+          )}
+        </div>
+
+        {/* ── Visibility ── */}
+        <div className="nsSection">
+          <div className="nsSectionLabel">Видимость</div>
+          <div className="nsSegment">
+            <button className={`nsSegBtn${visibility === 'public' ? ' nsActive' : ''}`} onClick={() => setVisibility('public')}>
+              Публичная
+            </button>
+            <button className={`nsSegBtn${visibility === 'private' ? ' nsActive' : ''}`} onClick={() => setVisibility('private')}>
+              Скрытая
+            </button>
+          </div>
+          {visibility === 'private' && (
+            <>
+              <div className="nsSectionDesc">Только вы и отмеченные участники смогут видеть эту заметку.</div>
+              <div className="nsMembers">
+                <div className="nsMember">
+                  <MemberAvatar user={null} name="Вы (автор)" />
+                  <span className="nsMemberName">Вы (автор)</span>
+                  <span className="nsFixedLabel">Всегда</span>
+                </div>
+                {members.map(m => (
+                  <button key={m.id} className="nsMember" onClick={() => toggleVisExc(m.id)}>
+                    <MemberAvatar user={m} name={m.display_name || m.username || '?'} />
+                    <span className="nsMemberName">{m.display_name || m.username || 'Участник'}</span>
+                    <div className={`nsMemberCheck${visExc.includes(m.id) ? ' nsChecked' : ''}`}>
+                      {visExc.includes(m.id) && (
+                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                          <polyline points="20 6 9 17 4 12"/>
+                        </svg>
+                      )}
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </>
+          )}
+        </div>
+
+        <button className="notesSettingsSave" onClick={save} disabled={saving}>
+          {saving ? 'Сохранение…' : 'Сохранить'}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function MemberAvatar({ user, name }: { user: User | null; name: string }) {
+  if (user?.avatar_url) {
+    return <img src={user.avatar_url} className="nsMemberAvatar" alt={name} />;
+  }
+  const initial = (name[0] || '?').toUpperCase();
+  return <div className="nsMemberAvatar">{initial}</div>;
+}
+
+// ─── Rich editor ──────────────────────────────────────────────────────────────
 
 interface EditorProps {
   note: SharedNote;
@@ -259,33 +406,47 @@ interface EditorProps {
   meId: string;
   onBack: () => void;
   onDelete: (noteId: string) => void;
+  onNoteUpdated: (note: SharedNote) => void;
 }
 
-function NoteEditor({ note, chat, meId, onBack, onDelete }: EditorProps) {
-  const theme = useAppStore(s => s.theme);
+function NoteEditor({ note, chat, meId, onBack, onDelete, onNoteUpdated }: EditorProps) {
+  const theme      = useAppStore(s => s.theme);
   const upsertNote = useNotesStore(s => s.upsertNote);
 
-  const [title, setTitle]   = useState(note.title);
-  const [blocks, setBlocks] = useState<NoteBlock[]>(() => parseBlocks(note.content));
-  const [saving, setSaving] = useState(false);
-  const [savedAt, setSavedAt] = useState(note.last_edited_at);
-  const [confirmDel, setConfirmDel]   = useState(false);
-  const [showEmoji, setShowEmoji]     = useState(false);
-  const [uploadPct, setUploadPct]     = useState<number | null>(null);
+  const userCanEdit  = canEdit(note, meId);
+  const isAuthor     = note.created_by === meId || note.created_by == null;
 
-  const saveTimer   = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const pendTitle   = useRef(title);
-  const pendBlocks  = useRef(blocks);
-  const activeId    = useRef<string | null>(null);   // focused text block id
-  const activeCursor = useRef<number>(0);             // cursor position in that block
-  const taRefs      = useRef<Map<string, HTMLTextAreaElement>>(new Map());
-  const fileRef     = useRef<HTMLInputElement>(null);
-  const emojiRef    = useRef<HTMLDivElement>(null);
-  const emojiBtnRef = useRef<HTMLButtonElement>(null);
+  const [readMode, setReadMode]     = useState(true);
+  const [showSettings, setSettings] = useState(false);
+  const [title, setTitle]           = useState(note.title);
+  const [blocks, setBlocks]         = useState<NoteBlock[]>(() => parseBlocks(note.content));
+  const [saving, setSaving]         = useState(false);
+  const [savedAt, setSavedAt]       = useState(note.last_edited_at);
+  const [confirmDel, setConfirmDel] = useState(false);
+  const [showEmoji, setShowEmoji]   = useState(false);
+  const [uploadPct, setUploadPct]   = useState<number | null>(null);
 
-  // Sync pending refs
+  const saveTimer    = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pendTitle    = useRef(title);
+  const pendBlocks   = useRef(blocks);
+  const activeId     = useRef<string | null>(null);
+  const activeCursor = useRef<number>(0);
+  const taRefs       = useRef<Map<string, HTMLTextAreaElement>>(new Map());
+  const fileRef      = useRef<HTMLInputElement>(null);
+  const emojiRef     = useRef<HTMLDivElement>(null);
+  const emojiBtnRef  = useRef<HTMLButtonElement>(null);
+
   useEffect(() => { pendTitle.current  = title;  }, [title]);
   useEffect(() => { pendBlocks.current = blocks; }, [blocks]);
+
+  // Sync incoming note updates (remote edits) into editor state
+  useEffect(() => {
+    if (readMode) {
+      setTitle(note.title);
+      setBlocks(parseBlocks(note.content));
+      setSavedAt(note.last_edited_at);
+    }
+  }, [note, readMode]);
 
   const doSave = useCallback(async () => {
     setSaving(true);
@@ -295,17 +456,17 @@ function NoteEditor({ note, chat, meId, onBack, onDelete }: EditorProps) {
         content: serialize(pendBlocks.current),
       });
       upsertNote(chat.id, updated);
+      onNoteUpdated(updated);
       setSavedAt(updated.last_edited_at);
     } catch { /* silent */ }
     setSaving(false);
-  }, [chat.id, note.id, upsertNote]);
+  }, [chat.id, note.id, upsertNote, onNoteUpdated]);
 
   const scheduleSave = useCallback(() => {
     if (saveTimer.current) clearTimeout(saveTimer.current);
     saveTimer.current = setTimeout(doSave, 800);
   }, [doSave]);
 
-  // Flush on unmount
   useEffect(() => () => {
     if (saveTimer.current) {
       clearTimeout(saveTimer.current);
@@ -328,7 +489,7 @@ function NoteEditor({ note, chat, meId, onBack, onDelete }: EditorProps) {
     return () => document.removeEventListener('mousedown', h);
   }, [showEmoji]);
 
-  // Auto-resize all textareas whenever blocks change
+  // Auto-resize textareas
   useEffect(() => {
     for (const [, el] of taRefs.current) {
       el.style.height = 'auto';
@@ -347,7 +508,6 @@ function NoteEditor({ note, chat, meId, onBack, onDelete }: EditorProps) {
     setBlocks(prev => {
       const filtered = prev.filter(b => b.id !== id);
       if (filtered.length === 0) return [{ id: uid(), type: 'text', text: '' }];
-      // Merge adjacent text blocks after media removal
       const merged: NoteBlock[] = [];
       for (const blk of filtered) {
         const last = merged[merged.length - 1];
@@ -362,16 +522,15 @@ function NoteEditor({ note, chat, meId, onBack, onDelete }: EditorProps) {
     scheduleSave();
   }, [scheduleSave]);
 
-  // Insert a media block at/after the current cursor position
   const insertBlock = useCallback((newBlk: NoteBlock) => {
     setBlocks(prev => {
-      const curId = activeId.current;
+      const curId  = activeId.current;
       const curIdx = curId ? prev.findIndex(b => b.id === curId) : prev.length - 1;
       const curBlk = prev[curIdx];
       const afterId = uid();
 
       if (curBlk?.type === 'text') {
-        const pos = activeCursor.current;
+        const pos    = activeCursor.current;
         const before = curBlk.text.slice(0, pos);
         const after  = curBlk.text.slice(pos);
         const next: NoteBlock[] = [
@@ -401,7 +560,6 @@ function NoteEditor({ note, chat, meId, onBack, onDelete }: EditorProps) {
     scheduleSave();
   }, [scheduleSave]);
 
-  // Backspace at start of text block — merge with prev or delete prev media
   const handleTextKeyDown = useCallback((e: React.KeyboardEvent<HTMLTextAreaElement>, blockId: string) => {
     if (e.key !== 'Backspace') return;
     const ta = e.currentTarget;
@@ -412,9 +570,9 @@ function NoteEditor({ note, chat, meId, onBack, onDelete }: EditorProps) {
       if (idx === 0) return prev;
       const prevBlk = prev[idx - 1];
       if (prevBlk.type === 'text') {
-        const merged = { ...prevBlk, text: prevBlk.text + (prev[idx] as TextBlock).text };
-        const next = [...prev.slice(0, idx - 1), merged, ...prev.slice(idx + 1)];
-        const pos = prevBlk.text.length;
+        const merged  = { ...prevBlk, text: prevBlk.text + (prev[idx] as TextBlock).text };
+        const next    = [...prev.slice(0, idx - 1), merged, ...prev.slice(idx + 1)];
+        const pos     = prevBlk.text.length;
         setTimeout(() => {
           const el = taRefs.current.get(prevBlk.id);
           if (el) { el.focus(); el.setSelectionRange(pos, pos); }
@@ -430,7 +588,8 @@ function NoteEditor({ note, chat, meId, onBack, onDelete }: EditorProps) {
 
   const handleFiles = useCallback(async (files: File[]) => {
     for (const file of files) {
-      const task = uploadFile(file, pct => setUploadPct(pct));
+      setUploadPct(1); // show bar immediately
+      const task = uploadFile(file, pct => setUploadPct(pct), { skipVideoCompress: true });
       try {
         const r = await task.promise;
         setUploadPct(null);
@@ -463,12 +622,11 @@ function NoteEditor({ note, chat, meId, onBack, onDelete }: EditorProps) {
       if (curId) {
         return prev.map(b => {
           if (b.id !== curId || b.type !== 'text') return b;
-          const pos = activeCursor.current;
+          const pos  = activeCursor.current;
           const text = b.text.slice(0, pos) + emoji + b.text.slice(pos);
           return { ...b, text };
         });
       }
-      // No focused block — append to last text block
       const lastTxt = [...prev].reverse().find(b => b.type === 'text');
       if (!lastTxt) return prev;
       return prev.map(b => b.id === lastTxt.id && b.type === 'text'
@@ -478,38 +636,62 @@ function NoteEditor({ note, chat, meId, onBack, onDelete }: EditorProps) {
     setTimeout(() => {
       if (curId) {
         const el = taRefs.current.get(curId);
-        const p = activeCursor.current;
+        const p  = activeCursor.current;
         el?.setSelectionRange(p, p);
       }
     }, 0);
     scheduleSave();
   }, [scheduleSave]);
 
-  const handleSendGif     = (url: string) => { insertBlock({ id: uid(), type: 'gif', url }); setShowEmoji(false); };
+  const handleSendGif     = (url: string) => { insertBlock({ id: uid(), type: 'gif',     url }); setShowEmoji(false); };
   const handleSendSticker = (url: string, itemId: string, packId: string) => { insertBlock({ id: uid(), type: 'sticker', url, packId, itemId }); setShowEmoji(false); };
-  const handleCustomEmoji = (packId: string, itemId: string, fileUrl: string) => { insertBlock({ id: uid(), type: 'sticker', url: fileUrl, packId, itemId }); setShowEmoji(false); };
+  const handleCustomEmoji = (_pId: string, _iId: string, fileUrl: string) => { insertBlock({ id: uid(), type: 'sticker', url: fileUrl }); setShowEmoji(false); };
 
   // ── Delete note ─────────────────────────────────────────────────────────────
 
-  const myRole = chat.members.find(m => m.id === meId)?.role ?? 'member';
-  const canDelete = chat.type === 'group' ? myRole === 'admin' || myRole === 'moderator' : true;
+  const myRole   = chat.members.find(m => m.id === meId)?.role ?? 'member';
+  const canDelete = isAuthor
+    || (chat.type !== 'group')
+    || myRole === 'admin'
+    || myRole === 'moderator';
 
   async function handleDelete() {
     try { await deleteNote(chat.id, note.id); onDelete(note.id); } catch { /* ignore */ }
   }
 
+  // ── Settings saved ──────────────────────────────────────────────────────────
+
+  function handleSettingsSaved(updated: SharedNote) {
+    upsertNote(chat.id, updated);
+    onNoteUpdated(updated);
+  }
+
+  // ── Settings view ───────────────────────────────────────────────────────────
+  if (showSettings) {
+    return (
+      <NoteSettings
+        note={note}
+        chat={chat}
+        meId={meId}
+        onBack={() => setSettings(false)}
+        onSaved={handleSettingsSaved}
+      />
+    );
+  }
+
   const editorName = note.last_edited_by_name ?? null;
 
   return (
-    <div className="notesEditor" onPaste={handlePaste}>
+    <div className="notesEditor" onPaste={!readMode ? handlePaste : undefined}>
 
-      {/* ── Header ──────────────────────────────────────────────────── */}
+      {/* ── Header ── */}
       <div className="notesEditorHeader">
         <button className="notesBackBtn" onClick={onBack} title="К списку заметок">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
             <polyline points="15 18 9 12 15 6"/>
           </svg>
         </button>
+
         <div className="notesEditorMeta">
           {saving
             ? <span className="notesSaving">Сохранение…</span>
@@ -519,6 +701,43 @@ function NoteEditor({ note, chat, meId, onBack, onDelete }: EditorProps) {
               </span>
           }
         </div>
+
+        {/* Mode toggle — only if user can edit */}
+        {userCanEdit && (
+          <button
+            className={`notesModeToggle${!readMode ? ' ntmEdit' : ''}`}
+            onClick={() => setReadMode(v => !v)}
+            title={readMode ? 'Перейти к редактированию' : 'Режим чтения'}
+          >
+            {readMode
+              ? <>
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                  </svg>
+                  <span>Редактировать</span>
+                </>
+              : <>
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                    <circle cx="12" cy="12" r="3"/>
+                  </svg>
+                  <span>Просмотр</span>
+                </>
+            }
+          </button>
+        )}
+
+        {/* Settings gear — author only */}
+        {isAuthor && (
+          <button className="notesSettingsBtn" onClick={() => setSettings(true)} title="Настройки заметки">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="3"/>
+              <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+            </svg>
+          </button>
+        )}
+
         {canDelete && (
           <button className="notesDeleteBtn" onClick={() => setConfirmDel(true)} title="Удалить заметку">
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -529,22 +748,28 @@ function NoteEditor({ note, chat, meId, onBack, onDelete }: EditorProps) {
         )}
       </div>
 
-      {/* ── Title ───────────────────────────────────────────────────── */}
-      <input
-        className="notesEditorTitle"
-        value={title}
-        onChange={e => { setTitle(e.target.value); scheduleSave(); }}
-        placeholder="Заголовок"
-        maxLength={200}
-      />
+      {/* ── Title ── */}
+      {readMode
+        ? <div className="notesReadTitle">{title || 'Без названия'}</div>
+        : <input
+            className="notesEditorTitle"
+            value={title}
+            onChange={e => { setTitle(e.target.value); scheduleSave(); }}
+            placeholder="Заголовок"
+            maxLength={200}
+          />
+      }
 
-      {/* ── Upload progress ──────────────────────────────────────────── */}
+      {/* ── Upload progress ── */}
       {uploadPct !== null && <UploadBar pct={uploadPct} />}
 
-      {/* ── Block list ──────────────────────────────────────────────── */}
+      {/* ── Block list ── */}
       <div className="notesContent">
         {blocks.map((blk, i) => {
           if (blk.type === 'text') {
+            if (readMode) {
+              return <div key={blk.id} className="notesTextBlockRead">{blk.text}</div>;
+            }
             return (
               <textarea
                 key={blk.id}
@@ -559,11 +784,11 @@ function NoteEditor({ note, chat, meId, onBack, onDelete }: EditorProps) {
                   e.target.style.height = 'auto';
                   e.target.style.height = e.target.scrollHeight + 'px';
                 }}
-                onFocus={e => { activeId.current = blk.id; activeCursor.current = e.target.selectionStart; }}
+                onFocus={e  => { activeId.current = blk.id; activeCursor.current = e.target.selectionStart; }}
                 onSelect={e => { activeCursor.current = (e.target as HTMLTextAreaElement).selectionStart; }}
                 onKeyDown={e => { activeCursor.current = (e.target as HTMLTextAreaElement).selectionStart; handleTextKeyDown(e, blk.id); }}
-                onKeyUp={e => { activeCursor.current = (e.target as HTMLTextAreaElement).selectionStart; }}
-                onClick={e => { activeId.current = blk.id; activeCursor.current = (e.target as HTMLTextAreaElement).selectionStart; }}
+                onKeyUp={e  => { activeCursor.current = (e.target as HTMLTextAreaElement).selectionStart; }}
+                onClick={e  => { activeId.current = blk.id; activeCursor.current = (e.target as HTMLTextAreaElement).selectionStart; }}
               />
             );
           }
@@ -572,65 +797,68 @@ function NoteEditor({ note, chat, meId, onBack, onDelete }: EditorProps) {
               key={blk.id}
               block={blk}
               onDelete={() => deleteBlock(blk.id)}
+              readOnly={readMode}
             />
           );
         })}
       </div>
 
-      {/* ── Bottom toolbar ───────────────────────────────────────────── */}
-      <div className="notesToolbar">
-        <input
-          ref={fileRef}
-          type="file"
-          accept="image/*,video/*,audio/*,application/pdf,.doc,.docx,.xls,.xlsx,.txt,.zip,.rar,.7z"
-          multiple
-          style={{ display: 'none' }}
-          onChange={handleFileInput}
-        />
-        <button
-          className="notesToolbarBtn"
-          onClick={() => fileRef.current?.click()}
-          disabled={uploadPct !== null}
-          title="Прикрепить файл или медиа"
-        >
-          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/>
-          </svg>
-        </button>
-
-        <div className="notesEmojiWrap">
+      {/* ── Bottom toolbar (edit mode only) ── */}
+      {!readMode && (
+        <div className="notesToolbar">
+          <input
+            ref={fileRef}
+            type="file"
+            accept="image/*,video/*,audio/*,application/pdf,.doc,.docx,.xls,.xlsx,.txt,.zip,.rar,.7z"
+            multiple
+            style={{ display: 'none' }}
+            onChange={handleFileInput}
+          />
           <button
-            ref={emojiBtnRef}
-            className={`notesToolbarBtn${showEmoji ? ' ntbActive' : ''}`}
-            onClick={() => setShowEmoji(v => !v)}
-            title="Emoji, стикеры, GIF"
+            className="notesToolbarBtn"
+            onClick={() => fileRef.current?.click()}
+            disabled={uploadPct !== null}
+            title="Прикрепить файл или медиа"
           >
             <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <circle cx="12" cy="12" r="10"/>
-              <path d="M8 14s1.5 2 4 2 4-2 4-2"/>
-              <line x1="9" y1="9" x2="9.01" y2="9" strokeWidth="3"/>
-              <line x1="15" y1="9" x2="15.01" y2="9" strokeWidth="3"/>
+              <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/>
             </svg>
           </button>
 
-          {showEmoji && (
-            <div ref={emojiRef} className="notesEmojiPanel">
-              <Suspense fallback={<div className="notesEmojiLoader">Загрузка…</div>}>
-                <EmojiStickerPanel
-                  onEmojiSelect={(e: { native: string }) => insertEmoji(e.native)}
-                  onSendGif={handleSendGif}
-                  onSendSticker={handleSendSticker}
-                  onSendCustomEmoji={handleCustomEmoji}
-                  onOpenStudio={() => {}}
-                  theme={theme ?? 'dark'}
-                />
-              </Suspense>
-            </div>
-          )}
-        </div>
-      </div>
+          <div className="notesEmojiWrap">
+            <button
+              ref={emojiBtnRef}
+              className={`notesToolbarBtn${showEmoji ? ' ntbActive' : ''}`}
+              onClick={() => setShowEmoji(v => !v)}
+              title="Emoji, стикеры, GIF"
+            >
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="12" r="10"/>
+                <path d="M8 14s1.5 2 4 2 4-2 4-2"/>
+                <line x1="9" y1="9" x2="9.01" y2="9" strokeWidth="3"/>
+                <line x1="15" y1="9" x2="15.01" y2="9" strokeWidth="3"/>
+              </svg>
+            </button>
 
-      {/* ── Delete confirm ──────────────────────────────────────────── */}
+            {showEmoji && (
+              <div ref={emojiRef} className="notesEmojiPanel">
+                <Suspense fallback={<div className="notesEmojiLoader">Загрузка…</div>}>
+                  <EmojiStickerPanel
+                    onEmojiSelect={(e: { native: string }) => insertEmoji(e.native)}
+                    onSendGif={handleSendGif}
+                    onSendSticker={handleSendSticker}
+                    onSendCustomEmoji={handleCustomEmoji}
+                    onOpenStudio={() => {}}
+                    theme={theme ?? 'dark'}
+                  />
+                </Suspense>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ── Delete confirm ── */}
       {confirmDel && createPortal(
         <div className="notesConfirmOverlay" onClick={() => setConfirmDel(false)}>
           <div className="notesConfirmCard" onClick={e => e.stopPropagation()}>
@@ -648,7 +876,7 @@ function NoteEditor({ note, chat, meId, onBack, onDelete }: EditorProps) {
   );
 }
 
-// ─── Note list item ───────────────────────────────────────────────────────────
+// ─── Note list helpers ────────────────────────────────────────────────────────
 
 function snippet(content: string): string {
   if (!content) return 'Пусто';
@@ -662,8 +890,7 @@ function snippet(content: string): string {
   }
 }
 
-// ─── Stable empty array (prevents Zustand selector from returning new ref each render) ──
-
+// ─── Stable empty array — prevents Zustand selector returning new ref each render ──
 const EMPTY_NOTES: SharedNote[] = [];
 
 // ─── Main panel ───────────────────────────────────────────────────────────────
@@ -684,17 +911,13 @@ export function NotesPanel({ chat, onClose }: Props) {
 
   useEffect(() => { loadNotes(chat.id); }, [chat.id, loadNotes]);
 
-  // Sync socket updates into the open editor (remote edits only)
+  // Sync remote note updates into open editor
   const editingRef = useRef(editing);
   useEffect(() => { editingRef.current = editing; }, [editing]);
   useEffect(() => {
     if (!editingRef.current) return;
     const fresh = notes.find(n => n.id === editingRef.current!.id);
-    if (
-      fresh &&
-      fresh.last_edited_by !== meId &&
-      fresh.last_edited_at > editingRef.current!.last_edited_at
-    ) {
+    if (fresh && fresh.last_edited_by !== meId && fresh.last_edited_at > editingRef.current!.last_edited_at) {
       setEditing(fresh);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -716,7 +939,7 @@ export function NotesPanel({ chat, onClose }: Props) {
     setEditing(null);
   }
 
-  // ── Editing view — panel header is hidden, editor takes full space ────────
+  // ── Editor view ───────────────────────────────────────────────────────────
   if (editing) {
     return (
       <div className="notesPanel">
@@ -727,6 +950,7 @@ export function NotesPanel({ chat, onClose }: Props) {
           meId={meId}
           onBack={() => setEditing(null)}
           onDelete={handleDeleted}
+          onNoteUpdated={updated => setEditing(updated)}
         />
       </div>
     );

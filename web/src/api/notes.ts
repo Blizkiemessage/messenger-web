@@ -20,6 +20,20 @@ export async function updateNote(
   return res.data;
 }
 
+export async function updateNoteSettings(
+  chatId: string,
+  noteId: string,
+  data: {
+    edit_mode: 'all' | 'restricted';
+    edit_exceptions: string[];
+    visibility: 'public' | 'private';
+    visibility_exceptions: string[];
+  },
+): Promise<SharedNote> {
+  const res = await client.patch(`/chats/${chatId}/notes/${noteId}/settings`, data);
+  return res.data;
+}
+
 export async function deleteNote(chatId: string, noteId: string): Promise<void> {
   await client.delete(`/chats/${chatId}/notes/${noteId}`);
 }
