@@ -3,9 +3,8 @@ meta:
   toolVersion: "20"
 
 build:
-  dockerfile: false
   buildDir: .
-  buildCommand: rm -rf node_modules && npm install --production
+  buildCommand: rm -rf node_modules && npm install --omit=dev
 
 run:
   persistenceMount: /data
