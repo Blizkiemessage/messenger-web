@@ -32,18 +32,41 @@ function urlToKey(url) {
   return url.slice(base.length + 1);
 }
 
+// Retry S3 deletes with exponential backoff: 300 ms → 900 ms → 2700 ms.
+// Transient Yandex S3 errors (503, network blip) are recovered automatically.
+// Final failure is logged at error level so it surfaces in the admin panel.
+const S3_DELETE_ATTEMPTS = 3;
+
 async function deleteFromS3(url) {
   if (!url) return;
+
   if (useS3) {
     if (!isS3Url(url)) return;
-    try {
-      await s3.send(new DeleteObjectCommand({
-        Bucket: process.env.S3_BUCKET,
-        Key: urlToKey(url),
-      }));
-    } catch (err) {
-      logger.warn('[S3Delete]', 'Failed to delete object', { url, error: err.message });
+    const key = urlToKey(url);
+    let lastErr;
+
+    for (let attempt = 1; attempt <= S3_DELETE_ATTEMPTS; attempt++) {
+      try {
+        await s3.send(new DeleteObjectCommand({
+          Bucket: process.env.S3_BUCKET,
+          Key:    key,
+        }));
+        return; // success
+      } catch (err) {
+        lastErr = err;
+        if (attempt < S3_DELETE_ATTEMPTS) {
+          const delay = 300 * 3 ** (attempt - 1); // 300 ms, 900 ms, 2700 ms
+          logger.warn('[S3Delete]', `Delete attempt ${attempt} failed — retrying in ${delay} ms`, {
+            key, error: err.message,
+          });
+          await new Promise(r => setTimeout(r, delay));
+        }
+      }
     }
+
+    logger.error('[S3Delete]', `Failed to delete object after ${S3_DELETE_ATTEMPTS} attempts`, lastErr, {
+      key,
+    });
   } else {
     const filename = url.split('/').pop();
     if (!filename) return;
