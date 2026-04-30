@@ -9,7 +9,7 @@ const {
   resetPassword,
 } = require('../services/authService');
 const { authMiddleware } = require('../middleware/auth');
-const { loginLimiter, emailSendLimiter, otpVerifyLimiter, totpVerifyLimiter } = require('../middleware/rateLimits');
+const { loginLimiter, emailSendLimiter, registrationLimiter, otpVerifyLimiter, totpVerifyLimiter } = require('../middleware/rateLimits');
 const { getDb } = require('../config/database');
 const { sign, signAccess, signRefresh, verify } = require('../utils/jwt');
 const { sanitizeUser } = require('../services/userService');
@@ -221,7 +221,7 @@ router.post('/totp-verify', totpVerifyLimiter, async (req, res, next) => {
 });
 
 // POST /auth/register — step 1: validate, send OTP email
-router.post('/register', emailSendLimiter, async (req, res, next) => {
+router.post('/register', registrationLimiter, async (req, res, next) => {
   try {
     const { username, email, password } = req.body;
     if (!username || typeof username !== 'string' || username.trim().length < 3) {

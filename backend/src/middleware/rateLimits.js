@@ -9,12 +9,23 @@ const loginLimiter = rateLimit({
   legacyHeaders: false,
 });
 
-// Endpoints that send an email (register, forgot-password, request-email-change)
+// Endpoints that send an email (forgot-password, request-email-change)
 // Tight: 5 emails / hour per IP
 const emailSendLimiter = rateLimit({
   windowMs: 60 * 60 * 1000,
   max: 5,
   message: { error: 'Слишком много запросов. Попробуйте через час.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+// B2: Registration-specific limiter — separate counter from emailSendLimiter so
+// forgot-password and register don't interfere with each other.
+// 3 account-creation attempts / hour per IP is enough for legitimate use.
+const registrationLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 3,
+  message: { error: 'Слишком много попыток регистрации. Попробуйте через час.' },
   standardHeaders: true,
   legacyHeaders: false,
 });
@@ -77,6 +88,7 @@ const totpVerifyLimiter = rateLimit({
 module.exports = {
   loginLimiter,
   emailSendLimiter,
+  registrationLimiter,
   otpVerifyLimiter,
   adminLoginLimiter,
   searchLimiter,
