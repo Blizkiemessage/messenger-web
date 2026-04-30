@@ -57,6 +57,25 @@ const userActiveChat = new Map();
 const typingThrottle = new Map();
 const TYPING_THROTTLE_MS = 1500;
 
+// Per-user call rate limit: Map<userId, { count, windowStart }>
+// Prevents harassment via rapid call:invite spam after rejections.
+// Resets every CALL_RATE_WINDOW_MS; max CALL_RATE_MAX invites per window.
+const callRateTracker = new Map();
+const CALL_RATE_MAX    = 5;
+const CALL_RATE_WINDOW = 60_000; // 1 minute
+
+function isCallRateLimited(userId) {
+  const now    = Date.now();
+  const record = callRateTracker.get(userId);
+  if (!record || now - record.windowStart >= CALL_RATE_WINDOW) {
+    callRateTracker.set(userId, { count: 1, windowStart: now });
+    return false;
+  }
+  if (record.count >= CALL_RATE_MAX) return true;
+  record.count++;
+  return false;
+}
+
 function initSocket(httpServer) {
   const io = new Server(httpServer, {
     cors: {
@@ -137,8 +156,15 @@ function initSocket(httpServer) {
 
     // ── Events ───────────────────────────────────────────────────────────────
 
-    // Join a specific chat room (called after creating a new chat on the client)
+    // Join a specific chat room (called after creating a new chat on the client).
+    // Membership is verified to prevent unauthorised users from receiving
+    // typing and presence events for chats they don't belong to.
     socket.on('join-chat', chatId => {
+      if (!chatId) return;
+      const member = getDb()
+        .prepare('SELECT 1 FROM chat_members WHERE chat_id = ? AND user_id = ?')
+        .get([chatId, userId]);
+      if (!member) return; // silently drop — don't reveal that the chat exists
       socket.join(`chat:${chatId}`);
     });
 
@@ -170,6 +196,12 @@ function initSocket(httpServer) {
     socket.on('call:invite', ({ callId, calleeId, chatId, callType }) => {
       if (!callId || !calleeId || !chatId) return;
       if (activeCalls.has(callId)) return; // duplicate
+
+      // Rate limit: max 5 call attempts per user per minute (survives rejections)
+      if (isCallRateLimited(userId)) {
+        socket.emit('call:error', { callId, reason: 'rate_limited' });
+        return;
+      }
 
       // Reject if caller is already in a call
       const callerBusy = [...activeCalls.values()].some(
