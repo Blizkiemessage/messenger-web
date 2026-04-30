@@ -2494,7 +2494,7 @@ web/src/
 | A2 | Graceful shutdown | A | 1ч | Потеря данных при деплое | ✅ |
 | A3 | Scheduled messages worker | A | — | Функция нерабочая | ✅ |
 | A4 | Socket.IO rate limits | A | 2ч | DoS уязвимость | ✅ |
-| A5 | S3 retry + logging | A | 1.5ч | Утечка данных в S3 | ⬜ |
+| A5 | S3 retry + logging | A | 1.5ч | Утечка данных в S3 | ✅ |
 | B1 | Refresh tokens | B | 4ч | 30-дневная уязвимость | ⬜ |
 | B2 | Reg rate limit | B | 30 мин | Спам аккаунтов | ⬜ |
 | B3 | Admin user table | B | 3ч | Небезопасный admin | ⬜ |
