@@ -34,16 +34,42 @@ function patchPrepare(db) {
 
 function getDb() {
   if (!db) {
-    db = patchPrepare(new Database(DB_PATH));
-    db.exec(`
-      PRAGMA journal_mode = WAL;
-      PRAGMA synchronous  = NORMAL;
-      PRAGMA cache_size   = -65536;
-      PRAGMA temp_store   = MEMORY;
-      PRAGMA mmap_size    = 134217728;
-      PRAGMA busy_timeout = 5000;
-      PRAGMA foreign_keys = ON;
-    `);
+    try {
+      db = patchPrepare(new Database(DB_PATH));
+      db.exec(`
+        PRAGMA journal_mode = WAL;
+        PRAGMA synchronous  = NORMAL;
+        PRAGMA cache_size   = -65536;
+        PRAGMA temp_store   = MEMORY;
+        PRAGMA mmap_size    = 134217728;
+        PRAGMA busy_timeout = 5000;
+        PRAGMA foreign_keys = ON;
+      `);
+      // Force a WAL checkpoint on first open to recover from any unclean shutdown
+      try { db.exec('PRAGMA wal_checkpoint(PASSIVE);'); } catch { /* non-fatal */ }
+    } catch (err) {
+      // "file is not a database" typically means a corrupt WAL/SHM from a SIGKILL.
+      // Delete the sidecar files and retry once — SQLite will rebuild them from scratch.
+      if (err.message && err.message.includes('not a database')) {
+        console.warn('[DB] Corrupt WAL/SHM detected — removing sidecar files and retrying:', err.message);
+        for (const ext of ['-wal', '-shm']) {
+          try { require('fs').unlinkSync(DB_PATH + ext); } catch { /* may not exist */ }
+        }
+        db = patchPrepare(new Database(DB_PATH));
+        db.exec(`
+          PRAGMA journal_mode = WAL;
+          PRAGMA synchronous  = NORMAL;
+          PRAGMA cache_size   = -65536;
+          PRAGMA temp_store   = MEMORY;
+          PRAGMA mmap_size    = 134217728;
+          PRAGMA busy_timeout = 5000;
+          PRAGMA foreign_keys = ON;
+        `);
+        console.warn('[DB] Recovered after removing corrupt sidecar files.');
+      } else {
+        throw err;
+      }
+    }
   }
   return db;
 }

@@ -156,7 +156,7 @@ async function callAI(prompt, format, config) {
       'Authorization': `Bearer ${config.apiKey}`,
     },
     body: JSON.stringify(body),
-    signal: AbortSignal.timeout(25000),
+    signal: AbortSignal.timeout(15000),
   });
 
   if (!resp.ok) {
