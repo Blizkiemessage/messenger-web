@@ -10,7 +10,7 @@ WORKDIR /app
 COPY backend/package*.json ./
 
 # Install production deps; sharp will use its prebuilt Debian x64 binary
-RUN npm install --production --prefer-offline
+RUN npm install -g npm@latest --quiet && npm install --production --prefer-offline
 
 COPY backend/ .
 
