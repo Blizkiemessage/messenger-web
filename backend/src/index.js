@@ -69,6 +69,7 @@ const gifRoutes         = require('./routes/gif');
 const totpRoutes        = require('./routes/totp');
 const callsRoutes       = require('./routes/calls');
 const notesRoutes       = require('./routes/notes');
+const healthRoutes      = require('./routes/health');
 console.log('[STARTUP] All modules loaded.');
 const path = require('path');
 
@@ -124,6 +125,9 @@ app.use(cookieParser());
 app.use(express.json());
 
 // ─── Routes ────────────────────────────────────────────────────────────────
+// Health check is registered first — no auth required, used by Railway probe.
+app.use('/health', healthRoutes);
+
 // Admin API is registered before global CORS so same-origin requests from the
 // admin panel (served by this same server) are never rejected by corsOriginCallback.
 // Security is handled by adminLoginLimiter + JWT auth inside the router itself.
@@ -149,8 +153,6 @@ app.use('/chats',         notesRoutes);
 app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 app.use('/admin', express.static(path.join(__dirname, '../public/admin')));
 app.use('/upload', uploadRoutes);
-
-app.get('/health', (req, res) => res.json({ status: 'ok' }));
 
 // ─── Error Handler ─────────────────────────────────────────────────────────
 app.use(errorHandler);
