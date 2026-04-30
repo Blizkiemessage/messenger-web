@@ -74,4 +74,17 @@ function getDb() {
   return db;
 }
 
-module.exports = { getDb };
+function closeDb() {
+  if (db) {
+    try {
+      db.exec('PRAGMA wal_checkpoint(FULL);'); // flush WAL to main file before close
+      db.close();
+      db = null;
+      console.log('[DB] Database closed cleanly.');
+    } catch (err) {
+      console.error('[DB] Error closing database:', err.message);
+    }
+  }
+}
+
+module.exports = { getDb, closeDb };

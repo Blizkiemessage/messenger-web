@@ -49,6 +49,7 @@ const { runMigrations } = require('./db/migrations');
 const { initSocket } = require('./socket/socketServer');
 const { errorHandler } = require('./middleware/errorHandler');
 const { corsOriginCallback } = require('./utils/corsOrigin');
+const { closeDb } = require('./config/database');
 
 console.log('[STARTUP] Loading route modules...');
 const authRoutes = require('./routes/auth');
@@ -125,7 +126,8 @@ app.use(cookieParser());
 app.use(express.json());
 
 // ─── Routes ────────────────────────────────────────────────────────────────
-// Health check is registered first — no auth required, used by Railway probe.
+// Health check is registered first — no auth required, used by UptimeRobot probe.
+app.locals.isShuttingDown = false;
 app.use('/health', healthRoutes);
 
 // Admin API is registered before global CORS so same-origin requests from the
@@ -173,3 +175,43 @@ server.listen(PORT, () => {
   console.log(`[Server] Blizkie backend running on port ${PORT}`);
   console.log(`[Server] Environment: ${process.env.NODE_ENV || 'development'}`);
 });
+
+// ─── Graceful Shutdown ─────────────────────────────────────────────────────
+// Amvera sends SIGTERM when redeploying or stopping the container.
+// Sequence: stop accepting → close WebSockets → flush & close DB → exit.
+let isShuttingDown = false;
+
+function shutdown(signal) {
+  if (isShuttingDown) return;
+  isShuttingDown = true;
+  app.locals.isShuttingDown = true; // health route will return 503
+
+  logger.info('[shutdown]', `Received ${signal} — starting graceful shutdown`);
+
+  // Force-exit if shutdown takes longer than 10 s (stuck requests / sockets)
+  const forceExitTimer = setTimeout(() => {
+    logger.error('[shutdown]', 'Forced exit after 10 s timeout', null, {});
+    process.exit(1);
+  }, 10_000);
+  forceExitTimer.unref(); // don't keep the event loop alive just for this timer
+
+  // Step 1: stop accepting new HTTP connections
+  server.close(() => {
+    logger.info('[shutdown]', 'HTTP server closed');
+
+    // Step 2: close Socket.IO (sends disconnect to all clients)
+    io.close(() => {
+      logger.info('[shutdown]', 'Socket.IO closed');
+
+      // Step 3: checkpoint WAL and close SQLite
+      closeDb();
+
+      clearTimeout(forceExitTimer);
+      logger.info('[shutdown]', 'Shutdown complete — exiting');
+      process.exit(0);
+    });
+  });
+}
+
+process.on('SIGTERM', () => shutdown('SIGTERM'));
+process.on('SIGINT',  () => shutdown('SIGINT'));
