@@ -1,6 +1,8 @@
 meta:
   environment: nodejs
-  toolVersion: "20"
+  toolchain:
+    name: node
+    version: "20"
 
 build:
   buildDir: .
