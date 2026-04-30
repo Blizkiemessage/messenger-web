@@ -57,6 +57,16 @@ export async function authResetPassword(
 }
 
 /**
+ * Exchange a refresh token for a new short-lived access token.
+ * Sends the refresh token in the body so cross-origin (Vercel → Amvera)
+ * deployments work even when browsers block the HttpOnly refresh cookie.
+ */
+export async function authRefresh(refreshToken: string): Promise<{ token: string }> {
+  const res = await client.post<{ token: string }>('/auth/refresh', { refreshToken });
+  return res.data;
+}
+
+/**
  * Second step of login when 2FA is enabled.
  * pendingToken is the short-lived JWT returned by /auth/login in the response body.
  * Sending it in the body avoids cross-origin third-party cookie blocking

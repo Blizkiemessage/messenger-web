@@ -1,11 +1,35 @@
 const { v4: uuidv4 } = require('uuid');
 const bcrypt = require('bcryptjs');
 const { getDb } = require('../config/database');
-const { sign } = require('../utils/jwt');
+const { signAccess, signRefresh } = require('../utils/jwt');
 const { sanitizeUser: sanitizeUserFull } = require('./userService');
 const { generateOtp } = require('../utils/otp');
 const { sendOtpEmail, sendPasswordResetEmail } = require('../config/email');
 const crypto = require('crypto');
+
+const REFRESH_TTL_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
+
+/**
+ * Creates a session + refresh token record in one place.
+ * Returns { accessToken, refreshToken, sessionId }.
+ */
+function createSessionWithTokens(db, userId, userAgent, ipAddress, now) {
+  const sessionId      = uuidv4();
+  const refreshTokenId = uuidv4();
+
+  db.prepare(
+    'INSERT INTO sessions (id, user_id, created_at, revoked, user_agent, last_used_at, ip_address) VALUES (?, ?, ?, 0, ?, ?, ?)'
+  ).run([sessionId, userId, now, userAgent, now, ipAddress || null]);
+
+  db.prepare(
+    'INSERT INTO refresh_tokens (id, session_id, user_id, expires_at, revoked, created_at) VALUES (?, ?, ?, ?, 0, ?)'
+  ).run([refreshTokenId, sessionId, userId, now + REFRESH_TTL_MS, now]);
+
+  const accessToken  = signAccess({ sub: userId, jti: sessionId });
+  const refreshToken = signRefresh({ sub: userId, jti: refreshTokenId, purpose: 'refresh' });
+
+  return { accessToken, refreshToken, sessionId };
+}
 
 // Pre-computed bcrypt hash used only for constant-time dummy comparison.
 // Ensures "user not found" and "wrong password" take the same time to respond,
@@ -70,12 +94,8 @@ async function loginOrRegister(login, password, userAgent = '', ipAddress = '') 
 
   db.prepare('UPDATE users SET last_seen_at = ? WHERE id = ?').run([now, user.id]);
 
-  const sessionId = uuidv4();
-  db.prepare('INSERT INTO sessions (id, user_id, created_at, revoked, user_agent, last_used_at, ip_address) VALUES (?, ?, ?, 0, ?, ?, ?)')
-    .run([sessionId, user.id, now, userAgent, now, ipAddress || null]);
-
-  const token = sign({ sub: user.id, jti: sessionId });
-  return { token, sessionId, user: sanitizeUserFull(user, { showPrivate: true }) };
+  const { accessToken, refreshToken, sessionId } = createSessionWithTokens(db, user.id, userAgent, ipAddress, now);
+  return { accessToken, refreshToken, sessionId, user: sanitizeUserFull(user, { showPrivate: true }) };
 }
 
 /**
@@ -109,12 +129,8 @@ async function registerWithPassword(username, password, userAgent = '', ipAddres
   ).run([userId, clean, clean, hash, now, now]);
 
   const user = db.prepare('SELECT * FROM users WHERE id = ?').get(userId);
-  const sessionId = uuidv4();
-  db.prepare('INSERT INTO sessions (id, user_id, created_at, revoked, user_agent, last_used_at, ip_address) VALUES (?, ?, ?, 0, ?, ?, ?)')
-    .run([sessionId, userId, now, userAgent, now, ipAddress || null]);
-
-  const token = sign({ sub: userId, jti: sessionId });
-  return { token, sessionId, user: sanitizeUserFull(user, { showPrivate: true }), isNew: true };
+  const { accessToken, refreshToken, sessionId } = createSessionWithTokens(db, userId, userAgent, ipAddress, now);
+  return { accessToken, refreshToken, sessionId, user: sanitizeUserFull(user, { showPrivate: true }), isNew: true };
 }
 
 /**
@@ -244,12 +260,8 @@ async function verifyEmailAndCreateAccount(email, otp, userAgent = '', ipAddress
   ).run([userId, username, username, cleanEmail, password_hash, now, now]);
 
   const user = db.prepare('SELECT * FROM users WHERE id = ?').get(userId);
-  const sessionId = uuidv4();
-  db.prepare('INSERT INTO sessions (id, user_id, created_at, revoked, user_agent, last_used_at, ip_address) VALUES (?, ?, ?, 0, ?, ?, ?)')
-    .run([sessionId, userId, now, userAgent, now, ipAddress || null]);
-
-  const token = sign({ sub: userId, jti: sessionId });
-  return { token, sessionId, user: sanitizeUserFull(user, { showPrivate: true }), isNew: true };
+  const { accessToken, refreshToken, sessionId } = createSessionWithTokens(db, userId, userAgent, ipAddress, now);
+  return { accessToken, refreshToken, sessionId, user: sanitizeUserFull(user, { showPrivate: true }), isNew: true };
 }
 
 /**

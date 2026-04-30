@@ -2,7 +2,7 @@ import { useState, useCallback, useRef, useEffect } from 'react';
 import { type User } from '../../types';
 import { PasswordInput } from '../ui/PasswordInput';
 import { authLoginPassword, authTotpVerify } from '../../api/auth';
-import { saveToken } from '../../storage/session';
+import { saveToken, saveRefreshToken } from '../../storage/session';
 
 interface Props {
   onAuthenticated: (user: User, sessionId: string | null) => void;
@@ -47,8 +47,9 @@ export function LoginForm({ onAuthenticated, onSwitchTab, onForgotPassword }: Pr
         return;
       }
 
-      // Persist token for cross-origin Bearer auth (Vercel → Amvera)
+      // Persist tokens for cross-origin Bearer auth (Vercel → Amvera)
       if ((res as any).token) saveToken((res as any).token);
+      if ((res as any).refreshToken) saveRefreshToken((res as any).refreshToken);
       onAuthenticated((res as any).user, (res as any).sessionId ?? null);
     } catch (e: any) {
       setError(e?.message ?? 'Неверный username/email или пароль');
@@ -64,8 +65,9 @@ export function LoginForm({ onAuthenticated, onSwitchTab, onForgotPassword }: Pr
     setBusy(true);
     try {
       const res = await authTotpVerify(code, pendingToken);
-      // Persist token for cross-origin Bearer auth (Vercel → Amvera)
+      // Persist tokens for cross-origin Bearer auth (Vercel → Amvera)
       if (res.token) saveToken(res.token);
+      if (res.refreshToken) saveRefreshToken(res.refreshToken);
       onAuthenticated(res.user, res.sessionId ?? null);
     } catch (e: any) {
       setError(e?.message ?? 'Неверный код');

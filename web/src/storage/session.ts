@@ -1,8 +1,9 @@
 import { type User } from '../types';
 
-const KEY = 'blizkie.user.v1';
-const LEGACY_KEY = 'blizkie.session.v1';
-const TOKEN_KEY = 'blizkie.token.v1';
+const KEY         = 'blizkie.user.v1';
+const LEGACY_KEY  = 'blizkie.session.v1';
+const TOKEN_KEY   = 'blizkie.token.v1';
+const REFRESH_KEY = 'blizkie.refresh.v1';
 
 /**
  * Public session data stored in localStorage.
@@ -33,6 +34,7 @@ export function setSession(session: Session): void {
 export function clearSession(): void {
   localStorage.removeItem(KEY);
   localStorage.removeItem(TOKEN_KEY);
+  localStorage.removeItem(REFRESH_KEY);
   localStorage.removeItem(LEGACY_KEY); // clean up old key if present
 }
 
@@ -44,4 +46,14 @@ export function saveToken(token: string): void {
 /** Read stored JWT (may be null if cookie-only auth or not yet stored). */
 export function getToken(): string | null {
   return localStorage.getItem(TOKEN_KEY);
+}
+
+/** Store refresh token for cross-origin clients (Vercel → Amvera). */
+export function saveRefreshToken(token: string): void {
+  localStorage.setItem(REFRESH_KEY, token);
+}
+
+/** Read stored refresh token (null if not present or cookie-based auth). */
+export function getRefreshToken(): string | null {
+  return localStorage.getItem(REFRESH_KEY);
 }

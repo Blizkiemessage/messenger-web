@@ -115,8 +115,10 @@ export type Chat = {
 };
 
 export type AuthResponse = {
-  /** JWT stored in HttpOnly cookie; also returned in body for cross-origin Bearer auth */
+  /** Short-lived access token (15 m) stored in HttpOnly cookie; also returned in body for cross-origin Bearer auth */
   token?: string;
+  /** Long-lived refresh token (30 d) — used only at POST /auth/refresh to get a new access token */
+  refreshToken?: string;
   user: User;
   sessionId: string;
   isNew?: boolean;

@@ -11,7 +11,7 @@ const {
 const { authMiddleware } = require('../middleware/auth');
 const { loginLimiter, emailSendLimiter, otpVerifyLimiter, totpVerifyLimiter } = require('../middleware/rateLimits');
 const { getDb } = require('../config/database');
-const { sign, verify } = require('../utils/jwt');
+const { sign, signAccess, signRefresh, verify } = require('../utils/jwt');
 const { sanitizeUser } = require('../services/userService');
 const { v4: uuidv4 } = require('uuid');
 const { verifyToken, verifyAndConsumeBackupCode } = require('../utils/totp');
@@ -21,12 +21,13 @@ const router = express.Router();
 // ─── Cookie helper ─────────────────────────────────────────────────────────
 const isProduction = process.env.NODE_ENV === 'production';
 
+// Access token cookie — 15 minutes.
 function setSessionCookie(res, token) {
   res.cookie('session', token, {
     httpOnly: true,                                   // JS cannot read this cookie
     secure: isProduction,                             // HTTPS only in production
     sameSite: isProduction ? 'none' : 'lax',          // cross-origin (Vercel→Amvera) needs 'none'
-    maxAge: 30 * 24 * 60 * 60 * 1000,                // 30 days
+    maxAge: 15 * 60 * 1000,                           // 15 minutes (access token lifetime)
     path: '/',
   });
 }
@@ -37,6 +38,26 @@ function clearSessionCookie(res) {
     secure: isProduction,
     sameSite: isProduction ? 'none' : 'lax',
     path: '/',
+  });
+}
+
+// Refresh token cookie — 30 days. Sent ONLY to /auth/refresh.
+function setRefreshCookie(res, token) {
+  res.cookie('refresh', token, {
+    httpOnly: true,
+    secure: isProduction,
+    sameSite: isProduction ? 'none' : 'lax',
+    maxAge: 30 * 24 * 60 * 60 * 1000,                // 30 days
+    path: '/auth/refresh',                            // scoped — browser only sends it to this path
+  });
+}
+
+function clearRefreshCookie(res) {
+  res.clearCookie('refresh', {
+    httpOnly: true,
+    secure: isProduction,
+    sameSite: isProduction ? 'none' : 'lax',
+    path: '/auth/refresh',
   });
 }
 
@@ -89,11 +110,18 @@ router.post('/login', loginLimiter, async (req, res, next) => {
       return res.json({ requires2FA: true, pendingToken });
     }
 
-    setSessionCookie(res, result.token);
-    // Also return token in body so cross-origin clients (Vercel → Amvera) can
-    // store it in localStorage and send as Authorization: Bearer, bypassing
-    // Chrome's third-party cookie blocking (Privacy Sandbox / incognito).
-    res.json({ user: result.user, sessionId: result.sessionId, token: result.token });
+    setSessionCookie(res, result.accessToken);
+    setRefreshCookie(res, result.refreshToken);
+    // Also return tokens in body so cross-origin clients (Vercel → Amvera) can
+    // store them and send as Authorization: Bearer, bypassing Chrome's third-party
+    // cookie blocking (Privacy Sandbox / incognito).
+    // `token` kept for backward compat with older clients.
+    res.json({
+      user: result.user,
+      sessionId: result.sessionId,
+      token: result.accessToken,
+      refreshToken: result.refreshToken,
+    });
   } catch (err) {
     next(err);
   }
@@ -162,16 +190,31 @@ router.post('/totp-verify', totpVerifyLimiter, async (req, res, next) => {
     const now = Date.now();
     db.prepare('UPDATE users SET last_seen_at = ? WHERE id = ?').run(now, userId);
 
-    const sessionId = uuidv4();
+    const REFRESH_TTL_MS = 30 * 24 * 60 * 60 * 1000;
+    const sessionId      = uuidv4();
+    const refreshTokenId = uuidv4();
+
     db.prepare(
       'INSERT INTO sessions (id, user_id, created_at, revoked, user_agent, last_used_at, ip_address) VALUES (?, ?, ?, 0, ?, ?, ?)'
     ).run(sessionId, userId, now, req.headers['user-agent'] || '', now, getClientIp(req));
 
-    const token = sign({ sub: userId, jti: sessionId });
-    setSessionCookie(res, token);
+    db.prepare(
+      'INSERT INTO refresh_tokens (id, session_id, user_id, expires_at, revoked, created_at) VALUES (?, ?, ?, ?, 0, ?)'
+    ).run(refreshTokenId, sessionId, userId, now + REFRESH_TTL_MS, now);
 
-    // Return token in body for cross-origin clients (same as /auth/login)
-    res.json({ user: sanitizeUser(user, { showPrivate: true }), sessionId, token });
+    const accessToken  = signAccess({ sub: userId, jti: sessionId });
+    const refreshToken = signRefresh({ sub: userId, jti: refreshTokenId, purpose: 'refresh' });
+
+    setSessionCookie(res, accessToken);
+    setRefreshCookie(res, refreshToken);
+
+    // Return tokens in body for cross-origin clients (same as /auth/login)
+    res.json({
+      user: sanitizeUser(user, { showPrivate: true }),
+      sessionId,
+      token: accessToken,
+      refreshToken,
+    });
   } catch (err) {
     next(err);
   }
@@ -207,10 +250,10 @@ router.post('/verify-email', otpVerifyLimiter, async (req, res, next) => {
     if (!otp || typeof otp !== 'string' || !/^\d{6}$/.test(otp.trim())) {
       return res.status(400).json({ error: 'Код должен состоять из 6 цифр' });
     }
-    const { token, user, sessionId, isNew } = await verifyEmailAndCreateAccount(email.trim(), otp.trim(), req.headers['user-agent'] || '', getClientIp(req));
-    setSessionCookie(res, token);
-    // Return token in body for cross-origin clients (same pattern as /auth/login)
-    res.status(201).json({ user, sessionId, isNew, token });
+    const { accessToken, refreshToken, user, sessionId, isNew } = await verifyEmailAndCreateAccount(email.trim(), otp.trim(), req.headers['user-agent'] || '', getClientIp(req));
+    setSessionCookie(res, accessToken);
+    setRefreshCookie(res, refreshToken);
+    res.status(201).json({ user, sessionId, isNew, token: accessToken, refreshToken });
   } catch (err) {
     next(err);
   }
@@ -264,13 +307,70 @@ router.post('/reset-password', otpVerifyLimiter, async (req, res, next) => {
   }
 });
 
-// POST /auth/logout — clear session cookie and revoke session in DB
+// POST /auth/logout — clear session + refresh cookies and revoke both in DB
 router.post('/logout', authMiddleware, (req, res, next) => {
   try {
     const db = getDb();
-    db.prepare('UPDATE sessions SET revoked = 1 WHERE id = ?').run(req.sessionId);
+    // Revoking the session cascades to refresh_tokens via ON DELETE CASCADE,
+    // but we also explicitly revoke to handle the case where the session row
+    // stays (soft-delete pattern) and only the refresh token is invalidated.
+    db.prepare('UPDATE sessions      SET revoked = 1 WHERE id = ?').run(req.sessionId);
+    db.prepare('UPDATE refresh_tokens SET revoked = 1 WHERE session_id = ?').run(req.sessionId);
     clearSessionCookie(res);
+    clearRefreshCookie(res);
     res.json({ ok: true });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// POST /auth/refresh — issue a new access token using a valid refresh token.
+// Accepts the refresh token from the HttpOnly cookie (same-origin / cookies work)
+// OR from the request body (cross-origin clients that store it in localStorage).
+router.post('/refresh', async (req, res, next) => {
+  try {
+    const refreshToken = req.cookies?.refresh || req.body?.refreshToken;
+    if (!refreshToken) {
+      return res.status(401).json({ error: 'Refresh token missing' });
+    }
+
+    let payload;
+    try {
+      payload = verify(refreshToken);
+    } catch {
+      return res.status(401).json({ error: 'Refresh token invalid or expired' });
+    }
+
+    if (payload.purpose !== 'refresh') {
+      return res.status(401).json({ error: 'Invalid token type' });
+    }
+
+    const db = getDb();
+    const rt = db
+      .prepare('SELECT * FROM refresh_tokens WHERE id = ? AND revoked = 0')
+      .get(payload.jti);
+
+    if (!rt || rt.expires_at < Date.now()) {
+      return res.status(401).json({ error: 'Refresh token revoked or expired' });
+    }
+
+    // Check the parent session is still valid
+    const session = db
+      .prepare('SELECT id, revoked FROM sessions WHERE id = ? AND revoked = 0')
+      .get(rt.session_id);
+
+    if (!session) {
+      return res.status(401).json({ error: 'Session revoked' });
+    }
+
+    // Issue a new access token (same sessionId as jti so authMiddleware stays unchanged)
+    const newAccessToken = signAccess({ sub: rt.user_id, jti: rt.session_id });
+    setSessionCookie(res, newAccessToken);
+
+    // Update session activity
+    db.prepare('UPDATE sessions SET last_used_at = ? WHERE id = ?').run(Date.now(), rt.session_id);
+
+    res.json({ token: newAccessToken });
   } catch (err) {
     next(err);
   }

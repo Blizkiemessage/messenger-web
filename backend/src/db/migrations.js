@@ -395,6 +395,19 @@ function runMigrations() {
       UNIQUE(chat_id, user_id, period, format)
     )`,
     `CREATE INDEX IF NOT EXISTS idx_summary_cache_lookup ON chat_summary_cache(chat_id, user_id)`,
+    // ✅ B1: refresh token table — enables short-lived access tokens (15 m) + long-lived
+    // refresh tokens (30 d). Each refresh token is tied to one session; revoking the
+    // session (logout, password reset) cascades to the refresh token automatically.
+    `CREATE TABLE IF NOT EXISTS refresh_tokens (
+      id          TEXT    PRIMARY KEY,
+      session_id  TEXT    NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
+      user_id     TEXT    NOT NULL REFERENCES users(id)    ON DELETE CASCADE,
+      expires_at  INTEGER NOT NULL,
+      revoked     INTEGER NOT NULL DEFAULT 0,
+      created_at  INTEGER NOT NULL
+    )`,
+    `CREATE INDEX IF NOT EXISTS idx_refresh_tokens_session ON refresh_tokens(session_id)`,
+    `CREATE INDEX IF NOT EXISTS idx_refresh_tokens_user    ON refresh_tokens(user_id, revoked)`,
   ];
 
   for (const sql of alters) {
