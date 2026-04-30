@@ -2431,8 +2431,10 @@ web/src/
 - [x] **A2** — DB закрывается корректно перед выходом (WAL checkpoint + db.close())
 - [x] **A3** — Воркер scheduled messages запускается при старте Socket.IO (setInterval 30 с, socketServer.js:388)
 - [x] **A3** — Сообщения с `deliver_at` в прошлом доставляются через Socket.IO + Web Push (messageService.js:243)
-- [ ] **A4** — `send-message` возвращает `RATE_LIMITED` при превышении 20/burst
-- [ ] **A4** — `call:invite` не позволяет более 5 звонков в минуту
+- [x] **A4** — `join-chat` проверяет членство в БД, чужие чат-комнаты недоступны (коммит `f82c9ee7`)
+- [x] **A4** — `call:invite` не позволяет более 5 звонков в минуту на userId (коммит `f82c9ee7`)
+- [x] **A4** — `typing-start` уже был throttled на 1500 мс — изменений не требовалось
+- [x] **A4** — `send-message` / `message-reaction` идут через HTTP, не Socket.IO — socket-лимит не нужен
 - [ ] **A5** — S3 delete ошибки логируются в logger.warn
 - [ ] **A5** — Failed deletes повторяются через `s3_delete_queue`
 
@@ -2491,7 +2493,7 @@ web/src/
 | A1 | Health check | A | 30 мин | Нестабильный деплой | ✅ |
 | A2 | Graceful shutdown | A | 1ч | Потеря данных при деплое | ✅ |
 | A3 | Scheduled messages worker | A | — | Функция нерабочая | ✅ |
-| A4 | Socket.IO rate limits | A | 2ч | DoS уязвимость | ⬜ |
+| A4 | Socket.IO rate limits | A | 2ч | DoS уязвимость | ✅ |
 | A5 | S3 retry + logging | A | 1.5ч | Утечка данных в S3 | ⬜ |
 | B1 | Refresh tokens | B | 4ч | 30-дневная уязвимость | ⬜ |
 | B2 | Reg rate limit | B | 30 мин | Спам аккаунтов | ⬜ |
