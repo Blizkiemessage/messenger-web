@@ -206,7 +206,7 @@ VAPID_PRIVATE_KEY=                         # уже есть
 ФАЗА A: Критические исправления (блокируют prod)
   A1. Health check эндпоинт
   A2. Graceful shutdown
-  A3. Фоновый воркер для scheduled messages (BullMQ)
+  A3. Фоновый воркер для scheduled messages ✅ уже реализован
   A4. Rate limiting на Socket.IO события
   A5. Retry + logging для S3 операций
 
@@ -377,111 +377,64 @@ process.on('SIGINT',  () => shutdown('SIGINT'));
 
 ### A3. Фоновый воркер для Scheduled Messages
 
-**Новые файлы:**
-- `backend/src/workers/scheduledMessages.js`
-- `backend/src/workers/index.js`
+**Статус:** ✅ УЖЕ РЕАЛИЗОВАНО — дополнительных действий не требуется
 
-**Изменить:** `backend/src/index.js`, `backend/package.json`  
-**Приоритет:** P0  
-**Зачем:** В БД есть поле `messages.deliver_at` и `messages.is_delivered`, но нет механизма, который смотрит на эти поля и реально отправляет сообщения. Функция сломана.
+**Где смотреть:**
+- `backend/src/services/messageService.js:243` — функция `deliverPendingMessages()`
+- `backend/src/socket/socketServer.js:385` — `setInterval` на 30 секунд
 
-#### Зависимости
+#### Что реально реализовано
 
-```bash
-cd backend && npm install node-cron
-```
+Механизм доставки встроен прямо в Socket.IO init-блок (`socketServer.js`) через `setInterval`. Запускается каждые **30 секунд** при старте сервера.
 
-> Примечание: `node-cron` — легковесная альтернатива BullMQ без Redis. Для проекта на SQLite достаточно. BullMQ добавить позже при переходе на PostgreSQL.
-
-#### Файл: `backend/src/workers/scheduledMessages.js`
-
+**`messageService.js` — `deliverPendingMessages()`:**
 ```javascript
-import cron from 'node-cron';
-import { getDb } from '../config/database.js';
-import { decrypt } from '../crypto/aes.js';
-import logger from '../utils/logger.js';
-
-// Запускается каждую минуту
-export function startScheduledMessageWorker(io) {
-  cron.schedule('* * * * *', () => {
-    deliverScheduledMessages(io);
-  });
-  logger.info('Scheduled messages worker started');
-}
-
-function deliverScheduledMessages(io) {
+function deliverPendingMessages() {
   const db = getDb();
   const now = Date.now();
+  const due = db.prepare(
+    `SELECT * FROM messages
+     WHERE is_delivered = 0 AND deliver_at <= ? AND deleted_at IS NULL`
+  ).all(now);
 
-  // Найти все сообщения у которых deliver_at прошёл и is_delivered = false
-  const pending = db.prepare(`
-    SELECT m.*, cm.user_id AS member_id
-    FROM messages m
-    JOIN chat_members cm ON cm.chat_id = m.chat_id
-    WHERE m.deliver_at IS NOT NULL
-      AND m.deliver_at <= ?
-      AND m.is_delivered = 0
-      AND m.deleted_at IS NULL
-  `).all(now);
+  if (due.length === 0) return [];
 
-  if (pending.length === 0) return;
-
-  // Группировать по message id чтобы не дублировать событие
-  const messageIds = [...new Set(pending.map(r => r.id))];
-
-  const deliverMany = db.transaction((ids) => {
-    for (const id of ids) {
-      db.prepare(`UPDATE messages SET is_delivered = 1 WHERE id = ?`).run(id);
-    }
-  });
-
-  try {
-    deliverMany(messageIds);
-
-    // Для каждого уникального сообщения — разослать событие в чат
-    const uniqueMessages = messageIds.map(id =>
-      pending.find(r => r.id === id)
-    );
-
-    for (const msg of uniqueMessages) {
-      let text = null;
-      if (msg.ciphertext && msg.iv && msg.auth_tag) {
-        try {
-          text = decrypt({ ciphertext: msg.ciphertext, iv: msg.iv, authTag: msg.auth_tag });
-        } catch {
-          text = '[encrypted]';
-        }
-      }
-
-      const payload = {
-        id: msg.id,
-        chatId: msg.chat_id,
-        senderId: msg.sender_id,
-        text,
-        type: msg.type,
-        createdAt: msg.created_at,
-        deliveredAt: now,
-      };
-
-      // Отправить всем участникам чата
-      io.to(`chat:${msg.chat_id}`).emit('new-message', payload);
-    }
-
-    logger.info(`Delivered ${messageIds.length} scheduled messages`);
-  } catch (err) {
-    logger.error('Failed to deliver scheduled messages', { error: err.message });
+  for (const row of due) {
+    db.prepare('UPDATE messages SET is_delivered = 1, created_at = ? WHERE id = ?').run(now, row.id);
+    db.prepare(`UPDATE chat_members SET unread_count = unread_count + 1
+                WHERE chat_id = ? AND user_id != ?`).run(row.chat_id, row.sender_id);
+    delivered.push(decryptMessage({ ...row, is_delivered: 1, created_at: now }));
   }
+  return delivered;
 }
 ```
 
-#### Подключить в `backend/src/index.js`
-
+**`socketServer.js` — цикл доставки:**
 ```javascript
-import { startScheduledMessageWorker } from './workers/scheduledMessages.js';
-
-// После server.listen(...)
-startScheduledMessageWorker(io);
+// Каждые 30 секунд при запуске Socket.IO
+setInterval(async () => {
+  const delivered = deliverPendingMessages();
+  if (delivered.length === 0) return;
+  for (const msg of delivered) {
+    // Подписать S3 URL если есть вложение
+    if (msg.attachment_url) msg.attachment_url = await signUrl(msg.attachment_url);
+    // Разослать участникам чата
+    const members = db.prepare('SELECT user_id FROM chat_members WHERE chat_id = ?').all(msg.chat_id);
+    for (const m of members) io.to(`user:${m.user_id}`).emit('new-message', msg);
+    // Push оффлайн участникам
+    fireAndForgetPush(msg.chat_id, msg.sender_id, { text: msg.text, ... }, io);
+  }
+}, 30 * 1000);
 ```
+
+**Индекс в БД** (`migrations.js`):
+```sql
+CREATE INDEX IF NOT EXISTS idx_messages_scheduled
+  ON messages(deliver_at, is_delivered)
+  WHERE deliver_at IS NOT NULL
+```
+
+Реализация полная: есть доставка, обновление `unread_count`, подпись S3 URL, Web Push для оффлайн-пользователей. `node-cron` и отдельный workers-файл не нужны.
 
 ---
 
@@ -2474,10 +2427,10 @@ web/src/
 - [x] **A1** — `GET /health` возвращает `{"status":"ok"}` и проверяет БД (коммит `30689cff`)
 - [x] **A1** — Роут вынесен в `backend/src/routes/health.js`, подключён первым в `index.js`
 - [ ] **A1** — UptimeRobot настроен на `https://<amvera-domain>/health`, алерт включён
-- [ ] **A2** — SIGTERM запускает graceful shutdown, логирует этапы
-- [ ] **A2** — DB закрывается корректно перед выходом процесса
-- [ ] **A3** — Воркер scheduled messages запускается при старте сервера
-- [ ] **A3** — Сообщения с `deliver_at` в прошлом доставляются через Socket.IO
+- [x] **A2** — SIGTERM запускает graceful shutdown, логирует этапы (коммит `27b42522`)
+- [x] **A2** — DB закрывается корректно перед выходом (WAL checkpoint + db.close())
+- [x] **A3** — Воркер scheduled messages запускается при старте Socket.IO (setInterval 30 с, socketServer.js:388)
+- [x] **A3** — Сообщения с `deliver_at` в прошлом доставляются через Socket.IO + Web Push (messageService.js:243)
 - [ ] **A4** — `send-message` возвращает `RATE_LIMITED` при превышении 20/burst
 - [ ] **A4** — `call:invite` не позволяет более 5 звонков в минуту
 - [ ] **A5** — S3 delete ошибки логируются в logger.warn
@@ -2536,8 +2489,8 @@ web/src/
 | ID | Задача | Фаза | Усилие | Риск без неё | Статус |
 |---|---|---|---|---|---|
 | A1 | Health check | A | 30 мин | Нестабильный деплой | ✅ |
-| A2 | Graceful shutdown | A | 1ч | Потеря данных при деплое | ⬜ |
-| A3 | Scheduled messages worker | A | 2ч | Функция нерабочая | ⬜ |
+| A2 | Graceful shutdown | A | 1ч | Потеря данных при деплое | ✅ |
+| A3 | Scheduled messages worker | A | — | Функция нерабочая | ✅ |
 | A4 | Socket.IO rate limits | A | 2ч | DoS уязвимость | ⬜ |
 | A5 | S3 retry + logging | A | 1.5ч | Утечка данных в S3 | ⬜ |
 | B1 | Refresh tokens | B | 4ч | 30-дневная уязвимость | ⬜ |
