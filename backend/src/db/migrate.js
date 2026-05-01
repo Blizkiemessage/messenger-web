@@ -44,6 +44,14 @@ const VERSIONS_DIR = path.join(__dirname, 'versions');
  * @param {import('better-sqlite3').Database} db
  */
 function runMigrations(db) {
+  // Guard: crash early with a clear message rather than a cryptic TypeError
+  if (!db || typeof db.exec !== 'function') {
+    throw new Error(
+      '[migrate] runMigrations() received an invalid db argument. ' +
+      'Expected a better-sqlite3 Database instance, got: ' + typeof db
+    );
+  }
+
   // ── Bootstrap tracking table ─────────────────────────────────────────────
   db.exec(`
     CREATE TABLE IF NOT EXISTS schema_migrations (
@@ -100,17 +108,28 @@ function runMigrations(db) {
       throw new Error(`[migrate] ${file} does not export an up(db) function`);
     }
 
-    // Run inside a transaction — atomically apply schema + record version.
-    // If up() throws, the transaction is rolled back and we re-throw so the
-    // server fails to start rather than booting with a broken schema.
-    const applyMigration = db.transaction(() => {
-      migration.up(db);
+    // Run up(db) OUTSIDE a transaction.
+    //
+    // Rationale: up() uses db.exec() for DDL (CREATE TABLE, ALTER TABLE,
+    // CREATE INDEX) and may create its own nested db.transaction() for
+    // data backfills. Running all of that inside an outer db.transaction()
+    // causes problems because db.exec() is not allowed inside a
+    // better-sqlite3 transaction function on some builds/platforms.
+    //
+    // Atomicity is still preserved for the schema_migrations record via a
+    // small dedicated transaction immediately after up() succeeds.
+    // All DDL in up() is idempotent (IF NOT EXISTS / try-catch), so a
+    // partial application that crashes before the version is recorded will
+    // simply re-run on next boot — all already-applied statements no-op.
+    migration.up(db);
+
+    // Atomically record that this version has been applied
+    db.transaction(() => {
       db.prepare(
         'INSERT INTO schema_migrations (version, name) VALUES (?, ?)'
       ).run(version, file);
-    });
+    })();
 
-    applyMigration(); // throws on failure → rolls back automatically
     console.log(`[migrate] ✓ v${version} — ${file}`);
     newlyApplied++;
   }

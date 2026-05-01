@@ -402,13 +402,10 @@ function up(db) {
       `SELECT COUNT(*) AS n FROM messages
        WHERE chat_id = ? AND sender_id != ? AND created_at > ? AND deleted_at IS NULL`
     );
-    const txn = db.transaction(() => {
-      for (const m of members) {
-        const n = countQ.get([m.chat_id, m.user_id, m.last_read_at ?? 0]).n;
-        update.run([n, m.chat_id, m.user_id]);
-      }
-    });
-    txn();
+    for (const m of members) {
+      const n = countQ.get([m.chat_id, m.user_id, m.last_read_at ?? 0]).n;
+      update.run([n, m.chat_id, m.user_id]);
+    }
     console.log('[migrate 001] unread_count backfill complete');
   } catch (e) {
     console.warn('[migrate 001] unread_count backfill skipped:', e.message);
@@ -425,15 +422,12 @@ function up(db) {
     if (rows.length > 0) {
       const upd = db.prepare('UPDATE messages SET search_text = ? WHERE id = ?');
       let count = 0;
-      const txn = db.transaction(() => {
-        for (const row of rows) {
-          try {
-            const text = decrypt({ ciphertext: row.ciphertext, iv: row.iv, authTag: row.auth_tag }).trim();
-            if (text) { upd.run([text, row.id]); count++; }
-          } catch { /* undecryptable — skip */ }
-        }
-      });
-      txn();
+      for (const row of rows) {
+        try {
+          const text = decrypt({ ciphertext: row.ciphertext, iv: row.iv, authTag: row.auth_tag }).trim();
+          if (text) { upd.run([text, row.id]); count++; }
+        } catch { /* undecryptable — skip */ }
+      }
       console.log(`[migrate 001] search_text backfill: ${count} messages`);
     }
   } catch (e) {
