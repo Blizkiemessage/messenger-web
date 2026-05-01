@@ -2440,10 +2440,12 @@ web/src/
 
 ### Фаза B — Безопасность
 
-- [ ] **B1** — Access token истекает через 15 минут
-- [ ] **B1** — `POST /auth/refresh` выдаёт новый access token по refresh cookie
-- [ ] **B1** — Refresh token rotation: старый отзывается при каждом refresh
-- [ ] **B1** — Frontend interceptor автоматически обновляет токен
+- [x] **B1** — Access token истекает через 15 минут (signAccess 15m)
+- [x] **B1** — `POST /auth/refresh` выдаёт новый access token + rotated refresh token
+- [x] **B1** — Refresh token rotation: старый отзывается, новый записывается в DB
+- [x] **B1** — Replay detection: повторное использование revoked-токена → revoke сессии
+- [x] **B1** — Rate limit на /auth/refresh: 60 req / 15 min per IP
+- [x] **B1** — Frontend interceptor ловит 401, рефрешит, сохраняет новый refreshToken, ретраит
 - [x] **B2** — 3 регистрации с одного IP в час — лимит работает (registrationLimiter)
 - [x] **B3** — CLI `npm run create-admin` создаёт пользователя и выводит ADMIN_PASSWORD_HASH
 - [x] **B3** — Панель администратора полностью перестроена (Toast, Confirm, 7 страниц)
@@ -2495,7 +2497,7 @@ web/src/
 | A3 | Scheduled messages worker | A | — | Функция нерабочая | ✅ |
 | A4 | Socket.IO rate limits | A | 2ч | DoS уязвимость | ✅ |
 | A5 | S3 retry + logging | A | 1.5ч | Утечка данных в S3 | ✅ |
-| B1 | Refresh tokens | B | 4ч | 30-дневная уязвимость | ⬜ |
+| B1 | Refresh tokens | B | 4ч | 30-дневная уязвимость | ✅ |
 | B2 | Reg rate limit | B | 30 мин | Спам аккаунтов | ✅ |
 | B3 | Admin user table | B | 3ч | Небезопасный admin | ✅ |
 | B4 | Call spam protection | B | 1ч | DoS на UI | ⬜ |
