@@ -5,11 +5,17 @@
  *
  * All callers (src/index.js, scripts/create-admin.js, tests) do:
  *   const { runMigrations } = require('./db/migrations')
+ *   runMigrations()   ← no arguments (old API)
  *
- * This file forwards that call to the versioned migration engine in migrate.js.
- * Do NOT add schema changes here — create a new file in src/db/versions/ instead.
+ * This shim preserves that API: if called without a db argument it fetches
+ * the singleton via getDb() and forwards it to the versioned engine.
  */
 
-const { runMigrations, getAppliedMigrations } = require('./migrate');
+const { runMigrations: _run, getAppliedMigrations } = require('./migrate');
+const { getDb } = require('../config/database');
+
+function runMigrations(db) {
+  return _run(db || getDb());
+}
 
 module.exports = { runMigrations, getAppliedMigrations };
