@@ -1,460 +1,679 @@
 <!DOCTYPE html>
-<html lang="ru" data-bs-theme="dark">
+<html lang="ru">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Blizkie Admin Panel</title>
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <title>Blizkie Admin</title>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
   <style>
-    body { background-color: #121212; min-height: 100vh; }
-    .card { background-color: #1e1e1e; border: 1px solid #333; }
-    .table { --bs-table-bg: transparent; --bs-table-color: #e0e0e0; border-color: #333; }
-    .table td, .table th { border-bottom: 1px solid #333; vertical-align: middle; }
-    .table-hover tbody tr:hover { background-color: rgba(255,255,255,0.05) !important; color: #fff; }
-
-    #login-screen { height: 100vh; display: flex; align-items: center; justify-content: center; }
-
-    .nav-link { color: #aaa; cursor: pointer; border-radius: 6px; }
-    .nav-link:hover { color: #fff; background-color: #2a2a2a; }
-    .nav-link.active { color: #fff; background-color: #0d6efd; font-weight: 500; }
-
-    .sidebar { border-right: 1px solid #333; height: 100vh; padding-top: 1rem; }
-    .content-area { padding: 2rem; height: 100vh; overflow-y: auto; }
-
-    /* Sortable column headers */
-    .sortable { cursor: pointer; user-select: none; white-space: nowrap; }
-    .sortable:hover { color: #fff; }
-    .sort-icon { font-size: 11px; margin-left: 4px; opacity: 0.5; }
-    .sort-icon.active { opacity: 1; color: #0d6efd; }
-
-    /* Pack thumbnail */
-    .pack-thumb {
-      width: 40px; height: 40px; border-radius: 8px; object-fit: cover;
-      background: #2a2a2a; display: inline-flex; align-items: center; justify-content: center;
-      font-size: 20px; overflow: hidden; flex-shrink: 0;
+    /* ── Design tokens ──────────────────────────────────────────────────── */
+    :root {
+      --bg:          #0d0d14;
+      --sidebar-bg:  #11111c;
+      --card-bg:     #181825;
+      --card-hover:  #1e1e2e;
+      --border:      #252535;
+      --border-light:#2e2e45;
+      --accent:      #6366f1;
+      --accent-h:    #818cf8;
+      --accent-dim:  rgba(99,102,241,.15);
+      --text:        #e2e2f0;
+      --text-2:      #9090b8;
+      --text-3:      #5a5a7a;
+      --success:     #22c55e;
+      --danger:      #ef4444;
+      --warning:     #f59e0b;
+      --info:        #38bdf8;
+      --purple:      #a855f7;
+      --radius:      10px;
+      --radius-sm:   6px;
+      --sidebar-w:   230px;
     }
+
+    /* ── Reset & base ───────────────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; font-size: 14px; background: var(--bg); color: var(--text); line-height: 1.5; }
+    a { color: inherit; text-decoration: none; }
+    button { cursor: pointer; font-family: inherit; }
+    input, select, textarea { font-family: inherit; }
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--border-light); border-radius: 3px; }
+
+    /* ── Layout ─────────────────────────────────────────────────────────── */
+    #login-wrap { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 16px; }
+    #app { display: none; height: 100vh; flex-direction: row; }
+    #app.visible { display: flex; }
+
+    /* ── Sidebar ────────────────────────────────────────────────────────── */
+    #sidebar {
+      width: var(--sidebar-w); flex-shrink: 0;
+      background: var(--sidebar-bg); border-right: 1px solid var(--border);
+      display: flex; flex-direction: column; height: 100vh; overflow-y: auto;
+    }
+    .sidebar-logo { padding: 20px 16px 16px; display: flex; align-items: center; gap: 10px; border-bottom: 1px solid var(--border); }
+    .sidebar-logo .logo-icon { width: 32px; height: 32px; background: var(--accent); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 16px; flex-shrink: 0; }
+    .sidebar-logo .logo-text { font-weight: 700; font-size: 15px; color: var(--text); }
+    .sidebar-logo .logo-sub  { font-size: 11px; color: var(--text-2); margin-top: 1px; }
+
+    .sidebar-nav { flex: 1; padding: 10px 8px; display: flex; flex-direction: column; gap: 2px; }
+    .nav-item { display: flex; align-items: center; gap: 10px; padding: 9px 12px; border-radius: var(--radius-sm); color: var(--text-2); transition: all .15s; cursor: pointer; border: none; background: none; width: 100%; font-size: 13.5px; font-weight: 500; position: relative; }
+    .nav-item:hover { background: var(--card-bg); color: var(--text); }
+    .nav-item.active { background: var(--accent-dim); color: var(--accent-h); }
+    .nav-item i { font-size: 16px; width: 20px; text-align: center; flex-shrink: 0; }
+    .nav-badge { margin-left: auto; background: var(--danger); color: #fff; font-size: 10px; font-weight: 700; padding: 2px 6px; border-radius: 99px; min-width: 18px; text-align: center; }
+    .nav-badge.warn { background: var(--warning); color: #000; }
+
+    .sidebar-sep { height: 1px; background: var(--border); margin: 8px 0; }
+
+    .sidebar-user { padding: 12px 16px; border-top: 1px solid var(--border); display: flex; align-items: center; gap: 10px; }
+    .sidebar-user .avatar { width: 30px; height: 30px; border-radius: 50%; background: var(--accent); display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 700; color: #fff; flex-shrink: 0; }
+    .sidebar-user .uinfo { flex: 1; overflow: hidden; }
+    .sidebar-user .uname { font-size: 13px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .sidebar-user .urole { font-size: 11px; color: var(--text-2); }
+    .sidebar-user .logout-btn { background: none; border: none; color: var(--text-3); font-size: 16px; padding: 4px; border-radius: 4px; transition: color .15s; }
+    .sidebar-user .logout-btn:hover { color: var(--danger); }
+
+    /* ── Content ────────────────────────────────────────────────────────── */
+    #content { flex: 1; overflow-y: auto; display: flex; flex-direction: column; }
+    .page { display: none; padding: 28px 32px; flex: 1; }
+    .page.active { display: block; }
+
+    .page-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 24px; flex-wrap: wrap; gap: 12px; }
+    .page-title { font-size: 22px; font-weight: 700; color: var(--text); }
+    .page-actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+
+    /* ── Cards ──────────────────────────────────────────────────────────── */
+    .card { background: var(--card-bg); border: 1px solid var(--border); border-radius: var(--radius); }
+    .card-body { padding: 20px; }
+    .card-body-sm { padding: 12px 16px; }
+
+    /* ── Stat cards ─────────────────────────────────────────────────────── */
+    .stat-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 16px; margin-bottom: 24px; }
+    .stat-card { background: var(--card-bg); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; }
+    .stat-label { font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; color: var(--text-2); margin-bottom: 8px; display: flex; align-items: center; gap: 6px; }
+    .stat-value { font-size: 32px; font-weight: 800; line-height: 1; }
+
+    /* ── Buttons ────────────────────────────────────────────────────────── */
+    .btn { display: inline-flex; align-items: center; gap: 6px; padding: 7px 14px; border-radius: var(--radius-sm); font-size: 13px; font-weight: 500; border: 1px solid transparent; transition: all .15s; cursor: pointer; white-space: nowrap; }
+    .btn-sm { padding: 5px 10px; font-size: 12px; }
+    .btn-icon { padding: 6px 8px; }
+    .btn-primary   { background: var(--accent); border-color: var(--accent); color: #fff; }
+    .btn-primary:hover { background: var(--accent-h); border-color: var(--accent-h); }
+    .btn-danger    { background: var(--danger); border-color: var(--danger); color: #fff; }
+    .btn-danger:hover { opacity: .85; }
+    .btn-ghost     { background: transparent; border-color: var(--border-light); color: var(--text-2); }
+    .btn-ghost:hover { background: var(--card-hover); color: var(--text); border-color: var(--border-light); }
+    .btn-ghost-danger { background: transparent; border-color: rgba(239,68,68,.4); color: var(--danger); }
+    .btn-ghost-danger:hover { background: rgba(239,68,68,.1); }
+    .btn:disabled { opacity: .4; cursor: not-allowed; }
+
+    /* ── Inputs ─────────────────────────────────────────────────────────── */
+    .input-wrap { position: relative; }
+    .input-wrap .input-icon { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: var(--text-3); font-size: 15px; pointer-events: none; }
+    .form-input { width: 100%; background: var(--bg); border: 1px solid var(--border-light); border-radius: var(--radius-sm); color: var(--text); padding: 8px 12px; font-size: 13px; outline: none; transition: border-color .15s; }
+    .form-input:focus { border-color: var(--accent); }
+    .form-input.with-icon { padding-left: 34px; }
+    .form-input::placeholder { color: var(--text-3); }
+    .form-select { background: var(--bg); border: 1px solid var(--border-light); border-radius: var(--radius-sm); color: var(--text); padding: 8px 12px; font-size: 13px; outline: none; cursor: pointer; }
+    .form-select:focus { border-color: var(--accent); }
+
+    /* ── Filter bar ─────────────────────────────────────────────────────── */
+    .filter-bar { display: flex; gap: 10px; margin-bottom: 16px; flex-wrap: wrap; align-items: center; }
+
+    /* ── Tables ─────────────────────────────────────────────────────────── */
+    .table-wrap { overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { padding: 11px 14px; text-align: left; border-bottom: 1px solid var(--border); }
+    th { font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; color: var(--text-2); background: var(--card-bg); white-space: nowrap; }
+    td { font-size: 13px; color: var(--text); }
+    tbody tr { transition: background .1s; }
+    tbody tr:hover { background: rgba(255,255,255,.03); }
+    tbody tr:last-child td { border-bottom: none; }
+    .sortable { cursor: pointer; user-select: none; }
+    .sortable:hover { color: var(--text); }
+    .sort-icon { margin-left: 4px; opacity: .4; font-size: 11px; }
+    .sort-icon.asc::before  { content: '↑'; }
+    .sort-icon.desc::before { content: '↓'; }
+    .sort-icon.none::before { content: '↕'; }
+    .sort-icon.active { opacity: 1; color: var(--accent-h); }
+
+    /* ── Badges ─────────────────────────────────────────────────────────── */
+    .badge { display: inline-block; font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 99px; white-space: nowrap; }
+    .badge-primary { background: rgba(99,102,241,.2); color: var(--accent-h); border: 1px solid rgba(99,102,241,.3); }
+    .badge-success { background: rgba(34,197,94,.15); color: #4ade80; border: 1px solid rgba(34,197,94,.25); }
+    .badge-danger  { background: rgba(239,68,68,.15); color: #f87171; border: 1px solid rgba(239,68,68,.25); }
+    .badge-warning { background: rgba(245,158,11,.15); color: #fbbf24; border: 1px solid rgba(245,158,11,.25); }
+    .badge-info    { background: rgba(56,189,248,.12); color: #7dd3fc; border: 1px solid rgba(56,189,248,.25); }
+    .badge-purple  { background: rgba(168,85,247,.15); color: #c084fc; border: 1px solid rgba(168,85,247,.25); }
+    .badge-muted   { background: rgba(255,255,255,.06); color: var(--text-2); border: 1px solid var(--border); }
+
+    /* ── Avatars ────────────────────────────────────────────────────────── */
+    .user-cell { display: flex; align-items: center; gap: 10px; }
+    .user-avatar { width: 34px; height: 34px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 700; color: #fff; flex-shrink: 0; background: var(--accent); }
+    .user-name  { font-weight: 600; font-size: 13px; }
+    .user-sub   { font-size: 11px; color: var(--text-2); margin-top: 1px; }
+
+    /* ── Pack thumb ─────────────────────────────────────────────────────── */
+    .pack-thumb { width: 38px; height: 38px; border-radius: 8px; overflow: hidden; background: var(--bg); display: flex; align-items: center; justify-content: center; font-size: 20px; flex-shrink: 0; border: 1px solid var(--border); }
     .pack-thumb img { width: 100%; height: 100%; object-fit: cover; }
-    .report-badge { background: #dc3545; color: #fff; font-size: 11px; padding: 2px 6px; border-radius: 99px; font-weight: 600; }
-    .error-badge  { background: #dc3545; color: #fff; font-size: 11px; padding: 2px 6px; border-radius: 99px; font-weight: 600; }
-    .warn-badge   { background: #ffc107; color: #000; font-size: 11px; padding: 2px 6px; border-radius: 99px; font-weight: 600; }
-    .level-badge-error { background: rgba(220,53,69,.15); color: #f87171; border: 1px solid rgba(220,53,69,.35); font-size: 11px; padding: 2px 8px; border-radius: 99px; font-weight: 600; white-space: nowrap; }
-    .level-badge-warn  { background: rgba(255,193,7,.12); color: #fbbf24; border: 1px solid rgba(255,193,7,.35); font-size: 11px; padding: 2px 8px; border-radius: 99px; font-weight: 600; white-space: nowrap; }
-    .tag-chip { font-size: 11px; font-family: monospace; background: #2a2a2a; border: 1px solid #444; color: #9ca3af; padding: 2px 7px; border-radius: 4px; white-space: nowrap; }
-    .err-detail-pre { background: #111; border: 1px solid #333; border-radius: 6px; padding: 12px; font-size: 12px; color: #e5e7eb; overflow-x: auto; white-space: pre-wrap; word-break: break-all; max-height: 340px; }
+
+    /* ── Empty / loading states ─────────────────────────────────────────── */
+    .empty-state { text-align: center; padding: 48px 16px; color: var(--text-2); }
+    .empty-state i { font-size: 40px; display: block; margin-bottom: 12px; opacity: .4; }
+    .loading-row td { text-align: center; padding: 32px; color: var(--text-2); }
+    .skeleton { background: linear-gradient(90deg, var(--border) 25%, var(--border-light) 50%, var(--border) 75%); background-size: 200% 100%; animation: shimmer 1.5s infinite; border-radius: 4px; height: 14px; }
+    @keyframes shimmer { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
+
+    /* ── Sub-tabs ───────────────────────────────────────────────────────── */
+    .subtab-bar { display: flex; gap: 4px; margin-bottom: 20px; border-bottom: 1px solid var(--border); padding-bottom: 0; }
+    .subtab-btn { background: none; border: none; color: var(--text-2); font-size: 13px; font-weight: 500; padding: 8px 14px; cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -1px; transition: all .15s; }
+    .subtab-btn:hover { color: var(--text); }
+    .subtab-btn.active { color: var(--accent-h); border-bottom-color: var(--accent); }
+    .subtab-pane { display: none; }
+    .subtab-pane.active { display: block; }
+
+    /* ── Login page ─────────────────────────────────────────────────────── */
+    .login-card { background: var(--card-bg); border: 1px solid var(--border); border-radius: 14px; padding: 36px 32px; width: 100%; max-width: 380px; }
+    .login-logo { text-align: center; margin-bottom: 28px; }
+    .login-logo .icon { width: 52px; height: 52px; background: var(--accent); border-radius: 14px; display: inline-flex; align-items: center; justify-content: center; font-size: 24px; margin-bottom: 12px; }
+    .login-logo h1 { font-size: 20px; font-weight: 700; }
+    .login-logo p  { font-size: 13px; color: var(--text-2); margin-top: 4px; }
+    .form-label { display: block; font-size: 12px; font-weight: 600; color: var(--text-2); margin-bottom: 6px; text-transform: uppercase; letter-spacing: .04em; }
+    .form-group { margin-bottom: 16px; }
+    .login-error { color: var(--danger); font-size: 13px; text-align: center; margin-top: 12px; display: none; }
+
+    /* ── Modals ─────────────────────────────────────────────────────────── */
+    .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.65); display: flex; align-items: center; justify-content: center; padding: 16px; z-index: 1000; backdrop-filter: blur(4px); opacity: 0; transition: opacity .2s; pointer-events: none; }
+    .modal-overlay.open { opacity: 1; pointer-events: auto; }
+    .modal-box { background: var(--card-bg); border: 1px solid var(--border-light); border-radius: 14px; width: 100%; max-width: 520px; max-height: 85vh; display: flex; flex-direction: column; transform: scale(.95); transition: transform .2s; overflow: hidden; }
+    .modal-overlay.open .modal-box { transform: scale(1); }
+    .modal-box.wide { max-width: 700px; }
+    .modal-header { display: flex; align-items: center; justify-content: space-between; padding: 18px 24px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
+    .modal-title { font-size: 16px; font-weight: 700; }
+    .modal-close { background: none; border: none; color: var(--text-3); font-size: 20px; padding: 2px; border-radius: 4px; transition: color .15s; }
+    .modal-close:hover { color: var(--text); }
+    .modal-body { overflow-y: auto; padding: 24px; flex: 1; }
+    .modal-footer { padding: 16px 24px; border-top: 1px solid var(--border); display: flex; gap: 10px; justify-content: flex-end; flex-shrink: 0; }
+
+    /* ── Confirm modal specific ─────────────────────────────────────────── */
+    .confirm-icon { text-align: center; font-size: 42px; margin-bottom: 12px; }
+    .confirm-title { font-size: 18px; font-weight: 700; text-align: center; margin-bottom: 8px; }
+    .confirm-msg   { font-size: 14px; color: var(--text-2); text-align: center; line-height: 1.6; }
+
+    /* ── Toasts ─────────────────────────────────────────────────────────── */
+    #toast-container { position: fixed; bottom: 24px; right: 24px; display: flex; flex-direction: column; gap: 8px; z-index: 2000; }
+    .toast { background: var(--card-bg); border: 1px solid var(--border-light); border-radius: var(--radius); padding: 14px 16px; display: flex; align-items: flex-start; gap: 10px; box-shadow: 0 8px 24px rgba(0,0,0,.4); min-width: 280px; max-width: 380px; animation: toast-in .25s ease; }
+    .toast.removing { animation: toast-out .25s ease forwards; }
+    @keyframes toast-in  { from { opacity:0; transform: translateY(12px); } to { opacity:1; transform: none; } }
+    @keyframes toast-out { from { opacity:1; transform: none; } to { opacity:0; transform: translateY(8px); } }
+    .toast-icon { font-size: 18px; flex-shrink: 0; margin-top: 1px; }
+    .toast-body { flex: 1; }
+    .toast-title { font-size: 13px; font-weight: 600; margin-bottom: 2px; }
+    .toast-msg   { font-size: 12px; color: var(--text-2); }
+    .toast-close { background: none; border: none; color: var(--text-3); font-size: 16px; cursor: pointer; flex-shrink: 0; padding: 2px; }
+    .toast.success .toast-icon { color: var(--success); }
+    .toast.error   .toast-icon { color: var(--danger); }
+    .toast.warning .toast-icon { color: var(--warning); }
+    .toast.info    .toast-icon { color: var(--info); }
+    .toast.error   { border-left: 3px solid var(--danger); }
+    .toast.success { border-left: 3px solid var(--success); }
+    .toast.warning { border-left: 3px solid var(--warning); }
+
+    /* ── Detail rows (inside modals) ────────────────────────────────────── */
+    .detail-row { display: flex; padding: 10px 0; border-bottom: 1px solid var(--border); }
+    .detail-row:last-child { border-bottom: none; }
+    .detail-label { width: 140px; flex-shrink: 0; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; color: var(--text-2); padding-top: 2px; }
+    .detail-value { flex: 1; font-size: 13px; word-break: break-all; }
+
+    /* ── Code/stack trace ───────────────────────────────────────────────── */
+    .code-block { background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 12px; font-size: 12px; font-family: 'SFMono-Regular', Consolas, monospace; color: #e5e7eb; overflow-x: auto; white-space: pre-wrap; word-break: break-all; max-height: 300px; overflow-y: auto; }
+    .code-block.warn-text { color: #fbbf24; }
+
+    /* ── Sticker repair ─────────────────────────────────────────────────── */
+    .repair-result { padding: 8px 12px; border-radius: var(--radius-sm); font-size: 12px; font-family: monospace; border: 1px solid var(--border); margin-bottom: 4px; }
+    .repair-result.repaired { border-color: rgba(34,197,94,.3); background: rgba(34,197,94,.06); color: #4ade80; }
+    .repair-result.error    { border-color: rgba(239,68,68,.3); background: rgba(239,68,68,.06); color: #f87171; }
+    .repair-result.ok       { color: var(--text-2); }
+
+    /* ── Progress bar ───────────────────────────────────────────────────── */
+    .progress-bar { height: 6px; background: var(--border); border-radius: 3px; overflow: hidden; margin: 12px 0; }
+    .progress-bar-fill { height: 100%; background: var(--accent); border-radius: 3px; transition: width .3s; }
+
+    /* ── Pagination ─────────────────────────────────────────────────────── */
+    .pagination { display: flex; align-items: center; gap: 6px; justify-content: center; margin-top: 16px; }
+    .page-btn { background: var(--card-bg); border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--text-2); padding: 5px 10px; font-size: 12px; cursor: pointer; transition: all .15s; }
+    .page-btn:hover { border-color: var(--accent); color: var(--accent-h); }
+    .page-btn.active { background: var(--accent-dim); border-color: var(--accent); color: var(--accent-h); font-weight: 600; }
+    .page-info { color: var(--text-2); font-size: 12px; }
+
+    /* ── Date filter ─────────────────────────────────────────────────────── */
+    .date-filter { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; background: var(--card-bg); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px 20px; margin-bottom: 20px; }
+    .date-filter label { font-size: 12px; color: var(--text-2); font-weight: 600; }
+    input[type=date] { background: var(--bg); border: 1px solid var(--border-light); border-radius: var(--radius-sm); color: var(--text); padding: 6px 10px; font-size: 13px; outline: none; }
+    input[type=date]:focus { border-color: var(--accent); }
+    input[type=date]::-webkit-calendar-picker-indicator { filter: invert(.5); cursor: pointer; }
+
+    /* ── Toggle ──────────────────────────────────────────────────────────── */
+    .toggle-wrap { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--text-2); cursor: pointer; }
+    .toggle { position: relative; width: 36px; height: 20px; flex-shrink: 0; }
+    .toggle input { opacity: 0; width: 0; height: 0; position: absolute; }
+    .toggle-slider { position: absolute; inset: 0; background: var(--border-light); border-radius: 99px; transition: .2s; cursor: pointer; }
+    .toggle-slider::before { content: ''; position: absolute; width: 14px; height: 14px; background: #fff; border-radius: 50%; bottom: 3px; left: 3px; transition: .2s; }
+    .toggle input:checked + .toggle-slider { background: var(--accent); }
+    .toggle input:checked + .toggle-slider::before { transform: translateX(16px); }
+
+    /* ── Audit action chips ──────────────────────────────────────────────── */
+    .action-chip { display: inline-block; font-size: 11px; font-family: monospace; padding: 2px 8px; border-radius: 4px; background: rgba(255,255,255,.06); border: 1px solid var(--border); color: var(--text-2); white-space: nowrap; }
+
+    /* ── Session row ─────────────────────────────────────────────────────── */
+    .session-row { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--border); }
+    .session-row:last-child { border-bottom: none; }
+    .session-info { flex: 1; }
+    .session-ua { font-size: 12px; color: var(--text-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 320px; }
+    .session-meta { font-size: 11px; color: var(--text-3); margin-top: 3px; }
   </style>
 </head>
 <body>
 
-  <!-- Login Screen -->
-  <div id="login-screen">
-    <div class="card p-4" style="width: 100%; max-width: 400px;">
-      <h3 class="text-center mb-4">Blizkie Admin</h3>
-      <p class="text-secondary text-center small mb-4">Доступ только для администраторов</p>
-      <form id="login-form">
-        <div class="mb-3">
-          <label class="form-label">Username</label>
-          <input type="text" id="login-username" class="form-control" placeholder="username" required>
-        </div>
-        <div class="mb-4">
-          <label class="form-label">Пароль</label>
-          <input type="password" id="login-password" class="form-control" required>
-        </div>
-        <button type="submit" class="btn btn-primary w-100" id="login-btn">Войти</button>
-        <div id="login-error" class="text-danger mt-3 text-center small" style="display: none;"></div>
-      </form>
+<!-- ─── Login ─────────────────────────────────────────────────────────────── -->
+<div id="login-wrap">
+  <div class="login-card">
+    <div class="login-logo">
+      <div class="icon">🛡️</div>
+      <h1>Blizkie Admin</h1>
+      <p>Только для администраторов</p>
     </div>
-  </div>
-
-  <!-- Main Dashboard -->
-  <div id="app" class="container-fluid d-none">
-    <div class="row">
-      <!-- Sidebar -->
-      <div class="col-md-3 col-lg-2 sidebar bg-dark">
-        <h5 class="text-center text-primary mb-4 mt-2 fw-bold"><i class="bi bi-shield-lock"></i> Blizkie Admin</h5>
-        <ul class="nav flex-column gap-2 px-2">
-          <li class="nav-item">
-            <a class="nav-link active" onclick="showTab('dashboard')" id="nav-dashboard">
-              <i class="bi bi-speedometer2 me-2"></i> Дашборд
-            </a>
-          </li>
-          <li class="nav-item">
-            <a class="nav-link" onclick="showTab('users')" id="nav-users">
-              <i class="bi bi-people me-2"></i> Пользователи
-            </a>
-          </li>
-          <li class="nav-item">
-            <a class="nav-link" onclick="showTab('chats')" id="nav-chats">
-              <i class="bi bi-chat-dots me-2"></i> Чаты
-            </a>
-          </li>
-          <li class="nav-item">
-            <a class="nav-link" onclick="showTab('content')" id="nav-content">
-              <i class="bi bi-flag me-2"></i> Контент
-              <span id="nav-content-badge" class="report-badge ms-1" style="display:none"></span>
-            </a>
-          </li>
-          <li class="nav-item">
-            <a class="nav-link" onclick="showTab('errors')" id="nav-errors">
-              <i class="bi bi-exclamation-triangle me-2"></i> Ошибки
-              <span id="nav-errors-badge" class="error-badge ms-1" style="display:none"></span>
-            </a>
-          </li>
-          <li class="nav-item mt-4">
-            <a class="nav-link text-danger" onclick="logout()">
-              <i class="bi bi-box-arrow-right me-2"></i> Выйти
-            </a>
-          </li>
-        </ul>
+    <form id="login-form" autocomplete="off">
+      <div class="form-group">
+        <label class="form-label">Username</label>
+        <input id="login-user" class="form-input" type="text" placeholder="admin" autocomplete="off" required>
       </div>
+      <div class="form-group">
+        <label class="form-label">Пароль</label>
+        <input id="login-pass" class="form-input" type="password" placeholder="••••••••" required>
+      </div>
+      <div id="login-error" class="login-error"></div>
+      <button id="login-btn" type="submit" class="btn btn-primary" style="width:100%;margin-top:8px;justify-content:center">
+        <i class="bi bi-box-arrow-in-right"></i> Войти
+      </button>
+    </form>
+  </div>
+</div>
 
-      <!-- Content -->
-      <div class="col-md-9 col-lg-10 content-area">
+<!-- ─── App ───────────────────────────────────────────────────────────────── -->
+<div id="app">
 
-        <!-- Dashboard Tab -->
-        <div id="tab-dashboard" class="tab-pane">
-          <div class="d-flex justify-content-between align-items-center mb-4">
-            <h2>Статистика</h2>
-            <button class="btn btn-outline-secondary btn-sm" onclick="loadStats()">
-              <i class="bi bi-arrow-clockwise"></i> Обновить
-            </button>
-          </div>
-
-          <!-- Date range filter -->
-          <div class="card p-3 mb-4">
-            <div class="row g-2 align-items-end">
-              <div class="col-auto">
-                <label class="form-label text-secondary small mb-1">С</label>
-                <input type="date" id="filter-from" class="form-control form-control-sm" style="width:160px">
-              </div>
-              <div class="col-auto">
-                <label class="form-label text-secondary small mb-1">По</label>
-                <input type="date" id="filter-to" class="form-control form-control-sm" style="width:160px">
-              </div>
-              <div class="col-auto d-flex gap-2">
-                <button class="btn btn-primary btn-sm" onclick="loadStats()">
-                  <i class="bi bi-funnel"></i> Применить
-                </button>
-                <button class="btn btn-outline-secondary btn-sm" onclick="clearDateFilter()">
-                  <i class="bi bi-x"></i> Сбросить
-                </button>
-              </div>
-              <div class="col-auto ms-2">
-                <span id="filter-label" class="text-secondary small"></span>
-              </div>
-            </div>
-          </div>
-
-          <!-- Stat cards — row 1 -->
-          <div class="row g-4 mb-3">
-            <div class="col-md-4">
-              <div class="card p-4 text-center">
-                <h6 class="text-secondary text-uppercase mb-2"><i class="bi bi-people me-1"></i>Пользователи</h6>
-                <h1 class="text-primary mb-0" id="stat-users">-</h1>
-              </div>
-            </div>
-            <div class="col-md-4">
-              <div class="card p-4 text-center">
-                <h6 class="text-secondary text-uppercase mb-2"><i class="bi bi-chat-dots me-1"></i>Чаты</h6>
-                <h1 class="text-success mb-0" id="stat-chats">-</h1>
-              </div>
-            </div>
-            <div class="col-md-4">
-              <div class="card p-4 text-center">
-                <h6 class="text-secondary text-uppercase mb-2"><i class="bi bi-envelope me-1"></i>Сообщения</h6>
-                <h1 class="text-info mb-0" id="stat-messages">-</h1>
-              </div>
-            </div>
-          </div>
-
-          <!-- Stat cards — row 2: support + content reports -->
-          <div class="row g-4 mb-4">
-            <div class="col-md-4">
-              <div class="card p-4 text-center">
-                <h6 class="text-secondary text-uppercase mb-2"><i class="bi bi-bug me-1"></i>Отчёты об ошибках</h6>
-                <h1 class="text-warning mb-0" id="stat-bugs">-</h1>
-              </div>
-            </div>
-            <div class="col-md-4">
-              <div class="card p-4 text-center">
-                <h6 class="text-secondary text-uppercase mb-2"><i class="bi bi-lightbulb me-1"></i>Предложения</h6>
-                <h1 class="mb-0" id="stat-features" style="color:#a855f7">-</h1>
-              </div>
-            </div>
-            <div class="col-md-4">
-              <div class="card p-4 text-center">
-                <h6 class="text-secondary text-uppercase mb-2"><i class="bi bi-flag me-1"></i>Жалобы на контент</h6>
-                <h1 class="text-danger mb-0" id="stat-content-reports">-</h1>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Users Tab -->
-        <div id="tab-users" class="tab-pane d-none">
-          <div class="d-flex justify-content-between align-items-center mb-3">
-            <h2>Пользователи</h2>
-            <button class="btn btn-outline-secondary btn-sm" onclick="loadUsers()"><i class="bi bi-arrow-clockwise"></i> Обновить</button>
-          </div>
-
-          <!-- Search -->
-          <div class="mb-3">
-            <div class="input-group" style="max-width:380px">
-              <span class="input-group-text bg-dark border-secondary"><i class="bi bi-search text-secondary"></i></span>
-              <input type="text" id="users-search" class="form-control bg-dark border-secondary text-light"
-                placeholder="Поиск по username или email..."
-                oninput="filterUsers(this.value)">
-              <button class="btn btn-outline-secondary" onclick="document.getElementById('users-search').value='';filterUsers('')">
-                <i class="bi bi-x"></i>
-              </button>
-            </div>
-          </div>
-
-          <div class="card table-responsive">
-            <table class="table table-hover mb-0">
-              <thead>
-                <tr>
-                  <th class="sortable" onclick="sortUsers('display_name')">
-                    ID / Имя <span class="sort-icon" id="sort-users-display_name">↕</span>
-                  </th>
-                  <th class="sortable" onclick="sortUsers('username')">
-                    Username <span class="sort-icon" id="sort-users-username">↕</span>
-                  </th>
-                  <th class="sortable" onclick="sortUsers('email')">
-                    Email <span class="sort-icon" id="sort-users-email">↕</span>
-                  </th>
-                  <th class="sortable" onclick="sortUsers('created_at')">
-                    Создан <span class="sort-icon" id="sort-users-created_at">↕</span>
-                  </th>
-                  <th class="sortable" onclick="sortUsers('last_seen_at')">
-                    Был в сети <span class="sort-icon" id="sort-users-last_seen_at">↕</span>
-                  </th>
-                  <th class="text-end">Действия</th>
-                </tr>
-              </thead>
-              <tbody id="users-tbody">
-                <tr><td colspan="6" class="text-center py-4 text-secondary">Загрузка...</td></tr>
-              </tbody>
-            </table>
-          </div>
-        </div>
-
-        <!-- Chats Tab -->
-        <div id="tab-chats" class="tab-pane d-none">
-          <div class="d-flex justify-content-between align-items-center mb-4">
-            <h2>Чаты</h2>
-            <button class="btn btn-outline-secondary btn-sm" onclick="loadChats()"><i class="bi bi-arrow-clockwise"></i> Обновить</button>
-          </div>
-          <div class="card table-responsive">
-            <table class="table table-hover mb-0">
-              <thead>
-                <tr>
-                  <th class="sortable" onclick="sortChats('name')">
-                    Название <span class="sort-icon" id="sort-chats-name">↕</span>
-                  </th>
-                  <th class="sortable" onclick="sortChats('type')">
-                    Тип <span class="sort-icon" id="sort-chats-type">↕</span>
-                  </th>
-                  <th class="sortable" onclick="sortChats('member_count')">
-                    Участники <span class="sort-icon" id="sort-chats-member_count">↕</span>
-                  </th>
-                  <th class="sortable" onclick="sortChats('created_at')">
-                    Создан <span class="sort-icon" id="sort-chats-created_at">↕</span>
-                  </th>
-                  <th class="text-end">Действия</th>
-                </tr>
-              </thead>
-              <tbody id="chats-tbody">
-                <tr><td colspan="5" class="text-center py-4 text-secondary">Загрузка...</td></tr>
-              </tbody>
-            </table>
-          </div>
-        </div>
-
-        <!-- Content Moderation Tab -->
-        <div id="tab-content" class="tab-pane d-none">
-          <div class="d-flex justify-content-between align-items-center mb-4">
-            <h2>Контент</h2>
-            <button class="btn btn-outline-secondary btn-sm" onclick="loadContent()"><i class="bi bi-arrow-clockwise"></i> Обновить</button>
-          </div>
-
-          <!-- Sub-tabs -->
-          <ul class="nav nav-tabs mb-4" id="content-subtabs">
-            <li class="nav-item">
-              <a class="nav-link active" id="subtab-reports-btn" onclick="showContentSubtab('reports')" style="cursor:pointer">
-                <i class="bi bi-flag me-1"></i> Жалобы
-                <span id="reports-count-badge" class="report-badge ms-1" style="display:none"></span>
-              </a>
-            </li>
-            <li class="nav-item">
-              <a class="nav-link" id="subtab-packs-btn" onclick="showContentSubtab('packs')" style="cursor:pointer">
-                <i class="bi bi-collection me-1"></i> Все паки
-              </a>
-            </li>
-          </ul>
-
-          <!-- Reports sub-tab -->
-          <div id="subtab-reports">
-            <div class="d-flex align-items-center gap-3 mb-3">
-              <div class="form-check form-switch">
-                <input class="form-check-input" type="checkbox" id="show-resolved-toggle" onchange="loadReports()">
-                <label class="form-check-label text-secondary small" for="show-resolved-toggle">Показать решённые</label>
-              </div>
-            </div>
-            <div class="card table-responsive">
-              <table class="table table-hover mb-0">
-                <thead>
-                  <tr>
-                    <th>Пак</th>
-                    <th>Автор пака</th>
-                    <th>Жалоба от</th>
-                    <th>Причина</th>
-                    <th>Дата</th>
-                    <th class="text-end">Действия</th>
-                  </tr>
-                </thead>
-                <tbody id="reports-tbody">
-                  <tr><td colspan="6" class="text-center py-4 text-secondary">Загрузка...</td></tr>
-                </tbody>
-              </table>
-            </div>
-          </div>
-
-          <!-- Packs sub-tab -->
-          <div id="subtab-packs" class="d-none">
-            <div class="mb-3">
-              <div class="input-group" style="max-width:380px">
-                <span class="input-group-text bg-dark border-secondary"><i class="bi bi-search text-secondary"></i></span>
-                <input type="text" id="packs-search" class="form-control bg-dark border-secondary text-light"
-                  placeholder="Поиск по названию или автору..."
-                  oninput="filterPacks(this.value)">
-                <button class="btn btn-outline-secondary" onclick="document.getElementById('packs-search').value='';filterPacks('')">
-                  <i class="bi bi-x"></i>
-                </button>
-              </div>
-            </div>
-            <div class="card table-responsive">
-              <table class="table table-hover mb-0">
-                <thead>
-                  <tr>
-                    <th>Пак</th>
-                    <th>Тип</th>
-                    <th>Автор</th>
-                    <th>Стикеров</th>
-                    <th>Жалобы</th>
-                    <th>Создан</th>
-                    <th class="text-end">Действия</th>
-                  </tr>
-                </thead>
-                <tbody id="packs-tbody">
-                  <tr><td colspan="7" class="text-center py-4 text-secondary">Загрузка...</td></tr>
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
-
-        <!-- Errors Tab -->
-        <div id="tab-errors" class="tab-pane d-none">
-          <div class="d-flex justify-content-between align-items-center mb-3">
-            <h2>Лог ошибок</h2>
-            <div class="d-flex gap-2">
-              <button class="btn btn-outline-secondary btn-sm" onclick="loadErrors()">
-                <i class="bi bi-arrow-clockwise"></i> Обновить
-              </button>
-              <button class="btn btn-outline-danger btn-sm" onclick="clearErrors()">
-                <i class="bi bi-trash3"></i> Очистить всё
-              </button>
-            </div>
-          </div>
-
-          <!-- Filters -->
-          <div class="card p-3 mb-3">
-            <div class="row g-2 align-items-end">
-              <div class="col-auto">
-                <label class="form-label text-secondary small mb-1">Уровень</label>
-                <select id="errors-level" class="form-select form-select-sm bg-dark border-secondary text-light" style="width:140px" onchange="loadErrors()">
-                  <option value="">Все</option>
-                  <option value="error">Ошибки</option>
-                  <option value="warn">Предупреждения</option>
-                </select>
-              </div>
-              <div class="col-auto">
-                <label class="form-label text-secondary small mb-1">Тег</label>
-                <select id="errors-tag" class="form-select form-select-sm bg-dark border-secondary text-light" style="width:160px" onchange="loadErrors()">
-                  <option value="">Все теги</option>
-                </select>
-              </div>
-              <div class="col">
-                <label class="form-label text-secondary small mb-1">Поиск</label>
-                <input type="text" id="errors-search" class="form-control form-control-sm bg-dark border-secondary text-light"
-                  placeholder="Текст ошибки..." oninput="debounceErrorSearch()">
-              </div>
-            </div>
-          </div>
-
-          <div class="d-flex justify-content-between align-items-center mb-2">
-            <span id="errors-total-label" class="text-secondary small"></span>
-            <div class="d-flex gap-2">
-              <button class="btn btn-outline-warning btn-sm d-none" id="errors-clear-warn-btn" onclick="clearErrors('warn')">
-                <i class="bi bi-trash3"></i> Очистить предупреждения
-              </button>
-              <button class="btn btn-outline-danger btn-sm d-none" id="errors-clear-error-btn" onclick="clearErrors('error')">
-                <i class="bi bi-trash3"></i> Очистить ошибки
-              </button>
-            </div>
-          </div>
-
-          <div class="card table-responsive">
-            <table class="table table-hover mb-0" id="errors-table">
-              <thead>
-                <tr>
-                  <th style="width:150px">Время</th>
-                  <th style="width:110px">Уровень</th>
-                  <th style="width:120px">Тег</th>
-                  <th>Сообщение / Ошибка</th>
-                  <th style="width:130px">Пользователь</th>
-                  <th class="text-end" style="width:120px">Действия</th>
-                </tr>
-              </thead>
-              <tbody id="errors-tbody">
-                <tr><td colspan="6" class="text-center py-4 text-secondary">Загрузка...</td></tr>
-              </tbody>
-            </table>
-          </div>
-
-          <div class="text-center mt-3 d-none" id="errors-load-more">
-            <button class="btn btn-outline-secondary btn-sm" onclick="loadMoreErrors()">
-              <i class="bi bi-chevron-down"></i> Показать ещё
-            </button>
-          </div>
-        </div>
-
+  <!-- Sidebar -->
+  <nav id="sidebar">
+    <div class="sidebar-logo">
+      <div class="logo-icon">🛡️</div>
+      <div>
+        <div class="logo-text">Blizkie</div>
+        <div class="logo-sub">Admin Panel</div>
       </div>
     </div>
-  </div>
 
-  <!-- Error Detail Modal -->
-  <div class="modal fade" id="errorDetailModal" tabindex="-1">
-    <div class="modal-dialog modal-lg modal-dialog-scrollable">
-      <div class="modal-content bg-dark border-secondary">
-        <div class="modal-header border-secondary">
-          <h5 class="modal-title"><i class="bi bi-bug me-2 text-danger"></i>Детали ошибки</h5>
-          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-        </div>
-        <div class="modal-body" id="errorDetailBody">
-        </div>
-        <div class="modal-footer border-secondary">
-          <button type="button" class="btn btn-outline-danger btn-sm" id="errorDetailDeleteBtn">
-            <i class="bi bi-trash3"></i> Удалить запись
+    <div class="sidebar-nav">
+      <button class="nav-item active" onclick="App.nav('dashboard')" id="nav-dashboard">
+        <i class="bi bi-speedometer2"></i> Дашборд
+      </button>
+      <button class="nav-item" onclick="App.nav('users')" id="nav-users">
+        <i class="bi bi-people"></i> Пользователи
+      </button>
+      <button class="nav-item" onclick="App.nav('chats')" id="nav-chats">
+        <i class="bi bi-chat-dots"></i> Чаты
+      </button>
+      <button class="nav-item" onclick="App.nav('content')" id="nav-content">
+        <i class="bi bi-flag"></i> Контент
+        <span id="badge-content" class="nav-badge" style="display:none"></span>
+      </button>
+
+      <div class="sidebar-sep"></div>
+
+      <button class="nav-item" onclick="App.nav('errors')" id="nav-errors">
+        <i class="bi bi-exclamation-octagon"></i> Лог ошибок
+        <span id="badge-errors" class="nav-badge" style="display:none"></span>
+      </button>
+      <button class="nav-item" onclick="App.nav('audit')" id="nav-audit">
+        <i class="bi bi-clock-history"></i> Аудит
+      </button>
+      <button class="nav-item" onclick="App.nav('tools')" id="nav-tools">
+        <i class="bi bi-tools"></i> Инструменты
+      </button>
+    </div>
+
+    <div class="sidebar-user">
+      <div class="avatar" id="sidebar-avatar">A</div>
+      <div class="uinfo">
+        <div class="uname" id="sidebar-username">admin</div>
+        <div class="urole">Administrator</div>
+      </div>
+      <button class="logout-btn" onclick="App.logout()" title="Выйти"><i class="bi bi-box-arrow-right"></i></button>
+    </div>
+  </nav>
+
+  <!-- Content -->
+  <main id="content">
+
+    <!-- ── Dashboard ───────────────────────────────────────────────────── -->
+    <div id="page-dashboard" class="page active">
+      <div class="page-header">
+        <h1 class="page-title">Дашборд</h1>
+        <div class="page-actions">
+          <button class="btn btn-ghost btn-sm" onclick="Pages.dashboard.load()">
+            <i class="bi bi-arrow-clockwise"></i> Обновить
           </button>
-          <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Закрыть</button>
+        </div>
+      </div>
+
+      <div class="date-filter">
+        <label>С</label>
+        <input type="date" id="filter-from">
+        <label>По</label>
+        <input type="date" id="filter-to">
+        <button class="btn btn-primary btn-sm" onclick="Pages.dashboard.load()">
+          <i class="bi bi-funnel"></i> Применить
+        </button>
+        <button class="btn btn-ghost btn-sm" onclick="Pages.dashboard.clearFilter()">
+          <i class="bi bi-x"></i> Сбросить
+        </button>
+        <span id="filter-label" style="font-size:12px;color:var(--text-2);margin-left:4px"></span>
+      </div>
+
+      <div class="stat-grid" id="stat-grid">
+        <div class="stat-card"><div class="stat-label"><i class="bi bi-people" style="color:var(--accent)"></i> Пользователи</div><div class="stat-value" id="stat-users" style="color:var(--accent-h)">—</div></div>
+        <div class="stat-card"><div class="stat-label"><i class="bi bi-chat-dots" style="color:var(--success)"></i> Чаты</div><div class="stat-value" id="stat-chats" style="color:var(--success)">—</div></div>
+        <div class="stat-card"><div class="stat-label"><i class="bi bi-envelope" style="color:var(--info)"></i> Сообщения</div><div class="stat-value" id="stat-messages" style="color:var(--info)">—</div></div>
+        <div class="stat-card"><div class="stat-label"><i class="bi bi-bug" style="color:var(--warning)"></i> Bug-репорты</div><div class="stat-value" id="stat-bugs" style="color:var(--warning)">—</div></div>
+        <div class="stat-card"><div class="stat-label"><i class="bi bi-lightbulb" style="color:var(--purple)"></i> Предложения</div><div class="stat-value" id="stat-features" style="color:var(--purple)">—</div></div>
+        <div class="stat-card"><div class="stat-label"><i class="bi bi-flag" style="color:var(--danger)"></i> Жалобы</div><div class="stat-value" id="stat-reports" style="color:var(--danger)">—</div></div>
+        <div class="stat-card"><div class="stat-label"><i class="bi bi-exclamation-octagon" style="color:var(--danger)"></i> Ошибки</div><div class="stat-value" id="stat-errors" style="color:var(--danger)">—</div></div>
+      </div>
+    </div>
+
+    <!-- ── Users ────────────────────────────────────────────────────────── -->
+    <div id="page-users" class="page">
+      <div class="page-header">
+        <h1 class="page-title">Пользователи <span id="users-count" style="font-size:14px;font-weight:400;color:var(--text-2)"></span></h1>
+        <div class="page-actions">
+          <button class="btn btn-ghost btn-sm" onclick="Pages.users.load()"><i class="bi bi-arrow-clockwise"></i> Обновить</button>
+        </div>
+      </div>
+      <div class="filter-bar">
+        <div class="input-wrap" style="flex:1;max-width:360px">
+          <i class="bi bi-search input-icon"></i>
+          <input id="users-search" class="form-input with-icon" placeholder="Поиск по username, email, имени…" oninput="Pages.users.search(this.value)">
+        </div>
+      </div>
+      <div class="card">
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th class="sortable" onclick="Pages.users.sort('display_name')">Пользователь <span class="sort-icon none" id="sort-users-display_name"></span></th>
+                <th class="sortable" onclick="Pages.users.sort('email')">Email <span class="sort-icon none" id="sort-users-email"></span></th>
+                <th class="sortable" onclick="Pages.users.sort('created_at')">Создан <span class="sort-icon none" id="sort-users-created_at"></span></th>
+                <th class="sortable" onclick="Pages.users.sort('last_seen_at')">Последний вход <span class="sort-icon none" id="sort-users-last_seen_at"></span></th>
+                <th style="text-align:right">Действия</th>
+              </tr>
+            </thead>
+            <tbody id="users-tbody"><tr class="loading-row"><td colspan="5">Загрузка…</td></tr></tbody>
+          </table>
         </div>
       </div>
     </div>
-  </div>
 
-  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-  <script src="admin.js"></script>
+    <!-- ── Chats ─────────────────────────────────────────────────────────── -->
+    <div id="page-chats" class="page">
+      <div class="page-header">
+        <h1 class="page-title">Чаты <span id="chats-count" style="font-size:14px;font-weight:400;color:var(--text-2)"></span></h1>
+        <div class="page-actions">
+          <button class="btn btn-ghost btn-sm" onclick="Pages.chats.load()"><i class="bi bi-arrow-clockwise"></i> Обновить</button>
+        </div>
+      </div>
+      <div class="filter-bar">
+        <div class="input-wrap" style="flex:1;max-width:360px">
+          <i class="bi bi-search input-icon"></i>
+          <input id="chats-search" class="form-input with-icon" placeholder="Поиск по названию…" oninput="Pages.chats.search(this.value)">
+        </div>
+      </div>
+      <div class="card">
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th class="sortable" onclick="Pages.chats.sort('name')">Название <span class="sort-icon none" id="sort-chats-name"></span></th>
+                <th class="sortable" onclick="Pages.chats.sort('type')">Тип <span class="sort-icon none" id="sort-chats-type"></span></th>
+                <th class="sortable" onclick="Pages.chats.sort('member_count')">Участники <span class="sort-icon none" id="sort-chats-member_count"></span></th>
+                <th class="sortable" onclick="Pages.chats.sort('created_at')">Создан <span class="sort-icon none" id="sort-chats-created_at"></span></th>
+                <th style="text-align:right">Действия</th>
+              </tr>
+            </thead>
+            <tbody id="chats-tbody"><tr class="loading-row"><td colspan="5">Загрузка…</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Content Moderation ────────────────────────────────────────────── -->
+    <div id="page-content" class="page">
+      <div class="page-header">
+        <h1 class="page-title">Модерация контента</h1>
+        <div class="page-actions">
+          <button class="btn btn-ghost btn-sm" onclick="Pages.content.reload()"><i class="bi bi-arrow-clockwise"></i> Обновить</button>
+        </div>
+      </div>
+      <div class="subtab-bar">
+        <button class="subtab-btn active" id="stab-reports" onclick="Pages.content.subTab('reports')">
+          <i class="bi bi-flag me-1"></i> Жалобы <span id="reports-cnt-badge" style="display:none;font-size:11px;background:var(--danger);color:#fff;padding:1px 5px;border-radius:99px;margin-left:4px"></span>
+        </button>
+        <button class="subtab-btn" id="stab-packs" onclick="Pages.content.subTab('packs')">
+          <i class="bi bi-collection me-1"></i> Стикерпаки
+        </button>
+      </div>
+
+      <!-- Reports -->
+      <div id="stab-pane-reports" class="subtab-pane active">
+        <div class="filter-bar">
+          <label class="toggle-wrap">
+            <span class="toggle"><input type="checkbox" id="show-resolved-toggle" onchange="Pages.content.loadReports()"><span class="toggle-slider"></span></span>
+            Показать решённые
+          </label>
+        </div>
+        <div class="card"><div class="table-wrap">
+          <table>
+            <thead><tr>
+              <th>Пак</th><th>Автор</th><th>Жалоба от</th><th>Причина</th><th>Дата</th><th style="text-align:right">Действия</th>
+            </tr></thead>
+            <tbody id="reports-tbody"><tr class="loading-row"><td colspan="6">Загрузка…</td></tr></tbody>
+          </table>
+        </div></div>
+      </div>
+
+      <!-- Packs -->
+      <div id="stab-pane-packs" class="subtab-pane">
+        <div class="filter-bar">
+          <div class="input-wrap" style="flex:1;max-width:360px">
+            <i class="bi bi-search input-icon"></i>
+            <input id="packs-search" class="form-input with-icon" placeholder="Поиск по паку или автору…" oninput="Pages.content.filterPacks(this.value)">
+          </div>
+        </div>
+        <div class="card"><div class="table-wrap">
+          <table>
+            <thead><tr>
+              <th>Пак</th><th>Тип</th><th>Автор</th><th>Стикеров</th><th>Жалобы</th><th>Дата</th><th style="text-align:right">Действия</th>
+            </tr></thead>
+            <tbody id="packs-tbody"><tr class="loading-row"><td colspan="7">Загрузка…</td></tr></tbody>
+          </table>
+        </div></div>
+      </div>
+    </div>
+
+    <!-- ── Error Log ──────────────────────────────────────────────────────── -->
+    <div id="page-errors" class="page">
+      <div class="page-header">
+        <h1 class="page-title">Лог ошибок</h1>
+        <div class="page-actions">
+          <button class="btn btn-ghost btn-sm" onclick="Pages.errors.load()"><i class="bi bi-arrow-clockwise"></i> Обновить</button>
+          <button class="btn btn-ghost-danger btn-sm" onclick="Pages.errors.clearAll()"><i class="bi bi-trash3"></i> Очистить всё</button>
+        </div>
+      </div>
+      <div class="filter-bar">
+        <select id="errors-level" class="form-select" style="width:140px" onchange="Pages.errors.load()">
+          <option value="">Все уровни</option>
+          <option value="error">Ошибки</option>
+          <option value="warn">Предупреждения</option>
+        </select>
+        <select id="errors-tag" class="form-select" style="width:160px" onchange="Pages.errors.load()">
+          <option value="">Все теги</option>
+        </select>
+        <div class="input-wrap" style="flex:1;max-width:360px">
+          <i class="bi bi-search input-icon"></i>
+          <input id="errors-search" class="form-input with-icon" placeholder="Поиск в тексте ошибок…" oninput="Pages.errors.debounce()">
+        </div>
+        <span id="errors-total" style="font-size:12px;color:var(--text-2);white-space:nowrap"></span>
+      </div>
+      <div class="card"><div class="table-wrap">
+        <table>
+          <thead><tr>
+            <th style="width:140px">Время</th>
+            <th style="width:100px">Уровень</th>
+            <th style="width:130px">Тег</th>
+            <th>Сообщение</th>
+            <th style="width:120px">User</th>
+            <th style="width:100px;text-align:right">Действия</th>
+          </tr></thead>
+          <tbody id="errors-tbody"><tr class="loading-row"><td colspan="6">Загрузка…</td></tr></tbody>
+        </table>
+      </div></div>
+      <div id="errors-pagination" class="pagination" style="margin-top:16px"></div>
+    </div>
+
+    <!-- ── Audit Log ──────────────────────────────────────────────────────── -->
+    <div id="page-audit" class="page">
+      <div class="page-header">
+        <h1 class="page-title">Журнал аудита</h1>
+        <div class="page-actions">
+          <button class="btn btn-ghost btn-sm" onclick="Pages.audit.load()"><i class="bi bi-arrow-clockwise"></i> Обновить</button>
+        </div>
+      </div>
+      <div class="filter-bar">
+        <select id="audit-action" class="form-select" style="width:200px" onchange="Pages.audit.load()">
+          <option value="">Все действия</option>
+          <option value="delete_user">Удаление пользователя</option>
+          <option value="delete_chat">Удаление чата</option>
+          <option value="delete_sticker_pack">Удаление пака</option>
+          <option value="dismiss_content_report">Отклонение жалобы</option>
+          <option value="clear_app_errors">Очистка ошибок</option>
+          <option value="revoke_session">Отзыв сессии</option>
+        </select>
+        <span id="audit-total" style="font-size:12px;color:var(--text-2)"></span>
+      </div>
+      <div class="card"><div class="table-wrap">
+        <table>
+          <thead><tr>
+            <th style="width:150px">Время</th>
+            <th style="width:140px">Администратор</th>
+            <th style="width:200px">Действие</th>
+            <th>Объект</th>
+            <th style="width:130px">IP</th>
+          </tr></thead>
+          <tbody id="audit-tbody"><tr class="loading-row"><td colspan="5">Загрузка…</td></tr></tbody>
+        </table>
+      </div></div>
+      <div id="audit-pagination" class="pagination" style="margin-top:16px"></div>
+    </div>
+
+    <!-- ── Tools ─────────────────────────────────────────────────────────── -->
+    <div id="page-tools" class="page">
+      <div class="page-header">
+        <h1 class="page-title">Инструменты</h1>
+      </div>
+
+      <div class="card card-body" style="max-width:600px">
+        <h3 style="font-size:16px;font-weight:700;margin-bottom:4px"><i class="bi bi-magic" style="color:var(--accent)"></i> Восстановление стикеров</h3>
+        <p style="font-size:13px;color:var(--text-2);margin-bottom:20px">Перекодирует сломанные GIF/APNG стикеры обратно в анимированный WebP, используя сохранённый оригинал.</p>
+
+        <div class="form-group">
+          <label class="form-label">Pack ID (необязательно)</label>
+          <input id="repair-pack-id" class="form-input" placeholder="Оставьте пустым для всех паков">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Лимит стикеров</label>
+          <input id="repair-limit" class="form-input" type="number" value="50" min="1" max="200">
+        </div>
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:20px">
+          <label class="toggle-wrap">
+            <span class="toggle"><input type="checkbox" id="repair-dry-run" checked><span class="toggle-slider"></span></span>
+            Тестовый запуск (не изменять файлы)
+          </label>
+        </div>
+        <button class="btn btn-primary" id="repair-btn" onclick="Pages.tools.runRepair()">
+          <i class="bi bi-wrench-adjustable"></i> Запустить восстановление
+        </button>
+
+        <div id="repair-progress" style="display:none;margin-top:20px">
+          <div class="progress-bar"><div class="progress-bar-fill" id="repair-bar" style="width:0%"></div></div>
+          <div id="repair-stats" style="font-size:12px;color:var(--text-2);margin-bottom:12px"></div>
+          <div id="repair-results"></div>
+        </div>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<!-- ─── Modals ─────────────────────────────────────────────────────────────── -->
+
+<!-- Confirm modal -->
+<div id="confirm-modal" class="modal-overlay">
+  <div class="modal-box" style="max-width:420px">
+    <div class="modal-body" style="text-align:center;padding:32px 24px">
+      <div class="confirm-icon" id="confirm-icon">⚠️</div>
+      <div class="confirm-title" id="confirm-title">Подтвердите действие</div>
+      <div class="confirm-msg" id="confirm-msg"></div>
+    </div>
+    <div class="modal-footer" style="justify-content:center">
+      <button class="btn btn-ghost" id="confirm-cancel">Отмена</button>
+      <button class="btn btn-danger" id="confirm-ok">Удалить</button>
+    </div>
+  </div>
+</div>
+
+<!-- User detail modal -->
+<div id="user-modal" class="modal-overlay">
+  <div class="modal-box wide">
+    <div class="modal-header">
+      <span class="modal-title" id="user-modal-title">Профиль пользователя</span>
+      <button class="modal-close" onclick="Modals.user.close()"><i class="bi bi-x-lg"></i></button>
+    </div>
+    <div class="modal-body" id="user-modal-body">Загрузка…</div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost-danger btn-sm" id="user-modal-delete-btn"><i class="bi bi-trash3"></i> Удалить аккаунт</button>
+      <button class="btn btn-ghost btn-sm" onclick="Modals.user.close()">Закрыть</button>
+    </div>
+  </div>
+</div>
+
+<!-- Error detail modal -->
+<div id="error-modal" class="modal-overlay">
+  <div class="modal-box wide">
+    <div class="modal-header">
+      <span class="modal-title"><i class="bi bi-bug" style="color:var(--danger)"></i> Детали ошибки</span>
+      <button class="modal-close" onclick="Modals.error.close()"><i class="bi bi-x-lg"></i></button>
+    </div>
+    <div class="modal-body" id="error-modal-body"></div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost-danger btn-sm" id="error-modal-delete-btn"><i class="bi bi-trash3"></i> Удалить запись</button>
+      <button class="btn btn-ghost btn-sm" onclick="Modals.error.close()">Закрыть</button>
+    </div>
+  </div>
+</div>
+
+<!-- Toast container -->
+<div id="toast-container"></div>
+
+<script src="admin.js"></script>
 </body>
 </html>

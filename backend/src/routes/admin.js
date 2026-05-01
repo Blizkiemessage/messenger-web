@@ -138,6 +138,62 @@ router.get('/stats', (req, res, next) => {
   }
 });
 
+// GET /admin/api/users/:id — full user profile
+router.get('/users/:id', (req, res, next) => {
+  try {
+    const db   = getDb();
+    const user = db.prepare(
+      `SELECT id, username, display_name, email, avatar_url, bio, birth_date,
+              created_at, last_seen_at, totp_enabled,
+              hide_bio, hide_birth_date, hide_email, hide_last_seen, hide_avatar,
+              no_group_add, theme, accent_color, presence_status, presence_note
+       FROM users WHERE id = ?`
+    ).get(req.params.id);
+    if (!user) return res.status(404).json({ error: 'User not found' });
+
+    const sessionCount = db.prepare(
+      'SELECT COUNT(*) AS c FROM sessions WHERE user_id = ? AND revoked = 0'
+    ).get(req.params.id).c;
+
+    const msgCount = db.prepare(
+      'SELECT COUNT(*) AS c FROM messages WHERE sender_id = ? AND deleted_at IS NULL'
+    ).get(req.params.id).c;
+
+    res.json({ ...user, session_count: sessionCount, message_count: msgCount });
+  } catch (err) { next(err); }
+});
+
+// GET /admin/api/users/:id/sessions — list active sessions for a user
+router.get('/users/:id/sessions', (req, res, next) => {
+  try {
+    const db = getDb();
+    const sessions = db.prepare(
+      `SELECT id, created_at, last_used_at, ip_address, user_agent, revoked
+       FROM sessions WHERE user_id = ?
+       ORDER BY last_used_at DESC LIMIT 20`
+    ).all(req.params.id);
+    res.json(sessions);
+  } catch (err) { next(err); }
+});
+
+// DELETE /admin/api/sessions/:id — revoke a specific session
+router.delete('/sessions/:id', (req, res, next) => {
+  try {
+    const db = getDb();
+    db.prepare('UPDATE sessions SET revoked = 1 WHERE id = ?').run(req.params.id);
+    db.prepare('UPDATE refresh_tokens SET revoked = 1 WHERE session_id = ?').run(req.params.id);
+    logAdminAction({
+      adminUserId: req.userId,
+      action: 'revoke_session',
+      targetType: 'session',
+      targetId: req.params.id,
+      ipAddress: clientIp(req),
+      userAgent: req.headers['user-agent'] || null,
+    });
+    res.json({ ok: true });
+  } catch (err) { next(err); }
+});
+
 // GET /admin/api/users?search=<query>
 router.get('/users', (req, res, next) => {
   try {
@@ -205,17 +261,27 @@ router.delete('/users/:id', (req, res, next) => {
   }
 });
 
-// GET /admin/api/chats
+// GET /admin/api/chats?search=<query>
 router.get('/chats', (req, res, next) => {
   try {
     const db = getDb();
-    const chats = db.prepare(`
-      SELECT c.id, c.type, c.name, c.created_at, c.creator_id, COUNT(cm.user_id) as member_count
-      FROM chats c
-      LEFT JOIN chat_members cm ON c.id = cm.chat_id
-      GROUP BY c.id
-      ORDER BY c.created_at DESC
-    `).all();
+    const search = req.query.search ? `%${req.query.search.toLowerCase()}%` : null;
+    const chats = search
+      ? db.prepare(`
+          SELECT c.id, c.type, c.name, c.created_at, c.creator_id, COUNT(cm.user_id) as member_count
+          FROM chats c
+          LEFT JOIN chat_members cm ON c.id = cm.chat_id
+          WHERE LOWER(COALESCE(c.name,'')) LIKE ?
+          GROUP BY c.id
+          ORDER BY c.created_at DESC
+        `).all([search])
+      : db.prepare(`
+          SELECT c.id, c.type, c.name, c.created_at, c.creator_id, COUNT(cm.user_id) as member_count
+          FROM chats c
+          LEFT JOIN chat_members cm ON c.id = cm.chat_id
+          GROUP BY c.id
+          ORDER BY c.created_at DESC
+        `).all();
     res.json(chats);
   } catch (err) {
     next(err);

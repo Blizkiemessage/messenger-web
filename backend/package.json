@@ -6,7 +6,8 @@
   "scripts": {
     "start": "node src/index.js",
     "dev": "nodemon src/index.js",
-    "test": "node --test tests/smoke.test.js"
+    "test": "node --test tests/smoke.test.js",
+    "create-admin": "node scripts/create-admin.js"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1009.0",
