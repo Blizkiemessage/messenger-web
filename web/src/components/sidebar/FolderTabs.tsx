@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useRef, useState, useEffect } from 'react';
 import { type ChatFolder } from '../../types';
 
 interface Props {
@@ -25,6 +25,17 @@ export function FolderTabs({
   const [showActions, setShowActions] = useState(false);
   const actionsRef = useRef<HTMLDivElement>(null);
 
+  useEffect(() => {
+    if (!showActions) return;
+    function handleOutside(e: MouseEvent) {
+      if (actionsRef.current && !actionsRef.current.contains(e.target as Node)) {
+        setShowActions(false);
+      }
+    }
+    document.addEventListener('mousedown', handleOutside);
+    return () => document.removeEventListener('mousedown', handleOutside);
+  }, [showActions]);
+
   const onMouseDown = (e: React.MouseEvent) => {
     const el = scrollRef.current;
     if (!el) return;
@@ -47,9 +58,6 @@ export function FolderTabs({
     e.stopPropagation();
     setShowActions(v => !v);
   };
-
-  // Close actions dropdown on outside click
-  const onActionsBlur = () => setTimeout(() => setShowActions(false), 120);
 
   return (
     <div className="folderTabsWrap">
@@ -104,7 +112,6 @@ export function FolderTabs({
         <button
           className={`sidebarComposeBtn${showActions ? ' active' : ''}`}
           onClick={toggleActions}
-          onBlur={onActionsBlur}
           title="Действия"
         >
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
