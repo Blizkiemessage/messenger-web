@@ -553,8 +553,8 @@ function extractFirstUrl(text: string | null | undefined): string | null {
 
 // ── Audio player for voice messages ──────────────────────────────────────────
 function AudioPlayer({
-  url, isOwn, isRead, sendTime, msgId, senderName, initialDuration, isPending, isError, onRetry,
-}: { url: string; isOwn: boolean; isRead: boolean; sendTime: number; msgId: string; senderName: string; initialDuration?: number; isPending?: boolean; isError?: boolean; onRetry?: () => void }) {
+  url, isOwn, isRead, sendTime, msgId, senderName, initialDuration, waveformStr, isPending, isError, onRetry,
+}: { url: string; isOwn: boolean; isRead: boolean; sendTime: number; msgId: string; senderName: string; initialDuration?: number; waveformStr?: string | null; isPending?: boolean; isError?: boolean; onRetry?: () => void }) {
   const audioRef    = useRef<HTMLAudioElement>(null);
   const trackRef    = useRef<HTMLDivElement>(null);
   const draggingRef = useRef(false);
@@ -633,6 +633,16 @@ function AudioPlayer({
 
   const progress = duration > 0 ? Math.min(1, current / duration) : 0;
 
+  // Parse waveform bars once (null = no waveform → render flat track)
+  const waveform = useMemo<number[] | null>(() => {
+    if (!waveformStr) return null;
+    try {
+      const arr = JSON.parse(waveformStr);
+      return Array.isArray(arr) && arr.length > 0 ? (arr as number[]) : null;
+    } catch { return null; }
+  }, [waveformStr]);
+  const playedCount = waveform ? Math.round(progress * waveform.length) : 0;
+
   // Scrub
   const scrubFromClientX = (clientX: number) => {
     const a = audioRef.current;
@@ -693,7 +703,7 @@ function AudioPlayer({
 
       {/* Right side: track + bottom row */}
       <div className="voiceMsgRight">
-        {/* Progress track with draggable thumb */}
+        {/* Progress track — waveform bars if available, flat track otherwise */}
         <div
           className="voiceMsgTrackWrap"
           ref={trackRef}
@@ -706,10 +716,22 @@ function AudioPlayer({
           aria-valuenow={Math.round(progress * 100)}
           aria-label="Перемотка"
         >
-          <div className="voiceMsgTrackBg">
-            <div className="voiceMsgTrackFill" style={{ width: `${progress * 100}%` }} />
-            <div className="voiceMsgTrackThumb" style={{ left: `${progress * 100}%` }} />
-          </div>
+          {waveform ? (
+            <div className={`voiceWaveformBars${isOwn ? ' voiceWaveformBarsOwn' : ''}`}>
+              {waveform.map((h, i) => (
+                <div
+                  key={i}
+                  className={`voiceWaveformBar${i < playedCount ? ' voiceWaveformBarPlayed' : ''}`}
+                  style={{ height: `${h}%` }}
+                />
+              ))}
+            </div>
+          ) : (
+            <div className="voiceMsgTrackBg">
+              <div className="voiceMsgTrackFill" style={{ width: `${progress * 100}%` }} />
+              <div className="voiceMsgTrackThumb" style={{ left: `${progress * 100}%` }} />
+            </div>
+          )}
         </div>
 
         {/* Bottom row: time left, send-time + status right */}
@@ -1011,6 +1033,7 @@ export function MessageBubble({
             msgId={m.id}
             senderName={playerSenderName}
             initialDuration={m.attachment_duration ?? undefined}
+            waveformStr={m.voice_waveform ?? null}
             isPending={m._pending}
             isError={m._error}
             onRetry={onRetry}

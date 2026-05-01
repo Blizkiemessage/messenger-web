@@ -43,6 +43,7 @@ export async function sendChatMessage(
     attachment_size?: number | null;
     attachment_duration?: number | null;
     attachment_meta?: string | null;
+    voice_waveform?: string | null;
     reply?: {
       id: string;
       sender_id?: string | null;

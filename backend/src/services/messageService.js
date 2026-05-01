@@ -41,6 +41,7 @@ function decryptMessage(msg) {
     attachment_name: msg.attachment_name || null, attachment_meta: msg.attachment_meta || null,
     attachment_size: msg.attachment_size || null,
     attachment_duration: msg.attachment_duration != null ? msg.attachment_duration : null,
+    voice_waveform: msg.voice_waveform || null,
     liked_by: JSON.parse(msg.liked_by || '[]'),
     reactions: JSON.parse(msg.reactions || '[]'),
     is_system: msg.is_system ? true : false,
@@ -110,16 +111,18 @@ function _insertMessage(db, chatId, senderId, text, attachment, isSystem, reply,
   const isScheduled = deliverAt != null;
   db.prepare(
     `INSERT INTO messages (id, chat_id, sender_id, ciphertext, iv, auth_tag, created_at,
-       attachment_url, attachment_type, attachment_name, attachment_meta, attachment_size, attachment_duration, is_system,
+       attachment_url, attachment_type, attachment_name, attachment_meta, attachment_size, attachment_duration,
+       voice_waveform, is_system,
        reply_to_id, reply_to_sender_id, reply_to_sender_username,
        reply_to_ciphertext, reply_to_iv, reply_to_auth_tag, poll_id, search_text,
        deliver_at, is_delivered)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
   ).run([msgId, chatId, senderId, ciphertext, iv, authTag, now,
     attachment.attachment_url || null, attachment.attachment_type || null,
     attachment.attachment_name || null, attachment.attachment_meta || null,
     attachment.attachment_size || null,
     attachment.attachment_duration != null ? attachment.attachment_duration : null,
+    typeof attachment.voice_waveform === 'string' ? attachment.voice_waveform : null,
     isSystem ? 1 : 0,
     replyToId, replyToSenderId, replyToSenderUsername,
     replyToCiphertext, replyToIv, replyToAuthTag,

@@ -77,6 +77,7 @@ export type Message = {
   attachment_meta?: string | null;
   attachment_size?: number | null;
   attachment_duration?: number | null;
+  voice_waveform?: string | null;
   liked_by?: string[];
   reactions?: MessageReaction[];
   is_system?: boolean;

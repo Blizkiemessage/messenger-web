@@ -447,6 +447,7 @@ export function ChatArea() {
       attachment_size: payload.attachment_size ?? null,
       attachment_duration: payload.attachment_duration ?? null,
       attachment_meta: payload.attachment_meta ?? null,
+      voice_waveform:  payload.voice_waveform ?? null,
       reply:           (payload.reply as Message['reply']) ?? null,
       _pending:        true,
       ...extra,
@@ -545,6 +546,7 @@ export function ChatArea() {
       attachment_name:     result.name,
       attachment_size:     result.size,
       attachment_duration: result.duration ?? null,
+      voice_waveform:      result.waveform ? JSON.stringify(result.waveform) : null,
     });
   }, [sendOptimistic]);
 

@@ -23,6 +23,23 @@ function fmt(sec: number): string {
   return `${m}:${s.toString().padStart(2, '0')}`;
 }
 
+// Downsample raw amplitude samples (0–1 floats) into N bars (integers 8–100).
+// Uses RMS per chunk so loud transients don't dominate perceived loudness.
+function computeWaveformBars(rawAmps: number[], n = 50): number[] {
+  if (rawAmps.length === 0) return new Array(n).fill(20);
+  const step = rawAmps.length / n;
+  const bars: number[] = [];
+  for (let i = 0; i < n; i++) {
+    const start = Math.floor(i * step);
+    const end   = Math.max(start + 1, Math.floor((i + 1) * step));
+    const chunk = rawAmps.slice(start, end);
+    const rms   = Math.sqrt(chunk.reduce((s, v) => s + v * v, 0) / chunk.length);
+    bars.push(rms);
+  }
+  const maxVal = Math.max(...bars, 0.001);
+  return bars.map(b => Math.round(8 + (b / maxVal) * 92));
+}
+
 function getFileCategory(name: string): { color: string; label: string } {
   const ext = (name.split('.').pop() || '').toLowerCase();
   if (['jpg','jpeg','png','gif','webp','svg','heic','bmp','tiff'].includes(ext)) return { color: '#9b59b6', label: ext.toUpperCase() };
@@ -78,9 +95,11 @@ function VideoNoteIcon({ size = 22 }: { size?: number }) {
 }
 
 // ── Preview mini-player (inside composer before sending) ──────────────────────
-function PreviewPlayer({ blob, duration }: { blob: Blob; duration: number }) {
+function PreviewPlayer({ blob, duration, waveform }: { blob: Blob; duration: number; waveform: number[] }) {
   const audioRef  = useRef<HTMLAudioElement>(null);
+  const trackRef  = useRef<HTMLDivElement>(null);
   const urlRef    = useRef<string>('');
+  const dragging  = useRef(false);
   const [playing,  setPlaying]  = useState(false);
   const [current,  setCurrent]  = useState(0);
 
@@ -97,7 +116,19 @@ function PreviewPlayer({ blob, duration }: { blob: Blob; duration: number }) {
     else { a.play().catch(() => {}); setPlaying(true); }
   };
 
-  const progress = duration > 0 ? current / duration : 0;
+  const progress    = duration > 0 ? current / duration : 0;
+  const bars        = waveform.length > 0 ? waveform : null;
+  const playedCount = bars ? Math.round(progress * bars.length) : 0;
+
+  const scrub = (clientX: number) => {
+    const a = audioRef.current;
+    const el = trackRef.current;
+    if (!a || !el || !duration) return;
+    const rect = el.getBoundingClientRect();
+    const p = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
+    a.currentTime = p * duration;
+    setCurrent(p * duration);
+  };
 
   return (
     <div className="voicePreviewPlayer">
@@ -116,10 +147,31 @@ function PreviewPlayer({ blob, duration }: { blob: Blob; duration: number }) {
           </svg>
         )}
       </button>
-      <div className="voicePreviewTrackWrap">
-        <div className="voicePreviewTrackBg">
-          <div className="voicePreviewTrackFill" style={{ width: `${progress * 100}%` }} />
-        </div>
+
+      <div
+        ref={trackRef}
+        className="voicePreviewTrackWrap"
+        onPointerDown={e => { dragging.current = true; (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId); scrub(e.clientX); }}
+        onPointerMove={e => { if (dragging.current) scrub(e.clientX); }}
+        onPointerUp={() => { dragging.current = false; }}
+        onPointerCancel={() => { dragging.current = false; }}
+        style={{ cursor: 'pointer' }}
+      >
+        {bars ? (
+          <div className="voiceWaveformBars voiceWaveformBarsPreview">
+            {bars.map((h, i) => (
+              <div
+                key={i}
+                className={`voiceWaveformBar${i < playedCount ? ' voiceWaveformBarPlayed' : ''}`}
+                style={{ height: `${h}%` }}
+              />
+            ))}
+          </div>
+        ) : (
+          <div className="voicePreviewTrackBg">
+            <div className="voicePreviewTrackFill" style={{ width: `${progress * 100}%` }} />
+          </div>
+        )}
       </div>
       <span className="voicePreviewTime">{fmt(current)}/{fmt(duration)}</span>
     </div>
@@ -336,7 +388,7 @@ export function Composer({ value, onChange, onSend, onSendAttachment, externalFi
     setUploading(false); clearStage();
   }, [clearStage]);
 
-  const handleSendFile = useCallback(async (fileOverride?: File, captionOverride?: string, durationHint?: number) => {
+  const handleSendFile = useCallback(async (fileOverride?: File, captionOverride?: string, durationHint?: number, waveformHint?: number[]) => {
     const f = fileOverride;
     const c = captionOverride !== undefined ? captionOverride : '';
     if (!f || uploading) return;
@@ -345,7 +397,12 @@ export function Composer({ value, onChange, onSend, onSendAttachment, externalFi
     cancelRefs.current = [task.cancel];
     try {
       const result = await task.promise;
-      await onSendAttachment(durationHint ? { ...result, duration: durationHint } : result, c);
+      const enriched = {
+        ...result,
+        ...(durationHint   ? { duration: durationHint }   : {}),
+        ...(waveformHint?.length ? { waveform: waveformHint } : {}),
+      };
+      await onSendAttachment(enriched, c);
     } catch (e: any) {
       if (e?.message !== 'Загрузка отменена') { setUploadErr(e?.message ?? 'Ошибка загрузки'); setProgresses([0]); }
     } finally {
@@ -390,14 +447,17 @@ export function Composer({ value, onChange, onSend, onSendAttachment, externalFi
   const [recordMode, setRecordMode] = useState<'audio' | 'video'>('audio');
 
   // Voice recording
-  const [voiceState,   setVoiceState]   = useState<VoiceState>('idle');
-  const [locked,       setLocked]       = useState(false);
-  const [lockProgress, setLockProgress] = useState(0);
-  const [recSeconds,   setRecSeconds]   = useState(0);
-  const [, setLiveWave]     = useState<number[]>([]);
-  const [voiceBlob,    setVoiceBlob]    = useState<Blob | null>(null);
-  const [previewSecs,  setPreviewSecs]  = useState(0);
-  const [voiceSending, setVoiceSending] = useState(false);
+  const [voiceState,    setVoiceState]    = useState<VoiceState>('idle');
+  const [locked,        setLocked]        = useState(false);
+  const [lockProgress,  setLockProgress]  = useState(0);
+  const [recSeconds,    setRecSeconds]    = useState(0);
+  const [, setLiveWave]      = useState<number[]>([]);
+  const [voiceBlob,     setVoiceBlob]     = useState<Blob | null>(null);
+  const [previewSecs,   setPreviewSecs]   = useState(0);
+  const [voiceSending,  setVoiceSending]  = useState(false);
+  const [voiceWaveform, setVoiceWaveform] = useState<number[]>([]);
+  const [micError,      setMicError]      = useState(false);
+  const waveformBarsRef = useRef<number[]>([]);
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioCtxRef      = useRef<AudioContext | null>(null);
@@ -475,6 +535,9 @@ export function Composer({ value, onChange, onSend, onSendAttachment, externalFi
       mr.ondataavailable = e => { if (e.data.size > 0) chunksRef.current.push(e.data); };
       mr.onstop = () => {
         const blob = new Blob(chunksRef.current, { type: mimeType });
+        const bars = computeWaveformBars(liveWaveRef.current);
+        waveformBarsRef.current = bars;
+        setVoiceWaveform(bars);
         setVoiceBlob(blob);
         setPreviewSecs(recSecondsRef.current);
         setVoiceState('preview');
@@ -508,7 +571,13 @@ export function Composer({ value, onChange, onSend, onSendAttachment, externalFi
         rafRef.current = requestAnimationFrame(draw);
       };
       rafRef.current = requestAnimationFrame(draw);
-    } catch { /* mic denied */ }
+    } catch (err: unknown) {
+      const name = (err as { name?: string })?.name ?? '';
+      if (name === 'NotAllowedError' || name === 'PermissionDeniedError' || name === 'NotFoundError') {
+        setMicError(true);
+        setTimeout(() => setMicError(false), 4000);
+      }
+    }
   }, [voiceState, stagedFiles.length]);
 
   const stopRecording = useCallback(() => {
@@ -539,8 +608,10 @@ export function Composer({ value, onChange, onSend, onSendAttachment, externalFi
     setLocked(false);
     setLockProgress(0);
     setMicAmp(0);
+    setVoiceWaveform([]);
     micLockedRef.current = false;
-    liveWaveRef.current = [];
+    liveWaveRef.current  = [];
+    waveformBarsRef.current = [];
   }, [voiceState]);
 
   const sendVoice = useCallback(async () => {
@@ -559,7 +630,7 @@ export function Composer({ value, onChange, onSend, onSendAttachment, externalFi
     }
     const ext = voiceBlob.type.includes('ogg') ? 'ogg' : 'webm';
     const file = new File([voiceBlob], `voice_${Date.now()}.${ext}`, { type: voiceBlob.type });
-    await handleSendFile(file, '', voiceDuration);
+    await handleSendFile(file, '', voiceDuration, waveformBarsRef.current);
     setVoiceSending(false);
     cancelVoice();
   }, [voiceBlob, voiceSending, handleSendFile, cancelVoice]);
@@ -961,7 +1032,7 @@ export function Composer({ value, onChange, onSend, onSendAttachment, externalFi
             <span className="voicePreviewLabel">Голосовое сообщение</span>
             <span className="voicePreviewDurLabel">{fmt(previewSecs)}</span>
           </div>
-          <PreviewPlayer blob={voiceBlob} duration={previewSecs} />
+          <PreviewPlayer blob={voiceBlob} duration={previewSecs} waveform={voiceWaveform} />
           <div className="voicePreviewCardActions">
             <button className="voicePreviewDeleteBtn" onClick={cancelVoice} title="Удалить">
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -1380,6 +1451,17 @@ export function Composer({ value, onChange, onSend, onSendAttachment, externalFi
           {/* Waveform / Video-note icon button */}
           {!isFileMode && (
             <div className="composerMicWrap">
+              {/* Mic / camera denied error toast */}
+              {micError && (
+                <div className="composerMicError">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                    <circle cx="12" cy="12" r="10"/>
+                    <line x1="12" y1="8" x2="12" y2="12"/>
+                    <line x1="12" y1="16" x2="12.01" y2="16"/>
+                  </svg>
+                  Доступ к микрофону запрещён
+                </div>
+              )}
               {/* Voice lock track */}
               {voiceState === 'recording' && !locked && (
                 <div className="voiceLockTrack">

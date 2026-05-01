@@ -12,11 +12,12 @@
 import client from './client';
 
 export interface UploadResult {
-  url:      string;
-  type:     'image' | 'video' | 'audio' | 'file' | 'video_note';
-  name:     string;
-  size:     number;
+  url:       string;
+  type:      'image' | 'video' | 'audio' | 'file' | 'video_note';
+  name:      string;
+  size:      number;
   duration?: number;
+  waveform?: number[];
 }
 
 export interface UploadTask {

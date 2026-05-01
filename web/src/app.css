@@ -5423,6 +5423,71 @@ input[type="date"].psInput::-webkit-calendar-picker-indicator {
 .voiceMsgPlayerOwn .voiceMsgTime,
 .voiceMsgPlayerOwn .voiceMsgSendTime { color: rgba(255,255,255,.6); }
 
+/* ── Waveform bars (shared by AudioPlayer bubble and PreviewPlayer) ───────── */
+.voiceWaveformBars {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  height: 32px;
+  width: 100%;
+  padding: 2px 0;
+  box-sizing: border-box;
+}
+.voiceWaveformBar {
+  flex: 1;
+  min-width: 0;
+  min-height: 3px;
+  max-height: 100%;
+  border-radius: 2px;
+  background: color-mix(in srgb, var(--accent) 32%, var(--border));
+  transition: background 0.06s;
+  will-change: background;
+}
+.voiceWaveformBarPlayed {
+  background: var(--accent);
+}
+
+/* Own-message colour overrides */
+.voiceWaveformBarsOwn .voiceWaveformBar        { background: rgba(255,255,255,.28); }
+.voiceWaveformBarsOwn .voiceWaveformBarPlayed  { background: rgba(255,255,255,.92); }
+
+/* Preview player: slightly taller bars, accent-tinted unplayed */
+.voiceWaveformBarsPreview {
+  height: 28px;
+}
+.voiceWaveformBarsPreview .voiceWaveformBar {
+  background: color-mix(in srgb, var(--accent) 22%, transparent);
+  border-radius: 2px;
+}
+.voiceWaveformBarsPreview .voiceWaveformBarPlayed {
+  background: var(--accent);
+}
+
+/* ── Mic denied error toast ───────────────────────────────────────────────── */
+.composerMicError {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  right: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 12px;
+  border-radius: 10px;
+  background: var(--danger, #e74c3c);
+  color: #fff;
+  font-size: 12.5px;
+  font-weight: 600;
+  white-space: nowrap;
+  pointer-events: none;
+  animation: micErrorFadeIn .18s ease;
+  box-shadow: 0 4px 16px rgba(0,0,0,.22);
+  z-index: 10;
+}
+@keyframes micErrorFadeIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
 /* ════════════════════════════════════════════════════════════════════════════
    MOBILE RESPONSIVE  ≤ 700px
    ════════════════════════════════════════════════════════════════════════════ */

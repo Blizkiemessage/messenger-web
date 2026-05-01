@@ -44,7 +44,8 @@ router.get('/:chatId/messages', async (req, res, next) => {
 // POST /chats/:chatId/messages
 router.post('/:chatId/messages', msgLimiter, async (req, res, next) => {
   try {
-    const { text, attachment_url, attachment_type, attachment_name, attachment_meta, attachment_duration, reply } = req.body;
+    const { text, attachment_url, attachment_type, attachment_name, attachment_meta, attachment_duration,
+            voice_waveform, reply } = req.body;
     const hasText = text && typeof text === 'string' && text.trim();
     const hasAttachment = attachment_url && attachment_type;
     if (!hasText && !hasAttachment) {
@@ -57,10 +58,21 @@ router.post('/:chatId/messages', msgLimiter, async (req, res, next) => {
     // Validate reply object if provided
     const replyData = (reply && typeof reply.id === 'string') ? reply : null;
 
+    // voice_waveform: JSON string "[n,n,...]", max 50 bars, only for audio messages
+    const safeWaveform = (() => {
+      if (attachment_type !== 'audio' || typeof voice_waveform !== 'string') return null;
+      try {
+        const arr = JSON.parse(voice_waveform);
+        if (!Array.isArray(arr) || arr.length === 0 || arr.length > 50) return null;
+        return voice_waveform;
+      } catch { return null; }
+    })();
+
     const attachment = hasAttachment ? {
       attachment_url, attachment_type, attachment_name,
       attachment_meta: typeof attachment_meta === 'string' ? attachment_meta : null,
       attachment_duration: typeof attachment_duration === 'number' && attachment_duration > 0 ? attachment_duration : null,
+      voice_waveform: safeWaveform,
     } : {};
 
     // Block check: for DM chats, reject if the recipient has blocked the sender
