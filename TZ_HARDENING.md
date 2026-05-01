@@ -2450,8 +2450,11 @@ web/src/
 - [x] **B3** — CLI `npm run create-admin` создаёт пользователя и выводит ADMIN_PASSWORD_HASH
 - [x] **B3** — Панель администратора полностью перестроена (Toast, Confirm, 7 страниц)
 - [ ] **B4** — 5+ `call:invite` в минуту возвращают `TOO_MANY_CALLS`
-- [ ] **B5** — Запрос к `http://169.254.169.254` через link preview — блокируется
-- [ ] **B5** — Запрос к `http://localhost` через link preview — блокируется
+- [x] **B5** — Запрос к `http://169.254.169.254` через link preview — блокируется (linkLocal range)
+- [x] **B5** — Запрос к `http://localhost` через link preview — блокируется (hostname + loopback)
+- [x] **B5** — Redirect на внутренний IP блокируется (manual redirect + re-validation)
+- [x] **B5** — IPv4-mapped IPv6 (::ffff:127.0.0.1) блокируется (ipaddr.process)
+- [x] **B5** — Non-standard ports (6379, 8080, ...) блокируются
 
 ### Фаза C — Инфраструктура
 
@@ -2501,7 +2504,7 @@ web/src/
 | B2 | Reg rate limit | B | 30 мин | Спам аккаунтов | ✅ |
 | B3 | Admin user table | B | 3ч | Небезопасный admin | ✅ |
 | B4 | Call spam protection | B | 1ч | DoS на UI | ⬜ |
-| B5 | SSRF защита | B | 1.5ч | Инфра утечка | ⬜ |
+| B5 | SSRF защита | B | 1.5ч | Инфра утечка | ✅ |
 | C1 | Миграции версии | C | 3ч | Хрупкие обновления | ⬜ |
 | C2 | DB backup | C | 2ч | Потеря всех данных | ⬜ |
 | D1 | Голосовые сообщения | D | 8ч | Конкурентное отставание | ⬜ |
