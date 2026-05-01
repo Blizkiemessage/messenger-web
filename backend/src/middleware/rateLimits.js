@@ -85,6 +85,18 @@ const totpVerifyLimiter = rateLimit({
   legacyHeaders: false,
 });
 
+// Refresh token rotation — generous enough for silent background calls,
+// but tight enough to prevent brute-force: 60 req / 15 min per IP.
+// A user with many open tabs legitimately calls /auth/refresh once per 15 min
+// per tab; 60 covers ~60 concurrent tabs which is well above real-world usage.
+const refreshLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 60,
+  message: { error: 'Слишком много запросов обновления токена. Подождите.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
 module.exports = {
   loginLimiter,
   emailSendLimiter,
@@ -95,4 +107,5 @@ module.exports = {
   friendRequestLimiter,
   linkPreviewLimiter,
   totpVerifyLimiter,
+  refreshLimiter,
 };

@@ -9,7 +9,7 @@ const {
   resetPassword,
 } = require('../services/authService');
 const { authMiddleware } = require('../middleware/auth');
-const { loginLimiter, emailSendLimiter, registrationLimiter, otpVerifyLimiter, totpVerifyLimiter } = require('../middleware/rateLimits');
+const { loginLimiter, emailSendLimiter, registrationLimiter, otpVerifyLimiter, totpVerifyLimiter, refreshLimiter } = require('../middleware/rateLimits');
 const { getDb } = require('../config/database');
 const { sign, signAccess, signRefresh, verify } = require('../utils/jwt');
 const { sanitizeUser } = require('../services/userService');
@@ -324,19 +324,31 @@ router.post('/logout', authMiddleware, (req, res, next) => {
   }
 });
 
-// POST /auth/refresh — issue a new access token using a valid refresh token.
-// Accepts the refresh token from the HttpOnly cookie (same-origin / cookies work)
-// OR from the request body (cross-origin clients that store it in localStorage).
-router.post('/refresh', async (req, res, next) => {
+// POST /auth/refresh — issue a new access token + rotated refresh token.
+//
+// Security model (refresh token rotation):
+//   1. Validate the incoming refresh token (JWT signature + DB lookup).
+//   2. Immediately revoke the used refresh token in DB (one-time use).
+//   3. Issue a brand-new refresh token and store it in DB.
+//   4. Issue a new short-lived access token.
+//
+// Rotation means a stolen refresh token is detected on first re-use:
+// the legitimate user's next refresh will find the token already revoked.
+//
+// Accepts the refresh token from the HttpOnly cookie (same-origin / Safari)
+// OR from the request body (cross-origin clients: Vercel → Amvera).
+const REFRESH_TTL_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
+
+router.post('/refresh', refreshLimiter, async (req, res, next) => {
   try {
-    const refreshToken = req.cookies?.refresh || req.body?.refreshToken;
-    if (!refreshToken) {
+    const incomingRefreshToken = req.cookies?.refresh || req.body?.refreshToken;
+    if (!incomingRefreshToken) {
       return res.status(401).json({ error: 'Refresh token missing' });
     }
 
     let payload;
     try {
-      payload = verify(refreshToken);
+      payload = verify(incomingRefreshToken);
     } catch {
       return res.status(401).json({ error: 'Refresh token invalid or expired' });
     }
@@ -351,10 +363,18 @@ router.post('/refresh', async (req, res, next) => {
       .get(payload.jti);
 
     if (!rt || rt.expires_at < Date.now()) {
+      // Token already revoked or expired — could be a replay attack.
+      // Revoke the entire session so the attacker cannot use any token.
+      if (rt) {
+        db.prepare('UPDATE sessions      SET revoked = 1 WHERE id = ?').run(rt.session_id);
+        db.prepare('UPDATE refresh_tokens SET revoked = 1 WHERE session_id = ?').run(rt.session_id);
+      }
+      clearSessionCookie(res);
+      clearRefreshCookie(res);
       return res.status(401).json({ error: 'Refresh token revoked or expired' });
     }
 
-    // Check the parent session is still valid
+    // Check the parent session is still active
     const session = db
       .prepare('SELECT id, revoked FROM sessions WHERE id = ? AND revoked = 0')
       .get(rt.session_id);
@@ -363,14 +383,32 @@ router.post('/refresh', async (req, res, next) => {
       return res.status(401).json({ error: 'Session revoked' });
     }
 
-    // Issue a new access token (same sessionId as jti so authMiddleware stays unchanged)
+    const now = Date.now();
+
+    // ── Rotation ────────────────────────────────────────────────────────────
+    // Step 1: revoke the incoming refresh token (single-use enforcement)
+    db.prepare('UPDATE refresh_tokens SET revoked = 1 WHERE id = ?').run(payload.jti);
+
+    // Step 2: create a new refresh token with a fresh 30-day window
+    const newRefreshTokenId = uuidv4();
+    db.prepare(
+      'INSERT INTO refresh_tokens (id, session_id, user_id, expires_at, revoked, created_at) VALUES (?, ?, ?, ?, 0, ?)'
+    ).run([newRefreshTokenId, rt.session_id, rt.user_id, now + REFRESH_TTL_MS, now]);
+
+    const newRefreshToken = signRefresh({ sub: rt.user_id, jti: newRefreshTokenId, purpose: 'refresh' });
+
+    // Step 3: issue new short-lived access token (same session jti for authMiddleware)
     const newAccessToken = signAccess({ sub: rt.user_id, jti: rt.session_id });
+
+    // Update cookies
     setSessionCookie(res, newAccessToken);
+    setRefreshCookie(res, newRefreshToken);
 
     // Update session activity
-    db.prepare('UPDATE sessions SET last_used_at = ? WHERE id = ?').run(Date.now(), rt.session_id);
+    db.prepare('UPDATE sessions SET last_used_at = ? WHERE id = ?').run(now, rt.session_id);
 
-    res.json({ token: newAccessToken });
+    // Return both tokens in body so cross-origin clients can update their storage
+    res.json({ token: newAccessToken, refreshToken: newRefreshToken });
   } catch (err) {
     next(err);
   }

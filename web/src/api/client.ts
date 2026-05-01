@@ -37,18 +37,25 @@ async function tryRefreshToken(): Promise<string | null> {
   if (!refreshToken) return null;
 
   try {
-    // Call refresh endpoint directly (not via client to avoid interceptor loop)
-    const res = await axios.post<{ token: string }>(
+    // Call refresh endpoint directly (not via client to avoid interceptor loop).
+    // Backend uses refresh token rotation: returns a new refresh token on every call.
+    const res = await axios.post<{ token: string; refreshToken?: string }>(
       `${API_BASE_URL}/auth/refresh`,
       { refreshToken },
       { withCredentials: true, timeout: 10000 },
     );
-    const newToken = res.data.token;
-    saveToken(newToken);
-    // Refresh token itself doesn't rotate on the backend, no need to update it
-    return newToken;
+    const newAccessToken = res.data.token;
+    saveToken(newAccessToken);
+
+    // Save the rotated refresh token so the next silent refresh uses the new one.
+    // The old refresh token is now revoked on the server — we must not use it again.
+    if (res.data.refreshToken) {
+      saveRefreshToken(res.data.refreshToken);
+    }
+
+    return newAccessToken;
   } catch {
-    // Refresh token is invalid/expired — clear everything and redirect to login
+    // Refresh token is invalid/expired/revoked — clear everything and force re-login.
     clearSession();
     return null;
   }
