@@ -743,4 +743,19 @@ router.get('/audit-log', (req, res, next) => {
   }
 });
 
+// POST /admin/api/backup — manual DB backup trigger
+router.post('/backup', async (req, res, next) => {
+  try {
+    const { runBackup } = require('../workers/dbBackup');
+    const result = await runBackup();
+    if (result.ok) {
+      res.json({ ok: true, key: result.key, sizeMb: result.sizeMb });
+    } else {
+      res.status(503).json({ ok: false, error: result.error });
+    }
+  } catch (err) {
+    next(err);
+  }
+});
+
 module.exports = router;

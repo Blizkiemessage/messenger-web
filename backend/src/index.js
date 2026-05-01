@@ -45,11 +45,12 @@ const helmet = require('helmet');
 const cookieParser = require('cookie-parser');
 
 console.log('[STARTUP] Loading core modules...');
-const { runMigrations } = require('./db/migrations');
-const { initSocket } = require('./socket/socketServer');
-const { errorHandler } = require('./middleware/errorHandler');
-const { corsOriginCallback } = require('./utils/corsOrigin');
-const { closeDb } = require('./config/database');
+const { runMigrations }       = require('./db/migrations');
+const { initSocket }          = require('./socket/socketServer');
+const { errorHandler }        = require('./middleware/errorHandler');
+const { corsOriginCallback }  = require('./utils/corsOrigin');
+const { closeDb }             = require('./config/database');
+const { startDbBackupWorker } = require('./workers/dbBackup');
 
 console.log('[STARTUP] Loading route modules...');
 const authRoutes = require('./routes/auth');
@@ -174,6 +175,10 @@ console.log('[STARTUP] Migrations done.');
 server.listen(PORT, () => {
   console.log(`[Server] Blizkie backend running on port ${PORT}`);
   console.log(`[Server] Environment: ${process.env.NODE_ENV || 'development'}`);
+
+  // Start automated DB backup worker after server is up
+  // (needs DB to be open and migrations done — both guaranteed at this point)
+  startDbBackupWorker();
 });
 
 // ─── Graceful Shutdown ─────────────────────────────────────────────────────
