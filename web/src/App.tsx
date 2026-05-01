@@ -9,6 +9,7 @@ import './app.css';
 import { useSessionStore } from './store/useSessionStore';
 import { useChatsStore, selectActiveChat } from './store/useChatsStore';
 import { useAppStore } from './store/useAppStore';
+import { useFolderStore } from './store/useFolderStore';
 import { useSocket } from './hooks/useSocket';
 import { useMessages } from './hooks/useMessages';
 
@@ -43,6 +44,7 @@ import {
   pinChat as apiPinChat,
   muteChat as apiMuteChat,
 } from './api/chats';
+import { addChatToFolder as apiAddChatToFolder, removeChatFromFolder as apiRemoveChatFromFolder } from './api/folders';
 
 export default function App() {
   // Session
@@ -73,6 +75,9 @@ export default function App() {
   const deleteBusy = useAppStore(s => s.deleteBusy);
   const deleteForEveryone = useAppStore(s => s.deleteForEveryone);
   const setDeleteForEveryone = useAppStore(s => s.setDeleteForEveryone);
+
+  // Folders store
+  const folders = useFolderStore(s => s.folders);
 
   // Chats store
   const activeChat = useChatsStore(selectActiveChat);
@@ -216,13 +221,13 @@ export default function App() {
       {chatCtxMenu && (
         <ChatContextMenu
           x={chatCtxMenu.x} y={chatCtxMenu.y} chat={chatCtxMenu.chat}
+          folders={folders}
           onClose={() => setChatCtxMenu(null)}
           onDelete={() => setChatActionConfirm(chatCtxMenu.chat)}
           onLeave={() => setChatActionConfirm(chatCtxMenu.chat)}
           onPin={async () => {
             const chat = chatCtxMenu.chat;
             const store = useChatsStore.getState();
-            // Enforce 5-chat limit on the frontend before calling API
             if (!chat.is_pinned && store.chats.filter(c => c.is_pinned).length >= 5) return;
             try {
               const result = await apiPinChat(chat.id);
@@ -234,6 +239,18 @@ export default function App() {
             try {
               const result = await apiMuteChat(chat.id);
               useChatsStore.getState().updateChatPatch(chat.id, result);
+            } catch { /* silently ignore */ }
+          }}
+          onAddToFolder={async (folderId) => {
+            try {
+              const updated = await apiAddChatToFolder(folderId, chatCtxMenu.chat.id);
+              useFolderStore.setState(s => ({ folders: s.folders.map(f => f.id === folderId ? updated : f) }));
+            } catch { /* silently ignore */ }
+          }}
+          onRemoveFromFolder={async (folderId) => {
+            try {
+              const updated = await apiRemoveChatFromFolder(folderId, chatCtxMenu.chat.id);
+              useFolderStore.setState(s => ({ folders: s.folders.map(f => f.id === folderId ? updated : f) }));
             } catch { /* silently ignore */ }
           }}
         />

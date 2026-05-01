@@ -4,7 +4,7 @@ import { ChatItem } from './ChatItem';
 import { useChatsStore } from '../../store/useChatsStore';
 import { updatePinOrder } from '../../api/chats';
 
-type ChatFilter = 'all' | 'groups' | 'direct';
+type ChatFilter = string;
 
 interface Props {
   chats: Chat[];
@@ -91,6 +91,7 @@ export function ChatList({
         <div className="listHint">
           {filter === 'groups' ? 'Нет групп'
             : filter === 'direct' ? 'Нет личных чатов'
+            : filter.startsWith('folder:') ? 'Папка пуста. Добавьте чаты через контекстное меню'
             : 'Найдите пользователя выше чтобы начать диалог'}
         </div>
       </div>

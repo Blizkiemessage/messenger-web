@@ -252,6 +252,18 @@ export type SharedNote = {
   visibility_exceptions: string[];
 };
 
+// ── Chat Folders (D3) ─────────────────────────────────────────────────────────
+
+export type ChatFolder = {
+  id: number;
+  user_id: string;
+  name: string;
+  emoji: string;
+  sort_order: number;
+  created_at: number;
+  chat_ids: string[];
+};
+
 // ── GIF (Giphy) ───────────────────────────────────────────────────────────────
 
 export type GifResult = {

@@ -17,7 +17,8 @@ import { create } from 'zustand';
 import { type Chat, type Message } from '../types';
 import { getChats } from '../api/chats';
 
-export type ChatFilter = 'all' | 'groups' | 'direct';
+// 'all' | 'groups' | 'direct' | 'folder:<id>'
+export type ChatFilter = string;
 
 interface ChatsState {
   chats: Chat[];
@@ -195,17 +196,18 @@ export const useChatsStore = create<ChatsState>((set) => ({
   // ── Filter ─────────────────────────────────────────────────────────────────
 
   setChatFilter: (chatFilter) => set(state => {
-    // If the active chat won't be visible in the new filter, deselect it
-    // so the ChatArea shows EmptyState instead of a stale/blank view.
     let activeChatId = state.activeChatId;
     if (activeChatId) {
       const activeChat = state.chats.find(c => c.id === activeChatId);
       if (activeChat) {
-        const visibleInFilter =
-          chatFilter === 'all' ||
-          (chatFilter === 'groups' && activeChat.type === 'group') ||
-          (chatFilter === 'direct' && activeChat.type === 'direct');
-        if (!visibleInFilter) activeChatId = null;
+        let visible = chatFilter === 'all';
+        if (!visible && chatFilter === 'groups') visible = activeChat.type === 'group';
+        if (!visible && chatFilter === 'direct') visible = activeChat.type === 'direct';
+        if (!visible && chatFilter.startsWith('folder:')) {
+          // Folder visibility is checked at render time via useFolderStore — allow here
+          visible = true;
+        }
+        if (!visible) activeChatId = null;
       }
     }
     return { chatFilter, activeChatId };

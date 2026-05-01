@@ -1,13 +1,13 @@
-/**
- * Sidebar — proper Zustand v5 selectors (no bare useStore() calls).
- */
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useShallow } from 'zustand/shallow';
 import { useSessionStore } from '../../store/useSessionStore';
 import { useChatsStore } from '../../store/useChatsStore';
 import { useAppStore } from '../../store/useAppStore';
+import { useFolderStore } from '../../store/useFolderStore';
+import { type ChatFolder } from '../../types';
 import { UserSearch } from './UserSearch';
 import { FolderTabs } from './FolderTabs';
+import { FolderModal } from './FolderModal';
 import { ChatList } from './ChatList';
 import { SidebarBottom } from './SidebarBottom';
 import { SupportModal } from '../modals/SupportModal';
@@ -16,34 +16,47 @@ import { getSavedChat } from '../../api/chats';
 import { authLogout } from '../../api/auth';
 
 export function Sidebar() {
-  // Session
   const me = useSessionStore(s => s.me)!;
   const clearSession = useSessionStore(s => s.clearSession);
 
-  // Chats store — individual selectors to avoid re-render on unrelated changes
   const chatFilter = useChatsStore(s => s.chatFilter);
   const activeChatId = useChatsStore(s => s.activeChatId);
   const loadingChats = useChatsStore(s => s.loadingChats);
   const dataError = useChatsStore(s => s.dataError);
   const setChatFilter = useChatsStore(s => s.setChatFilter);
   const setActiveChatId = useChatsStore(s => s.setActiveChatId);
+
+  const folders = useFolderStore(s => s.folders);
+  const loaded = useFolderStore(s => s.loaded);
+  const loadFolders = useFolderStore(s => s.loadFolders);
+  const createFolderAction = useFolderStore(s => s.createFolder);
+  const updateFolderAction = useFolderStore(s => s.updateFolder);
+  const deleteFolderAction = useFolderStore(s => s.deleteFolder);
+
   const filteredChats = useChatsStore(useShallow(s => {
     let chats = [...s.chats];
-    if (s.chatFilter === 'groups') chats = chats.filter(c => c.type === 'group');
-    else if (s.chatFilter === 'direct') chats = chats.filter(c => c.type === 'direct');
+
+    if (chatFilter === 'groups') {
+      chats = chats.filter(c => c.type === 'group');
+    } else if (chatFilter === 'direct') {
+      chats = chats.filter(c => c.type === 'direct');
+    } else if (chatFilter.startsWith('folder:')) {
+      const folderId = parseInt(chatFilter.slice(7), 10);
+      const folder = useFolderStore.getState().folders.find(f => f.id === folderId);
+      const folderChatIds = new Set(folder?.chat_ids ?? []);
+      chats = chats.filter(c => folderChatIds.has(c.id));
+    }
 
     return chats.sort((a, b) => {
       const ap = a.is_pinned ? 1 : 0;
       const bp = b.is_pinned ? 1 : 0;
-      if (ap !== bp) return bp - ap;                              // pinned first
-      if (a.is_pinned && b.is_pinned)                            // among pinned: by pin_order asc
+      if (ap !== bp) return bp - ap;
+      if (a.is_pinned && b.is_pinned)
         return (a.pin_order ?? 999) - (b.pin_order ?? 999);
-      // non-pinned: by last message time desc
       return (b.last_message?.created_at ?? b.created_at) - (a.last_message?.created_at ?? a.created_at);
     });
   }));
 
-  // App store — individual selectors
   const theme = useAppStore(s => s.theme);
   const showProfile = useAppStore(s => s.showProfile);
   const toggleProfile = useAppStore(s => s.toggleProfile);
@@ -59,6 +72,11 @@ export function Sidebar() {
   const setChatCtxMenu = useAppStore(s => s.setChatCtxMenu);
 
   const [showSupport, setShowSupport] = useState(false);
+  const [folderModal, setFolderModal] = useState<{ folder?: ChatFolder } | null>(null);
+
+  useEffect(() => {
+    if (!loaded) loadFolders();
+  }, [loaded, loadFolders]);
 
   const handleSavedMessages = async () => {
     const existing = useChatsStore.getState().chats.find(c => c.type === 'saved');
@@ -67,17 +85,39 @@ export function Sidebar() {
       const chat = await getSavedChat();
       useChatsStore.getState().upsertChat(chat);
       setActiveChatId(chat.id);
-    } catch { /* ignore — network issues */ }
+    } catch { /* ignore */ }
+  };
+
+  const handleCreateFolder = async (name: string, emoji: string) => {
+    await createFolderAction(name, emoji);
+  };
+
+  const handleUpdateFolder = async (name: string, emoji: string) => {
+    const folder = folderModal?.folder;
+    if (!folder) return;
+    await updateFolderAction(folder.id, { name, emoji });
+    // If this folder is currently active and was renamed, stay on it
+  };
+
+  const handleDeleteFolder = async () => {
+    const folder = folderModal?.folder;
+    if (!folder) return;
+    await deleteFolderAction(folder.id);
+    // If user was viewing this folder, switch to "all"
+    if (chatFilter === `folder:${folder.id}`) setChatFilter('all');
   };
 
   return (
     <aside className="sidebar">
       <UserSearch />
       <FolderTabs
-        filter={chatFilter}
+        activeFilter={chatFilter}
+        folders={folders}
         onFilterChange={setChatFilter}
         onNewGroup={() => setShowCreateGroup(true)}
         onSavedMessages={handleSavedMessages}
+        onCreateFolder={() => setFolderModal({})}
+        onEditFolder={folder => setFolderModal({ folder })}
       />
       <ChatList
         chats={filteredChats}
@@ -109,6 +149,15 @@ export function Sidebar() {
         onThemeToggle={toggleTheme}
       />
       {showSupport && <SupportModal me={me} onClose={() => setShowSupport(false)} />}
+
+      {folderModal !== null && (
+        <FolderModal
+          folder={folderModal.folder ?? null}
+          onSave={folderModal.folder ? handleUpdateFolder : handleCreateFolder}
+          onDelete={folderModal.folder ? handleDeleteFolder : undefined}
+          onClose={() => setFolderModal(null)}
+        />
+      )}
     </aside>
   );
 }

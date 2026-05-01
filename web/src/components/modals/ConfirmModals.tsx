@@ -4,7 +4,8 @@
  * Small confirmation dialogs and the chat context menu.
  * ✅ ChatActionConfirmModal now shows admin-specific text when admin leaves a group.
  */
-import { type Chat } from '../../types';
+import { useState } from 'react';
+import { type Chat, type ChatFolder } from '../../types';
 import { ContextMenu } from '../ui/ContextMenu';
 
 // ── DeleteConfirmModal ────────────────────────────────────────────────────────
@@ -142,12 +143,17 @@ export function ChatActionConfirmModal({
 
 // ── ChatContextMenu ───────────────────────────────────────────────────────────
 export function ChatContextMenu({
-  x, y, chat, onClose, onDelete, onLeave, onPin, onMute,
+  x, y, chat, folders, onClose, onDelete, onLeave, onPin, onMute,
+  onAddToFolder, onRemoveFromFolder,
 }: {
-  x: number; y: number; chat: Chat; onClose: () => void;
+  x: number; y: number; chat: Chat; folders: ChatFolder[]; onClose: () => void;
   onDelete: () => void; onLeave: () => void;
   onPin: () => void; onMute: () => void;
+  onAddToFolder: (folderId: number) => void;
+  onRemoveFromFolder: (folderId: number) => void;
 }) {
+  const [showFolders, setShowFolders] = useState(false);
+
   return (
     <ContextMenu x={x} y={y} onClose={onClose}>
       {/* Pin / Unpin */}
@@ -172,6 +178,50 @@ export function ChatContextMenu({
         )}
         {chat.is_muted ? 'Включить уведомления' : 'Выключить уведомления'}
       </button>
+
+      {/* Folders submenu */}
+      {folders.length > 0 && (
+        <>
+          <button
+            className={`ctxItem ctxItemFolders${showFolders ? ' active' : ''}`}
+            onClick={() => setShowFolders(v => !v)}
+          >
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
+            </svg>
+            Папки
+            <svg className="ctxChevron" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" style={{ marginLeft: 'auto', transform: showFolders ? 'rotate(180deg)' : 'none', transition: 'transform .15s' }}>
+              <polyline points="6 9 12 15 18 9"/>
+            </svg>
+          </button>
+          {showFolders && (
+            <div className="ctxFolderList">
+              {folders.map(folder => {
+                const inFolder = folder.chat_ids.includes(chat.id);
+                return (
+                  <button
+                    key={folder.id}
+                    className={`ctxFolderItem${inFolder ? ' inFolder' : ''}`}
+                    onClick={() => {
+                      if (inFolder) onRemoveFromFolder(folder.id);
+                      else onAddToFolder(folder.id);
+                      onClose();
+                    }}
+                  >
+                    <span className="ctxFolderEmoji">{folder.emoji}</span>
+                    <span className="ctxFolderName">{folder.name}</span>
+                    {inFolder && (
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" style={{ marginLeft: 'auto', color: 'var(--accent)' }}>
+                        <polyline points="20 6 9 17 4 12"/>
+                      </svg>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </>
+      )}
 
       <div className="ctxDivider" />
 
