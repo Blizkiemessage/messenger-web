@@ -6,6 +6,7 @@ const { v4: uuidv4 } = require('uuid');
 const { S3Client, PutObjectCommand } = require('@aws-sdk/client-s3');
 const { getSignedUrl } = require('@aws-sdk/s3-request-presigner');
 const { authMiddleware } = require('../middleware/auth');
+const logger = require('../utils/logger');
 const sharp = require('sharp');
 
 const router = express.Router();
@@ -46,9 +47,9 @@ if (useS3) {
       secretAccessKey: process.env.S3_SECRET_ACCESS_KEY,
     },
   });
-  console.log('[Upload] Using Yandex Cloud Object Storage');
+  logger.info('[Upload]', 'Using Yandex Cloud Object Storage', {});
 } else {
-  console.log('[Upload] Using local disk storage');
+  logger.info('[Upload]', 'Using local disk storage', {});
 }
 
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: MAX_DIRECT_SIZE } });
@@ -85,7 +86,7 @@ router.post('/', upload.single('file'), async (req, res) => {
       mime             = result.mime;
       ext              = result.ext;
     } catch (err) {
-      console.error('[Upload] Compression error:', err.message);
+      logger.error('[Upload]', 'Image compression failed', err, {});
       return res.status(500).json({ error: 'Image processing failed: ' + err.message });
     }
   }
@@ -108,7 +109,7 @@ router.post('/', upload.single('file'), async (req, res) => {
       const publicUrl = process.env.S3_PUBLIC_URL.replace(/\/+$/, '');
       res.json({ url: `${publicUrl}/${filename}`, type, name: originalName, size });
     } catch (err) {
-      console.error('[Upload] S3 error:', err.message);
+      logger.error('[Upload]', 'S3 upload failed', err, {});
       res.status(500).json({ error: 'Upload failed: ' + err.message });
     }
   } else {

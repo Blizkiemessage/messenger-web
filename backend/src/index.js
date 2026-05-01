@@ -50,7 +50,8 @@ const { initSocket }          = require('./socket/socketServer');
 const { errorHandler }        = require('./middleware/errorHandler');
 const { corsOriginCallback }  = require('./utils/corsOrigin');
 const { closeDb }             = require('./config/database');
-const { startDbBackupWorker } = require('./workers/dbBackup');
+const { startDbBackupWorker }  = require('./workers/dbBackup');
+const { startS3CleanupWorker } = require('./workers/s3Cleanup');
 
 console.log('[STARTUP] Loading route modules...');
 const authRoutes = require('./routes/auth');
@@ -179,6 +180,7 @@ server.listen(PORT, () => {
   // Start automated DB backup worker after server is up
   // (needs DB to be open and migrations done — both guaranteed at this point)
   startDbBackupWorker();
+  startS3CleanupWorker();
 });
 
 // ─── Graceful Shutdown ─────────────────────────────────────────────────────

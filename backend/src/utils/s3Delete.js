@@ -67,6 +67,13 @@ async function deleteFromS3(url) {
     logger.error('[S3Delete]', `Failed to delete object after ${S3_DELETE_ATTEMPTS} attempts`, lastErr, {
       key,
     });
+    // Hand off to the persistent queue so the next cleanup cycle retries it.
+    // Lazy-require avoids a circular dep at module load time.
+    try {
+      require('../workers/s3Cleanup').enqueueDelete(key);
+    } catch (qErr) {
+      logger.warn('[S3Delete]', 'Failed to enqueue key for deferred delete', { key, error: qErr.message });
+    }
   } else {
     const filename = url.split('/').pop();
     if (!filename) return;
