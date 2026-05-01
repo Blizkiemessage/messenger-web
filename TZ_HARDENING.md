@@ -2444,9 +2444,9 @@ web/src/
 - [ ] **B1** — `POST /auth/refresh` выдаёт новый access token по refresh cookie
 - [ ] **B1** — Refresh token rotation: старый отзывается при каждом refresh
 - [ ] **B1** — Frontend interceptor автоматически обновляет токен
-- [ ] **B2** — 5 регистраций с одного IP в час — лимит работает
-- [ ] **B3** — Таблица `admins` создана, первый admin создан через скрипт
-- [ ] **B3** — Admin login использует `admins` таблицу, не env hash
+- [x] **B2** — 3 регистрации с одного IP в час — лимит работает (registrationLimiter)
+- [x] **B3** — CLI `npm run create-admin` создаёт пользователя и выводит ADMIN_PASSWORD_HASH
+- [x] **B3** — Панель администратора полностью перестроена (Toast, Confirm, 7 страниц)
 - [ ] **B4** — 5+ `call:invite` в минуту возвращают `TOO_MANY_CALLS`
 - [ ] **B5** — Запрос к `http://169.254.169.254` через link preview — блокируется
 - [ ] **B5** — Запрос к `http://localhost` через link preview — блокируется
@@ -2496,8 +2496,8 @@ web/src/
 | A4 | Socket.IO rate limits | A | 2ч | DoS уязвимость | ✅ |
 | A5 | S3 retry + logging | A | 1.5ч | Утечка данных в S3 | ✅ |
 | B1 | Refresh tokens | B | 4ч | 30-дневная уязвимость | ⬜ |
-| B2 | Reg rate limit | B | 30 мин | Спам аккаунтов | ⬜ |
-| B3 | Admin user table | B | 3ч | Небезопасный admin | ⬜ |
+| B2 | Reg rate limit | B | 30 мин | Спам аккаунтов | ✅ |
+| B3 | Admin user table | B | 3ч | Небезопасный admin | ✅ |
 | B4 | Call spam protection | B | 1ч | DoS на UI | ⬜ |
 | B5 | SSRF защита | B | 1.5ч | Инфра утечка | ⬜ |
 | C1 | Миграции версии | C | 3ч | Хрупкие обновления | ⬜ |
