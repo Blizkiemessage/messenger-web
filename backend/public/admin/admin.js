@@ -1038,12 +1038,31 @@ const App = {
     document.getElementById(`page-${page}`).classList.add('active');
     document.getElementById(`nav-${page}`).classList.add('active');
     this._currentPage = page;
+    this.closeSidebar();
 
     if (page === 'users')   Pages.users.load();
     if (page === 'chats')   Pages.chats.load();
     if (page === 'content') Pages.content.reload();
     if (page === 'errors')  Pages.errors.load();
     if (page === 'audit')   Pages.audit.load();
+  },
+
+  toggleSidebar() {
+    const sidebar  = document.getElementById('sidebar');
+    const overlay  = document.getElementById('sidebar-overlay');
+    const isOpen   = sidebar.classList.contains('open');
+    sidebar.classList.toggle('open', !isOpen);
+    overlay.classList.toggle('open', !isOpen);
+    document.getElementById('hamburger').innerHTML = isOpen
+      ? '<i class="bi bi-list"></i>'
+      : '<i class="bi bi-x-lg"></i>';
+  },
+
+  closeSidebar() {
+    document.getElementById('sidebar').classList.remove('open');
+    document.getElementById('sidebar-overlay').classList.remove('open');
+    const btn = document.getElementById('hamburger');
+    if (btn) btn.innerHTML = '<i class="bi bi-list"></i>';
   },
 
   async logout() {
