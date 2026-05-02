@@ -28,6 +28,9 @@ class WebRTCManager {
   private iceCandidateQueue: RTCIceCandidateInit[] = [];
   private remoteDescSet = false;
   private disconnectedTimer: ReturnType<typeof setTimeout> | null = null;
+  private iceGatheringTimer: ReturnType<typeof setTimeout> | null = null;
+  /** Resolve function for ICE gathering completion promise */
+  private iceGatheringResolve: (() => void) | null = null;
 
   // ── ICE server config from backend ────────────────────────────────────────
   private async getIceServers(): Promise<RTCConfiguration> {
@@ -39,7 +42,21 @@ class WebRTCManager {
         headers,
       });
       if (!res.ok) throw new Error(`ice-servers fetch failed: ${res.status}`);
-      return await res.json() as RTCConfiguration;
+      const config = await res.json() as RTCConfiguration;
+
+      // ── Diagnostic: log what servers we got ─────────────────────────────
+      const servers = config.iceServers as RTCIceServer[] | undefined;
+      if (servers) {
+        const turnCount = servers.filter(s => {
+          const u = Array.isArray(s.urls) ? s.urls[0] : s.urls;
+          return typeof u === 'string' && u.startsWith('turn');
+        }).length;
+        console.log(`[WebRTC] ICE config: ${servers.length} servers total, ${turnCount} TURN`);
+        if (turnCount === 0) {
+          console.warn('[WebRTC] ⚠ No TURN servers received — cross-network calls will fail!');
+        }
+      }
+      return config;
     } catch (err) {
       console.warn('[WebRTC] getIceServers failed, using public STUN:', err);
       return {
@@ -71,13 +88,27 @@ class WebRTCManager {
 
     pc.onicecandidate = ({ candidate }) => {
       if (candidate) {
-        console.log(`[WebRTC] ICE candidate: type=${candidate.type} proto=${candidate.protocol}`);
+        const t = candidate.type ?? 'unknown';
+        const proto = candidate.protocol ?? '?';
+        const addr = candidate.address ?? '?';
+        // relay = TURN is working; srflx = STUN works; host = LAN only
+        const marker = t === 'relay' ? '✅ RELAY' : t === 'srflx' ? '🌐 SRFLX' : '🏠 HOST';
+        console.log(`[WebRTC] ${marker} candidate: ${proto} ${addr} (${candidate.candidate.slice(0, 80)})`);
         getSocket()?.emit('call:ice-candidate', {
           callId,
           candidate: candidate.toJSON(),
         });
       } else {
-        console.log('[WebRTC] ICE gathering complete');
+        console.log('[WebRTC] ICE gathering complete — all candidates sent');
+        // Resolve gathering promise if pending
+        if (this.iceGatheringResolve) {
+          this.iceGatheringResolve();
+          this.iceGatheringResolve = null;
+        }
+        if (this.iceGatheringTimer !== null) {
+          clearTimeout(this.iceGatheringTimer);
+          this.iceGatheringTimer = null;
+        }
       }
     };
 
@@ -123,11 +154,18 @@ class WebRTCManager {
     };
 
     pc.oniceconnectionstatechange = () => {
-      console.log('[WebRTC] ICE connection state:', pc.iceConnectionState);
+      const s = pc.iceConnectionState;
+      console.log(`[WebRTC] ICE connection state: ${s}`);
+      if (s === 'failed') {
+        // Hint at the most likely cause
+        console.error('[WebRTC] ❌ ICE failed — check TURN server credentials and reachability.');
+        console.error('[WebRTC]    If only "HOST" candidates were logged above, TURN is not working.');
+        console.error('[WebRTC]    → Verify METERED_API_KEY or TURN_USERNAME/CREDENTIAL env vars on backend.');
+      }
     };
 
     pc.onicegatheringstatechange = () => {
-      console.log('[WebRTC] ICE gathering state:', pc.iceGatheringState);
+      console.log(`[WebRTC] ICE gathering state: ${pc.iceGatheringState}`);
     };
 
     return pc;
@@ -308,12 +346,37 @@ class WebRTCManager {
     useCallStore.getState().setIsVideoOff(!isVideoOff);
   }
 
+  // ── Wait for ICE gathering to complete (with timeout) ─────────────────────
+  // Returns a promise that resolves when gathering is done or after `maxMs`.
+  // This lets us send the SDP with all candidates baked in — more reliable
+  // with some TURN servers and network setups (esp. mobile / restrictive NAT).
+  private waitForIceGathering(maxMs = 4000): Promise<void> {
+    if (!this.pc) return Promise.resolve();
+    if (this.pc.iceGatheringState === 'complete') return Promise.resolve();
+
+    return new Promise<void>(resolve => {
+      this.iceGatheringResolve = resolve;
+      this.iceGatheringTimer = setTimeout(() => {
+        this.iceGatheringTimer = null;
+        this.iceGatheringResolve = null;
+        const state = this.pc?.iceGatheringState ?? 'n/a';
+        console.warn(`[WebRTC] ICE gathering timed out after ${maxMs}ms (state: ${state}) — sending SDP now`);
+        resolve();
+      }, maxMs);
+    });
+  }
+
   // ── Internal: close peer connection without touching store streams ────────
   private teardownPC(): void {
     if (this.disconnectedTimer !== null) {
       clearTimeout(this.disconnectedTimer);
       this.disconnectedTimer = null;
     }
+    if (this.iceGatheringTimer !== null) {
+      clearTimeout(this.iceGatheringTimer);
+      this.iceGatheringTimer = null;
+    }
+    this.iceGatheringResolve = null;
     if (!this.pc) return;
     this.pc.onicecandidate = null;
     this.pc.ontrack = null;
