@@ -76,10 +76,10 @@ class WebRTCManager {
       this.iceConnectTimer = null;
       const state = this.pc?.connectionState;
       if (state && state !== 'connected' && state !== 'closed') {
-        console.warn(`[WebRTC] ⏱ ICE connect timeout (30 s) — state: ${state} — hanging up`);
+        console.warn(`[WebRTC] ⏱ ICE connect timeout (45 s from 'checking') — state: ${state} — hanging up`);
         this.hangup(callId, true, 'failed');
       }
-    }, 30_000);
+    }, 45_000);
   }
 
   private clearIceConnectTimer() {
@@ -174,15 +174,21 @@ class WebRTCManager {
       const s = pc.iceConnectionState;
       console.log(`[WebRTC] ICE connection state: ${s}`);
 
-      if (s === 'failed') {
-        console.error('[WebRTC] ❌ ICE failed');
-        console.error('[WebRTC]    HOST only → TURN not working. Check METERED_API_KEY on backend.');
-        console.error('[WebRTC]    RELAY present → TURN relay between peers failed (hairpin or quota).');
+      if (s === 'checking') {
+        // ICE has candidates on both sides and is now running connectivity checks.
+        // Start the 45-second timer HERE (not at offer/answer time) so the full
+        // 45 s is available for actual ICE checks regardless of how long ICE server
+        // fetch or media acquisition took.
+        this.startIceConnectTimer(callId);
+
+      } else if (s === 'failed') {
+        console.error('[WebRTC] ❌ ICE failed — connectivity checks exhausted');
+        console.error('[WebRTC]    If RELAY candidates were logged above: TURN relay failed.');
+        console.error('[WebRTC]    Likely cause: TURN hairpin not supported, or wrong credentials.');
         this.clearIceConnectTimer();
         this.hangup(callId, true, 'failed');
 
       } else if (s === 'connected' || s === 'completed') {
-        // ICE is up — clear the connect timer (DTLS might still be handshaking)
         this.clearIceConnectTimer();
       }
     };
@@ -263,7 +269,6 @@ class WebRTCManager {
 
       getSocket()?.emit('call:offer', { callId, sdp: pc.localDescription });
       console.log('[WebRTC] offer sent');
-      this.startIceConnectTimer(callId);
     } catch (err) {
       console.error('[WebRTC] initiateOffer error:', err);
       this.hangup(callId, true, 'failed');
@@ -291,7 +296,6 @@ class WebRTCManager {
 
       getSocket()?.emit('call:answer', { callId, sdp: pc.localDescription });
       console.log('[WebRTC] answer sent');
-      this.startIceConnectTimer(callId);
     } catch (err) {
       console.error('[WebRTC] handleOffer error:', err);
       this.hangup(callId, true, 'failed');
@@ -313,6 +317,13 @@ class WebRTCManager {
 
   // ── Both parties: process incoming ICE candidate ─────────────────────────
   async addIceCandidate(candidate: RTCIceCandidateInit): Promise<void> {
+    // Log the incoming candidate type so we can verify both sides exchange candidates
+    const c = candidate.candidate ?? '';
+    const typeMatch = c.match(/typ (\w+)/);
+    const type = typeMatch ? typeMatch[1] : '?';
+    const marker = type === 'relay' ? '✅' : type === 'srflx' ? '🌐' : '🏠';
+    console.log(`[WebRTC] ← remote ${marker}${type} candidate ${this.remoteDescSet ? '(applied)' : '(queued)'}`);
+
     if (!this.pc || !this.remoteDescSet) {
       this.iceCandidateQueue.push(candidate);
       return;

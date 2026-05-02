@@ -57,7 +57,7 @@ async function fetchMeteredServers(apiKey) {
     return _meteredCache.iceServers;
   }
   const url = `https://global.relay.metered.ca/api/v1/turn/credentials?apiKey=${encodeURIComponent(apiKey)}`;
-  const res = await fetch(url, { signal: AbortSignal.timeout(8000) });
+  const res = await fetch(url, { signal: AbortSignal.timeout(2000) });
   if (!res.ok) throw new Error(`Metered API ${res.status}`);
   const servers = await res.json();
   _meteredCache = { iceServers: servers, expiresAt: Date.now() + 60 * 60 * 1000 };
