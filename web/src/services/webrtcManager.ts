@@ -12,9 +12,11 @@
  *  Either:  hangup()         → teardown, optional socket emit
  *
  * Reliability measures:
- *  - iceCandidatePoolSize: 10  — pre-gather candidates immediately, not on offer
- *  - bundlePolicy: max-bundle  — single ICE pair for all tracks
- *  - disconnected state timer  — 15 s grace period before declaring failure
+ *  - iceCandidatePoolSize: 0   — disabled to avoid parallel TURN ALLOCATE flood
+ *  - bundlePolicy: max-bundle  — single ICE component for all tracks
+ *  - iceConnectionState handler — hang up immediately on ICE 'failed'
+ *  - 30 s ICE connect timeout  — client-side guard if ICE stays stuck in 'checking'
+ *  - disconnected state timer  — 15 s grace period after an established connection drops
  *  - Local stream reuse        — ICE restart doesn't ask for media again
  */
 import { useCallStore } from '../store/useCallStore';
@@ -28,7 +30,8 @@ class WebRTCManager {
   private iceCandidateQueue: RTCIceCandidateInit[] = [];
   private remoteDescSet = false;
   private disconnectedTimer: ReturnType<typeof setTimeout> | null = null;
-  private iceGatheringTimer: ReturnType<typeof setTimeout> | null = null;
+  /** Fires if ICE never reaches 'connected' within 30 s — prevents silent hangs */
+  private iceConnectTimer: ReturnType<typeof setTimeout> | null = null;
 
   // ── ICE server config from backend ────────────────────────────────────────
   private async getIceServers(): Promise<RTCConfiguration> {
@@ -51,7 +54,7 @@ class WebRTCManager {
         }).length;
         console.log(`[WebRTC] ICE config: ${servers.length} servers total, ${turnCount} TURN`);
         if (turnCount === 0) {
-          console.warn('[WebRTC] ⚠ No TURN servers received — cross-network calls will fail!');
+          console.warn('[WebRTC] ⚠ No TURN servers — cross-network calls will fail!');
         }
       }
       return config;
@@ -66,6 +69,26 @@ class WebRTCManager {
     }
   }
 
+  // ── Start 30-second ICE connect timeout ───────────────────────────────────
+  private startIceConnectTimer(callId: string) {
+    this.clearIceConnectTimer();
+    this.iceConnectTimer = setTimeout(() => {
+      this.iceConnectTimer = null;
+      const state = this.pc?.connectionState;
+      if (state && state !== 'connected' && state !== 'closed') {
+        console.warn(`[WebRTC] ⏱ ICE connect timeout (30 s) — state: ${state} — hanging up`);
+        this.hangup(callId, true, 'failed');
+      }
+    }, 30_000);
+  }
+
+  private clearIceConnectTimer() {
+    if (this.iceConnectTimer !== null) {
+      clearTimeout(this.iceConnectTimer);
+      this.iceConnectTimer = null;
+    }
+  }
+
   // ── Create and configure RTCPeerConnection ────────────────────────────────
   private async createPC(callId: string): Promise<RTCPeerConnection> {
     this.teardownPC(); // close any lingering connection
@@ -73,10 +96,11 @@ class WebRTCManager {
     const config = await this.getIceServers();
     const pc = new RTCPeerConnection({
       ...config,
-      // Pre-gather ICE candidates immediately (before offer is even created)
-      // so the first offer/answer cycle is much faster.
-      iceCandidatePoolSize: 10,
-      // Single ICE component for all tracks → fewer candidates, faster pairing.
+      // iceCandidatePoolSize intentionally 0:
+      // With 3+ TURN servers, a pool of 10 triggers 30+ parallel ALLOCATE requests
+      // immediately on PC creation. This can exhaust per-user TURN quotas and slow
+      // down gathering. Candidates are gathered naturally after setLocalDescription().
+      iceCandidatePoolSize: 0,
       bundlePolicy: 'max-bundle',
       rtcpMuxPolicy: 'require',
     });
@@ -84,76 +108,82 @@ class WebRTCManager {
     this.remoteDescSet = false;
     this.iceCandidateQueue = [];
 
+    // ── ICE candidate relay ──────────────────────────────────────────────────
     pc.onicecandidate = ({ candidate }) => {
       if (candidate) {
         const t = candidate.type ?? 'unknown';
         const proto = candidate.protocol ?? '?';
         const addr = candidate.address ?? '?';
-        // relay = TURN is working; srflx = STUN works; host = LAN only
         const marker = t === 'relay' ? '✅ RELAY' : t === 'srflx' ? '🌐 SRFLX' : '🏠 HOST';
         console.log(`[WebRTC] ${marker} candidate: ${proto} ${addr} (${candidate.candidate.slice(0, 80)})`);
-        getSocket()?.emit('call:ice-candidate', {
-          callId,
-          candidate: candidate.toJSON(),
-        });
+        getSocket()?.emit('call:ice-candidate', { callId, candidate: candidate.toJSON() });
       } else {
         console.log('[WebRTC] ICE gathering complete — all candidates sent');
-        if (this.iceGatheringTimer !== null) {
-          clearTimeout(this.iceGatheringTimer);
-          this.iceGatheringTimer = null;
-        }
       }
     };
 
+    // ── Remote stream ────────────────────────────────────────────────────────
     pc.ontrack = (event) => {
       const [stream] = event.streams;
       if (stream) useCallStore.getState().setRemoteStream(stream);
     };
 
+    // ── Connection state (DTLS + ICE combined) ───────────────────────────────
     pc.onconnectionstatechange = () => {
       const state = pc.connectionState;
-      console.log('[WebRTC] connection state:', state);
+      console.log(`[WebRTC] connection state: ${state}`);
 
       if (state === 'connected') {
-        // Clear any pending disconnection timer
+        this.clearIceConnectTimer();
         if (this.disconnectedTimer !== null) {
           clearTimeout(this.disconnectedTimer);
           this.disconnectedTimer = null;
         }
         useCallStore.getState().setStatus('active');
         useCallStore.getState().setStartedAt(Date.now());
+        // Notify server that WebRTC is truly connected (so startedAt is set server-side)
+        getSocket()?.emit('call:connected', { callId });
 
       } else if (state === 'disconnected') {
-        // Transient — give 15 s for the network to recover before giving up.
-        // (Chrome can sit in 'disconnected' for 30+ s before transitioning to 'failed')
-        console.log('[WebRTC] Connection disconnected — waiting 15 s before hangup...');
+        // Transient network blip after established connection — give 15 s to recover.
+        console.log('[WebRTC] Connection disconnected — waiting 15 s...');
         this.disconnectedTimer = setTimeout(() => {
           this.disconnectedTimer = null;
           const s = this.pc?.connectionState;
           if (s === 'disconnected' || s === 'failed') {
-            console.warn('[WebRTC] Still disconnected after timeout, hanging up');
-            this.hangup(callId, true);
+            console.warn('[WebRTC] Still disconnected after 15 s, hanging up');
+            this.hangup(callId, true, 'ended');
           }
         }, 15_000);
 
       } else if (state === 'failed') {
+        this.clearIceConnectTimer();
         if (this.disconnectedTimer !== null) {
           clearTimeout(this.disconnectedTimer);
           this.disconnectedTimer = null;
         }
-        console.warn('[WebRTC] Connection failed, hanging up');
-        this.hangup(callId, true);
+        console.warn('[WebRTC] Connection failed');
+        this.hangup(callId, true, 'failed');
       }
     };
 
+    // ── ICE connection state (more granular, Chrome-specific) ────────────────
+    // Chrome sometimes keeps connectionState at 'connecting' even when ICE fails.
+    // Explicitly handle 'failed' here so we don't wait for the 30-second timer.
     pc.oniceconnectionstatechange = () => {
       const s = pc.iceConnectionState;
       console.log(`[WebRTC] ICE connection state: ${s}`);
+
       if (s === 'failed') {
-        // Hint at the most likely cause
-        console.error('[WebRTC] ❌ ICE failed — check TURN server credentials and reachability.');
-        console.error('[WebRTC]    If only "HOST" candidates were logged above, TURN is not working.');
-        console.error('[WebRTC]    → Verify METERED_API_KEY or TURN_USERNAME/CREDENTIAL env vars on backend.');
+        console.error('[WebRTC] ❌ ICE failed');
+        console.error('[WebRTC]    HOST only → TURN not working. Check METERED_API_KEY on backend.');
+        console.error('[WebRTC]    RELAY present → TURN relay between peers failed (hairpin or quota).');
+        this.clearIceConnectTimer();
+        this.hangup(callId, true, 'failed');
+
+      } else if (s === 'connected' || s === 'completed') {
+        // ICE is up — clear the connect timer (DTLS might still be handshaking)
+        this.clearIceConnectTimer();
       }
     };
 
@@ -182,14 +212,12 @@ class WebRTCManager {
         return stream;
       } catch (err) {
         const name = err instanceof Error ? err.name : '';
-        // Camera unavailable or locked — degrade to audio-only rather than drop the call
         if (name === 'NotFoundError' || name === 'NotReadableError' || name === 'OverconstrainedError') {
           console.warn('[WebRTC] camera unavailable, falling back to audio-only');
           useCallStore.getState().setCallType('audio');
           useCallStore.getState().setIsVideoOff(true);
-          // fall through to audio-only path below
         } else {
-          throw err; // NotAllowedError (permission denied) — rethrow so caller sees it
+          throw err;
         }
       }
     }
@@ -199,7 +227,7 @@ class WebRTCManager {
     return stream;
   }
 
-  // ── Get or acquire local stream (reuse existing to avoid double mic access) ─
+  // ── Get or acquire local stream ───────────────────────────────────────────
   private async getOrAcquireLocalStream(callType: CallType): Promise<MediaStream> {
     const existing = useCallStore.getState().localStream;
     if (existing && existing.getTracks().some(t => t.readyState === 'live')) {
@@ -208,7 +236,7 @@ class WebRTCManager {
     return this.getUserMedia(callType);
   }
 
-  // ── Drain queued ICE candidates (safe: ignores invalid ones) ─────────────
+  // ── Drain queued ICE candidates ───────────────────────────────────────────
   private async drainIceQueue(): Promise<void> {
     if (!this.pc) return;
     const q = this.iceCandidateQueue.splice(0);
@@ -235,9 +263,10 @@ class WebRTCManager {
 
       getSocket()?.emit('call:offer', { callId, sdp: pc.localDescription });
       console.log('[WebRTC] offer sent');
+      this.startIceConnectTimer(callId);
     } catch (err) {
       console.error('[WebRTC] initiateOffer error:', err);
-      this.hangup(callId, true);
+      this.hangup(callId, true, 'failed');
     }
   }
 
@@ -262,9 +291,10 @@ class WebRTCManager {
 
       getSocket()?.emit('call:answer', { callId, sdp: pc.localDescription });
       console.log('[WebRTC] answer sent');
+      this.startIceConnectTimer(callId);
     } catch (err) {
       console.error('[WebRTC] handleOffer error:', err);
-      this.hangup(callId, true);
+      this.hangup(callId, true, 'failed');
     }
   }
 
@@ -284,7 +314,6 @@ class WebRTCManager {
   // ── Both parties: process incoming ICE candidate ─────────────────────────
   async addIceCandidate(candidate: RTCIceCandidateInit): Promise<void> {
     if (!this.pc || !this.remoteDescSet) {
-      // Queue until remote description is set
       this.iceCandidateQueue.push(candidate);
       return;
     }
@@ -303,13 +332,9 @@ class WebRTCManager {
       getSocket()?.emit('call:end', { callId });
     }
 
-    // Stop all local tracks (releases camera/mic)
     const store = useCallStore.getState();
     store.localStream?.getTracks().forEach(t => t.stop());
     store.remoteStream?.getTracks().forEach(t => t.stop());
-
-    // Null out streams immediately so the deferred reset() below cannot
-    // double-stop tracks (important if a new call starts within 2.5 s).
     store.setLocalStream(null);
     store.setRemoteStream(null);
 
@@ -318,10 +343,7 @@ class WebRTCManager {
     store.setEndReason(reason);
     store.setStatus('ended');
 
-    // Show "Call ended / Busy / Rejected" briefly before hiding the overlay
-    setTimeout(() => {
-      useCallStore.getState().reset();
-    }, 2500);
+    setTimeout(() => { useCallStore.getState().reset(); }, 2500);
   }
 
   // ── Toggle local audio mute ───────────────────────────────────────────────
@@ -339,15 +361,12 @@ class WebRTCManager {
     useCallStore.getState().setIsVideoOff(!isVideoOff);
   }
 
-  // ── Internal: close peer connection without touching store streams ────────
+  // ── Internal: close peer connection ───────────────────────────────────────
   private teardownPC(): void {
+    this.clearIceConnectTimer();
     if (this.disconnectedTimer !== null) {
       clearTimeout(this.disconnectedTimer);
       this.disconnectedTimer = null;
-    }
-    if (this.iceGatheringTimer !== null) {
-      clearTimeout(this.iceGatheringTimer);
-      this.iceGatheringTimer = null;
     }
     if (!this.pc) return;
     this.pc.onicecandidate = null;

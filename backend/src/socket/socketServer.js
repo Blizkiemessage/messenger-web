@@ -302,8 +302,23 @@ function initSocket(httpServer) {
     socket.on('call:answer', ({ callId, sdp }) => {
       const call = activeCalls.get(callId);
       if (!call || call.calleeId !== userId) return;
-      call.startedAt = Date.now();
+      // NOTE: startedAt is NOT set here — it's set in call:connected below,
+      // which fires only when WebRTC actually reaches 'connected' state.
+      // This ensures the 90-s missed timeout fires correctly if ICE fails.
       io.to(`user:${call.callerId}`).emit('call:answer', { callId, sdp });
+    });
+
+    // Either → Server: WebRTC peer connection reached 'connected' state
+    // Sent by both caller and callee from onconnectionstatechange handler.
+    // First one to arrive sets startedAt (prevents double-setting).
+    socket.on('call:connected', ({ callId }) => {
+      const call = activeCalls.get(callId);
+      if (!call) return;
+      if (call.callerId !== userId && call.calleeId !== userId) return;
+      if (!call.startedAt) {
+        call.startedAt = Date.now();
+        console.log(`[Call] WebRTC connected id=${callId}`);
+      }
     });
 
     // Either → Server: relay ICE candidate to the other party
