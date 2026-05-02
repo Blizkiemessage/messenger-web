@@ -200,6 +200,28 @@ class WebRTCManager {
     return pc;
   }
 
+  // ── Create a silent audio track (used when no microphone is found) ──────────
+  private createSilentStream(): MediaStream {
+    try {
+      const ctx = new AudioContext();
+      const dest = ctx.createMediaStreamDestination();
+      // Oscillator at volume 0 keeps the track "live" without sound
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      gain.gain.value = 0;
+      osc.connect(gain);
+      gain.connect(dest);
+      osc.start();
+      console.warn('[WebRTC] 🔇 No microphone — using silent audio track');
+      useCallStore.getState().setIsMuted(true);
+      return dest.stream;
+    } catch {
+      // Last resort: return empty MediaStream (no tracks)
+      console.warn('[WebRTC] 🔇 AudioContext unavailable — empty stream');
+      return new MediaStream();
+    }
+  }
+
   // ── Get user media (audio ± video) ────────────────────────────────────────
   private async getUserMedia(callType: CallType): Promise<MediaStream> {
     const audioConstraints = {
@@ -228,9 +250,22 @@ class WebRTCManager {
       }
     }
 
-    const stream = await navigator.mediaDevices.getUserMedia({ audio: audioConstraints, video: false });
-    useCallStore.getState().setLocalStream(stream);
-    return stream;
+    // Audio-only path
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: audioConstraints, video: false });
+      useCallStore.getState().setLocalStream(stream);
+      return stream;
+    } catch (err) {
+      const name = err instanceof Error ? err.name : '';
+      if (name === 'NotFoundError' || name === 'NotReadableError') {
+        // No microphone available — use silent track so the call can still connect.
+        // The user will be auto-muted; the other side can still talk.
+        const silent = this.createSilentStream();
+        useCallStore.getState().setLocalStream(silent);
+        return silent;
+      }
+      throw err; // NotAllowedError (user denied) — rethrow
+    }
   }
 
   // ── Get or acquire local stream ───────────────────────────────────────────
