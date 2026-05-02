@@ -228,7 +228,7 @@ export function useSocket() {
     const onCallRejected = ({ callId }: { callId: string }) => {
       const callStore = useCallStore.getState();
       if (callStore.callId !== callId) return;
-      webrtcManager.hangup(null, false);
+      webrtcManager.hangup(null, false, 'rejected');
     };
 
     const onCallOffer = ({ callId, sdp }: { callId: string; sdp: RTCSessionDescriptionInit }) => {
@@ -254,19 +254,19 @@ export function useSocket() {
     const onCallEnded = ({ callId }: { callId: string }) => {
       const callStore = useCallStore.getState();
       if (callStore.callId !== callId) return;
-      webrtcManager.hangup(null, false);
+      webrtcManager.hangup(null, false, 'ended');
     };
 
     const onCallBusy = ({ callId }: { callId: string }) => {
       const callStore = useCallStore.getState();
       if (callStore.callId !== callId) return;
-      webrtcManager.hangup(null, false);
+      webrtcManager.hangup(null, false, 'busy');
     };
 
     const onCallError = ({ callId }: { callId: string }) => {
       const callStore = useCallStore.getState();
       if (callStore.callId !== callId) return;
-      webrtcManager.hangup(null, false);
+      webrtcManager.hangup(null, false, 'failed');
     };
 
     socket.on('call:incoming',      onCallIncoming);     // ✅ E3

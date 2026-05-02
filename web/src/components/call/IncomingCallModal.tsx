@@ -17,9 +17,10 @@ export function IncomingCallModal() {
     const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
     let stopped = false;
     let handle: ReturnType<typeof setTimeout>;
+
     function ring() {
       if (stopped) return;
-      const osc = ctx.createOscillator();
+      const osc  = ctx.createOscillator();
       const gain = ctx.createGain();
       osc.connect(gain);
       gain.connect(ctx.destination);
@@ -32,7 +33,12 @@ export function IncomingCallModal() {
       osc.stop(ctx.currentTime + 0.5);
       handle = setTimeout(ring, 1500);
     }
-    ring();
+
+    // Browsers require a user gesture before AudioContext can produce sound.
+    // ctx.resume() upgrades it from "suspended" to "running" so the ringtone
+    // actually plays — critical on Chrome/Safari mobile.
+    ctx.resume().then(() => ring()).catch(() => ring());
+
     return () => { stopped = true; clearTimeout(handle); ctx.close(); };
   }, [status]);
 

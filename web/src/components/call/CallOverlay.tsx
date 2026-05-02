@@ -57,6 +57,7 @@ export function CallOverlay() {
   const callId         = useCallStore(s => s.callId);
   const callType       = useCallStore(s => s.callType);
   const peerInfo       = useCallStore(s => s.peerInfo);
+  const endReason      = useCallStore(s => s.endReason);
   const localStream    = useCallStore(s => s.localStream);
   const remoteStream   = useCallStore(s => s.remoteStream);
   const isMuted        = useCallStore(s => s.isMuted);
@@ -102,6 +103,16 @@ export function CallOverlay() {
       .then(devs => setAudioDevices(devs.filter(d => d.kind === 'audiooutput')))
       .catch(() => {});
   }, [status, sinkIdSupported]);
+
+  // ── Hang up cleanly when the tab/window is closed mid-call ───────────
+  useEffect(() => {
+    if (status === 'idle' || status === 'incoming' || status === 'ended') return;
+    const onBeforeUnload = () => {
+      if (callId) webrtcManager.hangup(callId, true);
+    };
+    window.addEventListener('beforeunload', onBeforeUnload);
+    return () => window.removeEventListener('beforeunload', onBeforeUnload);
+  }, [status, callId]);
 
   // ── Close picker on outside click ──────────────────────────────────────
   useEffect(() => {
@@ -179,15 +190,21 @@ export function CallOverlay() {
     return `${String(m).padStart(2, '0')}:${String(sec).padStart(2, '0')}`;
   }
 
+  const endedText =
+    endReason === 'rejected' ? 'Звонок отклонён' :
+    endReason === 'busy'     ? 'Пользователь занят' :
+    endReason === 'failed'   ? 'Ошибка соединения' :
+    'Звонок завершён';
+
   const statusText =
     status === 'calling'    ? 'Звоним…' :
     status === 'connecting' ? 'Соединение…' :
     status === 'active'     ? formatDuration(elapsedSeconds) :
-    status === 'ended'      ? 'Звонок завершён' : '';
+    status === 'ended'      ? endedText : '';
 
   return (
     <div className={`callOverlay${isVideo && status === 'active' ? ' callOverlayVideo' : ''}`}>
-      {!isVideo && <audio ref={remoteAudioRef} autoPlay />}
+      {!isVideo && <audio ref={remoteAudioRef} autoPlay playsInline />}
 
       {isVideo && (
         <>

@@ -263,7 +263,11 @@ class WebRTCManager {
   }
 
   // ── Either party: terminate the call ─────────────────────────────────────
-  hangup(callId: string | null, emitEvent: boolean): void {
+  hangup(
+    callId: string | null,
+    emitEvent: boolean,
+    reason: 'ended' | 'rejected' | 'busy' | 'failed' = 'ended',
+  ): void {
     if (emitEvent && callId) {
       getSocket()?.emit('call:end', { callId });
     }
@@ -273,10 +277,17 @@ class WebRTCManager {
     store.localStream?.getTracks().forEach(t => t.stop());
     store.remoteStream?.getTracks().forEach(t => t.stop());
 
+    // Null out streams immediately so the deferred reset() below cannot
+    // double-stop tracks (important if a new call starts within 2.5 s).
+    store.setLocalStream(null);
+    store.setRemoteStream(null);
+
     this.teardownPC();
 
+    store.setEndReason(reason);
     store.setStatus('ended');
-    // Show "Call ended" briefly before hiding the overlay
+
+    // Show "Call ended / Busy / Rejected" briefly before hiding the overlay
     setTimeout(() => {
       useCallStore.getState().reset();
     }, 2500);

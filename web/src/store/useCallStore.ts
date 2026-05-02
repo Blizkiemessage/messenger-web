@@ -30,6 +30,8 @@ interface CallState {
   startedAt: number | null;
   /** Elapsed seconds, ticked by interval in CallOverlay */
   elapsedSeconds: number;
+  /** Why the call ended — for status text differentiation */
+  endReason: 'ended' | 'rejected' | 'busy' | 'failed' | null;
 
   // ── Primitive setters ─────────────────────────────────────────────────────
   setStatus: (s: CallStatus) => void;
@@ -40,6 +42,7 @@ interface CallState {
   setIsVideoOff: (v: boolean) => void;
   setStartedAt: (ts: number | null) => void;
   setElapsedSeconds: (n: number) => void;
+  setEndReason: (r: 'ended' | 'rejected' | 'busy' | 'failed') => void;
 
   // ── Complex actions ───────────────────────────────────────────────────────
   startOutgoingCall: (p: {
@@ -59,13 +62,13 @@ interface CallState {
 const IDLE: Pick<
   CallState,
   'callId'|'chatId'|'callType'|'status'|'peerId'|'peerInfo'|'isInitiator'|
-  'localStream'|'remoteStream'|'isMuted'|'isVideoOff'|'startedAt'|'elapsedSeconds'
+  'localStream'|'remoteStream'|'isMuted'|'isVideoOff'|'startedAt'|'elapsedSeconds'|'endReason'
 > = {
   callId: null, chatId: null, callType: 'audio', status: 'idle',
   peerId: null, peerInfo: null, isInitiator: false,
   localStream: null, remoteStream: null,
   isMuted: false, isVideoOff: false,
-  startedAt: null, elapsedSeconds: 0,
+  startedAt: null, elapsedSeconds: 0, endReason: null,
 };
 
 export const useCallStore = create<CallState>((set, get) => ({
@@ -79,12 +82,13 @@ export const useCallStore = create<CallState>((set, get) => ({
   setIsVideoOff:     (isVideoOff)     => set({ isVideoOff }),
   setStartedAt:      (startedAt)      => set({ startedAt }),
   setElapsedSeconds: (elapsedSeconds) => set({ elapsedSeconds }),
+  setEndReason:      (endReason)      => set({ endReason }),
 
   startOutgoingCall: ({ callId, chatId, callType, peerId, peerInfo }) =>
-    set({ ...IDLE, callId, chatId, callType, peerId, peerInfo, status: 'calling', isInitiator: true }),
+    set({ ...IDLE, callId, chatId, callType, peerId, peerInfo, status: 'calling', isInitiator: true, endReason: null }),
 
   handleIncomingCall: ({ callId, chatId, callType, peerId, peerInfo }) =>
-    set({ ...IDLE, callId, chatId, callType, peerId, peerInfo, status: 'incoming', isInitiator: false }),
+    set({ ...IDLE, callId, chatId, callType, peerId, peerInfo, status: 'incoming', isInitiator: false, endReason: null }),
 
   reset: () => {
     const { localStream, remoteStream } = get();

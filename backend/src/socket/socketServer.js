@@ -239,23 +239,10 @@ function initSocket(httpServer) {
           'SELECT id, username, display_name, avatar_url FROM users WHERE id = ?'
         ).get(userId);
 
-        activeCalls.set(callId, {
-          callerId: userId, calleeId, chatId,
-          callType: callType || 'audio',
-          createdAt: Date.now(), startedAt: null,
-        });
-
-        io.to(`user:${calleeId}`).emit('call:incoming', {
-          callId, callerId: userId, chatId,
-          callType: callType || 'audio',
-          callerInfo,
-        });
-
         // ── Server-side safety timeout ───────────────────────────────────────
-        // If the call never reaches 'connected' state within 90 s (e.g. both
-        // parties stall in ICE negotiation), force-end it so neither side hangs
-        // forever in "calling…" / "connecting…" state.
-        setTimeout(() => {
+        // If the call never reaches 'connected' state within 90 s, force-end it.
+        // Store the timeoutId so it can be cancelled on a clean call:end / call:reject.
+        const missedTimeoutId = setTimeout(() => {
           const call = activeCalls.get(callId);
           if (!call) return; // already ended normally
           if (call.startedAt) return; // call connected — let it run
@@ -265,6 +252,19 @@ function initSocket(httpServer) {
           io.to(`user:${call.calleeId}`).emit('call:ended', { callId, duration: 0 });
           console.log(`[Call] timeout (90 s) id=${callId} — ended as missed`);
         }, 90_000);
+
+        activeCalls.set(callId, {
+          callerId: userId, calleeId, chatId,
+          callType: callType || 'audio',
+          createdAt: Date.now(), startedAt: null,
+          missedTimeoutId,
+        });
+
+        io.to(`user:${calleeId}`).emit('call:incoming', {
+          callId, callerId: userId, chatId,
+          callType: callType || 'audio',
+          callerInfo,
+        });
 
         console.log(`[Call] ${userId} → ${calleeId} (${callType}) id=${callId}`);
       } catch (err) {
@@ -284,6 +284,7 @@ function initSocket(httpServer) {
     socket.on('call:reject', ({ callId }) => {
       const call = activeCalls.get(callId);
       if (!call || call.calleeId !== userId) return;
+      clearTimeout(call.missedTimeoutId);
       activeCalls.delete(callId);
       saveCallRecord(callId, call, 'rejected');
       io.to(`user:${call.callerId}`).emit('call:rejected', { callId });
@@ -320,6 +321,8 @@ function initSocket(httpServer) {
       if (!call) return;
       if (call.callerId !== userId && call.calleeId !== userId) return;
 
+      clearTimeout(call.missedTimeoutId);
+
       const endedAt  = Date.now();
       const duration = call.startedAt ? Math.floor((endedAt - call.startedAt) / 1000) : 0;
       const status   = call.startedAt ? 'ended' : 'missed';
@@ -353,6 +356,7 @@ function initSocket(httpServer) {
       // Last socket gone — end any active calls for this user
       for (const [callId, call] of activeCalls) {
         if (call.callerId === userId || call.calleeId === userId) {
+          clearTimeout(call.missedTimeoutId);
           const endedAt  = Date.now();
           const duration = call.startedAt ? Math.floor((endedAt - call.startedAt) / 1000) : 0;
           const status   = call.startedAt ? 'ended' : 'missed';
