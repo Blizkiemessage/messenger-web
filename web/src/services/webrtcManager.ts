@@ -29,8 +29,6 @@ class WebRTCManager {
   private remoteDescSet = false;
   private disconnectedTimer: ReturnType<typeof setTimeout> | null = null;
   private iceGatheringTimer: ReturnType<typeof setTimeout> | null = null;
-  /** Resolve function for ICE gathering completion promise */
-  private iceGatheringResolve: (() => void) | null = null;
 
   // ── ICE server config from backend ────────────────────────────────────────
   private async getIceServers(): Promise<RTCConfiguration> {
@@ -100,11 +98,6 @@ class WebRTCManager {
         });
       } else {
         console.log('[WebRTC] ICE gathering complete — all candidates sent');
-        // Resolve gathering promise if pending
-        if (this.iceGatheringResolve) {
-          this.iceGatheringResolve();
-          this.iceGatheringResolve = null;
-        }
         if (this.iceGatheringTimer !== null) {
           clearTimeout(this.iceGatheringTimer);
           this.iceGatheringTimer = null;
@@ -346,26 +339,6 @@ class WebRTCManager {
     useCallStore.getState().setIsVideoOff(!isVideoOff);
   }
 
-  // ── Wait for ICE gathering to complete (with timeout) ─────────────────────
-  // Returns a promise that resolves when gathering is done or after `maxMs`.
-  // This lets us send the SDP with all candidates baked in — more reliable
-  // with some TURN servers and network setups (esp. mobile / restrictive NAT).
-  private waitForIceGathering(maxMs = 4000): Promise<void> {
-    if (!this.pc) return Promise.resolve();
-    if (this.pc.iceGatheringState === 'complete') return Promise.resolve();
-
-    return new Promise<void>(resolve => {
-      this.iceGatheringResolve = resolve;
-      this.iceGatheringTimer = setTimeout(() => {
-        this.iceGatheringTimer = null;
-        this.iceGatheringResolve = null;
-        const state = this.pc?.iceGatheringState ?? 'n/a';
-        console.warn(`[WebRTC] ICE gathering timed out after ${maxMs}ms (state: ${state}) — sending SDP now`);
-        resolve();
-      }, maxMs);
-    });
-  }
-
   // ── Internal: close peer connection without touching store streams ────────
   private teardownPC(): void {
     if (this.disconnectedTimer !== null) {
@@ -376,7 +349,6 @@ class WebRTCManager {
       clearTimeout(this.iceGatheringTimer);
       this.iceGatheringTimer = null;
     }
-    this.iceGatheringResolve = null;
     if (!this.pc) return;
     this.pc.onicecandidate = null;
     this.pc.ontrack = null;
