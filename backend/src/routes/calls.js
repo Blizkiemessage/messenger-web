@@ -6,6 +6,7 @@
  */
 const express = require('express');
 const router = express.Router();
+const crypto = require('crypto');
 const { authMiddleware } = require('../middleware/auth');
 const { getDb } = require('../config/database');
 
@@ -23,24 +24,42 @@ const { getDb } = require('../config/database');
 //   TURN_USERNAME    — static TURN credential username  ⚠ expires with Metered!
 //   TURN_CREDENTIAL  — static TURN credential password  ⚠ expires with Metered!
 //
-// IMPORTANT: Metered.ca static credentials (TURN_USERNAME/CREDENTIAL) expire.
-// Use METERED_API_KEY for automatic fresh credentials, or host your own TURN server.
+// IMPORTANT: Metered.ca static credentials (TURN_USERNAME/CREDENTIAL) expire every 24 h.
+//
+// Best approach — METERED_TURN_SECRET (generates fresh credentials locally, no API call):
+//   1. In Metered dashboard → TURN Servers → copy "TURN Server Secret"
+//   2. Set env var: METERED_TURN_SECRET=<secret>
+//   3. Set TURN_URLS (comma-separated) — same URLs as before
+//   Credentials are generated via HMAC-SHA1 (RFC 8489), valid 24 h, no outbound API call.
+//
+// Fallback — METERED_API_KEY (calls Metered REST API; may fail if outbound HTTPS blocked):
+//   Set env var: METERED_API_KEY=<api_key>
+//
+// Last resort — Static credentials (expire every 24 h, manual rotation required):
+//   TURN_URLS / TURN_USERNAME / TURN_CREDENTIAL
 
-// In-memory cache so we don't call the Metered API on every ice-servers request.
-// Metered credentials typically expire in 24 h; cache for 1 h to be safe.
+// ── Path 1: Local HMAC credential generation (best — no external API call) ──────────
+// Implements RFC 8489 Time-Limited Credential Mechanism.
+// username = "<expiry_unix_seconds>"
+// credential = base64(HMAC-SHA1(turn_secret, username))
+function generateHmacCredentials(turnSecret) {
+  const expiry = Math.floor(Date.now() / 1000) + 86400; // valid 24 h
+  const username = String(expiry);
+  const credential = crypto.createHmac('sha1', turnSecret).update(username).digest('base64');
+  return { username, credential };
+}
+
+// ── Path 2: Metered REST API (cached 1 h) ──────────────────────────────────────────
 let _meteredCache = null; // { iceServers: [...], expiresAt: number }
 
 async function fetchMeteredServers(apiKey) {
-  // Return cached if still fresh
   if (_meteredCache && Date.now() < _meteredCache.expiresAt) {
     return _meteredCache.iceServers;
   }
-
   const url = `https://global.relay.metered.ca/api/v1/turn/credentials?apiKey=${encodeURIComponent(apiKey)}`;
-  const res = await fetch(url, { signal: AbortSignal.timeout(5000) });
+  const res = await fetch(url, { signal: AbortSignal.timeout(8000) });
   if (!res.ok) throw new Error(`Metered API ${res.status}`);
-
-  const servers = await res.json(); // Array of { urls, username, credential }
+  const servers = await res.json();
   _meteredCache = { iceServers: servers, expiresAt: Date.now() + 60 * 60 * 1000 };
   console.log(`[ICE] Fetched ${servers.length} Metered TURN servers (cached 1 h)`);
   return servers;
@@ -52,38 +71,45 @@ router.get('/ice-servers', authMiddleware, async (req, res) => {
     { urls: 'stun:stun1.l.google.com:19302' },
   ];
 
-  // ── Path 1: Metered dynamic credentials (recommended) ────────────────────
-  const meteredApiKey = process.env.METERED_API_KEY;
-  if (meteredApiKey) {
-    try {
-      const meteredServers = await fetchMeteredServers(meteredApiKey);
-      // Metered returns their own STUN servers — merge with Google's
-      return res.json({ iceServers: [...stunServers, ...meteredServers] });
-    } catch (err) {
-      console.error('[ICE] Metered API failed, falling back to static config:', err.message);
-      // Fall through to static path below
-    }
-  }
-
-  // ── Path 2: Static credentials from environment variables ─────────────────
-  const iceServers = [...stunServers];
-  const turnUsername   = process.env.TURN_USERNAME;
-  const turnCredential = process.env.TURN_CREDENTIAL;
-
-  // Accept comma-separated list (TURN_URLS) or single URL (TURN_URL)
+  // ── Path 1: HMAC local generation (no network call, always fresh) ─────────
+  const turnSecret = process.env.METERED_TURN_SECRET;
   const rawUrls = process.env.TURN_URLS
     ? process.env.TURN_URLS.split(',').map(s => s.trim()).filter(Boolean)
     : process.env.TURN_URL ? [process.env.TURN_URL] : [];
 
+  if (turnSecret && rawUrls.length) {
+    const { username, credential } = generateHmacCredentials(turnSecret);
+    const iceServers = [
+      ...stunServers,
+      ...rawUrls.map(url => ({ urls: url, username, credential })),
+    ];
+    console.log(`[ICE] HMAC credentials generated (expires in 24 h), ${iceServers.length} servers`);
+    return res.json({ iceServers });
+  }
+
+  // ── Path 2: Metered REST API ──────────────────────────────────────────────
+  const meteredApiKey = process.env.METERED_API_KEY;
+  if (meteredApiKey) {
+    try {
+      const meteredServers = await fetchMeteredServers(meteredApiKey);
+      return res.json({ iceServers: [...stunServers, ...meteredServers] });
+    } catch (err) {
+      console.error('[ICE] Metered API failed, falling back to static config:', err.message);
+    }
+  }
+
+  // ── Path 3: Static credentials (fallback — expire every 24 h) ────────────
+  const iceServers = [...stunServers];
+  const turnUsername   = process.env.TURN_USERNAME;
+  const turnCredential = process.env.TURN_CREDENTIAL;
+
   if (rawUrls.length && turnUsername && turnCredential) {
-    // Add each URL as a separate entry — more compatible than array-of-URLs
-    // because some browsers only try the first URL in an array entry.
     for (const url of rawUrls) {
       iceServers.push({ urls: url, username: turnUsername, credential: turnCredential });
     }
   }
 
-  console.log(`[ICE] Returning ${iceServers.length} ICE servers (${rawUrls.length} TURN)`);
+  console.log(`[ICE] Static credentials, ${iceServers.length} servers (${rawUrls.length} TURN)`);
   res.json({ iceServers });
 });
 
