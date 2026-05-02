@@ -197,37 +197,23 @@ function shutdown(signal) {
 
   logger.info('[shutdown]', `Received ${signal} — starting graceful shutdown`);
 
-  // Force-exit safety net — bumped to 12 s so it only fires if something truly hangs.
-  // Normal path completes in < 3 s (see steps below).
-  const forceExitTimer = setTimeout(() => {
-    logger.error('[shutdown]', 'Forced exit after 12 s timeout', null, {});
-    process.exit(1);
-  }, 12_000);
-  forceExitTimer.unref(); // don't keep the event loop alive just for this timer
+  // ── 1. Kick all Socket.IO clients immediately ────────────────────────────
+  // Without this io.close() blocks until browsers naturally disconnect (30+ s).
+  try { io.disconnectSockets(true); } catch { /* ignore */ }
 
-  // Step 1: immediately disconnect all Socket.IO clients.
-  // Without this, io.close() blocks until every client naturally disconnects,
-  // which can take 30+ seconds (browser keep-alive + heartbeat intervals).
-  try { io.disconnectSockets(true); } catch { /* ignore if io not ready */ }
+  // ── 2. Destroy ALL HTTP connections (including keep-alive from reverse proxy) ──
+  // closeAllConnections() was added in Node 18.2 and destroys every socket,
+  // which makes server.close() callback fire instantly.
+  try { server.closeAllConnections(); } catch { /* Node < 18.2 fallback */ }
 
-  // Step 2: stop accepting new HTTP connections.
-  // existing keep-alive connections are destroyed after a short grace period.
-  server.closeIdleConnections?.(); // Node ≥ 18.2 — kills idle keep-alive connections
-  server.close(() => {
-    logger.info('[shutdown]', 'HTTP server closed');
+  // ── 3. Close Socket.IO adapter synchronously ─────────────────────────────
+  try { io.close(); } catch { /* ignore */ }
 
-    // Step 3: close Socket.IO adapter (emits 'disconnect' to any lingering namespaces)
-    io.close(() => {
-      logger.info('[shutdown]', 'Socket.IO closed');
+  // ── 4. Checkpoint WAL and close SQLite ────────────────────────────────────
+  try { closeDb(); } catch { /* ignore */ }
 
-      // Step 4: checkpoint WAL and close SQLite
-      closeDb();
-
-      clearTimeout(forceExitTimer);
-      logger.info('[shutdown]', 'Shutdown complete — exiting');
-      process.exit(0);
-    });
-  });
+  logger.info('[shutdown]', 'Shutdown complete — exiting');
+  process.exit(0);
 }
 
 process.on('SIGTERM', () => shutdown('SIGTERM'));
