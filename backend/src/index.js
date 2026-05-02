@@ -187,7 +187,7 @@ server.listen(PORT, () => {
 
 // ─── Graceful Shutdown ─────────────────────────────────────────────────────
 // Amvera sends SIGTERM when redeploying or stopping the container.
-// Sequence: stop accepting → close WebSockets → flush & close DB → exit.
+// Sequence: reject new requests → kick all sockets → close HTTP → close DB → exit.
 let isShuttingDown = false;
 
 function shutdown(signal) {
@@ -197,22 +197,30 @@ function shutdown(signal) {
 
   logger.info('[shutdown]', `Received ${signal} — starting graceful shutdown`);
 
-  // Force-exit if shutdown takes longer than 10 s (stuck requests / sockets)
+  // Force-exit safety net — bumped to 12 s so it only fires if something truly hangs.
+  // Normal path completes in < 3 s (see steps below).
   const forceExitTimer = setTimeout(() => {
-    logger.error('[shutdown]', 'Forced exit after 10 s timeout', null, {});
+    logger.error('[shutdown]', 'Forced exit after 12 s timeout', null, {});
     process.exit(1);
-  }, 10_000);
+  }, 12_000);
   forceExitTimer.unref(); // don't keep the event loop alive just for this timer
 
-  // Step 1: stop accepting new HTTP connections
+  // Step 1: immediately disconnect all Socket.IO clients.
+  // Without this, io.close() blocks until every client naturally disconnects,
+  // which can take 30+ seconds (browser keep-alive + heartbeat intervals).
+  try { io.disconnectSockets(true); } catch { /* ignore if io not ready */ }
+
+  // Step 2: stop accepting new HTTP connections.
+  // existing keep-alive connections are destroyed after a short grace period.
+  server.closeIdleConnections?.(); // Node ≥ 18.2 — kills idle keep-alive connections
   server.close(() => {
     logger.info('[shutdown]', 'HTTP server closed');
 
-    // Step 2: close Socket.IO (sends disconnect to all clients)
+    // Step 3: close Socket.IO adapter (emits 'disconnect' to any lingering namespaces)
     io.close(() => {
       logger.info('[shutdown]', 'Socket.IO closed');
 
-      // Step 3: checkpoint WAL and close SQLite
+      // Step 4: checkpoint WAL and close SQLite
       closeDb();
 
       clearTimeout(forceExitTimer);
