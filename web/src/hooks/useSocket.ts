@@ -260,11 +260,13 @@ export function useSocket() {
     const onCallBusy = ({ callId }: { callId: string }) => {
       const callStore = useCallStore.getState();
       if (callStore.callId !== callId) return;
+      console.warn('[Call] ← call:busy — callee is in another call');
       webrtcManager.hangup(null, false, 'busy');
     };
 
-    const onCallError = ({ callId }: { callId: string }) => {
+    const onCallError = ({ callId, reason }: { callId: string; reason?: string }) => {
       const callStore = useCallStore.getState();
+      console.warn(`[Call] ← call:error reason=${reason} (store.callId=${callStore.callId} event.callId=${callId})`);
       if (callStore.callId !== callId) return;
       webrtcManager.hangup(null, false, 'failed');
     };

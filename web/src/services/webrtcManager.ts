@@ -114,8 +114,11 @@ class WebRTCManager {
         const t = candidate.type ?? 'unknown';
         const proto = candidate.protocol ?? '?';
         const addr = candidate.address ?? '?';
+        const relAddr = candidate.relatedAddress ?? '';
         const marker = t === 'relay' ? '✅ RELAY' : t === 'srflx' ? '🌐 SRFLX' : '🏠 HOST';
-        console.log(`[WebRTC] ${marker} candidate: ${proto} ${addr} (${candidate.candidate.slice(0, 80)})`);
+        // For relay candidates also log the TURN server address (relatedAddress = TURN host)
+        const extra = t === 'relay' ? ` via TURN@${relAddr}` : '';
+        console.log(`[WebRTC] ${marker} candidate: ${proto} ${addr}${extra} (${candidate.candidate.slice(0, 100)})`);
         getSocket()?.emit('call:ice-candidate', { callId, candidate: candidate.toJSON() });
       } else {
         console.log('[WebRTC] ICE gathering complete — all candidates sent');
@@ -143,6 +146,18 @@ class WebRTCManager {
         useCallStore.getState().setStartedAt(Date.now());
         // Notify server that WebRTC is truly connected (so startedAt is set server-side)
         getSocket()?.emit('call:connected', { callId });
+        // Log selected ICE candidate pair for diagnostics
+        pc.getStats().then(stats => {
+          stats.forEach(report => {
+            if (report.type === 'candidate-pair' && report.state === 'succeeded' && report.nominated) {
+              const local  = stats.get(report.localCandidateId);
+              const remote = stats.get(report.remoteCandidateId);
+              if (local && remote) {
+                console.log(`[WebRTC] ✅ Active path: local=${local.candidateType}(${local.protocol}:${local.address}) → remote=${remote.candidateType}(${remote.protocol}:${remote.address})`);
+              }
+            }
+          });
+        }).catch(() => { /* stats not critical */ });
 
       } else if (state === 'disconnected') {
         // Transient network blip after established connection — give 15 s to recover.

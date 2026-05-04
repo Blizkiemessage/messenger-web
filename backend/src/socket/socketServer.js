@@ -194,29 +194,50 @@ function initSocket(httpServer) {
 
     // CALLER → Server: initiate a call to another user
     socket.on('call:invite', ({ callId, calleeId, chatId, callType }) => {
-      if (!callId || !calleeId || !chatId) return;
-      if (activeCalls.has(callId)) return; // duplicate
+      if (!callId || !calleeId || !chatId) {
+        console.warn(`[Call] call:invite rejected: missing fields callId=${callId} calleeId=${calleeId} chatId=${chatId}`);
+        return;
+      }
+      if (activeCalls.has(callId)) {
+        console.warn(`[Call] call:invite rejected: duplicate callId=${callId}`);
+        return;
+      }
 
       // Rate limit: max 5 call attempts per user per minute (survives rejections)
       if (isCallRateLimited(userId)) {
+        console.warn(`[Call] call:invite rejected: rate_limited userId=${userId}`);
         socket.emit('call:error', { callId, reason: 'rate_limited' });
         return;
       }
 
-      // Reject if caller is already in a call
-      const callerBusy = [...activeCalls.values()].some(
-        c => c.callerId === userId || c.calleeId === userId
+      // Reject if caller is already in a call.
+      // Exception: if the stale call is older than 2 minutes and never connected,
+      // auto-clean it — call:end was likely lost due to ICE failure + socket timing.
+      const callerBusyCall = [...activeCalls.entries()].find(
+        ([, c]) => c.callerId === userId || c.calleeId === userId
       );
-      if (callerBusy) {
-        socket.emit('call:error', { callId, reason: 'already_in_call' });
-        return;
+      if (callerBusyCall) {
+        const [staleCallId, staleCall] = callerBusyCall;
+        const age = Date.now() - staleCall.createdAt;
+        if (!staleCall.startedAt && age > 120_000) {
+          // Stale unconnected call older than 2 min — auto-evict
+          clearTimeout(staleCall.missedTimeoutId);
+          activeCalls.delete(staleCallId);
+          saveCallRecord(staleCallId, staleCall, 'missed');
+          console.warn(`[Call] auto-evicted stale call id=${staleCallId} age=${Math.floor(age/1000)}s — allowing new invite`);
+        } else {
+          console.warn(`[Call] call:invite rejected: caller already_in_call userId=${userId} stale_callId=${staleCallId} age=${Math.floor(age/1000)}s started=${!!staleCall.startedAt}`);
+          socket.emit('call:error', { callId, reason: 'already_in_call' });
+          return;
+        }
       }
 
       // Reject if callee is already in a call
-      const calleeBusy = [...activeCalls.values()].some(
-        c => c.callerId === calleeId || c.calleeId === calleeId
+      const calleeBusyCall = [...activeCalls.entries()].find(
+        ([, c]) => c.callerId === calleeId || c.calleeId === calleeId
       );
-      if (calleeBusy) {
+      if (calleeBusyCall) {
+        console.warn(`[Call] call:invite rejected: callee busy calleeId=${calleeId} stale_callId=${calleeBusyCall[0]}`);
         socket.emit('call:busy', { callId });
         return;
       }

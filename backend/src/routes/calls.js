@@ -66,6 +66,10 @@ async function fetchMeteredServers(apiKey) {
 }
 
 router.get('/ice-servers', authMiddleware, async (req, res) => {
+  // ICE credentials must never be cached — stale credentials cause silent TURN auth failures.
+  // 304 responses from browser cache will have expired HMAC timestamps or rotated static keys.
+  res.set('Cache-Control', 'no-store');
+
   const stunServers = [
     { urls: 'stun:stun.l.google.com:19302' },
     { urls: 'stun:stun1.l.google.com:19302' },
