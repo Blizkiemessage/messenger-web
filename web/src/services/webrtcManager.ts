@@ -198,8 +198,24 @@ class WebRTCManager {
 
       } else if (s === 'failed') {
         console.error('[WebRTC] ❌ ICE failed — connectivity checks exhausted');
-        console.error('[WebRTC]    If RELAY candidates were logged above: TURN relay failed.');
-        console.error('[WebRTC]    Likely cause: TURN hairpin not supported, or wrong credentials.');
+        // Dump candidate pairs to understand what was tried
+        pc.getStats().then(stats => {
+          let hasRelay = false;
+          const pairs: string[] = [];
+          stats.forEach(r => {
+            if (r.type === 'local-candidate' && r.candidateType === 'relay') hasRelay = true;
+            if (r.type === 'candidate-pair') {
+              const local  = stats.get(r.localCandidateId);
+              const remote = stats.get(r.remoteCandidateId);
+              if (local && remote) {
+                pairs.push(`  [${r.state}] local=${local.candidateType}(${local.protocol}) → remote=${remote.candidateType}(${remote.protocol})`);
+              }
+            }
+          });
+          console.error(`[WebRTC]    Had relay candidates: ${hasRelay}`);
+          if (pairs.length) console.error('[WebRTC]    Pairs tried:\n' + pairs.join('\n'));
+          else console.error('[WebRTC]    No candidate pairs attempted');
+        }).catch(() => {});
         this.clearIceConnectTimer();
         this.hangup(callId, true, 'failed');
 
