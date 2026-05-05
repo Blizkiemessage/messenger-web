@@ -70,7 +70,14 @@ router.get('/ice-servers', authMiddleware, async (req, res) => {
   // 304 responses from browser cache will have expired HMAC timestamps or rotated static keys.
   res.set('Cache-Control', 'no-store');
 
+  // STUN_URLS — comma-separated stun: URLs for our own STUN server (coturn also
+  // answers STUN requests without auth on port 3478). Google STUN is blocked by
+  // RKN in Russia, so we prefer our own server first.
+  const ownStunUrls = process.env.STUN_URLS
+    ? process.env.STUN_URLS.split(',').map(s => s.trim()).filter(Boolean)
+    : [];
   const stunServers = [
+    ...ownStunUrls.map(urls => ({ urls })),
     { urls: 'stun:stun.l.google.com:19302' },
     { urls: 'stun:stun1.l.google.com:19302' },
   ];
