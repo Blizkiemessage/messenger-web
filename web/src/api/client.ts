@@ -57,6 +57,8 @@ async function tryRefreshToken(): Promise<string | null> {
   } catch {
     // Refresh token is invalid/expired/revoked — clear everything and force re-login.
     clearSession();
+    // Hard redirect so the app re-initialises with no stale state.
+    window.location.href = '/';
     return null;
   }
 }

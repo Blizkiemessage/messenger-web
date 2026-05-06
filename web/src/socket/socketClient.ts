@@ -1,14 +1,23 @@
 import { io, type Socket } from 'socket.io-client';
 import { SOCKET_URL } from '../config';
-import { getToken } from '../storage/session';
+import { getToken, clearSession } from '../storage/session';
 
 let socket: Socket | null = null;
 
 export function connectSocket(): Socket {
-  // Reuse existing socket even if still connecting — creating a second io()
-  // while the first handshake is in-flight causes the browser warning
-  // "WebSocket is closed before the connection is established".
-  if (socket) return socket;
+  // Reuse existing socket if it is connected or actively reconnecting.
+  // `socket.active` is true while socket.io is in any reconnection cycle;
+  // it becomes false only after disconnect() or after exhausting all attempts.
+  // Returning a permanently-disconnected socket would leave the app deaf.
+  if (socket?.active) return socket;
+
+  // If a previous socket exists but is no longer active (all reconnect
+  // attempts exhausted or manually disconnected), tear it down first so we
+  // get a clean connection with the freshest token from localStorage.
+  if (socket) {
+    socket.disconnect();
+    socket = null;
+  }
 
   // Pass token via socket.io `auth` so the server can authenticate the WS
   // handshake even when Chrome blocks the HttpOnly session cookie cross-origin.
@@ -30,6 +39,20 @@ export function connectSocket(): Socket {
   socket.on('connect_error', (err: any) => {
     // eslint-disable-next-line no-console
     console.error('[Socket] connect_error', err?.message ?? err);
+
+    // If the server rejected our token, clear the session and redirect to
+    // the login screen. A hard reload guarantees a clean app state.
+    const msg = String(err?.message ?? '');
+    if (
+      msg.includes('Invalid token') ||
+      msg.includes('Unauthorized') ||
+      msg.includes('jwt')
+    ) {
+      socket?.disconnect();
+      socket = null;
+      clearSession();
+      window.location.href = '/';
+    }
   });
 
   return socket;
