@@ -1,5 +1,6 @@
 const { Router }        = require('express');
 const archiver          = require('archiver');
+const rateLimit         = require('express-rate-limit');
 const { getDb }         = require('../config/database');
 const { decrypt }       = require('../crypto/aes');
 const { authMiddleware }= require('../middleware/auth');
@@ -7,20 +8,22 @@ const { authMiddleware }= require('../middleware/auth');
 const router = Router();
 router.use(authMiddleware);
 
-// TODO: вернуть rate limit (1 экспорт/час) после тестирования
-// const exportLimiter = rateLimit({
-//   windowMs: 3_600_000, max: 1,
-//   keyGenerator: req => `export:${req.userId}`,
-//   standardHeaders: true, legacyHeaders: false,
-//   message: { error: 'Слишком много запросов. Экспорт доступен раз в час.' },
-// });
+// 1 export per hour per user (GDPR exports are heavy, streaming ZIP)
+const exportLimiter = rateLimit({
+  windowMs: 3_600_000,
+  max: 1,
+  keyGenerator: req => `export:${req.userId}`,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Слишком много запросов. Экспорт доступен раз в час.' },
+});
 
 /**
  * GET /export/my-data
  * Streams a ZIP archive containing all personal data for the requesting user:
  *   profile.json, friends.json, sessions.json, chats/<name>-<id>.json
  */
-router.get('/my-data', (req, res, next) => {
+router.get('/my-data', exportLimiter, (req, res, next) => {
   try {
     const db     = getDb();
     const userId = req.userId;
