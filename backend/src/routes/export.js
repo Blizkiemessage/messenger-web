@@ -80,7 +80,7 @@ router.get('/my-data', exportLimiter, (req, res, next) => {
       const messages = db.prepare(`
         SELECT m.id, m.sender_id, u.username AS sender_name,
                m.ciphertext, m.iv, m.auth_tag,
-               m.type, m.attachment_url, m.attachment_name,
+               m.attachment_type, m.attachment_url, m.attachment_name,
                m.reply_to_id, m.created_at
         FROM messages m
         JOIN users u ON u.id = m.sender_id
@@ -101,7 +101,7 @@ router.get('/my-data', exportLimiter, (req, res, next) => {
           id:            msg.id,
           sender:        msg.sender_name,
           text,
-          type:          msg.type,
+          type:          msg.attachment_type  || null,
           attachmentUrl: msg.attachment_url  || null,
           attachmentName:msg.attachment_name || null,
           replyToId:     msg.reply_to_id     || null,
