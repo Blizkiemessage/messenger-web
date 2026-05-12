@@ -74,6 +74,7 @@ const callsRoutes       = require('./routes/calls');
 const notesRoutes       = require('./routes/notes');
 const foldersRoutes     = require('./routes/folders');
 const healthRoutes      = require('./routes/health');
+const exportRoutes      = require('./routes/export');
 console.log('[STARTUP] All modules loaded.');
 const path = require('path');
 
@@ -155,6 +156,7 @@ app.use('/totp',          totpRoutes);
 app.use('/calls',         callsRoutes);
 app.use('/chats',         notesRoutes);
 app.use('/folders',       foldersRoutes);
+app.use('/export',        exportRoutes);
 
 app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 app.use('/admin', express.static(path.join(__dirname, '../public/admin')));

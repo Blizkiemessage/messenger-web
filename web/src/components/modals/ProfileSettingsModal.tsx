@@ -8,6 +8,7 @@ import { PrivacyTab }          from '../profile/PrivacyTab';
 import { AppearanceTab }       from '../profile/AppearanceTab';
 import { SessionsTab }         from '../profile/SessionsTab';
 import { PermissionsTab }      from '../profile/PermissionsTab';
+import { ExportDataTab }       from '../profile/ExportDataTab';
 
 interface Props {
   me: User;
@@ -16,7 +17,7 @@ interface Props {
   onDeleteAccount: () => Promise<void>;
 }
 
-type Tab = 'profile' | 'password' | 'privacy' | 'appearance' | 'sessions' | 'permissions';
+type Tab = 'profile' | 'password' | 'privacy' | 'appearance' | 'sessions' | 'permissions' | 'export';
 
 interface MenuItem {
   id: Tab;
@@ -102,6 +103,19 @@ const MENU_ITEMS: MenuItem[] = [
       </svg>
     ),
   },
+  {
+    id: 'export',
+    label: 'Мои данные',
+    description: 'Скачать историю переписки (GDPR)',
+    color: '#059669',
+    icon: (
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+        <polyline points="7 10 12 15 17 10"/>
+        <line x1="12" y1="15" x2="12" y2="3"/>
+      </svg>
+    ),
+  },
 ];
 
 const TAB_LABELS: Record<Tab, string> = {
@@ -111,6 +125,7 @@ const TAB_LABELS: Record<Tab, string> = {
   appearance:  'Внешний вид',
   sessions:    'Сессии',
   permissions: 'Разрешения',
+  export:      'Мои данные',
 };
 
 export function ProfileSettingsModal({ me, onClose, onUpdate, onDeleteAccount }: Props) {
@@ -244,6 +259,7 @@ export function ProfileSettingsModal({ me, onClose, onUpdate, onDeleteAccount }:
             {tab === 'appearance'  && <AppearanceTab />}
             {tab === 'sessions'    && <SessionsTab />}
             {tab === 'permissions' && <PermissionsTab />}
+            {tab === 'export'      && <ExportDataTab />}
           </div>
         )}
       </div>

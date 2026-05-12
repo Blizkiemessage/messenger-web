@@ -7433,6 +7433,78 @@ input[type="date"].psInput::-webkit-calendar-picker-indicator {
 .permRequestBtn:hover  { filter: brightness(1.12); }
 .permRequestBtn:active { transform: scale(0.96); }
 
+/* ── Export Data Tab (GDPR) ─────────────────────────────────────────────────── */
+.exportContents {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0 0 20px;
+  padding: 14px 16px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+.exportContentItem {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  font-size: 13.5px;
+  color: var(--text);
+}
+.exportCheckIcon {
+  flex-shrink: 0;
+  margin-top: 2px;
+  color: #059669;
+}
+.exportContentLabel { font-weight: 600; }
+.exportContentDesc  { color: var(--text-muted, rgba(230,237,243,0.55)); font-size: 13px; }
+.exportNotice {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  border-radius: 8px;
+  font-size: 13px;
+  margin-bottom: 16px;
+}
+.exportNoticeOk   { background: rgba(5,150,105,0.12); color: #34d399; border: 1px solid rgba(5,150,105,0.3); }
+.exportNoticeWarn { background: rgba(217,119,6,0.12);  color: #fbbf24; border: 1px solid rgba(217,119,6,0.3); }
+.exportNoticeErr  { background: var(--danger-dim);     color: var(--danger); border: 1px solid rgba(248,81,73,0.3); }
+.exportBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  padding: 11px 20px;
+  background: #059669;
+  color: #fff;
+  border: none;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: filter 0.15s, transform 0.1s;
+}
+.exportBtn:hover:not(:disabled)  { filter: brightness(1.1); }
+.exportBtn:active:not(:disabled) { transform: scale(0.97); }
+.exportBtn:disabled { opacity: 0.5; cursor: not-allowed; }
+.exportBtnSpinner {
+  width: 15px; height: 15px;
+  border: 2px solid rgba(255,255,255,0.35);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+  flex-shrink: 0;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.exportNote {
+  margin-top: 12px;
+  font-size: 12px;
+  color: var(--text-muted, rgba(230,237,243,0.45));
+  text-align: center;
+}
+
 /* ── Message Readers Modal ──────────────────────────────────────────────────── */
 .readersModal {
   width: min(400px, 94vw);
