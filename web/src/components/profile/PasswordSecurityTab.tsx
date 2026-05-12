@@ -9,6 +9,7 @@ import { type User } from '../../types';
 import { PasswordInput } from '../ui/PasswordInput';
 import { authSetPassword } from '../../api/auth';
 import { totpSetup, totpConfirm, totpDisable, totpRegenerateBackup } from '../../api/totp';
+import { PasskeysSection } from './PasskeysSection';
 
 const PW_DIGIT_OR_SPECIAL = /[0-9!@#$%^&*()\-_=+[\]{}|;:'",.<>?/\\`~]/;
 
@@ -354,6 +355,12 @@ export function PasswordSecurityTab({ me, onUpdate }: Props) {
           </button>
         </>
       )}
+
+      {/* ══════════════ PASSKEYS SECTION ══════════════ */}
+      <div className="psSectionDivider">
+        <span>Ключи доступа (Passkeys)</span>
+      </div>
+      <PasskeysSection />
 
     </div>
   );

@@ -75,6 +75,7 @@ const notesRoutes       = require('./routes/notes');
 const foldersRoutes     = require('./routes/folders');
 const healthRoutes      = require('./routes/health');
 const exportRoutes      = require('./routes/export');
+const webauthnRoutes    = require('./routes/webauthn');
 console.log('[STARTUP] All modules loaded.');
 const path = require('path');
 
@@ -157,6 +158,7 @@ app.use('/calls',         callsRoutes);
 app.use('/chats',         notesRoutes);
 app.use('/folders',       foldersRoutes);
 app.use('/export',        exportRoutes);
+app.use('/webauthn',      webauthnRoutes);
 
 app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 app.use('/admin', express.static(path.join(__dirname, '../public/admin')));

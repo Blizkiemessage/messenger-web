@@ -13000,3 +13000,87 @@ input[type="date"].psInput::-webkit-calendar-picker-indicator {
   border: 1.5px solid var(--border); transition: border-color .15s;
 }
 .aiSummaryCloseBtn:hover { border-color: var(--accent); }
+
+/* ══════════════════════════════════════════════════════════
+   Passkeys section (PasswordSecurityTab)
+   ══════════════════════════════════════════════════════════ */
+.passkeysSection { display: flex; flex-direction: column; gap: 0; }
+.passkeysLoading,
+.passkeysEmpty {
+  font-size: 13px; color: var(--text-secondary);
+  padding: 10px 0;
+}
+.passkeysList {
+  display: flex; flex-direction: column; gap: 6px;
+  margin-bottom: 4px;
+}
+.passkeyItem {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 12px; border-radius: 10px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+}
+.passkeyIcon {
+  flex-shrink: 0; display: flex; align-items: center; justify-content: center;
+  width: 32px; height: 32px; border-radius: 8px;
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  color: var(--accent);
+}
+.passkeyInfo { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.passkeyName {
+  font-size: 13px; font-weight: 500; color: var(--text-primary);
+  cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.passkeyName:hover { color: var(--accent); }
+.passkeyDate { font-size: 11px; color: var(--text-secondary); }
+.passkeyNameInput {
+  width: 100%; padding: 3px 7px; font-size: 13px;
+  border-radius: 6px; border: 1.5px solid var(--accent);
+  background: var(--bg-primary); color: var(--text-primary);
+  outline: none;
+}
+.passkeyActions { display: flex; gap: 4px; }
+.passkeyActionBtn {
+  width: 26px; height: 26px; border-radius: 6px;
+  font-size: 13px; display: flex; align-items: center; justify-content: center;
+  background: var(--bg-tertiary); color: var(--text-secondary);
+  transition: background .15s, color .15s;
+}
+.passkeyActionBtn:hover { background: var(--bg-tertiary); color: var(--text-primary); }
+.passkeyOkBtn:hover { color: var(--success, #22c55e); }
+.passkeyDeleteBtn {
+  flex-shrink: 0; width: 30px; height: 30px;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: 8px; color: var(--text-secondary);
+  transition: background .15s, color .15s;
+}
+.passkeyDeleteBtn:hover:not(:disabled) { background: rgba(239,68,68,.12); color: #ef4444; }
+.passkeyDeleteBtn:disabled { opacity: .5; cursor: not-allowed; }
+.passkeyAddBtn {
+  display: flex; align-items: center; justify-content: center;
+}
+
+/* ══════════════════════════════════════════════════════════
+   Passkey login button (LoginForm)
+   ══════════════════════════════════════════════════════════ */
+.authDividerRow {
+  display: flex; align-items: center; gap: 10px;
+  margin: 4px 0;
+}
+.authDividerLine {
+  flex: 1; height: 1px; background: var(--border);
+}
+.authDividerText {
+  font-size: 12px; color: var(--text-secondary); white-space: nowrap;
+}
+.authPasskeyBtn {
+  width: 100%; display: flex; align-items: center; justify-content: center; gap: 8px;
+  padding: 10px 16px; border-radius: var(--radius);
+  font-size: 14px; font-weight: 500;
+  background: var(--bg-secondary); color: var(--text-primary);
+  border: 1.5px solid var(--border);
+  transition: border-color .15s, background .15s;
+  cursor: pointer;
+}
+.authPasskeyBtn:hover:not(:disabled) { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 8%, var(--bg-secondary)); }
+.authPasskeyBtn:disabled { opacity: .5; cursor: not-allowed; }
