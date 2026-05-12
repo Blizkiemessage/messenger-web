@@ -20,7 +20,7 @@ export interface AuthResult {
 
 export async function passkeyRegister(deviceName?: string): Promise<string> {
   const optRes  = await apiClient.post('/webauthn/register/options');
-  const attResp = await startRegistration({ optionsJSON: optRes.data });
+  const attResp = await startRegistration(optRes.data);
   const verRes  = await apiClient.post('/webauthn/register/verify', {
     response:   attResp,
     deviceName: deviceName ?? null,
@@ -30,7 +30,7 @@ export async function passkeyRegister(deviceName?: string): Promise<string> {
 
 export async function passkeyAuthenticate(username?: string): Promise<AuthResult> {
   const optRes  = await apiClient.post('/webauthn/auth/options', { username: username ?? null });
-  const assResp = await startAuthentication({ optionsJSON: optRes.data });
+  const assResp = await startAuthentication(optRes.data);
   const verRes  = await apiClient.post('/webauthn/auth/verify', { response: assResp });
   return verRes.data as AuthResult;
 }
