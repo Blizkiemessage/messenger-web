@@ -31,9 +31,8 @@ export async function registerPush(): Promise<void> {
     const permission = await Notification.requestPermission();
     if (permission !== 'granted') return;
 
-    // Register service worker
-    const registration = await navigator.serviceWorker.register('/sw.js');
-    await navigator.serviceWorker.ready;
+    // SW is registered early in main.tsx; just wait for it to be ready.
+    const registration = await navigator.serviceWorker.ready;
 
     // Fetch VAPID public key
     const { data } = await apiClient.get<{ publicKey: string }>('/push/vapid-public-key');
@@ -41,7 +40,6 @@ export async function registerPush(): Promise<void> {
 
     const applicationServerKey = urlBase64ToUint8Array(data.publicKey);
 
-    // Subscribe (or retrieve existing subscription)
     let subscription = await registration.pushManager.getSubscription();
     if (!subscription) {
       subscription = await registration.pushManager.subscribe({
@@ -65,8 +63,7 @@ export async function registerPush(): Promise<void> {
 export async function unregisterPush(): Promise<void> {
   try {
     if (!('serviceWorker' in navigator)) return;
-    const registration = await navigator.serviceWorker.getRegistration('/sw.js');
-    if (!registration) return;
+    const registration = await navigator.serviceWorker.ready;
     const subscription = await registration.pushManager.getSubscription();
     if (!subscription) return;
     const endpoint = subscription.endpoint;
