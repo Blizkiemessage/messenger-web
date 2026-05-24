@@ -22,11 +22,20 @@ const REFRESH_TTL   = 30 * 24 * 60 * 60 * 1000;
 // ── RP config ────────────────────────────────────────────────────────────────
 // WEBAUTHN_ORIGIN  — full origin of the frontend (e.g. https://app.blizkie.ru)
 // WEBAUTHN_RP_ID   — registrable domain suffix  (e.g. blizkie.ru)
-// Falls back to APP_URL / its hostname when env vars are absent.
+// Falls back to ALLOWED_ORIGIN (CORS frontend URL) then APP_URL when not set.
 function getRpConfig() {
-  const appUrl = (process.env.WEBAUTHN_ORIGIN || process.env.APP_URL || 'http://localhost:5173')
-    .replace(/\/$/, '');
-  const rpID   = process.env.WEBAUTHN_RP_ID || new URL(appUrl).hostname;
+  // ALLOWED_ORIGIN is the frontend CORS origin and is always the correct WebAuthn
+  // origin in cross-origin deployments (Vercel frontend + Amvera backend).
+  // Use only the first entry if it is a comma-separated list.
+  const allowedOriginFirst = (process.env.ALLOWED_ORIGIN || '')
+    .split(',')[0].trim().replace(/\/+$/, '');
+  const appUrl = (
+    process.env.WEBAUTHN_ORIGIN ||
+    allowedOriginFirst ||
+    process.env.APP_URL ||
+    'http://localhost:5173'
+  ).replace(/\/$/, '');
+  const rpID = process.env.WEBAUTHN_RP_ID || new URL(appUrl).hostname;
   return { rpID, origin: appUrl, rpName: 'Blizkie' };
 }
 
@@ -111,12 +120,19 @@ router.post('/register/verify', authMiddleware, async (req, res, next) => {
       return res.status(400).json({ error: 'Недействительный или истёкший вызов' });
     }
 
-    const verification = await verifyRegistrationResponse({
-      response,
-      expectedChallenge: clientData.challenge,
-      expectedOrigin:    origin,
-      expectedRPID:      rpID,
-    });
+    let verification;
+    try {
+      verification = await verifyRegistrationResponse({
+        response,
+        expectedChallenge: clientData.challenge,
+        expectedOrigin:    origin,
+        expectedRPID:      rpID,
+      });
+    } catch (verifyErr) {
+      // simplewebauthn v9 throws on validation failures (origin/RP_ID mismatch,
+      // invalid signature, etc.) instead of returning {verified: false}.
+      return res.status(400).json({ error: 'Верификация ключа доступа не прошла' });
+    }
 
     if (!verification.verified) {
       return res.status(400).json({ error: 'Верификация не прошла' });
@@ -184,17 +200,22 @@ router.post('/auth/verify', async (req, res, next) => {
     const cred = db.prepare('SELECT * FROM webauthn_credentials WHERE id = ?').get(response.id);
     if (!cred) return res.status(400).json({ error: 'Ключ доступа не найден' });
 
-    const verification = await verifyAuthenticationResponse({
-      response,
-      expectedChallenge: clientData.challenge,
-      expectedOrigin:    origin,
-      expectedRPID:      rpID,
-      credential: {
-        id:        cred.id,
-        publicKey: new Uint8Array(cred.public_key),
-        counter:   cred.counter,
-      },
-    });
+    let verification;
+    try {
+      verification = await verifyAuthenticationResponse({
+        response,
+        expectedChallenge: clientData.challenge,
+        expectedOrigin:    origin,
+        expectedRPID:      rpID,
+        credential: {
+          id:        cred.id,
+          publicKey: new Uint8Array(cred.public_key),
+          counter:   cred.counter,
+        },
+      });
+    } catch (verifyErr) {
+      return res.status(401).json({ error: 'Аутентификация не прошла' });
+    }
 
     if (!verification.verified) {
       return res.status(401).json({ error: 'Аутентификация не прошла' });
