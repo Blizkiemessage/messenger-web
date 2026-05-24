@@ -231,15 +231,20 @@ router.post('/auth/verify', async (req, res, next) => {
         },
       });
     } catch (verifyErr) {
+      console.error('[WebAuthn] auth/verify CRASH:', verifyErr?.constructor?.name, '|', verifyErr?.message);
+      logger.error('[WebAuthn]', 'auth/verify failed', verifyErr, { origin, rpID, credId: response.id });
       return res.status(401).json({ error: 'Аутентификация не прошла' });
     }
 
     if (!verification.verified) {
+      console.error('[WebAuthn] auth/verify: verified=false');
       return res.status(401).json({ error: 'Аутентификация не прошла' });
     }
 
+    // v9 API: authenticationInfo.newCounter
+    const newCounter = verification.authenticationInfo?.newCounter ?? verification.authenticationInfo?.counter ?? 0;
     db.prepare('UPDATE webauthn_credentials SET counter = ? WHERE id = ?')
-      .run(verification.authenticationInfo.newCounter, cred.id);
+      .run(newCounter, cred.id);
 
     const userId = cred.user_id;
     const user   = db.prepare('SELECT * FROM users WHERE id = ?').get(userId);
