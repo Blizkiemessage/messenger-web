@@ -219,15 +219,17 @@ router.post('/auth/verify', async (req, res, next) => {
 
     let verification;
     try {
+      // simplewebauthn v9 API: uses `authenticator` with Uint8Array credentialID.
+      // (v10 renamed this to `credential` with base64url string id)
       verification = await verifyAuthenticationResponse({
         response,
         expectedChallenge: clientData.challenge,
         expectedOrigin:    origin,
         expectedRPID:      rpID,
-        credential: {
-          id:        cred.id,
-          publicKey: new Uint8Array(cred.public_key),
-          counter:   cred.counter,
+        authenticator: {
+          credentialID:        Buffer.from(cred.id, 'base64url'),
+          credentialPublicKey: new Uint8Array(cred.public_key),
+          counter:             cred.counter,
         },
       });
     } catch (verifyErr) {
