@@ -163,7 +163,10 @@ router.post('/register/verify', authMiddleware, async (req, res, next) => {
     );
 
     res.json({ verified: true, credentialId: credential.id });
-  } catch (err) { next(err); }
+  } catch (err) {
+    console.error('[WebAuthn] register/verify CRASH:', err?.constructor?.name, '|', err?.message);
+    next(err);
+  }
 });
 
 // ── Authentication ────────────────────────────────────────────────────────────
