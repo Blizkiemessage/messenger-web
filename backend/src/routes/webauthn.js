@@ -150,19 +150,21 @@ router.post('/register/verify', authMiddleware, async (req, res, next) => {
       return res.status(400).json({ error: 'Верификация не прошла' });
     }
 
-    const { credential } = verification.registrationInfo;
+    // simplewebauthn v9 API: credentialID (Uint8Array) + credentialPublicKey + counter
+    // (v10 renamed these to registrationInfo.credential.{id,publicKey,counter})
+    const { credentialPublicKey, counter } = verification.registrationInfo;
     db.prepare(
       'INSERT OR REPLACE INTO webauthn_credentials (id, user_id, public_key, counter, device_name, created_at) VALUES (?, ?, ?, ?, ?, ?)',
     ).run(
-      credential.id,
+      response.id,
       userId,
-      Buffer.from(credential.publicKey),
-      credential.counter,
+      Buffer.from(credentialPublicKey),
+      counter,
       (deviceName || null),
       Date.now(),
     );
 
-    res.json({ verified: true, credentialId: credential.id });
+    res.json({ verified: true, credentialId: response.id });
   } catch (err) {
     console.error('[WebAuthn] register/verify CRASH:', err?.constructor?.name, '|', err?.message);
     next(err);
