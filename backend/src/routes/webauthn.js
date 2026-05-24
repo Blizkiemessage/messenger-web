@@ -13,9 +13,16 @@ const { getDb }          = require('../config/database');
 const { authMiddleware } = require('../middleware/auth');
 const { signAccess, signRefresh } = require('../utils/jwt');
 const { sanitizeUser }   = require('../services/userService');
+const logger             = require('../utils/logger');
 
 const router      = Router();
 const IS_PROD     = process.env.NODE_ENV === 'production';
+
+// Log RP config at module load so it's visible in Amvera startup logs.
+{
+  const { origin, rpID } = getRpConfig();
+  console.log(`[WebAuthn] origin=${origin}  rpID=${rpID}`);
+}
 const CHALLENGE_TTL = 5 * 60 * 1000; // 5 min
 const REFRESH_TTL   = 30 * 24 * 60 * 60 * 1000;
 
@@ -114,6 +121,10 @@ router.post('/register/verify', authMiddleware, async (req, res, next) => {
     const { rpID, origin } = getRpConfig();
     const { response, deviceName } = req.body;
 
+    if (!response?.response?.clientDataJSON || !response?.response?.attestationObject) {
+      return res.status(400).json({ error: 'Неверный формат ответа аутентификатора' });
+    }
+
     const clientData = JSON.parse(Buffer.from(response.response.clientDataJSON, 'base64url').toString());
     const challengeRow = consumeChallenge(db, clientData.challenge, 'registration');
     if (!challengeRow || challengeRow.user_id !== userId) {
@@ -131,6 +142,7 @@ router.post('/register/verify', authMiddleware, async (req, res, next) => {
     } catch (verifyErr) {
       // simplewebauthn v9 throws on validation failures (origin/RP_ID mismatch,
       // invalid signature, etc.) instead of returning {verified: false}.
+      logger.error('[WebAuthn]', 'register/verify failed', verifyErr, { userId, origin, rpID });
       return res.status(400).json({ error: 'Верификация ключа доступа не прошла' });
     }
 
