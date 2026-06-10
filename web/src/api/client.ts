@@ -63,6 +63,19 @@ async function tryRefreshToken(): Promise<string | null> {
   }
 }
 
+/**
+ * Обновить access-токен (дедуплицировано: параллельные вызовы ждут один refresh).
+ * Используется интерсептором ниже и socketClient'ом перед/при провале WS-handshake.
+ * Возвращает новый токен или null (нет refresh-токена / refresh провалился —
+ * в последнем случае tryRefreshToken сам чистит сессию и редиректит на логин).
+ */
+export function refreshAccessToken(): Promise<string | null> {
+  if (!refreshPromise) {
+    refreshPromise = tryRefreshToken().finally(() => { refreshPromise = null; });
+  }
+  return refreshPromise;
+}
+
 client.interceptors.response.use(
   (r) => r,
   async (err) => {

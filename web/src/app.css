@@ -4415,7 +4415,7 @@ input[type="date"].psInput::-webkit-calendar-picker-indicator {
   color: var(--muted);
   margin-top: 2px;
 }
-.out .bubbleFileSize { color: rgba(255,255,255,.6); }
+.out .bubbleFileSize { color: inherit; opacity: .65; }
 .bubbleFileDownloadBtn {
   width: 30px;
   height: 30px;
@@ -13380,3 +13380,45 @@ input[type="date"].psInput::-webkit-calendar-picker-indicator {
 @media (max-width: 480px) {
   .apBgPresets { grid-template-columns: repeat(2, 1fr); }
 }
+
+/* ── 10. Контент внутри исходящего пузыря — всё от «чернил» пузыря ────
+   Иконки файлов, «Переслано от», цитаты-ответы: цвета считаются от
+   currentColor (--bubble-ink с авто-контрастом), а не от палитры темы,
+   поэтому читаемы на любом пользовательском акценте. ────────────────── */
+.msg.out .bubble .bubbleFileName { color: inherit; }
+.msg.out .bubble .bubbleFileDownloadBtn {
+  background: color-mix(in srgb, currentColor 16%, transparent);
+  color: inherit;
+}
+/* инлайновые цвета по расширению (DOC синий и т.п.) гасим на стеклянный вариант */
+.msg.out .bubble .bubbleFileIcon {
+  background: color-mix(in srgb, currentColor 13%, transparent) !important;
+  border-color: color-mix(in srgb, currentColor 40%, transparent) !important;
+}
+.msg.out .bubble .bubbleFileIcon svg path,
+.msg.out .bubble .bubbleFileIcon svg polyline {
+  stroke: currentColor;
+}
+.msg.out .bubble .bubbleFileIcon svg path {
+  fill: color-mix(in srgb, currentColor 18%, transparent);
+}
+.msg.out .bubble .bubbleFileIconLabel { color: inherit !important; }
+
+.msg.out .bubble .bubbleForwardedBadge {
+  color: inherit;
+  opacity: .9;
+  border-bottom-color: color-mix(in srgb, currentColor 30%, transparent);
+}
+.msg.out .bubble .bubbleForwardedName {
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.msg.out .bubble .bubbleReply {
+  border-left-color: currentColor;
+  background: color-mix(in srgb, currentColor 12%, transparent);
+}
+.msg.out .bubble .bubbleReplySender { color: inherit; }
+.msg.out .bubble .bubbleReplyText { color: inherit; opacity: .78; }
+.msg.out .bubble .bubbleReplyExpand { color: inherit; opacity: .85; text-decoration: underline; }

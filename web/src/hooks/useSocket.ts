@@ -64,6 +64,9 @@ export function useSocket() {
       });
       // Eagerly warm up sticker/emoji cache so packs open instantly
       useStickerStore.getState().fetchInstalledPacks();
+      // Перезагружаем список чатов: после долгого сна/оффлайна подписанные
+      // S3-ссылки аватарок (TTL 1 час) протухают — свежий fetch их переподписывает.
+      useChatsStore.getState().loadChats();
     };
     socket.on('connect', onConnect);
 
