@@ -1,46 +1,54 @@
-/* ── Theme variables ────────────────────────────────────────────────── */
+@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&subset=cyrillic&display=swap');
+
+/* ── Theme variables — «Аврора» ─────────────────────────────────────── */
 :root {
-  --bg: #0e1117;
-  --sidebar: #161b22;
-  --panel: #1c2333;
-  --border: rgba(255,255,255,0.07);
-  --text: #e6edf3;
-  --muted: #7d8590;
-  --accent: #2f81f7;
-  --accent-dim: rgba(47,129,247,0.15);
-  --accent-border: rgba(47,129,247,0.35);
-  --danger: #f85149;
-  --danger-dim: rgba(248,81,73,0.12);
-  --success: #3fb950;
-  --success-dim: rgba(63,185,80,0.12);
-  --radius: 12px;
-  --shadow: 0 4px 24px rgba(0,0,0,0.4);
-  --card: #1c2333;
+  --bg: #0b0911;
+  --sidebar: #131019;
+  --panel: #1e1930;
+  --border: rgba(173,153,255,0.11);
+  --text: #efecf9;
+  --muted: #8e87a8;
+  --accent: #8e75f2;
+  --accent-2: #e26ec1;
+  --accent-dim: rgba(142,117,242,0.16);
+  --accent-border: rgba(142,117,242,0.40);
+  --danger: #ff6166;
+  --danger-dim: rgba(255,97,102,0.13);
+  --success: #44d49a;
+  --success-dim: rgba(68,212,154,0.13);
+  --radius: 14px;
+  --shadow: 0 10px 36px rgba(8,4,20,0.55);
+  --card: #1e1930;
+  --grad-accent: linear-gradient(135deg, #7a5cf0 0%, #b65bdc 55%, #e26ec1 100%);
+  --glow: 0 4px 18px rgba(142,117,242,0.35);
   color-scheme: dark;
 }
 :root[data-theme="light"] {
-  --bg: #f0f2f5;
-  --sidebar: #ffffff;
-  --panel: #e9ecf0;
-  --border: rgba(0,0,0,0.08);
-  --text: #111827;
-  --muted: #6b7280;
-  --accent: #2563eb;
-  --accent-dim: rgba(37,99,235,0.1);
-  --accent-border: rgba(37,99,235,0.3);
-  --danger: #dc2626;
-  --danger-dim: rgba(220,38,38,0.08);
-  --success: #16a34a;
-  --success-dim: rgba(22,163,74,0.1);
-  --shadow: 0 4px 24px rgba(0,0,0,0.12);
+  --bg: #f3f1fa;
+  --sidebar: #fbfaff;
+  --panel: #ece8f6;
+  --border: rgba(76,54,150,0.11);
+  --text: #221c38;
+  --muted: #6f6890;
+  --accent: #6d4ce0;
+  --accent-2: #c4459f;
+  --accent-dim: rgba(109,76,224,0.10);
+  --accent-border: rgba(109,76,224,0.32);
+  --danger: #d92d4c;
+  --danger-dim: rgba(217,45,76,0.09);
+  --success: #0e9f6e;
+  --success-dim: rgba(14,159,110,0.10);
+  --shadow: 0 10px 36px rgba(60,40,120,0.14);
   --card: #ffffff;
+  --grad-accent: linear-gradient(135deg, #6d4ce0 0%, #9a4fd0 55%, #c4459f 100%);
+  --glow: 0 4px 18px rgba(109,76,224,0.28);
   color-scheme: light;
 }
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 html, body, #root { height: 100%; }
 body {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  font-family: 'Manrope', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
   background: var(--bg);
   color: var(--text);
   font-size: 14px;
@@ -55,7 +63,7 @@ input { font: inherit; color: inherit; background: transparent; }
   height: 100%;
   display: grid;
   place-items: center;
-  background: radial-gradient(ellipse 80% 60% at 50% -10%, rgba(47,129,247,0.18), transparent 70%),
+  background: radial-gradient(ellipse 80% 60% at 50% -10%, rgba(142,117,242,0.18), transparent 70%),
     var(--bg);
   padding: 16px;
   position: relative;
@@ -145,7 +153,7 @@ input { font: inherit; color: inherit; background: transparent; }
   font-size: 14px;
   transition: border-color .15s, box-shadow .15s;
 }
-.authInput:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(47,129,247,.12); }
+.authInput:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(142,117,242,.12); }
 .authInputWrap { position: relative; }
 .authInputWrap .authInput { padding-right: 42px; }
 .authEye {
@@ -439,7 +447,7 @@ input { font: inherit; color: inherit; background: transparent; }
   border: 2px solid var(--sidebar);
   pointer-events: none;
 }
-.chatItem.active .ciAvatar { background: rgba(47,129,247,.25); color: var(--accent); }
+.chatItem.active .ciAvatar { background: rgba(142,117,242,.25); color: var(--accent); }
 .ciBody { flex: 1; min-width: 0; }
 .ciTop { display: flex; justify-content: space-between; align-items: baseline; gap: 6px; }
 .ciName { font-weight: 600; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -836,12 +844,12 @@ input { font: inherit; color: inherit; background: transparent; }
   cursor: pointer;
   display: flex; align-items: center; justify-content: center;
   flex-shrink: 0;
-  box-shadow: 0 2px 8px rgba(47,129,247,.35);
+  box-shadow: 0 2px 8px rgba(142,117,242,.35);
   transition: background .15s, transform .1s, box-shadow .15s;
 }
 .miniPlayerPlayBtn:hover {
   background: color-mix(in srgb, var(--accent) 80%, #fff);
-  box-shadow: 0 3px 12px rgba(47,129,247,.5);
+  box-shadow: 0 3px 12px rgba(142,117,242,.5);
 }
 .miniPlayerPlayBtn:active { transform: scale(.91); }
 
@@ -1007,7 +1015,7 @@ input { font: inherit; color: inherit; background: transparent; }
   border-radius: 14px;
   transition: border-color .15s;
 }
-.composerInputWrap:focus-within { border-color: rgba(47,129,247,.4); }
+.composerInputWrap:focus-within { border-color: rgba(142,117,242,.4); }
 
 /* Spoiler hint inside the contenteditable composer */
 .composerSpoilerHint {
@@ -1487,7 +1495,7 @@ input { font: inherit; color: inherit; background: transparent; }
   font-weight: 600;
   transition: background .15s;
 }
-.memberChip:hover { background: rgba(47,129,247,.25); }
+.memberChip:hover { background: rgba(142,117,242,.25); }
 .memberChipAvatar {
   width: 20px; height: 20px;
   border-radius: 6px;
@@ -1846,7 +1854,7 @@ input { font: inherit; color: inherit; background: transparent; }
   font-size: 13.5px; font-weight: 600;
   border: 1px solid var(--accent-border); transition: background .15s;
 }
-.ppSettingsBtn:hover { background: rgba(47,129,247,.25); }
+.ppSettingsBtn:hover { background: rgba(142,117,242,.25); }
 
 /* ── Chat header clickable button ───────────────────────────────────── */
 .chHeaderBtn {
@@ -2008,7 +2016,7 @@ input { font: inherit; color: inherit; background: transparent; }
 .upAliasBadge {
   display: inline-flex; align-items: center; gap: 4px;
   color: var(--accent); font-size: 12px; margin-top: 4px;
-  background: rgba(47,129,247,.12); padding: 2px 9px 2px 7px;
+  background: rgba(142,117,242,.12); padding: 2px 9px 2px 7px;
   border-radius: 20px; font-weight: 500;
 }
 .upBlockedBadge {
@@ -2406,7 +2414,7 @@ input { font: inherit; color: inherit; background: transparent; }
   border-radius: 16px;
   overflow: hidden;
   flex-shrink: 0;
-  background: var(--accent-dim, rgba(47,129,247,0.15));
+  background: var(--accent-dim, rgba(142,117,242,0.15));
   display: flex;
   align-items: center;
   justify-content: center;
@@ -2415,7 +2423,7 @@ input { font: inherit; color: inherit; background: transparent; }
 .psHubAvatarLetter {
   font-size: 22px;
   font-weight: 700;
-  color: var(--accent, #2f81f7);
+  color: var(--accent, #8e75f2);
   line-height: 1;
 }
 .psHubProfileInfo { flex: 1; min-width: 0; }
@@ -3676,14 +3684,14 @@ input[type="date"].psInput::-webkit-calendar-picker-indicator {
   border-radius: 0;
 }
 .fmtBtn:hover  { background: var(--panel); }
-.fmtBtn:active { background: rgba(47,129,247,0.1); color: var(--accent); }
+.fmtBtn:active { background: rgba(142,117,242,0.1); color: var(--accent); }
 .fmtBtnIcon   { padding: 0 11px; color: var(--muted); }
 .fmtBtnBack   { color: var(--accent); }
 .fmtBtnNext   { gap: 4px; }
 .fmtBtnFmt    { padding: 0 11px; font-size: 15px; color: var(--text); }
 .fmtBtnSpoiler { color: var(--muted); }
-.fmtBtnActive  { background: rgba(47,129,247,0.12); color: var(--accent); }
-.fmtBtnActive:hover { background: rgba(47,129,247,0.18); }
+.fmtBtnActive  { background: rgba(142,117,242,0.12); color: var(--accent); }
+.fmtBtnActive:hover { background: rgba(142,117,242,0.18); }
 .fmtBtnReset   { font-size: 12px; color: var(--muted); padding: 0 10px; }
 .fmtSep {
   width: 1px;
@@ -3704,11 +3712,11 @@ input[type="date"].psInput::-webkit-calendar-picker-indicator {
   min-width: 0;
   font-family: inherit;
 }
-.fmtLinkInput:focus { border-color: var(--accent, #2f81f7); }
+.fmtLinkInput:focus { border-color: var(--accent, #8e75f2); }
 .fmtBtnApply {
   height: 32px;
   padding: 0 14px;
-  background: var(--accent, #2f81f7);
+  background: var(--accent, #8e75f2);
   color: #fff;
   border-radius: 8px;
   font-size: 13px;
@@ -4539,12 +4547,12 @@ input[type="date"].psInput::-webkit-calendar-picker-indicator {
   width: 20px;
   height: 20px;
   border-radius: 50%;
-  background: linear-gradient(135deg, #2f81f7, #5fa8ff);
+  background: linear-gradient(135deg, #8e75f2, #5fa8ff);
   color: #fff;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 0 0 2.5px var(--card), 0 3px 10px rgba(47,129,247,.55);
+  box-shadow: 0 0 0 2.5px var(--card), 0 3px 10px rgba(142,117,242,.55);
   z-index: 2;
   animation: pinBadgePop .3s cubic-bezier(.34,1.56,.64,1);
 }
@@ -7291,7 +7299,7 @@ input[type="date"].psInput::-webkit-calendar-picker-indicator {
   padding: 9px 22px;
   border-radius: 10px;
   border: none;
-  background: var(--accent, #2f81f7);
+  background: var(--accent, #8e75f2);
   color: #fff;
   font-size: 14px;
   font-weight: 600;
@@ -7422,7 +7430,7 @@ input[type="date"].psInput::-webkit-calendar-picker-indicator {
   padding: 7px 16px;
   border-radius: 8px;
   border: none;
-  background: var(--accent, #2f81f7);
+  background: var(--accent, #8e75f2);
   color: #fff;
   font-size: 13px;
   font-weight: 600;
@@ -10583,7 +10591,7 @@ input[type="date"].psInput::-webkit-calendar-picker-indicator {
   cursor: pointer;
   transition: background 0.15s;
 }
-.cmLoadMore:hover { background: rgba(47,129,247,0.22); }
+.cmLoadMore:hover { background: rgba(142,117,242,0.22); }
 
 /* ── Media grid (images / video / gif) ───────────────���─────────────────── */
 .cmMediaGrid {
@@ -10799,7 +10807,7 @@ input[type="date"].psInput::-webkit-calendar-picker-indicator {
   cursor: pointer;
 }
 .cmLinkCard:hover {
-  background: rgba(47,129,247,0.07);
+  background: rgba(142,117,242,0.07);
   border-color: var(--accent-border);
 }
 .cmLinkThumb {
@@ -11867,7 +11875,10 @@ input[type="date"].psInput::-webkit-calendar-picker-indicator {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(160deg, #0d1117 0%, #161b22 100%);
+  background:
+    radial-gradient(ellipse 70% 50% at 50% 0%, rgba(142,117,242,0.18), transparent 70%),
+    radial-gradient(ellipse 60% 45% at 80% 100%, rgba(226,110,193,0.10), transparent 70%),
+    linear-gradient(160deg, #0b0911 0%, #1a1428 100%);
   animation: fadeInCall 0.3s ease;
 }
 
@@ -13084,3 +13095,122 @@ input[type="date"].psInput::-webkit-calendar-picker-indicator {
 }
 .authPasskeyBtn:hover:not(:disabled) { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 8%, var(--bg-secondary)); }
 .authPasskeyBtn:disabled { opacity: .5; cursor: not-allowed; }
+
+/* ════════════════════════════════════════════════════════════════════
+   Редизайн «Аврора» — финальный слой полировки.
+   Переопределяет ключевые визуальные акценты поверх базовых стилей.
+   ════════════════════════════════════════════════════════════════════ */
+
+::selection { background: rgba(142,117,242,.35); }
+
+:root[data-theme="light"] ::selection { background: rgba(109,76,224,.22); }
+
+/* Аврора-фон на экране входа */
+.authWrap {
+  background:
+    radial-gradient(ellipse 70% 55% at 15% -10%, rgba(122,92,240,0.22), transparent 65%),
+    radial-gradient(ellipse 55% 45% at 90% 10%, rgba(226,110,193,0.14), transparent 65%),
+    radial-gradient(ellipse 60% 50% at 50% 115%, rgba(68,212,154,0.08), transparent 70%),
+    var(--bg);
+}
+.authCard {
+  border-radius: 24px;
+  background: color-mix(in srgb, var(--sidebar) 86%, transparent);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+}
+.authTitle {
+  background: var(--grad-accent);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+  letter-spacing: 0.09em;
+}
+
+/* Главные кнопки — фирменный градиент со свечением */
+.authBtn {
+  background: var(--grad-accent);
+  box-shadow: var(--glow);
+}
+.authBtn:hover:not(:disabled) { opacity: 1; filter: brightness(1.08); transform: translateY(-1px); }
+.composerSend {
+  background: var(--grad-accent);
+  border-radius: 14px;
+  box-shadow: var(--glow);
+}
+.composerSend:not(:disabled):hover { opacity: 1; filter: brightness(1.08); transform: scale(1.05); }
+.ciBadge { background: var(--grad-accent); }
+.ciBadgeMuted { background: var(--muted); }
+
+/* Пузыри сообщений */
+.bubble { border-radius: 18px; }
+.msg.in .bubble {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 6px 18px 18px 18px;
+}
+.msg.out .bubble {
+  background: linear-gradient(135deg, rgba(122,92,240,.28), rgba(226,110,193,.16));
+  border: 1px solid var(--accent-border);
+  border-radius: 18px 6px 18px 18px;
+}
+:root[data-theme="light"] .msg.out .bubble {
+  background: linear-gradient(135deg, rgba(109,76,224,.13), rgba(196,69,159,.09));
+}
+
+/* Фон зоны переписки — едва заметное сияние */
+.chatArea {
+  background:
+    radial-gradient(ellipse 80% 60% at 85% -5%, rgba(122,92,240,0.07), transparent 60%),
+    radial-gradient(ellipse 70% 50% at 0% 105%, rgba(226,110,193,0.05), transparent 60%),
+    var(--bg);
+}
+
+/* Активный чат в списке */
+.chatItem { border-radius: 14px; }
+.chatItem.active {
+  background: linear-gradient(90deg, var(--accent-dim), color-mix(in srgb, var(--accent-2) 9%, transparent));
+  box-shadow: inset 0 0 0 1px var(--accent-border);
+}
+
+/* Точка «онлайн» — мягкое свечение */
+.ciOnlineDot {
+  background: var(--success);
+  box-shadow: 0 0 6px color-mix(in srgb, var(--success) 70%, transparent);
+}
+
+/* Меню, панели и модалки — крупнее радиус, глубже тень */
+.ctxMenu {
+  border-radius: 14px;
+  box-shadow: var(--shadow);
+  background: color-mix(in srgb, var(--panel) 94%, transparent);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+}
+.modalCard { border-radius: 22px; }
+.profilePanel {
+  border-radius: 18px;
+  background: color-mix(in srgb, var(--sidebar) 92%, transparent);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+}
+
+/* Композер */
+.composerInputWrap { border-radius: 16px; }
+.composerInputWrap:focus-within {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-dim);
+}
+
+/* Скроллбары с лёгким акцентом */
+.messages::-webkit-scrollbar-thumb,
+.chatList::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, var(--accent) 28%, transparent);
+  border-radius: 4px;
+}
+
+/* Сайдбар — едва заметный вертикальный градиент */
+.sidebar {
+  background: linear-gradient(180deg, var(--sidebar), color-mix(in srgb, var(--sidebar) 95%, var(--accent)));
+}
