@@ -8,7 +8,7 @@
  *
  * Tabs appear only when the query is ≥ 2 chars.
  */
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, type ReactNode } from 'react';
 import { Avatar, resolveUrl } from '../ui/Avatar';
 import { useSearch } from '../../hooks/useSearch';
 import { globalSearch, type GlobalSearchResult, type ChatSearchResult, type MessageSearchResult } from '../../api/search';
@@ -32,7 +32,13 @@ function formatTime(ts: number): string {
   return d.toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit' });
 }
 
-function highlightSnippet(text: string, query: string): string {
+/**
+ * Build a search-result snippet with the matched term wrapped in <mark>.
+ * Rendered via React (NOT dangerouslySetInnerHTML): `text` is another user's
+ * message body, so injecting it as raw HTML would be a stored-XSS vector.
+ * Returning ReactNode lets React escape the text automatically.
+ */
+function highlightSnippet(text: string, query: string): ReactNode {
   if (!text) return '';
   // find the position of the match, show up to 80 chars around it
   const lower = text.toLowerCase();
@@ -43,9 +49,16 @@ function highlightSnippet(text: string, query: string): string {
     const start = Math.max(0, idx - 30);
     snippet = (start > 0 ? '…' : '') + text.slice(start, start + 80) + (start + 80 < text.length ? '…' : '');
   }
-  // Wrap the matched word with <mark> (safe — no user-controlled HTML, query comes from our own input)
+  if (!q) return snippet;
+  // Split on the (case-insensitive) match and wrap hits in <mark>.
+  // React renders each part as a text node, so any HTML in `snippet` is inert.
   const escaped = q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  return snippet.replace(new RegExp(`(${escaped})`, 'gi'), '<mark>$1</mark>');
+  const parts = snippet.split(new RegExp(`(${escaped})`, 'gi'));
+  return parts.map((part, i) =>
+    part.toLowerCase() === q
+      ? <mark key={i}>{part}</mark>
+      : part,
+  );
 }
 
 // Small generic avatar square used for chat/message results
@@ -247,10 +260,9 @@ export function UserSearch() {
                   <MsgIcon size={34} />
                   <div className="srMsgBody">
                     <div className="srMsgChat">{m.chat_name}</div>
-                    <div
-                      className="srMsgSnippet"
-                      dangerouslySetInnerHTML={{ __html: highlightSnippet(m.text, query.trim()) }}
-                    />
+                    <div className="srMsgSnippet">
+                      {highlightSnippet(m.text, query.trim())}
+                    </div>
                   </div>
                   <div className="srMsgTime">{formatTime(m.created_at)}</div>
                 </button>
