@@ -9,7 +9,10 @@
   --text: #efecf9;
   --muted: #8e87a8;
   --accent: #8e75f2;
-  --accent-2: #e26ec1;
+  /* --accent-2 — компаньон акцента для градиентов: вычисляется из --accent,
+     чтобы пользовательский выбор цвета (utils/accent.ts) перекрашивал весь дизайн */
+  --accent-2: color-mix(in oklch, var(--accent) 55%, #ffd9f2);
+  --accent-2: oklch(from var(--accent) calc(l + 0.07) calc(c * 0.95) calc(h + 45));
   --accent-dim: rgba(142,117,242,0.16);
   --accent-border: rgba(142,117,242,0.40);
   --danger: #ff6166;
@@ -19,29 +22,28 @@
   --radius: 14px;
   --shadow: 0 10px 36px rgba(8,4,20,0.55);
   --card: #1e1930;
-  --grad-accent: linear-gradient(135deg, #7a5cf0 0%, #b65bdc 55%, #e26ec1 100%);
-  --glow: 0 4px 18px rgba(142,117,242,0.35);
+  --grad-accent: linear-gradient(135deg, var(--accent) 0%, var(--accent-2) 100%);
+  --glow: 0 4px 18px color-mix(in srgb, var(--accent) 35%, transparent);
   color-scheme: dark;
 }
 :root[data-theme="light"] {
-  --bg: #f3f1fa;
-  --sidebar: #fbfaff;
-  --panel: #ece8f6;
-  --border: rgba(76,54,150,0.11);
-  --text: #221c38;
-  --muted: #6f6890;
+  /* Тёплая «бумажная» светлая тема; --accent-2/--grad-accent/--glow наследуются
+     из :root и пересчитываются от светлого --accent автоматически */
+  --bg: #f7f4ee;
+  --sidebar: #fffdf9;
+  --panel: #efeae2;
+  --border: rgba(82,62,120,0.11);
+  --text: #271f3a;
+  --muted: #6f6788;
   --accent: #6d4ce0;
-  --accent-2: #c4459f;
   --accent-dim: rgba(109,76,224,0.10);
   --accent-border: rgba(109,76,224,0.32);
   --danger: #d92d4c;
   --danger-dim: rgba(217,45,76,0.09);
   --success: #0e9f6e;
   --success-dim: rgba(14,159,110,0.10);
-  --shadow: 0 10px 36px rgba(60,40,120,0.14);
+  --shadow: 0 10px 36px rgba(80,60,130,0.13);
   --card: #ffffff;
-  --grad-accent: linear-gradient(135deg, #6d4ce0 0%, #9a4fd0 55%, #c4459f 100%);
-  --glow: 0 4px 18px rgba(109,76,224,0.28);
   color-scheme: light;
 }
 
@@ -13096,28 +13098,164 @@ input[type="date"].psInput::-webkit-calendar-picker-indicator {
 .authPasskeyBtn:hover:not(:disabled) { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 8%, var(--bg-secondary)); }
 .authPasskeyBtn:disabled { opacity: .5; cursor: not-allowed; }
 
+
 /* ════════════════════════════════════════════════════════════════════
-   Редизайн «Аврора» — финальный слой полировки.
-   Переопределяет ключевые визуальные акценты поверх базовых стилей.
+   Редизайн «Аврора 2.0» — финальный слой.
+   Единая «сцена» со стеклянными панелями, градиентные пузыри от акцента
+   пользователя, группировка сообщений, микро-анимации, круглые аватары.
+   Все цвета — от var(--accent), чтобы работал выбор акцента в настройках.
    ════════════════════════════════════════════════════════════════════ */
 
-::selection { background: rgba(142,117,242,.35); }
+::selection { background: color-mix(in srgb, var(--accent) 32%, transparent); }
 
-:root[data-theme="light"] ::selection { background: rgba(109,76,224,.22); }
+/* ── 1. Единая сцена: общий аврора-фон, панели — стекло ─────────────── */
+.layout {
+  background:
+    radial-gradient(ellipse 55% 45% at 6% 0%, color-mix(in srgb, var(--accent) 11%, transparent), transparent 65%),
+    radial-gradient(ellipse 50% 40% at 100% 14%, color-mix(in srgb, var(--accent-2) 8%, transparent), transparent 65%),
+    radial-gradient(ellipse 70% 50% at 55% 112%, color-mix(in srgb, var(--accent) 6%, transparent), transparent 70%),
+    var(--bg);
+}
+.sidebar {
+  background: color-mix(in srgb, var(--sidebar) 72%, transparent);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+}
+.chatArea { background: transparent; }
+.chatHeader {
+  background: color-mix(in srgb, var(--sidebar) 52%, transparent);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+}
 
-/* Аврора-фон на экране входа */
+/* ── 2. Пузыри: градиент от акцента у исходящих, группировка серий ──── */
+.bubble { border-radius: 18px; }
+.msg.in .bubble {
+  background: color-mix(in srgb, var(--panel) 92%, transparent);
+  border: 1px solid var(--border);
+  border-radius: 18px;
+}
+.msg.out .bubble {
+  /* авто-контраст: тёмный текст на светлом акценте, белый — на тёмном */
+  --bubble-ink: #fff;
+  --bubble-ink: lch(from var(--accent) calc((67 - l) * infinity) 0 0);
+  color: var(--bubble-ink);
+  background: linear-gradient(135deg, color-mix(in oklch, var(--accent) 94%, black) 0%, color-mix(in oklch, var(--accent) 76%, var(--accent-2)) 100%);
+  border: none;
+  border-radius: 18px;
+  box-shadow: 0 2px 10px color-mix(in srgb, var(--accent) 22%, transparent);
+}
+/* текст, время, статусы и ссылки внутри исходящего — в цвет чернил пузыря */
+.msg.out .bubble .bubbleTime { color: inherit; opacity: .72; }
+.msg.out .bubble .msgStatus.sent,
+.msg.out .bubble .msgStatus.sending { color: inherit; opacity: .72; }
+.msg.out .bubble .msgStatus.read {
+  color: inherit;
+  filter: drop-shadow(0 0 3px color-mix(in srgb, currentColor 45%, transparent));
+}
+.msg.out .bubble .bubbleLink { color: inherit; text-decoration: underline; }
+/* группировка: серия сообщений одного направления визуально склеивается */
+.msg.out + .msg.out .bubble { border-top-right-radius: 7px; }
+.msg.out:has(+ .msg.out) .bubble { border-bottom-right-radius: 7px; }
+.msg.in + .msg.in .bubble { border-top-left-radius: 7px; }
+.msg.in:has(+ .msg.in) .bubble { border-bottom-left-radius: 7px; }
+/* «хвостик» — у последнего сообщения серии */
+.msg.out:not(:has(+ .msg.out)) .bubble { border-bottom-right-radius: 5px; }
+.msg.in:not(:has(+ .msg.in)) .bubble { border-bottom-left-radius: 5px; }
+
+/* ── 3. Микро-анимации ──────────────────────────────────────────────── */
+@keyframes auroraMsgIn {
+  from { opacity: 0; transform: translateY(6px) scale(.985); }
+  to   { opacity: 1; transform: none; }
+}
+.msg { animation: auroraMsgIn .22s ease both; }
+@keyframes auroraPop {
+  from { opacity: 0; transform: scale(.96) translateY(8px); }
+  to   { opacity: 1; transform: none; }
+}
+.modalCard { border-radius: 22px; animation: auroraPop .2s cubic-bezier(.2,.8,.3,1.1); }
+.chatItem { position: relative; border-radius: 14px; transition: background .15s, transform .15s ease; }
+.chatItem:hover { transform: translateX(2px); }
+.composerSend:not(:disabled):active { transform: scale(.9); }
+.authBtn:not(:disabled):active { transform: translateY(0) scale(.98); }
+
+/* ── 4. Список чатов ────────────────────────────────────────────────── */
+.chatItem.active {
+  background: linear-gradient(90deg, var(--accent-dim), color-mix(in srgb, var(--accent-2) 9%, transparent));
+}
+.chatItem.active::before {
+  content: '';
+  position: absolute;
+  left: 0; top: 22%; bottom: 22%;
+  width: 3px;
+  border-radius: 3px;
+  background: var(--grad-accent);
+}
+.ciBadge { background: var(--grad-accent); }
+.ciBadgeMuted { background: var(--muted); }
+.ciOnlineDot {
+  background: var(--success);
+  bottom: 0; right: 0;
+  box-shadow: 0 0 6px color-mix(in srgb, var(--success) 70%, transparent);
+}
+
+/* ── 5. Круглые аватары (везде, включая группы) ─────────────────────── */
+.ciAvatar, .ciAvatarPhoto, .ciAvatarSaved,
+.srAvatar, .meAvatar, .chAvatar, .chAvatarSaved,
+.chAvatarWrap, .chAvatarWrap.group,
+.fwdItemAvatarSaved, .memberChipAvatar, .modalUserAvatar,
+.msgSenderAvatarBtn, .msgSenderAvatarBtn img,
+.upAvatar, .upAvatarRing, .giAvatarFallback,
+.psHubAvatar, .psAvatarWrap, .psAvatarImg, .psAvatarFallback, .psAvatarOverlay,
+.incomingCallAvatar, .callAvatarWrap, .callAvatarPulse, .nsMemberAvatar {
+  border-radius: 50%;
+}
+
+/* ── 6. Композер: плавающая капсула ─────────────────────────────────── */
+.composer {
+  border-top: none;
+  background: transparent;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  padding: 6px 14px 14px;
+}
+.composerInputWrap {
+  background: color-mix(in srgb, var(--panel) 88%, transparent);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border-radius: 22px;
+  box-shadow: 0 6px 22px color-mix(in srgb, var(--bg) 55%, transparent);
+}
+.composerInputWrap:focus-within {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-dim), 0 6px 22px color-mix(in srgb, var(--bg) 55%, transparent);
+}
+.composerSend {
+  background: var(--grad-accent);
+  border-radius: 50%;
+  box-shadow: var(--glow);
+}
+.composerSend:not(:disabled):hover { opacity: 1; filter: brightness(1.08); transform: scale(1.05); }
+
+/* ── 7. Экран входа: живая аврора ───────────────────────────────────── */
 .authWrap {
   background:
-    radial-gradient(ellipse 70% 55% at 15% -10%, rgba(122,92,240,0.22), transparent 65%),
-    radial-gradient(ellipse 55% 45% at 90% 10%, rgba(226,110,193,0.14), transparent 65%),
-    radial-gradient(ellipse 60% 50% at 50% 115%, rgba(68,212,154,0.08), transparent 70%),
+    radial-gradient(ellipse 60% 55% at 18% 0%, color-mix(in srgb, var(--accent) 20%, transparent), transparent 65%),
+    radial-gradient(ellipse 50% 45% at 85% 12%, color-mix(in srgb, var(--accent-2) 13%, transparent), transparent 65%),
+    radial-gradient(ellipse 60% 50% at 50% 115%, color-mix(in srgb, var(--success) 7%, transparent), transparent 70%),
     var(--bg);
+  background-size: 170% 170%, 170% 170%, 170% 170%;
+  animation: auroraShift 26s ease-in-out infinite alternate;
+}
+@keyframes auroraShift {
+  from { background-position: 0% 0%, 100% 0%, 50% 100%; }
+  to   { background-position: 80% 45%, 10% 55%, 35% 60%; }
 }
 .authCard {
   border-radius: 24px;
-  background: color-mix(in srgb, var(--sidebar) 86%, transparent);
-  backdrop-filter: blur(18px);
-  -webkit-backdrop-filter: blur(18px);
+  background: color-mix(in srgb, var(--sidebar) 84%, transparent);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
 }
 .authTitle {
   background: var(--grad-accent);
@@ -13125,62 +13263,15 @@ input[type="date"].psInput::-webkit-calendar-picker-indicator {
   background-clip: text;
   -webkit-text-fill-color: transparent;
   color: transparent;
-  letter-spacing: 0.09em;
+  letter-spacing: .09em;
 }
-
-/* Главные кнопки — фирменный градиент со свечением */
 .authBtn {
   background: var(--grad-accent);
   box-shadow: var(--glow);
 }
 .authBtn:hover:not(:disabled) { opacity: 1; filter: brightness(1.08); transform: translateY(-1px); }
-.composerSend {
-  background: var(--grad-accent);
-  border-radius: 14px;
-  box-shadow: var(--glow);
-}
-.composerSend:not(:disabled):hover { opacity: 1; filter: brightness(1.08); transform: scale(1.05); }
-.ciBadge { background: var(--grad-accent); }
-.ciBadgeMuted { background: var(--muted); }
 
-/* Пузыри сообщений */
-.bubble { border-radius: 18px; }
-.msg.in .bubble {
-  background: var(--panel);
-  border: 1px solid var(--border);
-  border-radius: 6px 18px 18px 18px;
-}
-.msg.out .bubble {
-  background: linear-gradient(135deg, rgba(122,92,240,.28), rgba(226,110,193,.16));
-  border: 1px solid var(--accent-border);
-  border-radius: 18px 6px 18px 18px;
-}
-:root[data-theme="light"] .msg.out .bubble {
-  background: linear-gradient(135deg, rgba(109,76,224,.13), rgba(196,69,159,.09));
-}
-
-/* Фон зоны переписки — едва заметное сияние */
-.chatArea {
-  background:
-    radial-gradient(ellipse 80% 60% at 85% -5%, rgba(122,92,240,0.07), transparent 60%),
-    radial-gradient(ellipse 70% 50% at 0% 105%, rgba(226,110,193,0.05), transparent 60%),
-    var(--bg);
-}
-
-/* Активный чат в списке */
-.chatItem { border-radius: 14px; }
-.chatItem.active {
-  background: linear-gradient(90deg, var(--accent-dim), color-mix(in srgb, var(--accent-2) 9%, transparent));
-  box-shadow: inset 0 0 0 1px var(--accent-border);
-}
-
-/* Точка «онлайн» — мягкое свечение */
-.ciOnlineDot {
-  background: var(--success);
-  box-shadow: 0 0 6px color-mix(in srgb, var(--success) 70%, transparent);
-}
-
-/* Меню, панели и модалки — крупнее радиус, глубже тень */
+/* ── 8. Меню, панели, скроллбары ────────────────────────────────────── */
 .ctxMenu {
   border-radius: 14px;
   box-shadow: var(--shadow);
@@ -13188,29 +13279,26 @@ input[type="date"].psInput::-webkit-calendar-picker-indicator {
   backdrop-filter: blur(14px);
   -webkit-backdrop-filter: blur(14px);
 }
-.modalCard { border-radius: 22px; }
 .profilePanel {
   border-radius: 18px;
-  background: color-mix(in srgb, var(--sidebar) 92%, transparent);
-  backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
+  background: color-mix(in srgb, var(--sidebar) 90%, transparent);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
 }
-
-/* Композер */
-.composerInputWrap { border-radius: 16px; }
-.composerInputWrap:focus-within {
-  border-color: var(--accent);
-  box-shadow: 0 0 0 3px var(--accent-dim);
-}
-
-/* Скроллбары с лёгким акцентом */
 .messages::-webkit-scrollbar-thumb,
 .chatList::-webkit-scrollbar-thumb {
   background: color-mix(in srgb, var(--accent) 28%, transparent);
   border-radius: 4px;
 }
 
-/* Сайдбар — едва заметный вертикальный градиент */
-.sidebar {
-  background: linear-gradient(180deg, var(--sidebar), color-mix(in srgb, var(--sidebar) 95%, var(--accent)));
+/* ── 9. Доступность: уважение reduced-motion ────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  .msg, .modalCard { animation: none; }
+  .authWrap { animation: none; }
+  .chatItem, .chatItem:hover { transform: none; transition: background .15s; }
 }
+
+/* Кнопки голосовых/кружков: градиент в активных состояниях, как у composerSend */
+.composerMicLocked,
+.composerMicSend { background: var(--grad-accent); }
+.composerMicSend:hover { background: var(--grad-accent); filter: brightness(1.12); }

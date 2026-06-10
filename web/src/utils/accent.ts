@@ -6,10 +6,11 @@
  * On logout → reset to default (blue)
  */
 
-export const DEFAULT_ACCENT = '#2f81f7';
+export const DEFAULT_ACCENT = '#8e75f2';
 
 export const ACCENT_PRESETS = [
-  { label: 'Синий (по умолчанию)', value: '#2f81f7' },
+  { label: 'Аврора (по умолчанию)', value: '#8e75f2' },
+  { label: 'Синий',                value: '#2f81f7' },
   { label: 'Индиго',               value: '#6366f1' },
   { label: 'Фиолетовый',           value: '#a855f7' },
   { label: 'Розовый',              value: '#ec4899' },
