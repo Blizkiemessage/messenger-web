@@ -13108,20 +13108,23 @@ input[type="date"].psInput::-webkit-calendar-picker-indicator {
 
 ::selection { background: color-mix(in srgb, var(--accent) 32%, transparent); }
 
-/* ── 1. Единая сцена: общий аврора-фон, панели — стекло ─────────────── */
+/* ── 1. Единая сцена: общий аврора-фон, панели — стекло ───────────────
+   --app-bg задаётся inline из utils/appBackground.ts (кастомный фон
+   пользователя: сплошной цвет или градиент); без него — дефолтная аврора. */
 .layout {
-  background:
+  background: var(--app-bg,
     radial-gradient(ellipse 55% 45% at 6% 0%, color-mix(in srgb, var(--accent) 11%, transparent), transparent 65%),
     radial-gradient(ellipse 50% 40% at 100% 14%, color-mix(in srgb, var(--accent-2) 8%, transparent), transparent 65%),
     radial-gradient(ellipse 70% 50% at 55% 112%, color-mix(in srgb, var(--accent) 6%, transparent), transparent 70%),
-    var(--bg);
+    var(--bg));
 }
 .sidebar {
   background: color-mix(in srgb, var(--sidebar) 72%, transparent);
   backdrop-filter: blur(24px);
   -webkit-backdrop-filter: blur(24px);
 }
-.chatArea { background: transparent; }
+/* --chat-bg — задел под индивидуальные фоны чатов (картинка/градиент per-chat) */
+.chatArea { background: var(--chat-bg, transparent); }
 .chatHeader {
   background: color-mix(in srgb, var(--sidebar) 52%, transparent);
   backdrop-filter: blur(18px);
@@ -13302,3 +13305,78 @@ input[type="date"].psInput::-webkit-calendar-picker-indicator {
 .composerMicLocked,
 .composerMicSend { background: var(--grad-accent); }
 .composerMicSend:hover { background: var(--grad-accent); filter: brightness(1.12); }
+
+/* ── Вкладка «Внешний вид»: выбор фона приложения ───────────────────── */
+.apBgPresets {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  margin-top: 10px;
+}
+.apBgPreset {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 6px;
+  border-radius: 14px;
+  border: 1.5px solid var(--border);
+  background: var(--panel);
+  transition: border-color .15s, transform .12s;
+}
+.apBgPreset:hover { transform: translateY(-1px); }
+.apBgPresetActive { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-dim); }
+.apBgPresetFill {
+  display: block;
+  height: 52px;
+  border-radius: 9px;
+  border: 1px solid var(--border);
+}
+/* мини-превью дефолтной авроры */
+.apBgPresetAurora {
+  background:
+    radial-gradient(ellipse 70% 60% at 10% 0%, color-mix(in srgb, var(--accent) 30%, transparent), transparent 70%),
+    radial-gradient(ellipse 60% 55% at 95% 20%, color-mix(in srgb, var(--accent-2) 22%, transparent), transparent 70%),
+    var(--bg);
+}
+.apBgPresetName {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--muted);
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.apBgPresetActive .apBgPresetName { color: var(--accent); }
+
+.apBgCustomRow { margin-top: 12px; display: flex; flex-direction: column; gap: 10px; }
+.apBgModeTabs {
+  display: flex;
+  background: var(--panel);
+  border-radius: 10px;
+  padding: 3px;
+  gap: 3px;
+  width: fit-content;
+}
+.apBgModeTab {
+  padding: 6px 16px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+  transition: all .15s;
+}
+.apBgModeTab.active {
+  background: var(--sidebar);
+  color: var(--accent);
+  box-shadow: 0 1px 4px rgba(0,0,0,.15);
+}
+.apBgPickers { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.apBgPickerLabel { flex-shrink: 0; }
+.apBgAngleRow { display: flex; align-items: center; gap: 8px; min-width: 140px; flex: 1; }
+.apBgAngleSlider { flex: 1; accent-color: var(--accent); }
+.apBgAngleValue { font-size: 12px; color: var(--muted); min-width: 34px; text-align: right; }
+
+@media (max-width: 480px) {
+  .apBgPresets { grid-template-columns: repeat(2, 1fr); }
+}

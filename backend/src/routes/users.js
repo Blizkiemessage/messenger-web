@@ -44,7 +44,7 @@ router.patch('/me', async (req, res, next) => {
       username, display_name, avatar_url, bio, birth_date,
       hide_email, hide_bio, hide_birth_date, no_group_add,
       hide_avatar, avatar_exceptions, hide_last_seen,
-      theme, accent_color,
+      theme, accent_color, app_bg,
     } = req.body;
 
     // Capture old avatar before overwriting
@@ -58,7 +58,7 @@ router.patch('/me', async (req, res, next) => {
       username, display_name, avatar_url, bio,
       birth_date, hide_email, hide_bio, hide_birth_date, no_group_add,
       hide_avatar, avatar_exceptions, hide_last_seen,
-      theme, accent_color,
+      theme, accent_color, app_bg,
     });
 
     // Delete old avatar from S3 if it was replaced (fire-and-forget)

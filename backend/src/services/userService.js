@@ -44,6 +44,7 @@ function sanitizeUser(u, { showPrivate = false, viewerId = null } = {}, alias = 
     // Appearance — always returned to self (showPrivate), ignored for others
     theme:        showPrivate ? (u.theme        || 'dark')     : undefined,
     accent_color: showPrivate ? (u.accent_color || '#2f81f7')  : undefined,
+    app_bg:       showPrivate ? (u.app_bg       || null)       : undefined,
     // F3: presence intention status — intentionally visible to chat members (not sensitive)
     presence_status:     u.presence_status     || null,
     presence_note:       u.presence_note       || null,
@@ -59,7 +60,7 @@ function updateUser(userId, {
   username, display_name, avatar_url, bio,
   birth_date, hide_bio, hide_birth_date, hide_email, no_group_add,
   hide_avatar, avatar_exceptions, hide_last_seen,
-  theme, accent_color,
+  theme, accent_color, app_bg,
 }) {
   const db = getDb();
 
@@ -84,6 +85,13 @@ function updateUser(userId, {
   if (hide_last_seen   !== undefined) db.prepare('UPDATE users SET hide_last_seen = ? WHERE id = ?').run([hide_last_seen ? 1 : 0, userId]);
   if (theme            !== undefined) db.prepare('UPDATE users SET theme = ? WHERE id = ?').run([theme, userId]);
   if (accent_color     !== undefined) db.prepare('UPDATE users SET accent_color = ? WHERE id = ?').run([accent_color, userId]);
+  if (app_bg           !== undefined) {
+    // JSON-строка настройки фона (см. appBackground.ts) либо null = дефолт
+    if (app_bg !== null && (typeof app_bg !== 'string' || app_bg.length > 500)) {
+      throw Object.assign(new Error('Invalid app_bg'), { status: 400 });
+    }
+    db.prepare('UPDATE users SET app_bg = ? WHERE id = ?').run([app_bg, userId]);
+  }
 
   return db.prepare('SELECT * FROM users WHERE id = ?').get(userId);
 }

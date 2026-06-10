@@ -8,7 +8,8 @@
 import { create } from 'zustand';
 import { type User } from '../types';
 import { getSession, setSession as persistSession, clearSession as clearPersisted } from '../storage/session';
-import { onUserLogin, onUserLogout, applyAccentCss, saveUserAccent } from '../utils/accent';
+import { onUserLogin, onUserLogout, applyAccentCss, saveUserAccent, DEFAULT_ACCENT } from '../utils/accent';
+import { onUserLoginBg, onUserLogoutBg, applyServerAppBg } from '../utils/appBackground';
 import { applyTheme, type Theme } from '../utils/theme';
 import { useAppStore } from './useAppStore';
 
@@ -23,8 +24,9 @@ interface SessionState {
 }
 
 const saved = getSession();
-// Apply saved user's accent immediately on startup (before React renders)
-const initialAccent = saved?.user?.id ? onUserLogin(saved.user.id) : '#2f81f7';
+// Apply saved user's accent and app background immediately on startup (before React renders)
+const initialAccent = saved?.user?.id ? onUserLogin(saved.user.id) : DEFAULT_ACCENT;
+if (saved?.user?.id) onUserLoginBg(saved.user.id);
 
 export const useSessionStore = create<SessionState>((set) => ({
   me:        saved?.user      ?? null,
@@ -44,13 +46,17 @@ export const useSessionStore = create<SessionState>((set) => ({
       useAppStore.setState({ theme: me.theme as Theme });
     }
     const accent = me.accent_color || onUserLogin(me.id);
+    // Фон с сервера имеет приоритет (синк между устройствами); иначе — локальный кэш
+    if (me.app_bg !== undefined) applyServerAppBg(me.id, me.app_bg);
+    else onUserLoginBg(me.id);
     set({ me, sessionId, accent });
   },
 
   clearSession: () => {
     clearPersisted();
-    onUserLogout();                        // reset CSS to default blue
-    set({ me: null, sessionId: null, accent: '#2f81f7' });
+    onUserLogout();                        // reset CSS to default accent
+    onUserLogoutBg();                      // reset app background to default aurora
+    set({ me: null, sessionId: null, accent: DEFAULT_ACCENT });
   },
 
   updateMe: (me) => {

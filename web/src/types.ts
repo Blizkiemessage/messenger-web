@@ -16,6 +16,7 @@ export type User = {
   hide_last_seen?: boolean;        // ✅ hide last seen time from others
   theme?: 'dark' | 'light';        // ✅ persisted appearance setting
   accent_color?: string;            // ✅ persisted accent color
+  app_bg?: string | null;           // ✅ persisted app background (JSON AppBg, см. utils/appBackground.ts)
   created_at?: number;
   last_seen_at?: number | null;
   has_password?: boolean;

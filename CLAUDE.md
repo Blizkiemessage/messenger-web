@@ -52,7 +52,9 @@ web/src/
     call/           # IncomingCallModal, CallOverlay
     ui/             # переиспользуемые: Avatar, ContextMenu, Toggle, Portal, icons/
   services/webrtcManager.ts  # WebRTC peer connection звонков
-  utils/            # theme.ts (переключение темы), format.ts, richText/markdown, push.ts
+  utils/            # theme.ts (тема), accent.ts (акцент пользователя), appBackground.ts (фон
+                    #   приложения: solid/gradient через --app-bg; модель AppBg переиспользовать
+                    #   для будущих per-chat фонов через --chat-bg на .chatArea), format.ts, push.ts
 ```
 
 ## Типовые задачи — куда лезть (для экономии токенов)
@@ -89,6 +91,8 @@ web/src/
 4. Журнал держать не длиннее ~40 строк: старые записи группировать в одну строку-сводку.
 
 ## Журнал изменений
+
+- 2026-06-10 | ui+api | вкладка «Внешний вид»: выбор фона приложения (пресеты/свой цвет/градиент с углом); utils/appBackground.ts + --app-bg на .layout; задел --chat-bg на .chatArea под per-chat фоны; синк между устройствами: миграция 006 (users.app_bg JSON), PATCH /users/me, применяется при входе; +5 smoke-тестов
 
 - 2026-06-10 | css+ui | «Аврора 2.0»: стеклянные панели, градиентные пузыри с авто-контрастом, группировка серий сообщений, круглые аватары, плавающий композер, микро-анимации (reduced-motion учтён); весь дизайн вычисляется от --accent (выбор акцента в настройках перекрашивает всё); accent.ts: дефолт сменён со старого синего на #8e75f2
 - 2026-06-10 | docs | создан этот файл (CLAUDE.md) — карта проекта и журнал

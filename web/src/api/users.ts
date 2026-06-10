@@ -21,6 +21,7 @@ export async function updateMe(payload: {
   hide_last_seen?: boolean;
   theme?: string;
   accent_color?: string;
+  app_bg?: string | null;
 }): Promise<User> {
   const res = await client.patch<User>('/users/me', payload);
   return res.data;

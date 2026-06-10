@@ -310,3 +310,45 @@ describe('upload MIME allowlist', () => {
     });
   }
 });
+
+// ── 5. app_bg: сохранение и валидация пользовательского фона ────────────────
+describe('app_bg persistence & validation', () => {
+  // Тестовая схема users минимальна — добиваем колонки внешнего вида
+  db.exec(`
+    ALTER TABLE users ADD COLUMN app_bg TEXT;
+    ALTER TABLE users ADD COLUMN theme TEXT;
+    ALTER TABLE users ADD COLUMN accent_color TEXT;
+  `);
+  const { updateUser } = require('../src/services/userService');
+
+  const uid = 'user-appbg-test';
+  db.prepare(
+    "INSERT INTO users (id, username, display_name, created_at, last_seen_at) VALUES (?, ?, '', 0, 0)"
+  ).run(uid, 'appbg_tester');
+
+  test('saves a valid app_bg JSON string', () => {
+    const json = JSON.stringify({ type: 'gradient', c1: '#2d1b4e', c2: '#7c2d5e', angle: 160 });
+    const updated = updateUser(uid, { app_bg: json });
+    assert.equal(updated.app_bg, json);
+  });
+
+  test('clears app_bg with null (reset to default)', () => {
+    const updated = updateUser(uid, { app_bg: null });
+    assert.equal(updated.app_bg, null);
+  });
+
+  test('rejects non-string app_bg', () => {
+    assert.throws(() => updateUser(uid, { app_bg: { type: 'solid' } }), /Invalid app_bg/);
+  });
+
+  test('rejects oversized app_bg (>500 chars)', () => {
+    assert.throws(() => updateUser(uid, { app_bg: 'x'.repeat(501) }), /Invalid app_bg/);
+  });
+
+  test('undefined app_bg leaves stored value untouched', () => {
+    const json = JSON.stringify({ type: 'solid', c1: '#101418' });
+    updateUser(uid, { app_bg: json });
+    const updated = updateUser(uid, { display_name: 'Тестер' });
+    assert.equal(updated.app_bg, json);
+  });
+});
