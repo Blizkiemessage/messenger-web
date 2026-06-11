@@ -49,6 +49,7 @@ const { runMigrations }       = require('./db/migrations');
 const { initSocket }          = require('./socket/socketServer');
 const { errorHandler }        = require('./middleware/errorHandler');
 const { corsOriginCallback }  = require('./utils/corsOrigin');
+const { csrfOrigin }          = require('./middleware/csrfOrigin');
 const { closeDb }             = require('./config/database');
 const { startDbBackupWorker }  = require('./workers/dbBackup');
 const { startS3CleanupWorker } = require('./workers/s3Cleanup');
@@ -130,6 +131,10 @@ app.use(cors({
 app.use(cookieParser());
 app.use(express.json());
 
+// CSRF defence-in-depth: reject state-changing requests from disallowed origins.
+// Registered after the body parser, before any route, so it covers every mutation.
+app.use(csrfOrigin);
+
 // ─── Routes ────────────────────────────────────────────────────────────────
 // Health check is registered first — no auth required, used by UptimeRobot probe.
 app.locals.isShuttingDown = false;
@@ -160,7 +165,22 @@ app.use('/folders',       foldersRoutes);
 app.use('/export',        exportRoutes);
 app.use('/webauthn',      webauthnRoutes);
 
-app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
+// User-uploaded files served from our own origin must never be sniffed or
+// rendered inline as active content (e.g. an uploaded .html/.svg used for XSS
+// or phishing on a trusted domain). Always send nosniff; serve only real media
+// inline (mirrors the presign disposition logic), force download for everything
+// else. NB: production uses S3 — this static path is the local-disk fallback.
+const INLINE_EXT = new Set([
+  '.webp', '.jpg', '.jpeg', '.png', '.gif', '.mp4', '.webm', '.mov',
+]);
+app.use('/uploads', express.static(path.join(__dirname, '../uploads'), {
+  setHeaders(res, filePath) {
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    if (!INLINE_EXT.has(path.extname(filePath).toLowerCase())) {
+      res.setHeader('Content-Disposition', 'attachment');
+    }
+  },
+}));
 app.use('/admin', express.static(path.join(__dirname, '../public/admin')));
 app.use('/upload', uploadRoutes);
 

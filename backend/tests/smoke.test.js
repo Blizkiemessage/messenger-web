@@ -352,3 +352,52 @@ describe('app_bg persistence & validation', () => {
     assert.equal(updated.app_bg, json);
   });
 });
+
+// ── 6. csrfOrigin: блокировка кросс-доменных мутаций ───────────────────────
+describe('csrfOrigin middleware', () => {
+  process.env.APP_URL = 'https://app.blizkie.ru';
+  const { csrfOrigin } = require('../src/middleware/csrfOrigin');
+
+  function run(method, headers) {
+    const req = { method, headers };
+    let status = 200, body = null, nexted = false;
+    const res = {
+      status(s) { status = s; return this; },
+      json(b) { body = b; return this; },
+    };
+    csrfOrigin(req, res, () => { nexted = true; });
+    return { status, body, nexted };
+  }
+
+  test('allows safe GET regardless of origin', () => {
+    const r = run('GET', { origin: 'https://evil.com', host: 'api.blizkie.ru' });
+    assert.equal(r.nexted, true);
+  });
+
+  test('allows same-origin POST', () => {
+    const r = run('POST', { origin: 'https://api.blizkie.ru', host: 'api.blizkie.ru' });
+    assert.equal(r.nexted, true);
+  });
+
+  test('allows POST from allowlisted APP_URL', () => {
+    const r = run('POST', { origin: 'https://app.blizkie.ru', host: 'api.blizkie.ru' });
+    assert.equal(r.nexted, true);
+  });
+
+  test('allows POST with no Origin/Referer (non-browser client)', () => {
+    const r = run('POST', { host: 'api.blizkie.ru' });
+    assert.equal(r.nexted, true);
+  });
+
+  test('blocks cross-origin POST from a foreign site', () => {
+    const r = run('POST', { origin: 'https://evil.com', host: 'api.blizkie.ru' });
+    assert.equal(r.nexted, false);
+    assert.equal(r.status, 403);
+    assert.match(r.body.error, /Cross-origin/);
+  });
+
+  test('falls back to Referer when Origin is absent', () => {
+    const r = run('DELETE', { referer: 'https://evil.com/page', host: 'api.blizkie.ru' });
+    assert.equal(r.status, 403);
+  });
+});

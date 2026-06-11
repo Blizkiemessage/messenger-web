@@ -40,7 +40,9 @@ function isAllowedOrigin(origin) {
 
 function corsOriginCallback(origin, cb) {
   if (isAllowedOrigin(origin)) return cb(null, true);
-  return cb(new Error(`CORS blocked: ${origin}`));
+  // Tag the error with status 403 so errorHandler returns a clean "Forbidden"
+  // instead of a 500 (and doesn't log every blocked origin as a server error).
+  return cb(Object.assign(new Error(`CORS blocked: ${origin}`), { status: 403 }));
 }
 
 module.exports = { isAllowedOrigin, corsOriginCallback };

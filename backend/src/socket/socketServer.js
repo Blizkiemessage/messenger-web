@@ -76,6 +76,27 @@ function isCallRateLimited(userId) {
   return false;
 }
 
+// Per-socket incoming-event rate limit: Map<socketId, { count, windowStart }>.
+// Generic flood guard for ALL inbound events (typing has its own throttle and
+// calls their own limiter; this is a blanket backstop against a malicious or
+// buggy client emitting thousands of packets/sec). 50/sec is far above any
+// legitimate usage. Cleaned up on disconnect.
+const socketEventTracker = new Map();
+const SOCKET_EVENT_MAX    = 50;
+const SOCKET_EVENT_WINDOW = 1_000; // 1 second
+
+function isSocketFlooding(socketId) {
+  const now    = Date.now();
+  const record = socketEventTracker.get(socketId);
+  if (!record || now - record.windowStart >= SOCKET_EVENT_WINDOW) {
+    socketEventTracker.set(socketId, { count: 1, windowStart: now });
+    return false;
+  }
+  if (record.count >= SOCKET_EVENT_MAX) return true;
+  record.count++;
+  return false;
+}
+
 function initSocket(httpServer) {
   const io = new Server(httpServer, {
     cors: {
@@ -152,6 +173,15 @@ function initSocket(httpServer) {
           seenMembers.add(m.id);
         }
       });
+    });
+
+    // ── Flood guard ────────────────────────────────────────────────────────────
+    // Runs before every inbound event handler; drops packets from a socket that
+    // exceeds SOCKET_EVENT_MAX/sec. Silently stops propagation (no error emitted)
+    // so a noisy client is throttled without leaking the limit or being kicked.
+    socket.use((_packet, next) => {
+      if (isSocketFlooding(socket.id)) return; // drop: do not call next()
+      next();
     });
 
     // ── Events ───────────────────────────────────────────────────────────────
@@ -380,6 +410,7 @@ function initSocket(httpServer) {
       }
       // Always clean up this socket's active-chat entry
       userActiveChat.delete(socket.id);
+      socketEventTracker.delete(socket.id);
 
       const remaining = (onlineUsers.get(userId) || 1) - 1;
       if (remaining > 0) {
