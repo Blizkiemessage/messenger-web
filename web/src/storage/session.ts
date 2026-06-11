@@ -2,18 +2,31 @@ import { type User } from '../types';
 
 const KEY         = 'blizkie.user.v1';
 const LEGACY_KEY  = 'blizkie.session.v1';
-const TOKEN_KEY   = 'blizkie.token.v1';
+const LEGACY_TOKEN_KEY = 'blizkie.token.v1'; // access token used to live here — now purged
 const REFRESH_KEY = 'blizkie.refresh.v1';
 
 /**
  * Public session data stored in localStorage.
  * sessionId (jti) is the UUID of the DB session row — not a secret.
  *
- * JWT is also stored here (TOKEN_KEY) so cross-origin deployments
- * (Vercel → Amvera) can send it via Authorization: Bearer header,
- * bypassing Chrome's third-party cookie blocking (Privacy Sandbox).
+ * ── Token storage model (security: keep the access token out of JS-readable storage) ──
+ *   • Access token  → IN-MEMORY ONLY (module variable below). Never persisted, so an
+ *     XSS payload cannot read a ready-to-use bearer token from localStorage. It is
+ *     primarily carried by the HttpOnly `session` cookie anyway; the in-memory copy is
+ *     the cross-origin fallback (Vercel→Amvera) when Chrome/Safari block that cookie.
+ *   • Refresh token → localStorage. Kept persistent because the HttpOnly `refresh`
+ *     cookie can be blocked as a third-party cookie cross-origin, and we must survive a
+ *     full page reload. It is scoped (only used at /auth/refresh), single-use and
+ *     rotated with replay detection, so its blast radius is far smaller than the
+ *     access token's.
  */
 export type Session = { user: User; sessionId: string | null };
+
+// In-memory access token — lives only for the lifetime of this tab/page.
+let accessToken: string | null = null;
+
+// One-time hygiene: purge any access token persisted by older app versions.
+try { localStorage.removeItem(LEGACY_TOKEN_KEY); } catch { /* ignore */ }
 
 export function getSession(): Session | null {
   try {
@@ -32,23 +45,24 @@ export function setSession(session: Session): void {
 }
 
 export function clearSession(): void {
+  accessToken = null;
   localStorage.removeItem(KEY);
-  localStorage.removeItem(TOKEN_KEY);
+  localStorage.removeItem(LEGACY_TOKEN_KEY);
   localStorage.removeItem(REFRESH_KEY);
   localStorage.removeItem(LEGACY_KEY); // clean up old key if present
 }
 
-/** Store JWT so axios interceptor and socketClient can send it as Bearer token. */
+/** Store the access token in memory (NOT localStorage). */
 export function saveToken(token: string): void {
-  localStorage.setItem(TOKEN_KEY, token);
+  accessToken = token;
 }
 
-/** Read stored JWT (may be null if cookie-only auth or not yet stored). */
+/** Read the in-memory access token (null after a fresh reload until refreshed). */
 export function getToken(): string | null {
-  return localStorage.getItem(TOKEN_KEY);
+  return accessToken;
 }
 
-/** Store refresh token for cross-origin clients (Vercel → Amvera). */
+/** Store refresh token so axios interceptor can send it as a cross-origin fallback. */
 export function saveRefreshToken(token: string): void {
   localStorage.setItem(REFRESH_KEY, token);
 }

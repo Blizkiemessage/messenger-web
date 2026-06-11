@@ -64,14 +64,34 @@ async function tryRefreshToken(): Promise<string | null> {
 }
 
 /**
- * Обновить access-токен (дедуплицировано: параллельные вызовы ждут один refresh).
- * Используется интерсептором ниже и socketClient'ом перед/при провале WS-handshake.
- * Возвращает новый токен или null (нет refresh-токена / refresh провалился —
- * в последнем случае tryRefreshToken сам чистит сессию и редиректит на логин).
+ * Cross-tab single-flight refresh.
+ *
+ * The access token now lives in memory (per-tab), so every tab refreshes
+ * independently on reload. Refresh tokens are single-use with replay detection
+ * that revokes the whole session — if two tabs refresh concurrently and race on
+ * the shared localStorage refresh token, the loser replays a revoked token and
+ * the backend kills the session (logging everyone out). The Web Locks API
+ * serialises refreshes across tabs so each reads an already-rotated token.
+ * Falls back to a plain call where navigator.locks is unavailable.
+ */
+async function lockedRefresh(): Promise<string | null> {
+  if (typeof navigator !== 'undefined' && navigator.locks?.request) {
+    // await unwraps the nested promise (both at runtime and via TS Awaited<>).
+    return await navigator.locks.request('blizkie-token-refresh', () => tryRefreshToken());
+  }
+  return tryRefreshToken();
+}
+
+/**
+ * Обновить access-токен. Дедуплицировано внутри вкладки (общий refreshPromise)
+ * и сериализовано между вкладками (Web Locks). Используется интерсептором ниже
+ * и socketClient'ом перед/при провале WS-handshake. Возвращает новый токен или
+ * null (нет refresh-токена / refresh провалился — tryRefreshToken сам чистит
+ * сессию и редиректит на логин).
  */
 export function refreshAccessToken(): Promise<string | null> {
   if (!refreshPromise) {
-    refreshPromise = tryRefreshToken().finally(() => { refreshPromise = null; });
+    refreshPromise = lockedRefresh().finally(() => { refreshPromise = null; });
   }
   return refreshPromise;
 }
@@ -91,12 +111,8 @@ client.interceptors.response.use(
     ) {
       originalRequest._retried = true;
 
-      // Deduplicate: if another request already triggered a refresh, wait for it.
-      if (!refreshPromise) {
-        refreshPromise = tryRefreshToken().finally(() => { refreshPromise = null; });
-      }
-
-      const newToken = await refreshPromise;
+      // Deduplicated in-tab + serialised cross-tab (Web Locks) — see refreshAccessToken.
+      const newToken = await refreshAccessToken();
       if (newToken) {
         originalRequest.headers['Authorization'] = `Bearer ${newToken}`;
         return client(originalRequest);

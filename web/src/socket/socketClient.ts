@@ -68,7 +68,11 @@ export function connectSocket(): Socket {
     const isAuthError =
       msg.includes('Invalid token') ||
       msg.includes('Unauthorized') ||
-      msg.includes('jwt');
+      msg.includes('jwt') ||
+      // На reload access-токен живёт в памяти и пуст; если httpOnly-cookie
+      // заблокирована (cross-origin), handshake приходит без токена — обновляем
+      // и переподключаемся со свежим токеном.
+      msg.includes('No token');
     if (!isAuthError) return; // сетевые ошибки — socket.io сам реконнектится
 
     // Токен отвергнут сервером: пробуем тихо обновить через refresh-токен.
