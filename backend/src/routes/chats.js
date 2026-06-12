@@ -18,6 +18,7 @@ const {
   toggleMuteChat,
   updateChatPinOrder,
   setMemberRole,
+  setMemberPermissions,
 } = require('../services/chatService');
 const { getChatMedia } = require('../services/messageService');
 const { signFullChatObjects, signFullChatObject, signMessageUrls, signAvatarUrl } = require('../utils/s3Sign');
@@ -264,6 +265,25 @@ router.patch('/:id/members/:userId/role', async (req, res, next) => {
         for (const member of updatedChat.members) {
           io.to(`user:${member.id}`).emit('new-message', sysMsg);
         }
+      }
+    }
+    res.json(updatedChat);
+  } catch (err) { next(err); }
+});
+
+// PATCH /chats/:id/members/:userId/permissions — admin настраивает права модератора
+router.patch('/:id/members/:userId/permissions', async (req, res, next) => {
+  try {
+    const { permissions } = req.body;
+    if (!permissions || typeof permissions !== 'object') {
+      return res.status(400).json({ error: 'permissions object is required' });
+    }
+    const updatedChat = setMemberPermissions(req.params.id, req.userId, req.params.userId, permissions);
+    await signFullChatObject(updatedChat);
+    const io = req.app.get('io');
+    if (io) {
+      for (const member of updatedChat.members) {
+        io.to(`user:${member.id}`).emit('chat-updated', updatedChat);
       }
     }
     res.json(updatedChat);

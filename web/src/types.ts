@@ -1,3 +1,9 @@
+export type ModeratorPermissions = {
+  edit_info: boolean;        // менять имя/описание/аватар/фон группы
+  delete_messages: boolean;  // удалять чужие сообщения
+  manage_members: boolean;   // добавлять/удалять участников
+};
+
 export type User = {
   id: string;
   phone?: string | null;
@@ -29,6 +35,8 @@ export type User = {
   blocked_by_them?: boolean;   // this user has blocked the viewer
   alias?: string | null;       // viewer's custom nickname for this user
   role?: 'member' | 'moderator' | 'admin'; // role in a group chat context
+  // Гранулярные права модератора (null для admin/member); задаются админом группы
+  permissions?: ModeratorPermissions | null;
 };
 
 export type MessageReply = {

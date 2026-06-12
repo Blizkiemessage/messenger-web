@@ -24,6 +24,7 @@ const { getDb } = require('../config/database');
 const { sanitizeUser } = require('./userService');
 const { deleteFromS3, deleteManyFromS3 } = require('../utils/s3Delete');
 const { decryptMessage, saveMessage } = require('./messageService');
+const { getMemberPermissions, parseModeratorPermissions, sanitizePermissions } = require('./chatPermissions');
 
 // ─── Internal helpers ────────────────────────────────────────────────────────
 
@@ -43,7 +44,7 @@ function getChatById(chatId, userId) {
 
   // Fetch all members + their last_read_at + role in one query (membership check included)
   const rawMembers = db.prepare(`
-    SELECT cm.last_read_at AS member_last_read_at, cm.role,
+    SELECT cm.last_read_at AS member_last_read_at, cm.role, cm.permissions AS member_permissions,
            u.id, u.username, u.display_name, u.avatar_url, u.last_seen_at,
            u.hide_avatar, u.avatar_exceptions,
            u.presence_status, u.presence_note, u.presence_expires_at
@@ -81,6 +82,7 @@ function getChatById(chatId, userId) {
       sanitized.blocked_by_them = blockedByThem.has(u.id);
     }
     sanitized.role = u.role || 'member';
+    sanitized.permissions = parseModeratorPermissions(u.role, u.member_permissions);
     return sanitized;
   });
 
@@ -133,7 +135,7 @@ function getUserChats(userId) {
 
   // 2. All members of all chats in one query
   const allMembers = db.prepare(`
-    SELECT cm.chat_id, cm.last_read_at AS member_last_read_at, cm.role,
+    SELECT cm.chat_id, cm.last_read_at AS member_last_read_at, cm.role, cm.permissions AS member_permissions,
            u.id, u.username, u.display_name, u.avatar_url, u.last_seen_at,
            u.hide_avatar, u.avatar_exceptions,
            u.presence_status, u.presence_note, u.presence_expires_at
@@ -195,6 +197,7 @@ function getUserChats(userId) {
         sanitized.blocked_by_them = blockedByThem.has(u.id);
       }
       sanitized.role = u.role || 'member';
+      sanitized.permissions = parseModeratorPermissions(u.role, u.member_permissions);
       return sanitized;
     });
 
@@ -410,9 +413,9 @@ function addChatMember(chatId, requesterId, newUserId) {
     throw Object.assign(new Error('Chat not found'), { status: 404 });
   }
 
-  const requesterMember = db.prepare('SELECT role FROM chat_members WHERE chat_id = ? AND user_id = ?').get([chatId, requesterId]);
-  if (!requesterMember || !['admin', 'moderator'].includes(requesterMember.role)) {
-    throw Object.assign(new Error('Только администраторы и модераторы могут добавлять участников'), { status: 403 });
+  const requesterPerms = getMemberPermissions(db, chatId, requesterId);
+  if (!requesterPerms || !requesterPerms.manage_members) {
+    throw Object.assign(new Error('Недостаточно прав для добавления участников'), { status: 403 });
   }
 
   const existing = db
@@ -450,16 +453,19 @@ function removeChatMember(chatId, requesterId, targetUserId) {
     const targetMember = db.prepare('SELECT role FROM chat_members WHERE chat_id = ? AND user_id = ?').get([chatId, targetUserId]);
     if (!targetMember) throw Object.assign(new Error('Target not in chat'), { status: 404 });
 
+    // Capability gate: admin всегда, модератор — только с manage_members, member — нет
+    const perms = getMemberPermissions(db, chatId, requesterId);
+    if (!perms || !perms.manage_members) {
+      throw Object.assign(new Error('Недостаточно прав для удаления участников'), { status: 403 });
+    }
+    // Ролевые ограничения на цель сохраняются
     if (requesterMember.role === 'admin') {
       if (targetMember.role === 'admin') {
         throw Object.assign(new Error('Нельзя удалить другого администратора'), { status: 403 });
       }
-    } else if (requesterMember.role === 'moderator') {
-      if (targetMember.role !== 'member') {
-        throw Object.assign(new Error('Модераторы могут удалять только обычных участников'), { status: 403 });
-      }
-    } else {
-      throw Object.assign(new Error('Forbidden'), { status: 403 });
+    } else if (targetMember.role !== 'member') {
+      // модератор может удалять только обычных участников
+      throw Object.assign(new Error('Модераторы могут удалять только обычных участников'), { status: 403 });
     }
   }
 
@@ -634,8 +640,10 @@ function updateChatMetadata(chatId, requesterId, { name, description, avatar_url
 
   const chat = db.prepare('SELECT creator_id, avatar_url FROM chats WHERE id = ?').get(chatId);
   if (!chat) throw Object.assign(new Error('Chat not found'), { status: 404 });
-  if (chat.creator_id !== requesterId) {
-    throw Object.assign(new Error('Only creator can update chat'), { status: 403 });
+  // Редактировать инфо группы может создатель/админ ИЛИ модератор с правом edit_info
+  const perms = getMemberPermissions(db, chatId, requesterId);
+  if (!perms || !perms.edit_info) {
+    throw Object.assign(new Error('Недостаточно прав для редактирования группы'), { status: 403 });
   }
 
   const oldAvatarUrl = avatar_url !== undefined ? (chat.avatar_url || null) : null;
@@ -771,7 +779,9 @@ function setMemberRole(chatId, requesterId, targetUserId, newRole) {
     throw Object.assign(new Error('Нельзя изменить роль администратора'), { status: 403 });
   }
 
-  db.prepare('UPDATE chat_members SET role = ? WHERE chat_id = ? AND user_id = ?').run([newRole, chatId, targetUserId]);
+  // При понижении до участника сбрасываем гранулярные права; модератор стартует с дефолтными (NULL)
+  db.prepare('UPDATE chat_members SET role = ?, permissions = NULL WHERE chat_id = ? AND user_id = ?')
+    .run([newRole, chatId, targetUserId]);
 
   const targetUser = db.prepare('SELECT display_name, username FROM users WHERE id = ?').get(targetUserId);
   const targetName = targetUser?.display_name || targetUser?.username || 'Пользователь';
@@ -782,6 +792,36 @@ function setMemberRole(chatId, requesterId, targetUserId, newRole) {
 
   const updatedChat = getChatById(chatId, requesterId);
   return { updatedChat, sysMsg };
+}
+
+/**
+ * setMemberPermissions — админ настраивает гранулярные права модератора.
+ * Только admin; цель должна быть модератором. Возвращает обновлённый чат.
+ */
+function setMemberPermissions(chatId, requesterId, targetUserId, permissions) {
+  const db = getDb();
+
+  const chat = db.prepare('SELECT type FROM chats WHERE id = ?').get(chatId);
+  if (!chat || chat.type !== 'group') {
+    throw Object.assign(new Error('Chat not found'), { status: 404 });
+  }
+
+  const requester = db.prepare('SELECT role FROM chat_members WHERE chat_id = ? AND user_id = ?').get([chatId, requesterId]);
+  if (!requester || requester.role !== 'admin') {
+    throw Object.assign(new Error('Только администраторы могут менять права'), { status: 403 });
+  }
+
+  const target = db.prepare('SELECT role FROM chat_members WHERE chat_id = ? AND user_id = ?').get([chatId, targetUserId]);
+  if (!target) throw Object.assign(new Error('Пользователь не состоит в группе'), { status: 404 });
+  if (target.role !== 'moderator') {
+    throw Object.assign(new Error('Права настраиваются только для модераторов'), { status: 400 });
+  }
+
+  const clean = sanitizePermissions(permissions);
+  db.prepare('UPDATE chat_members SET permissions = ? WHERE chat_id = ? AND user_id = ?')
+    .run([JSON.stringify(clean), chatId, targetUserId]);
+
+  return getChatById(chatId, requesterId);
 }
 
 module.exports = {
@@ -803,4 +843,5 @@ module.exports = {
   toggleMuteChat,
   updateChatPinOrder,
   setMemberRole,
+  setMemberPermissions,
 };

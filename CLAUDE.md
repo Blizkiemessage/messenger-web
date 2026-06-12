@@ -92,6 +92,8 @@ web/src/
 
 ## Журнал изменений
 
+- 2026-06-12 | groups | гранулярные права модератора (этап 1/2 фич групп): миграция 007 (chat_members.permissions JSON), модуль services/chatPermissions.js (единый источник прав, без цикла require), гейты edit_info→updateChatMetadata, delete_messages→deleteMessages, manage_members→add/removeMember; роут PATCH /chats/:id/members/:userId/permissions (admin-only); UI диалог прав в GroupInfoModal (3 переключателя). Дефолт модератора сохраняет старое поведение. +6 тестов (всего 59)
+
 - 2026-06-12 | ci+tests | CI-гейт перед деплоем: .github/workflows/deploy-amvera.yml теперь job `test` (backend npm test + web build) → `deploy` зависит от него (needs) и идёт только при push в devDK; на PR гоняются только тесты. +6 тестов прав доступа к чатам (посторонний не читает/не пишет/не пересылает в чужой чат) — всего 53; в тестовую схему messages добавлены колонки is_delivered/deliver_at/voice_waveform
 
 - 2026-06-11 | security | access-токен вынесен из localStorage в память (storage/session.ts): XSS больше не может прочитать готовый bearer. Auth идёт через httpOnly session-cookie (primary) + in-memory bearer (cross-origin fallback), refresh-токен остаётся в localStorage (cookie может блокироваться сторонними). Гонка multi-tab refresh закрыта cross-tab локом (Web Locks) в api/client.ts; socketClient рефрешит и при 'No token'. Легаси blizkie.token.v1 чистится при старте

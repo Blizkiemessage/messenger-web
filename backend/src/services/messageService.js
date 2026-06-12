@@ -6,6 +6,7 @@ const { v4: uuidv4 } = require('uuid');
 const { getDb } = require('../config/database');
 const { encrypt, decrypt } = require('../crypto/aes');
 const { deleteFromS3 } = require('../utils/s3Delete');
+const { getMemberPermissions } = require('./chatPermissions');
 
 function decryptMessage(msg) {
   let text = '';
@@ -276,7 +277,10 @@ function deleteMessages(chatId, userId, messageIds) {
   if (!member) throw Object.assign(new Error('Forbidden'), { status: 403 });
 
   const chat = db.prepare('SELECT type FROM chats WHERE id = ?').get(chatId);
-  const isPrivileged = chat?.type === 'group' && (member.role === 'admin' || member.role === 'moderator');
+  // Удалять чужие сообщения может тот, у кого есть право delete_messages
+  // (admin всегда; модератор — если включено; member — нет).
+  const perms = getMemberPermissions(db, chatId, userId);
+  const isPrivileged = chat?.type === 'group' && !!perms && perms.delete_messages;
 
   const now = Date.now();
   const deleted = [];

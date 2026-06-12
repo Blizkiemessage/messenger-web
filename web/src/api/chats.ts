@@ -1,5 +1,5 @@
 import client from './client';
-import { type Chat, type Message } from '../types';
+import { type Chat, type Message, type ModeratorPermissions } from '../types';
 
 export async function getChats(): Promise<Chat[]> {
   const res = await client.get<Chat[]>('/chats');
@@ -187,6 +187,13 @@ export async function getChatMedia(
 /** ✅ Assign or remove moderator role for a group member (admin only) */
 export async function setMemberRole(chatId: string, userId: string, role: 'member' | 'moderator'): Promise<Chat> {
   const res = await client.patch<Chat>(`/chats/${chatId}/members/${userId}/role`, { role });
+  return res.data;
+}
+
+export async function setMemberPermissions(
+  chatId: string, userId: string, permissions: ModeratorPermissions,
+): Promise<Chat> {
+  const res = await client.patch<Chat>(`/chats/${chatId}/members/${userId}/permissions`, { permissions });
   return res.data;
 }
 

@@ -13422,3 +13422,38 @@ input[type="date"].psInput::-webkit-calendar-picker-indicator {
 .msg.out .bubble .bubbleReplySender { color: inherit; }
 .msg.out .bubble .bubbleReplyText { color: inherit; opacity: .78; }
 .msg.out .bubble .bubbleReplyExpand { color: inherit; opacity: .85; text-decoration: underline; }
+
+/* ── Права модератора: список переключателей в GroupInfoModal ────────── */
+.giPermList { display: flex; flex-direction: column; gap: 6px; margin: 14px 0 4px; }
+.giPermRow {
+  display: flex; align-items: center; gap: 12px;
+  width: 100%; text-align: left;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: var(--panel);
+  border: 1.5px solid var(--border);
+  transition: border-color .15s, background .15s;
+}
+.giPermRow:hover:not(:disabled) { border-color: var(--accent-border); }
+.giPermRowOn { border-color: var(--accent-border); background: var(--accent-dim); }
+.giPermText { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.giPermLabel { font-size: 14px; font-weight: 600; color: var(--text); }
+.giPermHint { font-size: 12px; color: var(--muted); }
+.giPermToggle {
+  flex-shrink: 0;
+  width: 40px; height: 24px;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--muted) 40%, transparent);
+  position: relative;
+  transition: background .18s;
+}
+.giPermToggleOn { background: var(--grad-accent); }
+.giPermKnob {
+  position: absolute; top: 3px; left: 3px;
+  width: 18px; height: 18px;
+  border-radius: 50%;
+  background: #fff;
+  transition: transform .18s;
+  box-shadow: 0 1px 3px rgba(0,0,0,.3);
+}
+.giPermToggleOn .giPermKnob { transform: translateX(16px); }

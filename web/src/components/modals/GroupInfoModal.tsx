@@ -3,14 +3,21 @@
  * Media / Files / Voice / Links are in ChatMediaModal (gallery button in header).
  */
 import { useState, useEffect, useRef } from 'react';
-import { type Chat, type User } from '../../types';
+import { type Chat, type User, type ModeratorPermissions } from '../../types';
 import { avatarLetter } from '../../utils/format';
 import { Avatar } from '../ui/Avatar';
 import { ContextMenu } from '../ui/ContextMenu';
 import { AddGroupMembersModal } from './AddGroupMembersModal';
 import { Portal } from '../ui/Portal';
 import client from '../../api/client';
-import { setMemberRole as setMemberRoleApi } from '../../api/chats';
+import { setMemberRole as setMemberRoleApi, setMemberPermissions as setMemberPermissionsApi } from '../../api/chats';
+
+const PERMISSION_LABELS: { key: keyof ModeratorPermissions; label: string; hint: string }[] = [
+  { key: 'edit_info',       label: 'Редактировать группу', hint: 'имя, описание, аватар и фон чата' },
+  { key: 'delete_messages', label: 'Удалять сообщения',    hint: 'удалять чужие сообщения' },
+  { key: 'manage_members',  label: 'Управлять участниками', hint: 'добавлять и удалять участников' },
+];
+const DEFAULT_MOD_PERMS: ModeratorPermissions = { edit_info: false, delete_messages: true, manage_members: true };
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -69,6 +76,26 @@ export function GroupInfoModal({
   const [closeBusy, setCloseBusy]                 = useState(false);
   const [makeAdminTarget, setMakeAdminTarget]     = useState<User | null>(null);
   const [makeAdminBusy, setMakeAdminBusy]         = useState(false);
+
+  // ── Moderator permissions dialog ─────────────────────────────────────────
+  const [permTarget, setPermTarget] = useState<User | null>(null);
+  const [permDraft, setPermDraft]   = useState<ModeratorPermissions>(DEFAULT_MOD_PERMS);
+  const [permBusy, setPermBusy]     = useState(false);
+
+  function openPermDialog(user: User) {
+    setPermDraft(user.permissions ?? DEFAULT_MOD_PERMS);
+    setPermTarget(user);
+  }
+
+  async function handleSavePerms() {
+    if (!permTarget) return;
+    setPermBusy(true);
+    try {
+      await setMemberPermissionsApi(chat.id, permTarget.id, permDraft);
+      setPermTarget(null);
+    } catch { /* socket will update chat */ }
+    finally { setPermBusy(false); }
+  }
   const [modRoleTarget, setModRoleTarget]         = useState<{ user: User; action: 'assign' | 'revoke' } | null>(null);
   const [modRoleBusy, setModRoleBusy]             = useState(false);
 
@@ -348,7 +375,21 @@ export function GroupInfoModal({
                 </svg>
                 Снять роль модератора
               </button>
-            ) : (
+            ) : null
+          )}
+          {/* Admin: configure moderator permissions */}
+          {isAdmin && (memberCtx.user.role ?? 'member') === 'moderator' && (
+            <button className="ctxItem"
+              onClick={() => { const u = memberCtx.user; setMemberCtx(null); openPermDialog(u); }}>
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/>
+                <circle cx="12" cy="12" r="3"/>
+              </svg>
+              Настроить права
+            </button>
+          )}
+          {isAdmin && (
+            (memberCtx.user.role ?? 'member') === 'moderator' ? null : (
               <button className="ctxItem"
                 onClick={() => { setMemberCtx(null); setModRoleTarget({ user: memberCtx.user, action: 'assign' }); }}>
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
@@ -582,6 +623,43 @@ export function GroupInfoModal({
 
       {showAddMembers && (
         <AddGroupMembersModal chat={chat} meId={meId} onClose={() => setShowAddMembers(false)} />
+      )}
+
+      {/* Moderator permissions dialog */}
+      {permTarget && (
+        <div className="giConfirmOverlay" onClick={e => e.target === e.currentTarget && !permBusy && setPermTarget(null)}>
+          <div className="giConfirmCard">
+            <div className="giConfirmTitle">Права модератора</div>
+            <div className="giConfirmText">
+              <strong>{permTarget.display_name || permTarget.username}</strong> — выберите, что разрешено.
+            </div>
+            <div className="giPermList">
+              {PERMISSION_LABELS.map(({ key, label, hint }) => (
+                <button
+                  key={key}
+                  type="button"
+                  className={`giPermRow${permDraft[key] ? ' giPermRowOn' : ''}`}
+                  onClick={() => setPermDraft(p => ({ ...p, [key]: !p[key] }))}
+                  disabled={permBusy}
+                >
+                  <span className="giPermText">
+                    <span className="giPermLabel">{label}</span>
+                    <span className="giPermHint">{hint}</span>
+                  </span>
+                  <span className={`giPermToggle${permDraft[key] ? ' giPermToggleOn' : ''}`}>
+                    <span className="giPermKnob" />
+                  </span>
+                </button>
+              ))}
+            </div>
+            <div className="giTransferBtns">
+              <button className="giEditCancelBtn" onClick={() => setPermTarget(null)} disabled={permBusy}>Отмена</button>
+              <button className="giEditSaveBtn" onClick={handleSavePerms} disabled={permBusy}>
+                {permBusy ? '…' : 'Сохранить'}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </Portal>
     </>

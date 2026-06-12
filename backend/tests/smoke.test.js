@@ -55,6 +55,7 @@ db.exec(`
     role TEXT NOT NULL DEFAULT 'member',
     joined_at INTEGER NOT NULL,
     unread_count INTEGER NOT NULL DEFAULT 0,
+    permissions TEXT,
     PRIMARY KEY (chat_id, user_id)
   );
   CREATE TABLE messages (
@@ -128,11 +129,11 @@ db.prepare('INSERT INTO users VALUES (?,?,?,?,?,?,?)').run(['carol','carol',null
 db.prepare('INSERT INTO chats VALUES (?,?,?,?)').run(['chat-direct','direct',null,    NOW]);
 db.prepare('INSERT INTO chats VALUES (?,?,?,?)').run(['chat-group', 'group', 'Test',  NOW]);
 
-db.prepare('INSERT INTO chat_members VALUES (?,?,?,?,?)').run(['chat-direct','alice','member',   NOW,0]);
-db.prepare('INSERT INTO chat_members VALUES (?,?,?,?,?)').run(['chat-direct','bob',  'member',   NOW,0]);
-db.prepare('INSERT INTO chat_members VALUES (?,?,?,?,?)').run(['chat-group', 'alice','admin',    NOW,0]);
-db.prepare('INSERT INTO chat_members VALUES (?,?,?,?,?)').run(['chat-group', 'bob',  'moderator',NOW,0]);
-db.prepare('INSERT INTO chat_members VALUES (?,?,?,?,?)').run(['chat-group', 'carol','member',   NOW,0]);
+db.prepare('INSERT INTO chat_members (chat_id,user_id,role,joined_at,unread_count) VALUES (?,?,?,?,?)').run(['chat-direct','alice','member',   NOW,0]);
+db.prepare('INSERT INTO chat_members (chat_id,user_id,role,joined_at,unread_count) VALUES (?,?,?,?,?)').run(['chat-direct','bob',  'member',   NOW,0]);
+db.prepare('INSERT INTO chat_members (chat_id,user_id,role,joined_at,unread_count) VALUES (?,?,?,?,?)').run(['chat-group', 'alice','admin',    NOW,0]);
+db.prepare('INSERT INTO chat_members (chat_id,user_id,role,joined_at,unread_count) VALUES (?,?,?,?,?)').run(['chat-group', 'bob',  'moderator',NOW,0]);
+db.prepare('INSERT INTO chat_members (chat_id,user_id,role,joined_at,unread_count) VALUES (?,?,?,?,?)').run(['chat-group', 'carol','member',   NOW,0]);
 
 function insertMsg(id, chatId, senderId, text = 'hello') {
   const enc = encrypt(text);
@@ -446,5 +447,57 @@ describe('access control — chat membership', () => {
     // bob состоит и в chat-direct, и в chat-group → может переслать туда
     const res = forwardMessages('chat-group', 'bob', ['ac-msg-1']);
     assert.equal(res.length, 1);
+  });
+});
+
+// ── 8. Гранулярные права модератора ────────────────────────────────────────
+describe('moderator granular permissions', () => {
+  const { getMemberPermissions } = require('../src/services/chatPermissions');
+
+  test('admin has all permissions', () => {
+    const p = getMemberPermissions(db, 'chat-group', 'alice');
+    assert.deepEqual(p, { role: 'admin', edit_info: true, delete_messages: true, manage_members: true });
+  });
+
+  test('plain member has no permissions', () => {
+    const p = getMemberPermissions(db, 'chat-group', 'carol');
+    assert.equal(p.edit_info, false);
+    assert.equal(p.delete_messages, false);
+    assert.equal(p.manage_members, false);
+  });
+
+  test('moderator default perms preserve legacy behavior (delete + manage, no edit_info)', () => {
+    // bob is moderator with NULL permissions
+    const p = getMemberPermissions(db, 'chat-group', 'bob');
+    assert.equal(p.role, 'moderator');
+    assert.equal(p.edit_info, false);
+    assert.equal(p.delete_messages, true);
+    assert.equal(p.manage_members, true);
+  });
+
+  test('explicit permissions JSON is respected', () => {
+    db.prepare("UPDATE chat_members SET permissions = ? WHERE chat_id = 'chat-group' AND user_id = 'bob'")
+      .run(JSON.stringify({ edit_info: true, delete_messages: false, manage_members: false }));
+    const p = getMemberPermissions(db, 'chat-group', 'bob');
+    assert.equal(p.edit_info, true);
+    assert.equal(p.delete_messages, false);
+    assert.equal(p.manage_members, false);
+    // reset
+    db.prepare("UPDATE chat_members SET permissions = NULL WHERE chat_id = 'chat-group' AND user_id = 'bob'").run();
+  });
+
+  test('moderator WITHOUT delete_messages cannot delete others messages', () => {
+    insertMsg('perm-msg-1', 'chat-group', 'carol', 'сообщение carol');
+    db.prepare("UPDATE chat_members SET permissions = ? WHERE chat_id = 'chat-group' AND user_id = 'bob'")
+      .run(JSON.stringify({ edit_info: false, delete_messages: false, manage_members: true }));
+    const deleted = deleteMessages('chat-group', 'bob', ['perm-msg-1']);
+    assert.equal(deleted.length, 0, 'moderator without delete_messages must not delete');
+    db.prepare("UPDATE chat_members SET permissions = NULL WHERE chat_id = 'chat-group' AND user_id = 'bob'").run();
+  });
+
+  test('moderator WITH delete_messages (default) can delete others messages', () => {
+    insertMsg('perm-msg-2', 'chat-group', 'carol', 'ещё сообщение carol');
+    const deleted = deleteMessages('chat-group', 'bob', ['perm-msg-2']);
+    assert.equal(deleted.length, 1);
   });
 });
