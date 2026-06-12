@@ -86,6 +86,9 @@ db.exec(`
     reply_to_iv TEXT,
     reply_to_auth_tag TEXT,
     edited_at INTEGER,
+    voice_waveform TEXT,
+    deliver_at INTEGER,
+    is_delivered INTEGER NOT NULL DEFAULT 1,
     search_text TEXT
   );
   CREATE TABLE message_hidden (
@@ -110,7 +113,7 @@ mockModule('../src/utils/s3Delete', { deleteFromS3: () => {} });
 
 // ── Services (loaded after mocks) ────────────────────────────────────────────
 const { validatePassword, loginOrRegister } = require('../src/services/authService');
-const { deleteMessages, editMessage }       = require('../src/services/messageService');
+const { deleteMessages, editMessage, getChatMessages, saveMessage, forwardMessages } = require('../src/services/messageService');
 const { ALLOWED_TYPES }                     = require('../src/utils/allowedMimeTypes');
 const { encrypt }                           = require('../src/crypto/aes');
 
@@ -399,5 +402,49 @@ describe('csrfOrigin middleware', () => {
   test('falls back to Referer when Origin is absent', () => {
     const r = run('DELETE', { referer: 'https://evil.com/page', host: 'api.blizkie.ru' });
     assert.equal(r.status, 403);
+  });
+});
+
+// ── 7. Access control — chat membership (core privacy guarantee) ───────────
+// Самое важное для приватного мессенджера: посторонний не читает чужой чат
+// и не пишет в него. carol НЕ состоит в chat-direct (там только alice+bob).
+describe('access control — chat membership', () => {
+  insertMsg('ac-msg-1', 'chat-direct', 'alice', 'секрет для bob');
+
+  test('member can read chat history', () => {
+    const msgs = getChatMessages('chat-direct', 'bob', { limit: 50 });
+    assert.ok(msgs.some(m => m.text === 'секрет для bob'));
+  });
+
+  test('non-member CANNOT read chat history (403)', () => {
+    assert.throws(
+      () => getChatMessages('chat-direct', 'carol', { limit: 50 }),
+      (err) => { assert.equal(err.status, 403); return true; },
+    );
+  });
+
+  test('non-member CANNOT post a message (403)', () => {
+    assert.throws(
+      () => saveMessage('chat-direct', 'carol', 'я чужой'),
+      (err) => { assert.equal(err.status, 403); return true; },
+    );
+  });
+
+  test('member can post a message', () => {
+    const msg = saveMessage('chat-direct', 'alice', 'привет bob');
+    assert.equal(msg.text, 'привет bob');
+  });
+
+  test('cannot forward INTO a chat you are not a member of (403)', () => {
+    assert.throws(
+      () => forwardMessages('chat-direct', 'carol', ['ac-msg-1']),
+      (err) => { assert.equal(err.status, 403); return true; },
+    );
+  });
+
+  test('member can forward into their own chat', () => {
+    // bob состоит и в chat-direct, и в chat-group → может переслать туда
+    const res = forwardMessages('chat-group', 'bob', ['ac-msg-1']);
+    assert.equal(res.length, 1);
   });
 });
