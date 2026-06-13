@@ -15,6 +15,7 @@ import { EmptyState } from './EmptyState';
 import { ReplyPreviewBar } from './ReplyPreviewBar';
 const StickerStudioModal = lazy(() => import('../modals/StickerStudioModal').then(m => ({ default: m.StickerStudioModal })));
 const ChatMediaModal     = lazy(() => import('../modals/ChatMediaModal').then(m => ({ default: m.ChatMediaModal })));
+const ChatBackgroundModal = lazy(() => import('../modals/ChatBackgroundModal').then(m => ({ default: m.ChatBackgroundModal })));
 import { sendChatMessage, getPinnedMessages, pinMessage as apiPin, unpinMessage as apiUnpin, reactToMessage, editMessage as apiEditMessage, scheduleMessage } from '../../api/chats';
 import { createPoll, votePoll, retractVote } from '../../api/polls';
 import { emitTypingStart, emitTypingStop, emitCallInvite } from '../../socket/socketClient';
@@ -604,6 +605,8 @@ export function ChatArea() {
   const [showNotes,      setShowNotes]      = useState(false);
   // ── F2: AI summary modal ──────────────────────────────────────────────────
   const [showSummary,    setShowSummary]    = useState(false);
+  // ── Per-chat background picker ────────────────────────────────────────────
+  const [showChatBg,     setShowChatBg]     = useState(false);
 
 
   // ── Drag & drop ───────────────────────────────────────────────────────────
@@ -809,6 +812,7 @@ export function ChatArea() {
         onVideoCall={activeChat?.type === 'direct' ? () => startCall('video') : undefined}
         onOpenNotes={() => setShowNotes(true)}
         onOpenSummary={() => setShowSummary(true)}
+        onOpenChatBg={() => setShowChatBg(true)}
       />
 
       {/* Mini player — appears below header while audio/video is playing */}
@@ -959,6 +963,13 @@ export function ChatArea() {
           chat={activeChat}
           onClose={() => setShowNotes(false)}
         />
+      )}
+
+      {/* Per-chat background picker */}
+      {showChatBg && activeChat && (
+        <Suspense fallback={null}>
+          <ChatBackgroundModal chat={activeChat} meId={me.id} onClose={() => setShowChatBg(false)} />
+        </Suspense>
       )}
 
       {/* F2: AI summary modal */}

@@ -119,3 +119,49 @@ export function isSameAppBg(a: AppBg, b: AppBg): boolean {
     && (a.c2 || '') === (b.c2 || '')
     && (a.angle ?? 160) === (b.angle ?? 160);
 }
+
+/* ── Per-chat backgrounds (личный/общий фон чата) ─────────────────────────
+   ChatBg переиспользует solid/gradient из AppBg и добавляет 'image'.
+   Хранится как JSON-строка в Chat.chat_bg (общий) и Chat.my_chat_bg (личный).
+   Применяется через CSS-переменную --chat-bg на .chatArea. */
+
+export type ChatBgType = 'solid' | 'gradient' | 'image';
+
+export interface ChatBg {
+  type: ChatBgType;
+  c1?: string;
+  c2?: string;
+  angle?: number;
+  url?: string;   // для type:'image' — (подписанная) S3-ссылка
+  dim?: number;   // затемняющая вуаль поверх картинки [0..0.8], дефолт 0.35
+}
+
+/** Безопасно распарсить JSON-строку ChatBg (из Chat.chat_bg / Chat.my_chat_bg). */
+export function parseChatBg(raw: string | null | undefined): ChatBg | null {
+  if (!raw) return null;
+  try {
+    const bg = JSON.parse(raw) as ChatBg;
+    if (bg && (bg.type === 'solid' || bg.type === 'gradient' || bg.type === 'image')) return bg;
+  } catch { /* битый JSON */ }
+  return null;
+}
+
+/** CSS-значение для свойства background; null если фон некорректен. */
+export function cssForChatBg(bg: ChatBg | null): string | null {
+  if (!bg) return null;
+  if (bg.type === 'solid') return bg.c1 || null;
+  if (bg.type === 'gradient' && bg.c1 && bg.c2) {
+    return `linear-gradient(${bg.angle ?? 160}deg, ${bg.c1} 0%, ${bg.c2} 100%)`;
+  }
+  if (bg.type === 'image' && bg.url) {
+    const dim = Math.max(0, Math.min(0.8, bg.dim ?? 0.35));
+    // тёмная вуаль поверх фото — чтобы пузыри сообщений оставались читаемы
+    return `linear-gradient(rgba(8,4,20,${dim}), rgba(8,4,20,${dim})), url("${bg.url}") center / cover no-repeat fixed`;
+  }
+  return null;
+}
+
+/** Итоговый фон активного чата: личный важнее общего. */
+export function resolveChatBgCss(chat: { my_chat_bg?: string | null; chat_bg?: string | null }): string | null {
+  return cssForChatBg(parseChatBg(chat.my_chat_bg)) || cssForChatBg(parseChatBg(chat.chat_bg));
+}

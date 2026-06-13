@@ -13457,3 +13457,43 @@ input[type="date"].psInput::-webkit-calendar-picker-indicator {
   box-shadow: 0 1px 3px rgba(0,0,0,.3);
 }
 .giPermToggleOn .giPermKnob { transform: translateX(16px); }
+
+/* ── Модалка «Фон чата» ──────────────────────────────────────────────── */
+.cbgCard { width: min(440px, 100%); padding: 18px 18px 16px; gap: 0; }
+.cbgHeader { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+.cbgTitle { font-size: 17px; font-weight: 700; }
+.cbgPreview {
+  height: 120px;
+  border-radius: 16px;
+  border: 1px solid var(--border);
+  background: var(--panel);
+  padding: 12px;
+  display: flex; flex-direction: column; gap: 6px; justify-content: flex-end;
+  position: relative;
+  overflow: hidden;
+}
+.cbgPreviewBubble { max-width: 70%; padding: 7px 11px; border-radius: 14px; font-size: 13px; }
+.cbgPreviewIn  { align-self: flex-start; background: color-mix(in srgb, var(--panel) 88%, #fff); color: var(--text); border: 1px solid var(--border); }
+.cbgPreviewOut { align-self: flex-end; background: var(--grad-accent); color: #fff; }
+.cbgPreviewHint { position: absolute; top: 10px; left: 12px; font-size: 12px; color: var(--muted); }
+.cbgPresets { margin: 14px 0 0; }
+.cbgModeTabs { margin: 14px 0 0; }
+.cbgImageBtn { position: relative; cursor: pointer; overflow: hidden; }
+.cbgImageBtn .apColorInput { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+.cbgPickers { margin-top: 12px; }
+.cbgEveryone {
+  display: flex; align-items: center; gap: 12px; width: 100%; text-align: left;
+  margin-top: 14px; padding: 10px 12px;
+  border-radius: 12px; background: var(--panel); border: 1.5px solid var(--border);
+  transition: border-color .15s, background .15s;
+}
+.cbgEveryoneOn { border-color: var(--accent-border); background: var(--accent-dim); }
+.cbgEveryoneText { display: flex; flex-direction: column; gap: 2px; }
+.cbgEveryoneLabel { font-size: 14px; font-weight: 600; }
+.cbgEveryoneHint { font-size: 12px; color: var(--muted); }
+.cbgError { margin-top: 10px; color: var(--danger); font-size: 13px; }
+.cbgActions { display: flex; gap: 10px; margin-top: 16px; }
+.cbgRemoveBtn { flex: 1; padding: 11px; border-radius: 12px; background: var(--panel); color: var(--text); font-weight: 600; border: 1px solid var(--border); }
+.cbgRemoveBtn:hover:not(:disabled) { border-color: var(--danger); color: var(--danger); }
+.cbgApplyBtn { flex: 1; padding: 11px; border-radius: 12px; background: var(--grad-accent); color: #fff; font-weight: 600; box-shadow: var(--glow); }
+.cbgApplyBtn:disabled, .cbgRemoveBtn:disabled { opacity: .5; cursor: not-allowed; }

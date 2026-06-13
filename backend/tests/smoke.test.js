@@ -47,7 +47,19 @@ db.exec(`
     id TEXT PRIMARY KEY,
     type TEXT NOT NULL DEFAULT 'direct',
     name TEXT,
-    created_at INTEGER NOT NULL
+    created_at INTEGER NOT NULL,
+    description TEXT,
+    avatar_url TEXT,
+    creator_id TEXT,
+    is_closed INTEGER NOT NULL DEFAULT 0,
+    chat_bg TEXT
+  );
+  CREATE TABLE chat_backgrounds (
+    user_id TEXT NOT NULL,
+    chat_id TEXT NOT NULL,
+    bg TEXT NOT NULL,
+    updated_at INTEGER NOT NULL DEFAULT 0,
+    PRIMARY KEY (user_id, chat_id)
   );
   CREATE TABLE chat_members (
     chat_id TEXT NOT NULL,
@@ -56,6 +68,10 @@ db.exec(`
     joined_at INTEGER NOT NULL,
     unread_count INTEGER NOT NULL DEFAULT 0,
     permissions TEXT,
+    last_read_at INTEGER NOT NULL DEFAULT 0,
+    is_pinned INTEGER NOT NULL DEFAULT 0,
+    pin_order INTEGER,
+    is_muted INTEGER NOT NULL DEFAULT 0,
     PRIMARY KEY (chat_id, user_id)
   );
   CREATE TABLE messages (
@@ -97,6 +113,17 @@ db.exec(`
     message_id TEXT NOT NULL,
     PRIMARY KEY (user_id, message_id)
   );
+  CREATE TABLE contact_aliases (
+    user_id TEXT NOT NULL,
+    target_id TEXT NOT NULL,
+    alias TEXT,
+    PRIMARY KEY (user_id, target_id)
+  );
+  CREATE TABLE blocked_users (
+    blocker_id TEXT NOT NULL,
+    blocked_id TEXT NOT NULL,
+    PRIMARY KEY (blocker_id, blocked_id)
+  );
 `);
 
 // ── Inject mocks into module cache before services are required ───────────────
@@ -117,6 +144,7 @@ const { validatePassword, loginOrRegister } = require('../src/services/authServi
 const { deleteMessages, editMessage, getChatMessages, saveMessage, forwardMessages } = require('../src/services/messageService');
 const { ALLOWED_TYPES }                     = require('../src/utils/allowedMimeTypes');
 const { encrypt }                           = require('../src/crypto/aes');
+const { setChatBackground }                 = require('../src/services/chatService');
 
 // ── Seed data ────────────────────────────────────────────────────────────────
 const NOW = Date.now();
@@ -126,8 +154,8 @@ db.prepare('INSERT INTO users VALUES (?,?,?,?,?,?,?)').run(['alice','alice',null
 db.prepare('INSERT INTO users VALUES (?,?,?,?,?,?,?)').run(['bob',  'bob',  null,null,      'Bob',  NOW,NOW]);
 db.prepare('INSERT INTO users VALUES (?,?,?,?,?,?,?)').run(['carol','carol',null,null,      'Carol',NOW,NOW]);
 
-db.prepare('INSERT INTO chats VALUES (?,?,?,?)').run(['chat-direct','direct',null,    NOW]);
-db.prepare('INSERT INTO chats VALUES (?,?,?,?)').run(['chat-group', 'group', 'Test',  NOW]);
+db.prepare('INSERT INTO chats (id,type,name,created_at) VALUES (?,?,?,?)').run(['chat-direct','direct',null,    NOW]);
+db.prepare('INSERT INTO chats (id,type,name,created_at) VALUES (?,?,?,?)').run(['chat-group', 'group', 'Test',  NOW]);
 
 db.prepare('INSERT INTO chat_members (chat_id,user_id,role,joined_at,unread_count) VALUES (?,?,?,?,?)').run(['chat-direct','alice','member',   NOW,0]);
 db.prepare('INSERT INTO chat_members (chat_id,user_id,role,joined_at,unread_count) VALUES (?,?,?,?,?)').run(['chat-direct','bob',  'member',   NOW,0]);
@@ -499,5 +527,66 @@ describe('moderator granular permissions', () => {
     insertMsg('perm-msg-2', 'chat-group', 'carol', 'ещё сообщение carol');
     const deleted = deleteMessages('chat-group', 'bob', ['perm-msg-2']);
     assert.equal(deleted.length, 1);
+  });
+});
+
+// ── 9. Фоны чата (личный / общий) ──────────────────────────────────────────
+describe('chat backgrounds', () => {
+  const grad = { type: 'gradient', c1: '#2d1b4e', c2: '#7c2d5e', angle: 160 };
+
+  test('personal background: any member can set their own', () => {
+    setChatBackground('chat-group', 'carol', { type: 'solid', c1: '#101418' }, false);
+    const row = db.prepare("SELECT bg FROM chat_backgrounds WHERE user_id='carol' AND chat_id='chat-group'").get();
+    assert.ok(row && JSON.parse(row.bg).type === 'solid');
+  });
+
+  test('non-member cannot set background (403)', () => {
+    // alice/bob are in chat-direct, carol is NOT
+    assert.throws(
+      () => setChatBackground('chat-direct', 'carol', grad, false),
+      (err) => { assert.equal(err.status, 403); return true; },
+    );
+  });
+
+  test('shared background in DM: any participant can set', () => {
+    setChatBackground('chat-direct', 'bob', grad, true);
+    const row = db.prepare("SELECT chat_bg FROM chats WHERE id='chat-direct'").get();
+    assert.ok(row.chat_bg && JSON.parse(row.chat_bg).type === 'gradient');
+  });
+
+  test('shared background in group: admin (edit_info) can set', () => {
+    setChatBackground('chat-group', 'alice', grad, true);
+    const row = db.prepare("SELECT chat_bg FROM chats WHERE id='chat-group'").get();
+    assert.ok(JSON.parse(row.chat_bg).type === 'gradient');
+  });
+
+  test('shared background in group: moderator WITHOUT edit_info is rejected (403)', () => {
+    // bob is moderator with default perms → edit_info=false
+    assert.throws(
+      () => setChatBackground('chat-group', 'bob', { type: 'solid', c1: '#000000' }, true),
+      (err) => { assert.equal(err.status, 403); return true; },
+    );
+  });
+
+  test('shared background in group: moderator WITH edit_info can set', () => {
+    db.prepare("UPDATE chat_members SET permissions=? WHERE chat_id='chat-group' AND user_id='bob'")
+      .run(JSON.stringify({ edit_info: true, delete_messages: true, manage_members: true }));
+    setChatBackground('chat-group', 'bob', { type: 'solid', c1: '#222222' }, true);
+    const row = db.prepare("SELECT chat_bg FROM chats WHERE id='chat-group'").get();
+    assert.equal(JSON.parse(row.chat_bg).c1, '#222222');
+    db.prepare("UPDATE chat_members SET permissions=NULL WHERE chat_id='chat-group' AND user_id='bob'").run();
+  });
+
+  test('invalid background payload is rejected (400)', () => {
+    assert.throws(
+      () => setChatBackground('chat-group', 'alice', { type: 'bogus' }, true),
+      (err) => { assert.equal(err.status, 400); return true; },
+    );
+  });
+
+  test('clearing personal background removes the row', () => {
+    setChatBackground('chat-group', 'carol', null, false);
+    const row = db.prepare("SELECT bg FROM chat_backgrounds WHERE user_id='carol' AND chat_id='chat-group'").get();
+    assert.equal(row, undefined);
   });
 });

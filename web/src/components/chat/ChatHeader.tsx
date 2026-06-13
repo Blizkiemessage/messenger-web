@@ -44,6 +44,7 @@ interface Props {
   onVideoCall?: () => void;
   onOpenNotes?: () => void;
   onOpenSummary?: () => void;
+  onOpenChatBg?: () => void;
 }
 
 export function ChatHeader({
@@ -53,7 +54,7 @@ export function ChatHeader({
   searchOpen, searchQuery, searchTotal, searchCurrent,
   onToggleSearch, onSearchChange, onSearchNext, onSearchPrev, onSearchClose,
   pinnedCount, pinnedOpen, pinnedIndex, onTogglePinned, onPinnedNext, onPinnedPrev,
-  typingText, onOpenMedia, onAudioCall, onVideoCall, onOpenNotes, onOpenSummary,
+  typingText, onOpenMedia, onAudioCall, onVideoCall, onOpenNotes, onOpenSummary, onOpenChatBg,
 }: Props) {
   const setActiveChatId = useChatsStore(s => s.setActiveChatId);
   const onlineUsers = useChatsStore(s => s.onlineUsers);
@@ -317,6 +318,16 @@ export function ChatHeader({
                   <path d="M12 6v6l4 2"/>
                 </svg>
                 AI-сводка
+              </button>
+            )}
+            {onOpenChatBg && (
+              <button className="chHeaderDropItem" onMouseDown={e => e.stopPropagation()} onClick={() => { setMoreMenuPos(null); onOpenChatBg(); }}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="3" y="3" width="18" height="18" rx="2"/>
+                  <circle cx="8.5" cy="8.5" r="1.5"/>
+                  <polyline points="21 15 16 10 5 21"/>
+                </svg>
+                Фон чата
               </button>
             )}
           </div>,

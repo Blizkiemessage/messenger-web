@@ -122,6 +122,10 @@ export type Chat = {
   is_pinned?: boolean;
   pin_order?: number | null;
   is_muted?: boolean;
+  // Фоны чата (JSON-строка ChatBg или null). chat_bg — общий (виден всем),
+  // my_chat_bg — личный (только у этого пользователя). См. utils/appBackground.ts.
+  chat_bg?: string | null;
+  my_chat_bg?: string | null;
 };
 
 export type AuthResponse = {

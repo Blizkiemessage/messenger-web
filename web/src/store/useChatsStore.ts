@@ -138,6 +138,9 @@ export const useChatsStore = create<ChatsState>((set) => ({
       pin_order: existing.pin_order,
       is_muted:  existing.is_muted,
       ...chat,
+      // Личный фон — local-authoritative: меняется только своим действием (HTTP),
+      // а broadcast несёт my_chat_bg отправителя, поэтому его игнорируем.
+      my_chat_bg: existing.my_chat_bg,
     } : chat;
     return {
       chats: existing

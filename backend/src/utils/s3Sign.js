@@ -142,12 +142,32 @@ async function signUserAvatars(users) {
  * Sign avatar + member avatars + last_message URL in a single chat object.
  * Mutates in place. Returns the same object.
  */
+/**
+ * Sign the image URL inside a ChatBg JSON string (type:'image').
+ * Returns the JSON string with a signed url, or the input unchanged.
+ * 7-day TTL like avatars — backgrounds change rarely.
+ */
+async function signChatBgJson(json) {
+  if (!useS3 || !json) return json;
+  try {
+    const bg = JSON.parse(json);
+    if (bg?.type === 'image' && bg.url) {
+      bg.url = await signAvatarUrl(bg.url);
+      return JSON.stringify(bg);
+    }
+  } catch { /* битый JSON — отдаём как есть */ }
+  return json;
+}
+
 async function signFullChatObject(chat) {
   if (!useS3 || !chat) return chat;
   // Sign group/direct chat avatar
   if (chat.avatar_url) {
     chat.avatar_url = await signAvatarUrl(chat.avatar_url);
   }
+  // Sign per-chat background images (shared + personal)
+  if (chat.chat_bg)    chat.chat_bg    = await signChatBgJson(chat.chat_bg);
+  if (chat.my_chat_bg) chat.my_chat_bg = await signChatBgJson(chat.my_chat_bg);
   // Sign every member's avatar
   if (Array.isArray(chat.members)) {
     await Promise.all(chat.members.map(async (m) => {

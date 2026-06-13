@@ -3,7 +3,8 @@
  * ✅ Updated: closeGroup, transferAdmin wired to GroupInfoModal
  * ✅ Updated: admin leaving a group → closes group instead of removing chat
  */
-import { useEffect, lazy, Suspense } from 'react';
+import { useEffect, lazy, Suspense, type CSSProperties } from 'react';
+import { resolveChatBgCss } from './utils/appBackground';
 import './app.css';
 
 import { useSessionStore } from './store/useSessionStore';
@@ -272,7 +273,10 @@ export default function App() {
 
       <div className={`layout${hasSelection ? ' selecting' : ''}${activeChat ? ' chatOpen' : ''}`}>
         <Sidebar />
-        <main className="chatArea">
+        <main
+          className="chatArea"
+          style={activeChat ? ({ '--chat-bg': resolveChatBgCss(activeChat) || undefined } as CSSProperties) : undefined}
+        >
           <ChatArea />
         </main>
       </div>

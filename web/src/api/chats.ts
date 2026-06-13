@@ -1,5 +1,6 @@
 import client from './client';
 import { type Chat, type Message, type ModeratorPermissions } from '../types';
+import { type ChatBg } from '../utils/appBackground';
 
 export async function getChats(): Promise<Chat[]> {
   const res = await client.get<Chat[]>('/chats');
@@ -194,6 +195,14 @@ export async function setMemberPermissions(
   chatId: string, userId: string, permissions: ModeratorPermissions,
 ): Promise<Chat> {
   const res = await client.patch<Chat>(`/chats/${chatId}/members/${userId}/permissions`, { permissions });
+  return res.data;
+}
+
+/** Задать фон чата: личный (forEveryone=false) или общий (true). bg=null снимает фон. */
+export async function setChatBackground(
+  chatId: string, bg: ChatBg | null, forEveryone: boolean,
+): Promise<Chat> {
+  const res = await client.put<Chat>(`/chats/${chatId}/background`, { bg, forEveryone });
   return res.data;
 }
 

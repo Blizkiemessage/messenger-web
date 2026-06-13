@@ -19,6 +19,7 @@ const {
   updateChatPinOrder,
   setMemberRole,
   setMemberPermissions,
+  setChatBackground,
 } = require('../services/chatService');
 const { getChatMedia } = require('../services/messageService');
 const { signFullChatObjects, signFullChatObject, signMessageUrls, signAvatarUrl } = require('../utils/s3Sign');
@@ -284,6 +285,28 @@ router.patch('/:id/members/:userId/permissions', async (req, res, next) => {
     if (io) {
       for (const member of updatedChat.members) {
         io.to(`user:${member.id}`).emit('chat-updated', updatedChat);
+      }
+    }
+    res.json(updatedChat);
+  } catch (err) { next(err); }
+});
+
+// PUT /chats/:id/background — задать фон чата (личный или общий «для всех»)
+// body: { bg: ChatBg | null, forEveryone: boolean }
+router.put('/:id/background', async (req, res, next) => {
+  try {
+    const { bg, forEveryone } = req.body;
+    setChatBackground(req.params.id, req.userId, bg ?? null, !!forEveryone);
+    const updatedChat = getChatById(req.params.id, req.userId);
+    await signFullChatObject(updatedChat);
+    // Общий фон рассылаем всем участникам; личный — только в HTTP-ответе.
+    // Клиент при chat-updated сохраняет свой my_chat_bg (личный фон не «протекает»).
+    if (forEveryone) {
+      const io = req.app.get('io');
+      if (io) {
+        for (const member of updatedChat.members) {
+          io.to(`user:${member.id}`).emit('chat-updated', updatedChat);
+        }
       }
     }
     res.json(updatedChat);
