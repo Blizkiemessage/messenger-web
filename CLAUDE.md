@@ -92,6 +92,8 @@ web/src/
 
 ## Журнал изменений
 
+- 2026-06-18 | chat | (1) надёжный фон «для всех»: причина «не работает у части юзеров» — личный фон (my_chat_bg) всегда перекрывал общий, в т.ч. у самого автора. Теперь setChatBackground(forEveryone) снимает личный фон автора (видит результат сразу) + ставит chats.chat_bg_updated_at (миграция 009). Участнику с СВОИМ личным фоном общий не затирается молча — плашка SharedBgPrompt «Фон чата обновлён · Применить» (показ по chat_bg_updated_at > my_chat_bg_updated_at; дисмисс в localStorage). +2 теста (69). (2) даты в переписке: разделители дня (Сегодня/Вчера/«17 января»/«11 июля 2025») в MessageList + плавающая sticky-пилюля даты сверху при прокрутке (format.ts: dayKey/formatDateSeparator)
+
 - 2026-06-12 | groups+chat | индивидуальные фоны чата (этап 2/2): миграция 008 (chats.chat_bg + таблица chat_backgrounds), ChatBg=solid/gradient/image; setChatBackground (личный/общий: ЛС — любой, группа — edit_info), PUT /chats/:id/background, подпись image-url в s3Sign; фронт — ChatBackgroundModal (пресеты/цвет/градиент/картинка/«для всех»), --chat-bg на .chatArea (личный→общий→app-bg→дефолт), пункт «Фон чата» в меню шапки; upsertChat сохраняет локальный my_chat_bg (общий фон не «протекает»). +8 тестов (всего 67)
 
 - 2026-06-12 | groups | гранулярные права модератора (этап 1/2 фич групп): миграция 007 (chat_members.permissions JSON), модуль services/chatPermissions.js (единый источник прав, без цикла require), гейты edit_info→updateChatMetadata, delete_messages→deleteMessages, manage_members→add/removeMember; роут PATCH /chats/:id/members/:userId/permissions (admin-only); UI диалог прав в GroupInfoModal (3 переключателя). Дефолт модератора сохраняет старое поведение. +6 тестов (всего 59)

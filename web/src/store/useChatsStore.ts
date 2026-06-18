@@ -139,8 +139,11 @@ export const useChatsStore = create<ChatsState>((set) => ({
       is_muted:  existing.is_muted,
       ...chat,
       // Личный фон — local-authoritative: меняется только своим действием (HTTP),
-      // а broadcast несёт my_chat_bg отправителя, поэтому его игнорируем.
+      // а broadcast несёт my_chat_bg отправителя, поэтому его (и его метку времени)
+      // игнорируем. chat_bg / chat_bg_updated_at из broadcast'а, наоборот, берём —
+      // это общий фон, по нему ChatArea решает, показывать ли плашку «Фон обновлён».
       my_chat_bg: existing.my_chat_bg,
+      my_chat_bg_updated_at: existing.my_chat_bg_updated_at,
     } : chat;
     return {
       chats: existing

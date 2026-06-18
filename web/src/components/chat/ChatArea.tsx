@@ -29,6 +29,7 @@ import { PollCreatorModal } from './PollCreatorModal';
 import { PollVotersModal } from './PollVotersModal';
 import { MediaPlayerProvider } from '../../contexts/MediaPlayerContext';
 import { MiniPlayer } from './MiniPlayer';
+import { SharedBgPrompt } from './SharedBgPrompt';
 import { ScheduleDatePicker } from './ScheduleDatePicker';
 import { ScheduledMessagesModal } from '../modals/ScheduledMessagesModal';
 import { NotesPanel } from '../notes/NotesPanel';
@@ -817,6 +818,9 @@ export function ChatArea() {
 
       {/* Mini player — appears below header while audio/video is playing */}
       <MiniPlayer />
+
+      {/* Плашка «Фон чата обновлён» — если общий фон сменили после моего личного */}
+      <SharedBgPrompt chat={activeChat} />
 
       <MessageList
         messages={messages}

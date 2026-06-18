@@ -126,6 +126,10 @@ export type Chat = {
   // my_chat_bg — личный (только у этого пользователя). См. utils/appBackground.ts.
   chat_bg?: string | null;
   my_chat_bg?: string | null;
+  // Метки времени (ms) смены каждого слоя — нужны, чтобы показать плашку
+  // «Фон чата обновлён», когда общий фон поменяли ПОСЛЕ выбора личного.
+  chat_bg_updated_at?: number | null;
+  my_chat_bg_updated_at?: number | null;
 };
 
 export type AuthResponse = {

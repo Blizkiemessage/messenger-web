@@ -6,6 +6,7 @@
  */
 import { useRef, useEffect, useLayoutEffect, useState, useCallback, lazy, Suspense } from 'react';
 import { type Message, type Chat, type MessageReaction } from '../../types';
+import { dayKey, formatDateSeparator } from '../../utils/format';
 import { MessageBubble } from './MessageBubble';
 import { Portal } from '../ui/Portal';
 const EmojiPicker = lazy(() => import('../ui/EmojiPicker').then(m => ({ default: m.EmojiPicker })));
@@ -75,6 +76,11 @@ export function MessageList({
   const isGroup        = chat.type === 'group';
   const [atBottom, setAtBottom] = useState(true);
   const atBottomRef    = useRef(true);
+  // Плавающая «пилюля» с датой текущей видимой переписки (как в Telegram):
+  // появляется при прокрутке и мягко прячется в покое.
+  const [floatingDate, setFloatingDate] = useState<string | null>(null);
+  const [floatingVisible, setFloatingVisible] = useState(false);
+  const floatingHideRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   // Track whether we've done the initial scroll-to-first-unread for this chat
   const initialScrollDoneRef = useRef(false);
   const readDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -226,6 +232,32 @@ export function MessageList({
     if (maxTs > 0) onMarkRead(maxTs);
   }, [onMarkRead]);
 
+  // Дата самого верхнего видимого сообщения → плавающая пилюля сверху.
+  const updateFloatingDate = useCallback(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const top = el.getBoundingClientRect().top;
+    const msgEls = el.querySelectorAll<HTMLElement>('[data-msg-id]');
+    let ts = 0;
+    for (const msgEl of Array.from(msgEls)) {
+      // первое сообщение, чей нижний край ещё в зоне видимости
+      if (msgEl.getBoundingClientRect().bottom >= top + 4) {
+        ts = msgTimestampMap.current.get(msgEl.dataset.msgId!) ?? 0;
+        break;
+      }
+    }
+    if (!ts) return;
+    setFloatingDate(formatDateSeparator(ts));
+    setFloatingVisible(true);
+    if (floatingHideRef.current) clearTimeout(floatingHideRef.current);
+    floatingHideRef.current = setTimeout(() => setFloatingVisible(false), 1300);
+  }, []);
+
+  // Сбросить таймер скрытия пилюли при размонтировании
+  useEffect(() => () => { if (floatingHideRef.current) clearTimeout(floatingHideRef.current); }, []);
+  // Прятать пилюлю при переключении чата
+  useEffect(() => { setFloatingVisible(false); }, [chat.id]);
+
   // Scroll listener: track atBottom + trigger load-more when near top + read tracking
   const handleScroll = useCallback(() => {
     const el = containerRef.current;
@@ -234,6 +266,7 @@ export function MessageList({
     const isAtBottom = scrollHeight - scrollTop - clientHeight < 80;
     setAtBottom(isAtBottom);
     atBottomRef.current = isAtBottom;
+    updateFloatingDate();
     if (scrollTop < 80 && hasMoreMessages && !loadingMore && prevScrollHeightRef.current === 0) {
       prevScrollHeightRef.current = scrollHeight;
       onLoadMore();
@@ -247,7 +280,7 @@ export function MessageList({
         readDebounceRef.current = setTimeout(updateReadPosition, 500);
       }
     }
-  }, [hasMoreMessages, loadingMore, onLoadMore, onMarkRead, updateReadPosition]);
+  }, [hasMoreMessages, loadingMore, onLoadMore, onMarkRead, updateReadPosition, updateFloatingDate]);
 
   useEffect(() => {
     if (currentMatchId && matchRef.current)
@@ -278,6 +311,10 @@ export function MessageList({
 
   return (
     <div className="messages" ref={containerRef} onScroll={handleScroll} onClick={() => { hasSelection && onClearSelection(); setCtxMenu(null); }}>
+      {/* Плавающая дата — sticky, height:0, не занимает места в потоке */}
+      <div className={`msgsFloatingDate${floatingVisible && floatingDate ? ' msgsFloatingDateShow' : ''}`} aria-hidden>
+        {floatingDate && <span className="msgDatePill msgDatePillFloat">{floatingDate}</span>}
+      </div>
       {loadingMore && <div className="msgsLoadingMore">Загрузка истории…</div>}
       {!hasMoreMessages && messages.length > 0 && (
         <div className="msgsBeginning">— начало истории переписки —</div>
@@ -297,9 +334,19 @@ export function MessageList({
         const isMatch      = searchQuery.length >= 1 && matchedIds.includes(m.id);
         const isFocused    = m.id === currentMatchId;
         const isPinnedFocus = m.id === pinnedFocusId;
+        // Разделитель дня: перед первым сообщением и на каждой смене даты
+        const showDate = idx === 0 || dayKey(m.created_at) !== dayKey(messages[idx - 1].created_at);
+        const dateDivider = showDate ? (
+          <div className="msgDateDivider"><span className="msgDatePill">{formatDateSeparator(m.created_at)}</span></div>
+        ) : null;
 
         if (m.is_system) {
-          return <div key={m.id} className="msgSystem"><span>{m.text}</span></div>;
+          return (
+            <div key={m.id}>
+              {dateDivider}
+              <div className="msgSystem"><span>{m.text}</span></div>
+            </div>
+          );
         }
 
         return (
@@ -309,6 +356,7 @@ export function MessageList({
             ref={isFocused ? matchRef : isPinnedFocus ? pinnedRef : null}
             onContextMenu={e => handleContextMenu(e, m)}
           >
+            {dateDivider}
             <MessageBubble
               message={m}
               isOwn={isOwn}

@@ -52,7 +52,8 @@ db.exec(`
     avatar_url TEXT,
     creator_id TEXT,
     is_closed INTEGER NOT NULL DEFAULT 0,
-    chat_bg TEXT
+    chat_bg TEXT,
+    chat_bg_updated_at INTEGER
   );
   CREATE TABLE chat_backgrounds (
     user_id TEXT NOT NULL,
@@ -588,5 +589,22 @@ describe('chat backgrounds', () => {
     setChatBackground('chat-group', 'carol', null, false);
     const row = db.prepare("SELECT bg FROM chat_backgrounds WHERE user_id='carol' AND chat_id='chat-group'").get();
     assert.equal(row, undefined);
+  });
+
+  test('shared background "for everyone" clears the author\'s own personal bg', () => {
+    // alice (admin) сначала ставит личный фон, затем делает фон общим «для всех»
+    setChatBackground('chat-group', 'alice', { type: 'solid', c1: '#123456' }, false);
+    assert.ok(db.prepare("SELECT bg FROM chat_backgrounds WHERE user_id='alice' AND chat_id='chat-group'").get());
+    setChatBackground('chat-group', 'alice', { type: 'solid', c1: '#654321' }, true);
+    // личный фон автора снят — общий фон теперь виден и ему
+    const personal = db.prepare("SELECT bg FROM chat_backgrounds WHERE user_id='alice' AND chat_id='chat-group'").get();
+    assert.equal(personal, undefined);
+  });
+
+  test('shared background "for everyone" stamps chat_bg_updated_at', () => {
+    const before = Date.now() - 1;
+    setChatBackground('chat-direct', 'bob', { type: 'solid', c1: '#abcdef' }, true);
+    const row = db.prepare("SELECT chat_bg_updated_at FROM chats WHERE id='chat-direct'").get();
+    assert.ok(row.chat_bg_updated_at >= before, 'chat_bg_updated_at должен проставляться');
   });
 });

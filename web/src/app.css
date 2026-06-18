@@ -13497,3 +13497,66 @@ input[type="date"].psInput::-webkit-calendar-picker-indicator {
 .cbgRemoveBtn:hover:not(:disabled) { border-color: var(--danger); color: var(--danger); }
 .cbgApplyBtn { flex: 1; padding: 11px; border-radius: 12px; background: var(--grad-accent); color: #fff; font-weight: 600; box-shadow: var(--glow); }
 .cbgApplyBtn:disabled, .cbgRemoveBtn:disabled { opacity: .5; cursor: not-allowed; }
+
+/* ── Плашка «Фон чата обновлён» (SharedBgPrompt) ───────────────────────────
+   Появляется в шапке списка сообщений, когда общий фон сменили после личного. */
+.sbgPrompt {
+  display: flex; align-items: center; gap: 10px;
+  margin: 8px 12px 0; padding: 8px 10px 8px 12px;
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--accent) 14%, var(--card));
+  border: 1px solid color-mix(in srgb, var(--accent) 26%, transparent);
+  backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+  font-size: 13px; flex-shrink: 0;
+  animation: sbgPromptIn .26s cubic-bezier(.2,.8,.2,1);
+}
+@keyframes sbgPromptIn { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .sbgPrompt { animation: none; } }
+.sbgPromptSwatch {
+  width: 26px; height: 26px; border-radius: 8px; flex-shrink: 0;
+  border: 1px solid color-mix(in srgb, var(--accent) 30%, transparent);
+  box-shadow: 0 1px 4px rgba(0,0,0,.25);
+}
+.sbgPromptText { flex: 1; color: var(--text); font-weight: 500; }
+.sbgPromptApply {
+  padding: 6px 14px; border: none; border-radius: 9px;
+  background: var(--grad-accent); color: #fff; font-size: 12.5px; font-weight: 600;
+  cursor: pointer; box-shadow: var(--glow); transition: opacity .12s;
+}
+.sbgPromptApply:hover:not(:disabled) { opacity: .9; }
+.sbgPromptClose {
+  display: grid; place-items: center; width: 28px; height: 28px; flex-shrink: 0;
+  border: none; border-radius: 8px; background: none; color: var(--muted);
+  font-size: 14px; cursor: pointer; transition: background .12s, color .12s;
+}
+.sbgPromptClose:hover:not(:disabled) { background: color-mix(in srgb, var(--text) 10%, transparent); color: var(--text); }
+.sbgPromptApply:disabled, .sbgPromptClose:disabled { opacity: .5; cursor: not-allowed; }
+
+/* ── Разделители дат в переписке + плавающая «пилюля» даты ──────────────────
+   Inline-разделитель появляется на смене дня; плавающая пилюля «едет» сверху
+   при прокрутке и мягко тает в покое — всегда понятно, в каком дне находишься. */
+.msgDateDivider { display: flex; justify-content: center; padding: 10px 0 6px; }
+.msgDatePill {
+  font-size: 12px; font-weight: 600; letter-spacing: .01em;
+  color: var(--text);
+  padding: 4px 14px; border-radius: 20px;
+  background: color-mix(in srgb, var(--card) 78%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent) 18%, var(--border));
+  backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+  box-shadow: 0 2px 10px rgba(0,0,0,.18);
+}
+/* Sticky-обёртка нулевой высоты — пилюля не занимает места в потоке сообщений */
+.msgsFloatingDate {
+  position: sticky; top: 0; height: 0; z-index: 6;
+  display: flex; justify-content: center; pointer-events: none; overflow: visible;
+}
+.msgDatePillFloat {
+  margin-top: 8px;
+  opacity: 0; transform: translateY(-6px) scale(.96);
+  transition: opacity .22s ease, transform .22s ease;
+  box-shadow: 0 4px 16px rgba(0,0,0,.28);
+}
+.msgsFloatingDateShow .msgDatePillFloat { opacity: 1; transform: none; }
+@media (prefers-reduced-motion: reduce) {
+  .msgDatePillFloat { transition: opacity .22s ease; transform: none; }
+}

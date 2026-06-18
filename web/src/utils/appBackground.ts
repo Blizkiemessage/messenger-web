@@ -165,3 +165,21 @@ export function cssForChatBg(bg: ChatBg | null): string | null {
 export function resolveChatBgCss(chat: { my_chat_bg?: string | null; chat_bg?: string | null }): string | null {
   return cssForChatBg(parseChatBg(chat.my_chat_bg)) || cssForChatBg(parseChatBg(chat.chat_bg));
 }
+
+/**
+ * Стоит ли предложить участнику применить общий фон «для всех».
+ * true, когда у участника есть свой личный фон (он перекрывает общий), при этом
+ * общий фон существует и был задан ПОЗЖЕ личного — значит кто-то осознанно
+ * поменял фон «для всех» уже после того, как участник выбрал свой. Личный выбор
+ * не трогаем молча — показываем плашку с предложением применить.
+ */
+export function sharedChatBgIsNewer(chat: {
+  my_chat_bg?: string | null;
+  chat_bg?: string | null;
+  chat_bg_updated_at?: number | null;
+  my_chat_bg_updated_at?: number | null;
+}): boolean {
+  if (!parseChatBg(chat.my_chat_bg)) return false;   // нет личного — общий и так виден
+  if (!parseChatBg(chat.chat_bg)) return false;       // нет общего — нечего предлагать
+  return (chat.chat_bg_updated_at ?? 0) > (chat.my_chat_bg_updated_at ?? 0);
+}

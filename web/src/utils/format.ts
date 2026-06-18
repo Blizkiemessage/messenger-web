@@ -47,6 +47,35 @@ export function formatLastSeen(lastSeenAt: number | null | undefined, isOnline: 
   return `был(а) ${d.toLocaleDateString('ru', { day: 'numeric', month: 'short' })} в ${hhmm}`;
 }
 
+const RU_MONTHS_GEN = [
+  'января', 'февраля', 'марта', 'апреля', 'мая', 'июня',
+  'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря',
+];
+
+/** Локальный «ключ дня» (YYYY-MM-DD в часовом поясе пользователя) для группировки. */
+export function dayKey(ts: number): string {
+  const d = new Date(ts);
+  return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+}
+
+/**
+ * Человекочитаемая дата для разделителя в переписке:
+ *   «Сегодня», «Вчера», «17 января» (текущий год) или «11 июля 2025» (прошлые годы).
+ */
+export function formatDateSeparator(ts: number): string {
+  const d = new Date(ts);
+  const now = new Date();
+  if (dayKey(ts) === dayKey(now.getTime())) return 'Сегодня';
+  const yesterday = new Date(now);
+  yesterday.setDate(now.getDate() - 1);
+  if (dayKey(ts) === dayKey(yesterday.getTime())) return 'Вчера';
+  const day = d.getDate();
+  const month = RU_MONTHS_GEN[d.getMonth()];
+  return d.getFullYear() === now.getFullYear()
+    ? `${day} ${month}`
+    : `${day} ${month} ${d.getFullYear()}`;
+}
+
 export function formatBirthDate(d: string): string {
   try {
     const parts = d.split('-');

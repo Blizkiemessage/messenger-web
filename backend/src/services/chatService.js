@@ -37,7 +37,7 @@ function getChatById(chatId, userId) {
 
   const chat = db
     .prepare(
-      'SELECT id, type, name, description, avatar_url, created_at, creator_id, is_closed, chat_bg FROM chats WHERE id = ?'
+      'SELECT id, type, name, description, avatar_url, created_at, creator_id, is_closed, chat_bg, chat_bg_updated_at FROM chats WHERE id = ?'
     )
     .get(chatId);
   if (!chat) return null;
@@ -103,7 +103,7 @@ function getChatById(chatId, userId) {
 
   // Личный фон этого пользователя в этом чате (если задан)
   const personalBg = db
-    .prepare('SELECT bg FROM chat_backgrounds WHERE user_id = ? AND chat_id = ?')
+    .prepare('SELECT bg, updated_at FROM chat_backgrounds WHERE user_id = ? AND chat_id = ?')
     .get([userId, chatId]);
 
   return {
@@ -113,7 +113,9 @@ function getChatById(chatId, userId) {
     last_message: lastMsg ? decryptMessage(lastMsg) : null,
     unread_count: 0,
     partner_last_read_at,
+    chat_bg_updated_at: chat.chat_bg_updated_at || null,
     my_chat_bg: personalBg?.bg || null,
+    my_chat_bg_updated_at: personalBg?.updated_at || null,
   };
 }
 
@@ -125,7 +127,7 @@ function getUserChats(userId) {
   // 1. All chats for this user + their membership row
   const rows = db.prepare(`
     SELECT c.id, c.type, c.name, c.description, c.avatar_url, c.created_at,
-           c.creator_id, c.is_closed, c.chat_bg,
+           c.creator_id, c.is_closed, c.chat_bg, c.chat_bg_updated_at,
            cm.is_pinned, cm.pin_order, cm.is_muted, cm.last_read_at AS my_last_read_at,
            cm.unread_count
     FROM chats c
@@ -141,10 +143,14 @@ function getUserChats(userId) {
 
   // Личные фоны этого пользователя по всем его чатам — одним запросом
   const personalBgRows = db
-    .prepare(`SELECT chat_id, bg FROM chat_backgrounds WHERE user_id = ? AND chat_id IN (${placeholders})`)
+    .prepare(`SELECT chat_id, bg, updated_at FROM chat_backgrounds WHERE user_id = ? AND chat_id IN (${placeholders})`)
     .all([userId, ...chatIds]);
   const personalBgByChat = {};
-  for (const r of personalBgRows) personalBgByChat[r.chat_id] = r.bg;
+  const personalBgAtByChat = {};
+  for (const r of personalBgRows) {
+    personalBgByChat[r.chat_id] = r.bg;
+    personalBgAtByChat[r.chat_id] = r.updated_at;
+  }
 
   // 2. All members of all chats in one query
   const allMembers = db.prepare(`
@@ -236,7 +242,9 @@ function getUserChats(userId) {
       pin_order:   chat.pin_order  ?? null,
       is_muted:    chat.is_muted   === 1,
       chat_bg:     chat.chat_bg || null,
+      chat_bg_updated_at: chat.chat_bg_updated_at || null,
       my_chat_bg:  personalBgByChat[chat.id] || null,
+      my_chat_bg_updated_at: personalBgAtByChat[chat.id] || null,
       members,
       last_message: lastMsg ? decryptMessage(lastMsg) : null,
       unread_count: chat.unread_count || 0,
@@ -887,8 +895,14 @@ function setChatBackground(chatId, requesterId, bg, forEveryone) {
         throw Object.assign(new Error('Недостаточно прав для смены фона группы'), { status: 403 });
       }
     }
-    // ЛС: любой из собеседников может менять общий фон (membership уже проверено)
-    db.prepare('UPDATE chats SET chat_bg = ? WHERE id = ?').run([bgJson, chatId]);
+    // ЛС: любой из собеседников может менять общий фон (membership уже проверено).
+    // chat_bg_updated_at — момент смены общего фона; по нему клиент решает, показывать
+    // ли участнику с личным фоном плашку «Фон чата обновлён».
+    db.prepare('UPDATE chats SET chat_bg = ?, chat_bg_updated_at = ? WHERE id = ?')
+      .run([bgJson, Date.now(), chatId]);
+    // Автор осознанно делает фон общим — снимаем его личный фон, чтобы он сразу
+    // увидел результат (личный фон иначе перекрыл бы только что выставленный общий).
+    db.prepare('DELETE FROM chat_backgrounds WHERE user_id = ? AND chat_id = ?').run([requesterId, chatId]);
   } else if (bgJson == null) {
     db.prepare('DELETE FROM chat_backgrounds WHERE user_id = ? AND chat_id = ?').run([requesterId, chatId]);
   } else {

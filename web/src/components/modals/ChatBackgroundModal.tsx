@@ -82,6 +82,8 @@ export function ChatBackgroundModal({ chat, meId, onClose }: Props) {
     useChatsStore.getState().updateChatPatch(chat.id, {
       chat_bg: updated.chat_bg,
       my_chat_bg: updated.my_chat_bg,
+      chat_bg_updated_at: updated.chat_bg_updated_at,
+      my_chat_bg_updated_at: updated.my_chat_bg_updated_at,
     });
   }
 
