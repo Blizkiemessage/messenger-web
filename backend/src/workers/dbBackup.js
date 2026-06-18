@@ -43,6 +43,7 @@ const {
 
 const { getDb }  = require('../config/database');
 const logger     = require('../utils/logger');
+const { encryptBackup } = require('../utils/backupCrypto');
 
 // ── Config ───────────────────────────────────────────────────────────────────
 
@@ -50,20 +51,26 @@ const BACKUP_PREFIX    = (process.env.DB_BACKUP_S3_PREFIX    || 'db-backups/').r
 const BACKUP_KEEP_DAYS = parseInt(process.env.DB_BACKUP_KEEP_DAYS   || '30',  10);
 const BACKUP_HOUR_UTC  = parseInt(process.env.DB_BACKUP_HOUR_UTC    || '3',   10);
 
-const useS3 = !!(
-  process.env.S3_ACCESS_KEY_ID &&
-  process.env.S3_SECRET_ACCESS_KEY &&
-  process.env.S3_BUCKET
+// Backups may live in a separate bucket with separate (ideally write-only)
+// credentials so a compromise of the media-serving keys can't read DB backups.
+// Falls back to the media bucket/keys when the dedicated vars aren't set.
+const BACKUP_BUCKET = process.env.DB_BACKUP_S3_BUCKET || process.env.S3_BUCKET;
+const BACKUP_ACCESS_KEY_ID     = process.env.DB_BACKUP_S3_ACCESS_KEY_ID     || process.env.S3_ACCESS_KEY_ID;
+const BACKUP_SECRET_ACCESS_KEY = process.env.DB_BACKUP_S3_SECRET_ACCESS_KEY || process.env.S3_SECRET_ACCESS_KEY;
+const usingDedicatedBackupCreds = !!(
+  process.env.DB_BACKUP_S3_ACCESS_KEY_ID && process.env.DB_BACKUP_S3_SECRET_ACCESS_KEY
 );
+
+const useS3 = !!(BACKUP_ACCESS_KEY_ID && BACKUP_SECRET_ACCESS_KEY && BACKUP_BUCKET);
 
 let s3Client;
 if (useS3) {
   s3Client = new S3Client({
-    region:   process.env.S3_REGION   || 'ru-central1',
-    endpoint: process.env.S3_ENDPOINT || 'https://storage.yandexcloud.net',
+    region:   process.env.DB_BACKUP_S3_REGION   || process.env.S3_REGION   || 'ru-central1',
+    endpoint: process.env.DB_BACKUP_S3_ENDPOINT || process.env.S3_ENDPOINT || 'https://storage.yandexcloud.net',
     credentials: {
-      accessKeyId:     process.env.S3_ACCESS_KEY_ID,
-      secretAccessKey: process.env.S3_SECRET_ACCESS_KEY,
+      accessKeyId:     BACKUP_ACCESS_KEY_ID,
+      secretAccessKey: BACKUP_SECRET_ACCESS_KEY,
     },
     forcePathStyle: true, // required for Yandex Cloud S3
   });
@@ -90,10 +97,12 @@ async function runBackup() {
 
   const db      = getDb();
   const date    = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
-  const key     = `${BACKUP_PREFIX}blizkie-${date}.db`;
+  // ".db.enc" — the object is AES-256-GCM encrypted (see backupCrypto); restore
+  // with scripts/restore-backup.js. Never a plaintext .db on remote storage.
+  const key     = `${BACKUP_PREFIX}blizkie-${date}.db.enc`;
   const tmpPath = path.join(os.tmpdir(), `blizkie-db-backup-${Date.now()}.db`);
 
-  logger.info('[DBBackup]', `Starting backup → s3://${process.env.S3_BUCKET}/${key}`, {});
+  logger.info('[DBBackup]', `Starting backup → s3://${BACKUP_BUCKET}/${key}`, {});
 
   try {
     // ── Step 1: hot copy via SQLite Online Backup API ─────────────────────
@@ -101,22 +110,26 @@ async function runBackup() {
     // It copies page-by-page so concurrent reads and writes work normally.
     await db.backup(tmpPath);
 
-    // ── Step 2: stream-upload to S3 ──────────────────────────────────────
-    const { size } = fs.statSync(tmpPath);
-    const stream   = fs.createReadStream(tmpPath);
+    // ── Step 2: encrypt the dump before it leaves the process ─────────────
+    // Read the temp dump fully and encrypt in memory. The DB holds messages +
+    // metadata only (media is in S3), so it stays small enough for this; switch
+    // to a streaming cipher if the dump ever outgrows available memory.
+    const plain     = fs.readFileSync(tmpPath);
+    const encrypted = encryptBackup(plain);
 
+    // ── Step 3: upload the encrypted blob ────────────────────────────────
     await s3Client.send(new PutObjectCommand({
-      Bucket:        process.env.S3_BUCKET,
+      Bucket:        BACKUP_BUCKET,
       Key:           key,
-      Body:          stream,
-      ContentLength: size,
+      Body:          encrypted,
+      ContentLength: encrypted.length,
       ContentType:   'application/octet-stream',
       // Tag backups so lifecycle rules can target them independently
       Tagging:       'type=db-backup',
     }));
 
-    const sizeMb = (size / 1_048_576).toFixed(2);
-    logger.info('[DBBackup]', `Backup complete: ${key} (${sizeMb} MB)`, { key, sizeMb });
+    const sizeMb = (encrypted.length / 1_048_576).toFixed(2);
+    logger.info('[DBBackup]', `Backup complete (encrypted): ${key} (${sizeMb} MB)`, { key, sizeMb });
 
     // ── Step 3: prune old backups ─────────────────────────────────────────
     await pruneOldBackups();
@@ -142,7 +155,7 @@ async function pruneOldBackups() {
 
   try {
     const list = await s3Client.send(new ListObjectsV2Command({
-      Bucket: process.env.S3_BUCKET,
+      Bucket: BACKUP_BUCKET,
       Prefix: BACKUP_PREFIX,
     }));
 
@@ -156,7 +169,7 @@ async function pruneOldBackups() {
     }
 
     await s3Client.send(new DeleteObjectsCommand({
-      Bucket: process.env.S3_BUCKET,
+      Bucket: BACKUP_BUCKET,
       Delete: { Objects: toDelete, Quiet: true },
     }));
 
@@ -224,7 +237,8 @@ function startDbBackupWorker() {
   logger.info(
     '[DBBackup]',
     `Backup worker started — daily at ${BACKUP_HOUR_UTC.toString().padStart(2, '0')}:00 UTC, ` +
-    `keeping last ${BACKUP_KEEP_DAYS} days, prefix: s3://${process.env.S3_BUCKET}/${BACKUP_PREFIX}`,
+    `keeping last ${BACKUP_KEEP_DAYS} days, encrypted, prefix: s3://${BACKUP_BUCKET}/${BACKUP_PREFIX}` +
+    `${usingDedicatedBackupCreds ? ' (dedicated backup credentials)' : ''}`,
     {},
   );
 }

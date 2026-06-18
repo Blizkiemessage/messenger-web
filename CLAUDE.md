@@ -78,6 +78,7 @@ web/src/
 - `web/dist/` в git частично устарел и игнорируется — **не коммитить**, Vercel собирает сам.
 - `backend/data/*.db*` — локальная БД, **никогда не коммитить**.
 - Backend не стартует без `JWT_SECRET` и `MESSAGE_ENCRYPTION_KEY`.
+- **Бэкапы БД зашифрованы на уровне приложения** (AES-256-GCM, `utils/backupCrypto.js`) ДО загрузки в S3 — ключи S3 не дают доступа к содержимому. Ключ: `DB_BACKUP_ENCRYPTION_KEY` (64 hex), иначе HKDF от `MESSAGE_ENCRYPTION_KEY` (всегда включено). Опц. изоляция: `DB_BACKUP_S3_BUCKET` + `DB_BACKUP_S3_ACCESS_KEY_ID`/`_SECRET_ACCESS_KEY` (отдельный бакет/ключи только-на-запись). Объекты — `*.db.enc`; восстановление: `npm run restore-backup -- <файл|--s3 ключ> [out.db]` (`--list` для списка).
 - Проверка фронта: `cd web && npm run build` (tsc + vite) — обязательна перед пушем.
 - Тесты бэкенда: `cd backend && npm test`.
 
@@ -91,6 +92,8 @@ web/src/
 4. Журнал держать не длиннее ~40 строк: старые записи группировать в одну строку-сводку.
 
 ## Журнал изменений
+
+- 2026-06-18 | security | аудит #2: бэкапы БД в S3 шифруются на уровне приложения (AES-256-GCM, `utils/backupCrypto.js`) ПЕРЕД загрузкой — теперь доступ к ключам/бакету S3 не раскрывает содержимое (SSE не помогал бы: провайдер расшифровывает на GET). Ключ: `DB_BACKUP_ENCRYPTION_KEY` или HKDF-производный от `MESSAGE_ENCRYPTION_KEY` (шифрование всегда вкл., без доп. настройки). Опц. отдельный бакет/креды бэкапов (`DB_BACKUP_S3_BUCKET`/`_ACCESS_KEY_ID`/`_SECRET_ACCESS_KEY`). Объекты → `*.db.enc`; восстановление — `scripts/restore-backup.js` (`npm run restore-backup`, флаги `--list`/`--s3`, понимает и legacy-плейнтекст). Контейнер: `magic(5)+iv(12)+tag(16)+ct`, тампер ловится GCM. +5 тестов (78). ОСТАТОК для оператора: старые незашифрованные `.db`-бэкапы в S3 удалить вручную (иначе истекут за ≤30 дней через pruneOldBackups).
 
 - 2026-06-18 | security | закрыта критическая дыра из аудита: открытый текст сообщений at-rest. Колонка `messages.search_text` и таблица FTS5 `messages_fts` хранили cleartext рядом с шифром — любой доступ к .db/бэкапу = вся переписка открытым текстом. Теперь: (1) поиск — дешифровкой кандидатов в памяти `messageService.searchMessages` (substring, новые-первыми, cap 5000/20); search.js переписан, контракт ответа не изменён (фронт не трогали); (2) вкладка «ссылки» — флаг `messages.has_link` вместо `LIKE %http%`; (3) миграция 010: бэкфилл has_link дешифровкой → дроп триггеров+таблицы FTS → затирание и DROP COLUMN search_text. Тесты delete/edit переписаны на новую модель + блок «no plaintext at rest» (скан всех колонок) + searchMessages/has_link/изоляция по членству. +4 теста (73)
 

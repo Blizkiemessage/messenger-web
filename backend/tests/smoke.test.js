@@ -647,3 +647,45 @@ describe('chat backgrounds', () => {
     assert.ok(row.chat_bg_updated_at >= before, 'chat_bg_updated_at должен проставляться');
   });
 });
+
+// ── 7. DB backup encryption (audit #2) ────────────────────────────────────────
+describe('backupCrypto — encrypted DB backups', () => {
+  const { encryptBackup, decryptBackup, isEncryptedBackup, MAGIC } =
+    require('../src/utils/backupCrypto');
+
+  test('round-trips an arbitrary payload', () => {
+    const plain = Buffer.from('SQLite format 3 …secret message data…', 'utf8');
+    const enc = encryptBackup(plain);
+    assert.ok(decryptBackup(enc).equals(plain), 'decrypt(encrypt(x)) must equal x');
+  });
+
+  test('ciphertext does not contain the plaintext and carries the magic header', () => {
+    const secret = 'totally-secret-db-bytes';
+    const enc = encryptBackup(Buffer.from(secret, 'utf8'));
+    assert.equal(enc.subarray(0, MAGIC.length).equals(MAGIC), true, 'magic header present');
+    assert.equal(isEncryptedBackup(enc), true);
+    assert.equal(enc.includes(Buffer.from(secret, 'utf8')), false, 'plaintext must not leak into the blob');
+  });
+
+  test('tampering with the ciphertext is detected (GCM auth fails)', () => {
+    const enc = encryptBackup(Buffer.from('important', 'utf8'));
+    enc[enc.length - 1] ^= 0xff; // flip a byte in the ciphertext
+    assert.throws(() => decryptBackup(enc));
+  });
+
+  test('a non-encrypted buffer is rejected (bad magic)', () => {
+    assert.throws(() => decryptBackup(Buffer.from('plain sqlite bytes')), /magic/i);
+    assert.equal(isEncryptedBackup(Buffer.from('plain')), false);
+  });
+
+  test('a dedicated DB_BACKUP_ENCRYPTION_KEY is used when set', () => {
+    const prev = process.env.DB_BACKUP_ENCRYPTION_KEY;
+    process.env.DB_BACKUP_ENCRYPTION_KEY = 'a'.repeat(64);
+    const enc = encryptBackup(Buffer.from('x'));
+    assert.ok(decryptBackup(enc).equals(Buffer.from('x')));
+    // With the dedicated key removed, the derived key differs → cannot decrypt.
+    delete process.env.DB_BACKUP_ENCRYPTION_KEY;
+    assert.throws(() => decryptBackup(enc));
+    if (prev !== undefined) process.env.DB_BACKUP_ENCRYPTION_KEY = prev;
+  });
+});
