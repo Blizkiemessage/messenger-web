@@ -107,7 +107,7 @@ db.exec(`
     voice_waveform TEXT,
     deliver_at INTEGER,
     is_delivered INTEGER NOT NULL DEFAULT 1,
-    search_text TEXT
+    has_link INTEGER NOT NULL DEFAULT 0
   );
   CREATE TABLE message_hidden (
     user_id TEXT NOT NULL,
@@ -142,9 +142,9 @@ mockModule('../src/utils/s3Delete', { deleteFromS3: () => {} });
 
 // ── Services (loaded after mocks) ────────────────────────────────────────────
 const { validatePassword, loginOrRegister } = require('../src/services/authService');
-const { deleteMessages, editMessage, getChatMessages, saveMessage, forwardMessages } = require('../src/services/messageService');
+const { deleteMessages, editMessage, getChatMessages, saveMessage, forwardMessages, searchMessages } = require('../src/services/messageService');
 const { ALLOWED_TYPES }                     = require('../src/utils/allowedMimeTypes');
-const { encrypt }                           = require('../src/crypto/aes');
+const { encrypt, decrypt }                  = require('../src/crypto/aes');
 const { setChatBackground }                 = require('../src/services/chatService');
 
 // ── Seed data ────────────────────────────────────────────────────────────────
@@ -166,9 +166,10 @@ db.prepare('INSERT INTO chat_members (chat_id,user_id,role,joined_at,unread_coun
 
 function insertMsg(id, chatId, senderId, text = 'hello') {
   const enc = encrypt(text);
+  const hasLink = /https?:\/\//i.test(text) ? 1 : 0;
   db.prepare(
-    'INSERT INTO messages (id,chat_id,sender_id,ciphertext,iv,auth_tag,created_at,search_text) VALUES (?,?,?,?,?,?,?,?)'
-  ).run([id, chatId, senderId, enc.ciphertext, enc.iv, enc.authTag, NOW, text]);
+    'INSERT INTO messages (id,chat_id,sender_id,ciphertext,iv,auth_tag,created_at,has_link) VALUES (?,?,?,?,?,?,?,?)'
+  ).run([id, chatId, senderId, enc.ciphertext, enc.iv, enc.authTag, NOW, hasLink]);
 }
 
 // ── 1. validatePassword ───────────────────────────────────────────────────────
@@ -269,28 +270,31 @@ describe('deleteMessages — permission checks', () => {
     assert.equal(row.deleted_at, null, 'message must not be soft-deleted');
   });
 
-  test('deleteMessages sets search_text to NULL on deleted message', () => {
+  test('deleteMessages soft-deletes (sets deleted_at)', () => {
     insertMsg('dm-a3', 'chat-direct', 'alice', 'find me');
     deleteMessages('chat-direct', 'alice', ['dm-a3']);
-    const row = db.prepare('SELECT search_text FROM messages WHERE id=?').get('dm-a3');
-    assert.equal(row.search_text, null, 'search_text must be cleared on delete');
+    const row = db.prepare('SELECT deleted_at FROM messages WHERE id=?').get('dm-a3');
+    assert.ok(row.deleted_at > 0, 'message must be soft-deleted');
   });
 });
 
-// ── 4. search_text sync after edit ───────────────────────────────────────────
-describe('editMessage — search_text sync', () => {
-  test('search_text is updated to new text after edit', () => {
+// ── 4. editMessage — re-encrypt without storing plaintext ─────────────────────
+describe('editMessage — re-encrypt', () => {
+  test('new text is readable only via decryption after edit', () => {
     insertMsg('edit-1', 'chat-direct', 'alice', 'old text');
     editMessage('chat-direct', 'edit-1', 'alice', 'new text');
-    const row = db.prepare('SELECT search_text FROM messages WHERE id=?').get('edit-1');
-    assert.equal(row.search_text, 'new text');
+    const row = db.prepare('SELECT ciphertext, iv, auth_tag FROM messages WHERE id=?').get('edit-1');
+    assert.equal(decrypt({ ciphertext: row.ciphertext, iv: row.iv, authTag: row.auth_tag }), 'new text');
   });
 
-  test('old text is no longer in search_text after edit', () => {
-    insertMsg('edit-2', 'chat-direct', 'alice', 'original words');
-    editMessage('chat-direct', 'edit-2', 'alice', 'completely changed');
-    const row = db.prepare('SELECT search_text FROM messages WHERE id=?').get('edit-2');
-    assert.notEqual(row.search_text, 'original words');
+  test('has_link flag is recomputed on edit', () => {
+    insertMsg('edit-2', 'chat-direct', 'alice', 'no link here');
+    editMessage('chat-direct', 'edit-2', 'alice', 'now see https://example.com');
+    let row = db.prepare('SELECT has_link FROM messages WHERE id=?').get('edit-2');
+    assert.equal(row.has_link, 1, 'has_link must be set when text gains a URL');
+    editMessage('chat-direct', 'edit-2', 'alice', 'link removed');
+    row = db.prepare('SELECT has_link FROM messages WHERE id=?').get('edit-2');
+    assert.equal(row.has_link, 0, 'has_link must clear when URL is removed');
   });
 
   test('non-author cannot edit a message', () => {
@@ -302,8 +306,9 @@ describe('editMessage — search_text sync', () => {
         return true;
       }
     );
-    const row = db.prepare('SELECT search_text FROM messages WHERE id=?').get('edit-3');
-    assert.equal(row.search_text, 'alice text', 'search_text must remain unchanged');
+    const row = db.prepare('SELECT ciphertext, iv, auth_tag FROM messages WHERE id=?').get('edit-3');
+    assert.equal(decrypt({ ciphertext: row.ciphertext, iv: row.iv, authTag: row.auth_tag }), 'alice text',
+      'message must remain unchanged');
   });
 
   test('edited_at is set after edit', () => {
@@ -311,6 +316,40 @@ describe('editMessage — search_text sync', () => {
     editMessage('chat-direct', 'edit-4', 'alice', 'after edit');
     const row = db.prepare('SELECT edited_at FROM messages WHERE id=?').get('edit-4');
     assert.ok(row.edited_at > 0, 'edited_at must be a positive timestamp');
+  });
+});
+
+// ── 4b. Searchable encryption — NO plaintext at rest ──────────────────────────
+describe('searchable encryption (no plaintext at rest)', () => {
+  test('saveMessage stores no readable copy of the text in any column', () => {
+    const secret = 'pineapple-on-pizza-7531';
+    saveMessage('chat-direct', 'alice', secret);
+    // Scan every column of every row — the phrase must appear nowhere as cleartext.
+    const rows = db.prepare('SELECT * FROM messages').all();
+    const leaked = rows.some(r =>
+      Object.values(r).some(v => typeof v === 'string' && v.includes(secret))
+    );
+    assert.equal(leaked, false, 'plaintext must never be persisted');
+  });
+
+  test('searchMessages finds a message by substring via in-memory decryption', () => {
+    saveMessage('chat-direct', 'alice', 'meet me at the riverside cafe');
+    const hits = searchMessages('alice', 'riverside');
+    assert.ok(hits.some(h => h.text === 'meet me at the riverside cafe'),
+      'substring search must locate the decrypted message');
+  });
+
+  test('searchMessages does not return messages from chats the user is not in', () => {
+    saveMessage('chat-group', 'alice', 'groupsecret-marker');
+    // bob is a member of chat-group, carol is too; dave is not a member of anything
+    const hits = searchMessages('dave', 'groupsecret-marker');
+    assert.equal(hits.length, 0, 'non-members must not see chat content');
+  });
+
+  test('saveMessage sets has_link when text contains a URL', () => {
+    const msg = saveMessage('chat-direct', 'alice', 'check https://blizkie.app');
+    const row = db.prepare('SELECT has_link FROM messages WHERE id=?').get(msg.id);
+    assert.equal(row.has_link, 1);
   });
 });
 

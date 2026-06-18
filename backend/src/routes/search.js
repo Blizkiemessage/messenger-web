@@ -7,8 +7,8 @@
  * Returns:
  *   { users: User[], chats: ChatSummary[], messages: MessageResult[] }
  *
- * Messages are searchable via the search_text plaintext column (populated on
- * new messages). Old encrypted-only messages will not appear in results.
+ * Messages are searched by decrypting candidate rows in memory — no plaintext
+ * is stored at rest (see messageService.searchMessages).
  */
 
 const express = require('express');
@@ -16,6 +16,7 @@ const { authMiddleware } = require('../middleware/auth');
 const { searchLimiter } = require('../middleware/rateLimits');
 const { getDb } = require('../config/database');
 const { searchUsers } = require('../services/userService');
+const { searchMessages } = require('../services/messageService');
 const { signUserAvatars, signAvatarUrl } = require('../utils/s3Sign');
 
 const router = express.Router();
@@ -27,8 +28,6 @@ router.get('/', searchLimiter, async (req, res) => {
 
   const db = getDb();
   const userId = req.userId;
-  // FTS5 prefix query: escape inner quotes, then wrap and add * for prefix match
-  const ftsQuery = `"${q.replace(/"/g, '""')}"*`;
 
   // ── 1. Users ────────────────────────────────────────────────────────────────
   const users = searchUsers(q, userId);
@@ -65,28 +64,9 @@ router.get('/', searchLimiter, async (req, res) => {
   }));
 
   // ── 3. Messages ──────────────────────────────────────────────────────────────
-  const msgRows = db.prepare(`
-    SELECT m.id, m.chat_id, m.search_text, m.created_at,
-           c.name AS chat_name, c.type AS chat_type,
-           u.display_name AS sender_display_name,
-           u.username AS sender_username,
-           partner.display_name AS partner_display_name,
-           partner.username AS partner_username
-    FROM messages m
-    JOIN chat_members cm ON cm.chat_id = m.chat_id AND cm.user_id = ?
-    JOIN chats c ON c.id = m.chat_id
-    JOIN users u ON u.id = m.sender_id
-    LEFT JOIN chat_members cm2 ON cm2.chat_id = m.chat_id AND cm2.user_id != ? AND c.type = 'direct'
-    LEFT JOIN users partner ON partner.id = cm2.user_id
-    WHERE m.rowid IN (SELECT rowid FROM messages_fts WHERE messages_fts MATCH ?)
-      AND m.deleted_at IS NULL
-      AND m.is_system = 0
-      AND m.is_delivered = 1
-    ORDER BY m.created_at DESC
-    LIMIT 20
-  `).all([userId, userId, ftsQuery]);
-
-  const messages = msgRows.map(m => ({
+  // No plaintext is stored: searchMessages decrypts candidate rows in memory and
+  // substring-matches the query (see messageService.searchMessages).
+  const messages = searchMessages(userId, q).map(m => ({
     id: m.id,
     chat_id: m.chat_id,
     chat_type: m.chat_type,
@@ -94,7 +74,7 @@ router.get('/', searchLimiter, async (req, res) => {
     chat_name: m.chat_type === 'group'
       ? (m.chat_name || 'Группа')
       : (m.partner_display_name || m.partner_username || 'Пользователь'),
-    text: m.search_text,
+    text: m.text,
     sender_display_name: m.sender_display_name || m.sender_username || 'Пользователь',
     sender_username: m.sender_username || null,
     created_at: m.created_at,

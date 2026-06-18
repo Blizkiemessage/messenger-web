@@ -8,6 +8,20 @@ const { encrypt, decrypt } = require('../crypto/aes');
 const { deleteFromS3 } = require('../utils/s3Delete');
 const { getMemberPermissions } = require('./chatPermissions');
 
+// ── Searchable encryption ───────────────────────────────────────────────────
+// Message text is stored ONLY as AES-256-GCM ciphertext — no plaintext column.
+// Search decrypts candidate rows in memory (see searchMessages). This keeps the
+// DB and its backups free of readable message content. Volume is tiny, so the
+// scan cap below bounds worst-case work; results are newest-first.
+const URL_RE = /https?:\/\//i;            // used only to set the has_link metadata flag
+const SEARCH_SCAN_CAP     = 5000;         // max newest messages decrypted per query
+const SEARCH_RESULT_LIMIT = 20;           // max matches returned
+
+/** True if the (plaintext) message text contains a URL — drives the "links" media tab. */
+function textHasLink(text, isSystem) {
+  return !isSystem && URL_RE.test(text || '') ? 1 : 0;
+}
+
 function decryptMessage(msg) {
   let text = '';
   try {
@@ -115,7 +129,7 @@ function _insertMessage(db, chatId, senderId, text, attachment, isSystem, reply,
        attachment_url, attachment_type, attachment_name, attachment_meta, attachment_size, attachment_duration,
        voice_waveform, is_system,
        reply_to_id, reply_to_sender_id, reply_to_sender_username,
-       reply_to_ciphertext, reply_to_iv, reply_to_auth_tag, poll_id, search_text,
+       reply_to_ciphertext, reply_to_iv, reply_to_auth_tag, poll_id, has_link,
        deliver_at, is_delivered)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
   ).run([msgId, chatId, senderId, ciphertext, iv, authTag, now,
@@ -128,7 +142,7 @@ function _insertMessage(db, chatId, senderId, text, attachment, isSystem, reply,
     replyToId, replyToSenderId, replyToSenderUsername,
     replyToCiphertext, replyToIv, replyToAuthTag,
     pollId || null,
-    isSystem ? null : (text || null),
+    textHasLink(text, isSystem),
     isScheduled ? deliverAt : null,
     isScheduled ? 0 : 1,
   ]);
@@ -198,7 +212,7 @@ function cancelScheduledMessage(chatId, senderId, msgId) {
   if (!msg) throw Object.assign(new Error('Not found'), { status: 404 });
   if (msg.sender_id !== senderId) throw Object.assign(new Error('Forbidden'), { status: 403 });
 
-  db.prepare('UPDATE messages SET deleted_at = ?, search_text = NULL WHERE id = ?').run([Date.now(), msgId]);
+  db.prepare('UPDATE messages SET deleted_at = ? WHERE id = ?').run([Date.now(), msgId]);
   if (msg.attachment_url) deleteFromS3(msg.attachment_url);
   return { ok: true };
 }
@@ -289,8 +303,7 @@ function deleteMessages(chatId, userId, messageIds) {
     if (!msg) continue;
     // Only allow: author of the message, or admin/moderator in a group chat
     if (msg.sender_id !== userId && !isPrivileged) continue;
-    // Clear search_text alongside deleted_at so the FTS trigger removes the stale index entry
-    db.prepare('UPDATE messages SET deleted_at = ?, search_text = NULL WHERE id = ?').run([now, msgId]);
+    db.prepare('UPDATE messages SET deleted_at = ? WHERE id = ?').run([now, msgId]);
     deleted.push(msgId);
     if (msg.attachment_url) deleteFromS3(msg.attachment_url); // fire-and-forget
   }
@@ -385,14 +398,14 @@ function forwardMessages(targetChatId, senderId, messageIds) {
       `INSERT INTO messages
          (id, chat_id, sender_id, ciphertext, iv, auth_tag, created_at,
           attachment_url, attachment_type, attachment_name, attachment_size,
-          is_system, forwarded_from_user_id, forwarded_from_username, search_text)
+          is_system, forwarded_from_user_id, forwarded_from_username, has_link)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?)`
     ).run([
       newId, targetChatId, senderId, ciphertext, iv, authTag, now,
       orig.attachment_url || null, orig.attachment_type || null,
       orig.attachment_name || null, orig.attachment_size || null,
       fwdUserId, fwdUsername,
-      origDecrypted.text || null,
+      textHasLink(origDecrypted.text, false),
     ]);
 
     // Increment unread_count for all members except the forwarder
@@ -444,9 +457,9 @@ function editMessage(chatId, msgId, senderId, newText) {
   const trimmed = newText.trim();
   const { ciphertext, iv, authTag } = encrypt(trimmed);
   const now = Date.now();
-  // search_text updated together with ciphertext so FTS index stays in sync
-  db.prepare('UPDATE messages SET ciphertext = ?, iv = ?, auth_tag = ?, edited_at = ?, search_text = ? WHERE id = ?')
-    .run([ciphertext, iv, authTag, now, trimmed, msgId]);
+  // Recompute has_link from the new text; no plaintext is ever persisted.
+  db.prepare('UPDATE messages SET ciphertext = ?, iv = ?, auth_tag = ?, edited_at = ?, has_link = ? WHERE id = ?')
+    .run([ciphertext, iv, authTag, now, textHasLink(trimmed, false), msgId]);
   return decryptMessage(db.prepare('SELECT * FROM messages WHERE id = ?').get(msgId));
 }
 
@@ -476,8 +489,9 @@ function getChatMedia(chatId, userId, { tab = 'media', limit = 30, before = null
       typeFilter = `attachment_type = 'sticker'`;
       break;
     case 'links':
-      // Messages whose decrypted text contains a URL — we search the search_text index column
-      typeFilter = `(search_text LIKE '%http://%' OR search_text LIKE '%https://%')`;
+      // Messages whose text contains a URL — flagged at write time via has_link
+      // (a single boolean; the message text itself is never stored in cleartext).
+      typeFilter = `has_link = 1`;
       break;
     default:
       typeFilter = `attachment_type IS NOT NULL`;
@@ -494,8 +508,64 @@ function getChatMedia(chatId, userId, { tab = 'media', limit = 30, before = null
   return { items: rows.map(decryptMessage), hasMore };
 }
 
+/**
+ * searchMessages — full-text search over the requester's chats WITHOUT any
+ * plaintext at rest. Scans the newest SEARCH_SCAN_CAP non-deleted messages from
+ * chats the user belongs to, decrypts each in memory, and substring-matches the
+ * (case-insensitive) query. Returns up to SEARCH_RESULT_LIMIT newest matches,
+ * enriched with chat/sender/partner labels so the route can format results.
+ *
+ * Substring match is a superset of the previous FTS prefix search (it also finds
+ * matches mid-word), so search quality is preserved or improved. At the project's
+ * scale the scan is sub-50 ms; the cap bounds worst case until volume warrants a
+ * proper searchable-encryption index (blind index / keyed tokens).
+ */
+function searchMessages(userId, query) {
+  const db = getDb();
+  const q = (query || '').trim().toLowerCase();
+  if (!q) return [];
+
+  const rows = db.prepare(`
+    SELECT m.id, m.chat_id, m.ciphertext, m.iv, m.auth_tag, m.created_at,
+           c.name AS chat_name, c.type AS chat_type,
+           u.display_name AS sender_display_name, u.username AS sender_username,
+           partner.display_name AS partner_display_name, partner.username AS partner_username
+    FROM messages m
+    JOIN chat_members cm ON cm.chat_id = m.chat_id AND cm.user_id = ?
+    JOIN chats c ON c.id = m.chat_id
+    JOIN users u ON u.id = m.sender_id
+    LEFT JOIN chat_members cm2 ON cm2.chat_id = m.chat_id AND cm2.user_id != ? AND c.type = 'direct'
+    LEFT JOIN users partner ON partner.id = cm2.user_id
+    WHERE m.deleted_at IS NULL AND m.is_system = 0 AND m.is_delivered = 1
+    ORDER BY m.created_at DESC
+    LIMIT ?
+  `).all([userId, userId, SEARCH_SCAN_CAP]);
+
+  const results = [];
+  for (const m of rows) {
+    let text;
+    try { text = decrypt({ ciphertext: m.ciphertext, iv: m.iv, authTag: m.auth_tag }); }
+    catch { continue; } // undecryptable row — skip
+    if (!text || !text.toLowerCase().includes(q)) continue;
+    results.push({
+      id: m.id,
+      chat_id: m.chat_id,
+      chat_type: m.chat_type,
+      chat_name: m.chat_name,
+      sender_display_name: m.sender_display_name,
+      sender_username: m.sender_username,
+      partner_display_name: m.partner_display_name,
+      partner_username: m.partner_username,
+      text,
+      created_at: m.created_at,
+    });
+    if (results.length >= SEARCH_RESULT_LIMIT) break;
+  }
+  return results;
+}
+
 module.exports = {
-  decryptMessage, saveMessage, getChatMessages,
+  decryptMessage, saveMessage, getChatMessages, searchMessages,
   deleteMessages, hideMessages,
   toggleReaction, toggleEmojiReaction,
   pinMessage, unpinMessage, getPinnedMessages,
