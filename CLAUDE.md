@@ -52,7 +52,11 @@ web/src/
   components/
     auth/           # экраны входа/регистрации/восстановления
     sidebar/        # Sidebar, ChatList, ChatItem, поиск, папки
-    chat/           # ChatArea, MessageList, MessageBubble, Composer, панель эмодзи/стикеров, опросы
+    chat/           # ChatArea, MessageList, панель эмодзи/стикеров, опросы.
+                    #   MessageBubble.tsx — оркестратор; презентационные части в chat/messageBubble/*
+                    #     (helpers, attachments, MediaPlayers, ReactionBar, QuotedText)
+                    #   Composer.tsx — крупный (запись голоса/видео-кружков, стейт-машина в нём же);
+                    #     чистые куски вынесены в chat/composer/* (helpers, icons, PreviewPlayer)
     modals/         # все модалки (группы, пересылка, медиа, настройки профиля и т.д.)
     profile/        # вкладки настроек (профиль, пароль, приватность, сессии, passkeys...)
     call/           # IncomingCallModal, CallOverlay
@@ -98,6 +102,8 @@ web/src/
 4. Журнал держать не длиннее ~40 строк: старые записи группировать в одну строку-сводку.
 
 ## Журнал изменений
+
+- 2026-06-18 | refactor/web | `Composer.tsx` (1576 строк) — вынесены НЕЗАВИСИМЫЕ части в `components/chat/composer/`: `helpers.ts` (fmt/computeWaveformBars/getFileCategory), `icons.tsx` (FileIconBadge/WaveformIcon/VideoNoteIcon), `PreviewPlayer.tsx` (самодостаточный мини-плеер голосового). Стейт-машина записи голоса/видео-кружков (≈30 useState/ref, общие pointer-хендлеры) ОСТАВЛЕНА в Composer.tsx осознанно — она сильно связана, а проверить её без микрофона/входа нельзя, поэтому дробить её рискованно. Код перенесён дословно, Props/поведение не тронуты. Сборка (strict tsc + vite) зелёная, приложение грузится без ошибок консоли.
 
 - 2026-06-18 | refactor/web | `MessageBubble.tsx` (1149 строк) разбит: презентационные части вынесены в `components/chat/messageBubble/` (`helpers` — размер/категория файла, url-хелперы, кастом-эмодзи; `attachments` — BubbleFileIcon/FileCard/ImageAttachment/VideoAttachment; `MediaPlayers` — AudioPlayer/VideoNotePlayer; `ReactionBar`; `QuotedText`). `MessageBubble.tsx` остаётся оркестратором на прежнем пути (импорт из MessageList не тронут), Props и JSX без изменений. Код перенесён дословно. Сборка (strict tsc + vite) зелёная, приложение грузится без ошибок консоли.
 
