@@ -1,0 +1,635 @@
+/* ── Mic wrapper ── */
+.composerMicWrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+/* ── Waveform icon button (replaces mic) ── */
+.composerMic {
+  width: 38px; height: 38px;
+  border-radius: 50%;
+  border: none;
+  background: none;
+  color: var(--accent);
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer;
+  transition: background .13s, color .13s, transform .1s;
+  touch-action: none;
+  user-select: none;
+  flex-shrink: 0;
+}
+.composerMic:hover { background: color-mix(in srgb, var(--accent) 12%, transparent); }
+.composerMicActive {
+  background: color-mix(in srgb, var(--danger) 14%, transparent);
+  color: var(--danger);
+  animation: micPulse 1.2s ease-in-out infinite;
+}
+.composerMicLocked {
+  background: var(--accent);
+  color: #fff;
+  animation: none;
+}
+.composerMicSend {
+  background: var(--accent);
+  color: #fff;
+  transform: scale(1) !important;
+  transition: background .13s, transform .15s;
+}
+.composerMicSend:hover { background: color-mix(in srgb, var(--accent) 80%, #000); }
+@keyframes micPulse {
+  0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--danger) 28%, transparent); }
+  50%       { box-shadow: 0 0 0 8px color-mix(in srgb, var(--danger) 0%, transparent); }
+}
+
+/* ── Lock track above mic ── */
+.voiceLockTrack {
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  pointer-events: none;
+}
+.voiceLockIcon {
+  width: 26px; height: 26px;
+  border-radius: 50%;
+  background: var(--card);
+  border: 1.5px solid var(--border);
+  display: flex; align-items: center; justify-content: center;
+  color: var(--accent);
+}
+.voiceLockArrow { color: var(--muted); }
+.voiceLockedBadge {
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 50%;
+  transform: translateX(-50%);
+  width: 26px; height: 26px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: #fff;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer;
+  animation: popIn .2s cubic-bezier(.34,1.56,.64,1);
+  box-shadow: 0 2px 10px color-mix(in srgb, var(--accent) 40%, transparent);
+}
+
+/* ── Recording bar ── */
+.voiceRecordingBar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+  min-width: 0;
+  padding: 0 4px;
+}
+.voiceRecCancelBtn {
+  flex-shrink: 0;
+  width: 30px; height: 30px;
+  border-radius: 50%;
+  border: none;
+  background: none;
+  color: var(--muted);
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer;
+  transition: color .12s;
+}
+.voiceRecCancelBtn:hover { color: var(--danger); }
+.voiceRecCenter {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  justify-content: center;
+}
+.voiceRecDot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  background: var(--danger);
+  flex-shrink: 0;
+  animation: recBlink .9s step-start infinite;
+}
+@keyframes recBlink { 0%,100% { opacity: 1; } 50% { opacity: 0; } }
+.voiceRecTimer {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: .02em;
+}
+.voiceRecHint {
+  font-size: 11px;
+  color: var(--muted);
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+/* ── Voice preview card (before sending) ── */
+.voicePreviewCard {
+  background: var(--card);
+  border-top: 1px solid var(--border);
+  padding: 12px 14px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.voicePreviewCardTop {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.voicePreviewLabel {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--accent);
+  text-transform: uppercase;
+  letter-spacing: .05em;
+}
+.voicePreviewDurLabel {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Preview mini player */
+.voicePreviewPlayer {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--panel);
+  border-radius: 12px;
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+}
+.voicePreviewPlayBtn {
+  flex-shrink: 0;
+  width: 30px; height: 30px;
+  border-radius: 50%;
+  border: none;
+  background: var(--accent);
+  color: #fff;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer;
+  transition: opacity .12s, transform .1s;
+}
+.voicePreviewPlayBtn:hover { opacity: .85; transform: scale(1.06); }
+.voicePreviewTrackWrap {
+  flex: 1;
+  min-width: 0;
+}
+.voicePreviewTrackBg {
+  height: 4px;
+  border-radius: 2px;
+  background: color-mix(in srgb, var(--accent) 22%, transparent);
+  position: relative;
+  overflow: hidden;
+}
+.voicePreviewTrackFill {
+  height: 100%;
+  background: var(--accent);
+  border-radius: 2px;
+  transition: width .1s linear;
+}
+.voicePreviewTime {
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--muted);
+  flex-shrink: 0;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* Preview action buttons */
+.voicePreviewCardActions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.voicePreviewDeleteBtn {
+  display: flex; align-items: center; gap: 6px;
+  padding: 7px 14px;
+  border-radius: 9px;
+  border: 1.5px solid color-mix(in srgb, var(--danger) 30%, transparent);
+  background: color-mix(in srgb, var(--danger) 8%, transparent);
+  color: var(--danger);
+  font-size: 13px; font-weight: 600;
+  cursor: pointer;
+  transition: background .12s, border-color .12s;
+}
+.voicePreviewDeleteBtn:hover { background: color-mix(in srgb, var(--danger) 16%, transparent); border-color: var(--danger); }
+.voicePreviewSendBtn {
+  display: flex; align-items: center; gap: 7px;
+  padding: 8px 20px;
+  border-radius: 9px;
+  border: none;
+  background: var(--accent);
+  color: #fff;
+  font-size: 13.5px; font-weight: 600;
+  cursor: pointer;
+  transition: opacity .12s;
+  flex: 1;
+  justify-content: center;
+}
+.voicePreviewSendBtn:hover:not(:disabled) { opacity: .88; }
+.voicePreviewSendBtn:disabled { opacity: .5; cursor: not-allowed; }
+
+/* ── Voice message bubble player ── */
+.voiceMsgPlayer {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 2px 6px;
+  min-width: 220px;
+  max-width: 300px;
+  box-sizing: border-box;
+}
+.bubble:has(.voiceMsgPlayer) {
+  padding-top: 6px;
+  padding-bottom: 6px;
+}
+.voiceMsgPlay {
+  flex-shrink: 0;
+  width: 36px; height: 36px;
+  border-radius: 50%;
+  border: none;
+  background: var(--accent);
+  color: #fff;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer;
+  transition: opacity .12s, transform .1s;
+  box-shadow: 0 2px 8px color-mix(in srgb, var(--accent) 35%, transparent);
+  align-self: center;
+}
+.voiceMsgPlay:hover:not(:disabled) { opacity: .88; transform: scale(1.06); }
+.voiceMsgPlay:disabled { cursor: default; }
+.voiceMsgPlayerOwn .voiceMsgPlay { background: rgba(255,255,255,.22); box-shadow: none; }
+
+/* Spinner inside the voice message play button */
+.voiceMsgSpinner {
+  animation: voiceMsgSpin 0.9s linear infinite;
+}
+@keyframes voiceMsgSpin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+
+.voiceMsgRight {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  justify-content: center;
+}
+
+/* Progress track */
+.voiceMsgTrackWrap {
+  touch-action: none;
+  user-select: none;
+  cursor: pointer;
+  padding: 6px 0;
+}
+.voiceMsgTrackBg {
+  position: relative;
+  height: 3px;
+  border-radius: 2px;
+  background: color-mix(in srgb, var(--accent) 22%, var(--border));
+}
+.voiceMsgTrackFill {
+  position: absolute;
+  left: 0; top: 0;
+  height: 100%;
+  border-radius: 2px;
+  background: var(--accent);
+  transition: width .08s linear;
+}
+.voiceMsgTrackThumb {
+  position: absolute;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 12px; height: 12px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 1px 4px rgba(0,0,0,.3);
+  transition: left .08s linear;
+  pointer-events: none;
+}
+.voiceMsgPlayerOwn .voiceMsgTrackBg  { background: rgba(255,255,255,.22); }
+.voiceMsgPlayerOwn .voiceMsgTrackFill { background: rgba(255,255,255,.85); }
+.voiceMsgPlayerOwn .voiceMsgTrackThumb { background: #fff; }
+
+/* Bottom meta row */
+.voiceMsgMeta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.voiceMsgTime {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.voiceMsgSendMeta {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+.voiceMsgSendTime {
+  font-size: 11px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.voiceMsgPlayerOwn .voiceMsgTime,
+.voiceMsgPlayerOwn .voiceMsgSendTime { color: rgba(255,255,255,.6); }
+
+/* ── Waveform bars (shared by AudioPlayer bubble and PreviewPlayer) ───────── */
+.voiceWaveformBars {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  height: 32px;
+  width: 100%;
+  padding: 2px 0;
+  box-sizing: border-box;
+}
+.voiceWaveformBar {
+  flex: 1;
+  min-width: 0;
+  min-height: 3px;
+  max-height: 100%;
+  border-radius: 2px;
+  background: color-mix(in srgb, var(--accent) 32%, var(--border));
+  transition: background 0.06s;
+  will-change: background;
+}
+.voiceWaveformBarPlayed {
+  background: var(--accent);
+}
+
+/* Own-message colour overrides */
+.voiceWaveformBarsOwn .voiceWaveformBar        { background: rgba(255,255,255,.28); }
+.voiceWaveformBarsOwn .voiceWaveformBarPlayed  { background: rgba(255,255,255,.92); }
+
+/* Preview player: slightly taller bars, accent-tinted unplayed */
+.voiceWaveformBarsPreview {
+  height: 28px;
+}
+.voiceWaveformBarsPreview .voiceWaveformBar {
+  background: color-mix(in srgb, var(--accent) 22%, transparent);
+  border-radius: 2px;
+}
+.voiceWaveformBarsPreview .voiceWaveformBarPlayed {
+  background: var(--accent);
+}
+
+/* ── Mic denied error toast ───────────────────────────────────────────────── */
+.composerMicError {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  right: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 12px;
+  border-radius: 10px;
+  background: var(--danger, #e74c3c);
+  color: #fff;
+  font-size: 12.5px;
+  font-weight: 600;
+  white-space: nowrap;
+  pointer-events: none;
+  animation: micErrorFadeIn .18s ease;
+  box-shadow: 0 4px 16px rgba(0,0,0,.22);
+  z-index: 10;
+}
+@keyframes micErrorFadeIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ════════════════════════════════════════════════════════════════════════════
+   MOBILE RESPONSIVE  ≤ 700px
+   ════════════════════════════════════════════════════════════════════════════ */
+@media (max-width: 700px) {
+
+  /* ── Layout: single-column panel switching ─────────────────────────── */
+  .layout {
+    grid-template-columns: 1fr;
+  }
+
+  /* Default: show sidebar, hide chat */
+  .sidebar {
+    display: flex;
+    width: 100%;
+    height: 100%;
+  }
+  .chatArea {
+    display: none;
+  }
+
+  /* When a chat is open: flip visibility */
+  .layout.chatOpen .sidebar {
+    display: none;
+  }
+  .layout.chatOpen .chatArea {
+    display: flex;
+  }
+
+  /* ── Mobile back button ────────────────────────────────────────────── */
+  .mobileBackBtn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+    color: var(--muted);
+    flex-shrink: 0;
+    transition: background .15s, color .15s;
+    margin-right: -4px;
+  }
+  .mobileBackBtn:hover,
+  .mobileBackBtn:active { background: var(--panel); color: var(--text); }
+
+  /* ── Chat header ───────────────────────────────────────────────────── */
+  .chatHeader {
+    padding: 10px 12px;
+    gap: 6px;
+  }
+  .chName { font-size: 14px; }
+  .chSub  { font-size: 11px; }
+
+  /* ── Selection toolbar: compact on mobile ──────────────────────────── */
+  .selActions {
+    gap: 4px;
+    flex-shrink: 0;
+  }
+  /* Hide text labels in selection buttons, keep icons */
+  .selForwardBtn,
+  .selPinBtn {
+    font-size: 0;
+    padding: 8px;
+    gap: 0;
+    border-radius: 10px;
+  }
+  .selForwardBtn svg,
+  .selPinBtn svg { flex-shrink: 0; }
+  .selDeleteBtn {
+    padding: 7px 10px;
+    font-size: 12px;
+    gap: 5px;
+  }
+  .selLabel { display: none; }
+
+  /* ── Messages area ─────────────────────────────────────────────────── */
+  .messages {
+    padding: 12px 10px 8px;
+  }
+  .bubble {
+    max-width: min(520px, 88%);
+  }
+
+  /* ── Composer ──────────────────────────────────────────────────────── */
+  .composer {
+    padding: 8px 10px 10px;
+    gap: 7px;
+  }
+  .composerInput {
+    padding: 10px 12px;
+    font-size: 14px;
+  }
+
+  /* ── Sidebar bottom profile panel: keep inside viewport ────────────── */
+  .profilePanel {
+    left: 4px;
+    right: 4px;
+  }
+
+  /* ── Auth card ─────────────────────────────────────────────────────── */
+  .authCard {
+    padding: 28px 20px 24px;
+    border-radius: 16px;
+  }
+
+  /* ── Modals: full width, sheet-style ───────────────────────────────── */
+  .modalOverlay {
+    padding: 0;
+    align-items: flex-end;
+  }
+  .modalCard {
+    width: 100%;
+    max-height: 94vh;
+    border-radius: 20px 20px 0 0;
+  }
+  .psCard {
+    width: 100%;
+    max-height: 94vh;
+    border-radius: 20px 20px 0 0;
+  }
+  .groupInfoCard {
+    width: 100%;
+    max-height: 92vh;
+    border-radius: 20px 20px 0 0;
+  }
+  .upCard {
+    width: 100%;
+    border-radius: 20px 20px 0 0;
+  }
+  .giCard {
+    width: 100%;
+    height: 100dvh;
+    border-radius: 0;
+  }
+  .upCardTabs {
+    height: 100dvh;
+    border-radius: 0;
+  }
+  .confirmCard {
+    width: 100%;
+    border-radius: 20px 20px 0 0;
+    padding: 28px 20px 20px;
+  }
+  .fwdModal {
+    width: 100%;
+    max-height: 92vh;
+    border-radius: 20px 20px 0 0;
+  }
+  /* Slide up from bottom on mobile */
+  @keyframes slideUp {
+    from { transform: translateY(100%); opacity: 0; }
+    to   { transform: translateY(0);    opacity: 1; }
+  }
+
+  .psBody {
+    padding: 14px 14px 18px;
+  }
+  .psHubProfile { padding: 14px 16px; }
+  .psHubItem    { padding: 11px 16px; }
+  .psHubFooter  { padding: 8px 16px 18px; }
+  .psHeader {
+    padding: 16px 16px 0;
+  }
+
+  /* ── Group info modal ──────────────────────────────────────────────── */
+  .giHeader { padding: 24px 20px 16px; }
+  .giMemberLabel { padding: 12px 16px 6px; }
+  .giMemberList { padding: 0 6px 12px; }
+  .giAddMembersBtn { margin: 12px 14px 16px; width: calc(100% - 28px); }
+
+  /* ── Context menu: wider on mobile ────────────────────────────────── */
+  .ctxMenu { min-width: 200px; }
+  .ctxItem { padding: 11px 14px; font-size: 14px; }
+
+  /* ── File staging ──────────────────────────────────────────────────── */
+  .fileStagingCard {
+    margin: 8px 10px 4px;
+  }
+
+  /* ── Empty state ───────────────────────────────────────────────────── */
+  .emptyTitle { font-size: 17px; }
+  .emptySub   { font-size: 13px; }
+  .emptyLogo  { width: 56px; height: 56px; font-size: 24px; }
+
+  /* ── Touch targets: minimum 44px for interactive elements ──────────── */
+  .chatItem    { min-height: 60px; }
+  .composerSend { width: 44px; height: 44px; }
+  .composerAttach { width: 40px; height: 40px; }
+  .themeToggle { width: 44px; height: 44px; }
+  .chSearchToggle { width: 40px; height: 40px; }
+
+  /* ── Folder tabs: larger touch area ───────────────────────────────── */
+  .folderTab { padding: 7px 14px; }
+  .folderAddBtn { width: 30px; height: 30px; }
+  .sidebarComposeBtn { width: 34px; height: 34px; }
+
+  /* ── Sidebar search bar ────────────────────────────────────────────── */
+  .sidebarSearch { padding: 10px 10px 8px; }
+  .searchInput { padding: 11px 0; }
+
+  /* ── Sidebar bottom: touch-friendly ───────────────────────────────── */
+  .meBtn { padding: 12px; }
+  .sidebarBottomRow { min-height: 58px; }
+}
+
+/* ── Very small screens ≤ 380px ─────────────────────────────────────── */
+@media (max-width: 380px) {
+  .chatHeader { padding: 8px 10px; }
+  .selCount   { font-size: 16px; }
+  .selDeleteBtn { padding: 6px 8px; font-size: 11px; }
+  .bubble { max-width: 92%; }
+  .messages { padding: 8px 8px 6px; }
+  .composer { padding: 6px 8px 8px; gap: 5px; }
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+   NEW FEATURES: Reply/Quote + Emoji Reactions + Online Status
+   ══════════════════════════════════════════════════════════════════════ */
+

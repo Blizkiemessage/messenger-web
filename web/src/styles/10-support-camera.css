@@ -1,0 +1,777 @@
+/* ── Online status in ChatHeader subtitle ───────────────────────────── */
+.chSubOnline {
+  color: var(--accent) !important;
+  font-weight: 500;
+}
+
+/* ── Online status in UserProfileModal ─────────────────────────────── */
+.upOnlineStatus {
+  font-size: 12px;
+  color: var(--muted);
+  margin-top: 3px;
+}
+.upOnlineStatusOnline {
+  color: var(--accent) !important;
+  font-weight: 500;
+}
+
+/* ── Load more indicator ────────────────────────────────────────────────── */
+.msgsLoadingMore {
+  text-align: center;
+  padding: 8px 0 4px;
+  font-size: 12px;
+  color: var(--muted);
+}
+.msgsBeginning {
+  text-align: center;
+  padding: 10px 0 4px;
+  font-size: 11px;
+  color: var(--muted);
+  opacity: 0.6;
+  letter-spacing: 0.03em;
+}
+
+/* ── Scroll-to-bottom button ─────────────────────────────────────────────── */
+/* position:absolute inside .chatAreaInner (position:relative) so the button
+   tracks the chat area, not the layout viewport — fixes keyboard overlap on
+   iOS/Android/Win. --composer-h is set synchronously via ResizeObserver so
+   the button follows the growing textarea without React re-render delay. */
+.scrollToBottomBtn {
+  position: absolute;
+  bottom: calc(var(--composer-h, 70px) + 8px);
+  right: 24px;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: var(--card, #1e1e1e);
+  border: 1px solid var(--border);
+  box-shadow: 0 2px 10px rgba(0,0,0,0.25);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text);
+  z-index: 50;
+  transition: background .15s, transform .15s, box-shadow .15s;
+}
+.scrollToBottomBtn:hover {
+  background: var(--panel);
+  box-shadow: 0 4px 14px rgba(0,0,0,0.35);
+  transform: translateY(-1px);
+}
+
+/* ── SupportModal ──────────────────────────────────────────────────────── */
+.supportCard {
+  background: var(--card);
+  border-radius: 16px;
+  width: 460px;
+  max-width: 95vw;
+  padding: 28px 28px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.supportTitle {
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--text);
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin-bottom: 6px;
+}
+
+.supportSubtitle {
+  font-size: 13px;
+  color: var(--muted);
+  margin: 0 0 20px;
+}
+
+/* Type selection */
+.supportTypeGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.supportTypeBtn {
+  background: var(--input-bg, var(--panel));
+  border: 1.5px solid var(--border);
+  border-radius: 12px;
+  padding: 18px 14px 16px;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  transition: border-color .15s, background .15s, transform .1s;
+  color: var(--text);
+}
+.supportTypeBtn:hover {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 8%, var(--panel));
+  transform: translateY(-1px);
+}
+
+.supportTypeBtnIcon {
+  width: 52px;
+  height: 52px;
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--accent);
+}
+
+.supportTypeBtnLabel {
+  font-size: 14px;
+  font-weight: 600;
+  text-align: center;
+}
+
+.supportTypeBtnDesc {
+  font-size: 11px;
+  color: var(--muted);
+  text-align: center;
+}
+
+/* Readonly meta row */
+.supportMetaRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 12px 0 16px;
+}
+
+.supportMetaChip {
+  font-size: 12px;
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  color: var(--accent);
+  border-radius: 20px;
+  padding: 3px 10px;
+  font-weight: 500;
+  white-space: nowrap;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.supportMetaSubject {
+  background: color-mix(in srgb, var(--muted) 15%, transparent);
+  color: var(--text);
+}
+
+/* Form fields */
+.supportField {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 14px;
+}
+
+.supportFieldLabel {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text);
+}
+
+.supportFieldRequired {
+  color: #e05252;
+}
+
+.supportFieldOptional {
+  color: var(--muted);
+  font-weight: 400;
+}
+
+.supportTextarea {
+  width: 100%;
+  min-height: 120px;
+  resize: vertical;
+  background: var(--input-bg, var(--panel));
+  border: 1.5px solid var(--border);
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-size: 14px;
+  color: var(--text);
+  font-family: inherit;
+  line-height: 1.5;
+  transition: border-color .15s;
+  box-sizing: border-box;
+}
+.supportTextarea:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+/* Image dropzone */
+.supportImageDropzone {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px;
+  border: 1.5px dashed var(--border);
+  border-radius: 10px;
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--muted);
+  transition: border-color .15s, color .15s;
+}
+.supportImageDropzone:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.supportImagePreview {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  border: 1.5px solid var(--border);
+  border-radius: 10px;
+}
+
+.supportImageThumb {
+  width: 44px;
+  height: 44px;
+  object-fit: cover;
+  border-radius: 7px;
+  flex-shrink: 0;
+}
+
+.supportImageName {
+  font-size: 13px;
+  color: var(--text);
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.supportImageRemove {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--muted);
+  display: flex;
+  align-items: center;
+  padding: 4px;
+  border-radius: 6px;
+  flex-shrink: 0;
+  transition: color .15s, background .15s;
+}
+.supportImageRemove:hover {
+  color: #e05252;
+  background: rgba(224, 82, 82, .1);
+}
+
+/* Actions row */
+.supportActions {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+  margin-top: 4px;
+}
+
+.supportCancelBtn {
+  background: none;
+  border: 1.5px solid var(--border);
+  border-radius: 9px;
+  padding: 8px 18px;
+  font-size: 14px;
+  color: var(--text);
+  cursor: pointer;
+  transition: background .15s, border-color .15s;
+}
+.supportCancelBtn:hover:not(:disabled) {
+  background: var(--panel);
+}
+.supportCancelBtn:disabled { opacity: .5; cursor: default; }
+
+.supportSubmitBtn {
+  background: var(--accent);
+  border: none;
+  border-radius: 9px;
+  padding: 8px 20px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #fff;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  transition: opacity .15s, transform .1s;
+}
+.supportSubmitBtn:hover:not(:disabled) { opacity: .88; transform: translateY(-1px); }
+.supportSubmitBtn:disabled { opacity: .5; cursor: default; }
+
+/* Spinner */
+.supportSpinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(255,255,255,.35);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: spin .7s linear infinite;
+  display: inline-block;
+}
+
+/* Result screen */
+.supportResult {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 12px 0 20px;
+  gap: 14px;
+}
+
+.supportResultIcon {
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.supportResultSuccess {
+  background: rgba(34, 197, 94, .15);
+  color: #22c55e;
+}
+
+.supportResultError {
+  background: rgba(224, 82, 82, .15);
+  color: #e05252;
+}
+
+.supportResultTitle {
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.supportResultDesc {
+  font-size: 13px;
+  color: var(--muted);
+  line-height: 1.55;
+  max-width: 340px;
+}
+
+/* ── Attach menu popup ──────────────────────────────────────────────────────── */
+.composerAttachMenu {
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 0;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  z-index: 20;
+  min-width: 180px;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+}
+
+.composerAttachMenuItem {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  font-size: 14px;
+  cursor: pointer;
+  background: none;
+  border: none;
+  color: var(--text);
+  width: 100%;
+  text-align: left;
+  transition: background .12s;
+}
+
+.composerAttachMenuItem:hover {
+  background: var(--panel);
+}
+
+/* ── Camera overlay ─────────────────────────────────────────────────────────── */
+.cameraOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  background: #000;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: stretch;
+}
+
+/* ── Viewfinder ── */
+.cameraViewfinder {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  background: #000;
+}
+
+.cameraTopBar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px;
+  background: linear-gradient(to bottom, rgba(0,0,0,0.55) 0%, transparent 100%);
+}
+
+.cameraCloseBtn {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(0,0,0,0.45);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background .15s;
+}
+.cameraCloseBtn:hover { background: rgba(0,0,0,0.65); }
+
+.cameraFlipBtn {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(0,0,0,0.45);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background .15s, opacity .15s;
+}
+.cameraFlipBtn:hover:not(:disabled) { background: rgba(0,0,0,0.65); }
+.cameraFlipBtn:disabled { opacity: .35; cursor: not-allowed; }
+
+.cameraRecBadge {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(0,0,0,0.55);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 5px 10px;
+  border-radius: 20px;
+  pointer-events: none;
+}
+.cameraRecDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #ff3b30;
+  animation: cameraBlink 1s ease-in-out infinite;
+}
+@keyframes cameraBlink {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.2; }
+}
+
+.cameraVideo {
+  flex: 1;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.cameraVideoMirrored { transform: scaleX(-1); }
+
+.cameraError {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  color: rgba(255,255,255,0.6);
+  padding: 40px;
+  text-align: center;
+}
+.cameraError p {
+  font-size: 15px;
+  line-height: 1.5;
+  margin: 0;
+}
+
+/* ── Bottom controls ── */
+.cameraControls {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  padding: 20px 24px 36px;
+  background: linear-gradient(to top, rgba(0,0,0,0.60) 0%, transparent 100%);
+}
+
+.cameraModeToggle {
+  display: flex;
+  gap: 4px;
+  background: rgba(0,0,0,0.38);
+  border-radius: 20px;
+  padding: 3px;
+}
+.cameraModeBtn {
+  padding: 6px 20px;
+  border-radius: 17px;
+  border: none;
+  background: transparent;
+  color: rgba(255,255,255,0.65);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background .15s, color .15s;
+  letter-spacing: .3px;
+}
+.cameraModeBtn.active {
+  background: rgba(255,255,255,0.18);
+  color: #fff;
+}
+
+.cameraShutterRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  max-width: 320px;
+}
+.cameraShutterSide {
+  width: 52px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Photo shutter button */
+.cameraShutterBtn {
+  width: 70px;
+  height: 70px;
+  border-radius: 50%;
+  border: 4px solid rgba(255,255,255,0.9);
+  background: transparent;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform .1s, border-color .12s;
+  padding: 0;
+}
+.cameraShutterBtn:active:not(:disabled) { transform: scale(0.92); }
+.cameraShutterBtn:disabled { opacity: .4; cursor: not-allowed; }
+.cameraShutterInner {
+  width: 54px;
+  height: 54px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.9);
+  display: block;
+  transition: background .1s;
+}
+.cameraShutterBtn:active:not(:disabled) .cameraShutterInner {
+  background: rgba(255,255,255,0.65);
+}
+
+/* Video record button */
+.cameraRecordBtn {
+  width: 70px;
+  height: 70px;
+  border-radius: 50%;
+  border: 4px solid rgba(255,255,255,0.9);
+  background: transparent;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform .1s;
+  padding: 0;
+}
+.cameraRecordBtn:disabled { opacity: .4; cursor: not-allowed; }
+.cameraRecordInner {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background: #ff3b30;
+  display: block;
+  transition: background .12s;
+}
+
+/* Stop recording button */
+.cameraStopBtn {
+  width: 70px;
+  height: 70px;
+  border-radius: 50%;
+  border: 4px solid rgba(255,255,255,0.9);
+  background: transparent;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform .1s;
+  padding: 0;
+}
+.cameraStopBtn:active { transform: scale(0.92); }
+.cameraStopRect {
+  width: 26px;
+  height: 26px;
+  border-radius: 5px;
+  background: #ff3b30;
+  display: block;
+}
+
+/* Flip camera button (in shutter row on mobile) */
+.cameraFlipBtnSmall {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(255,255,255,0.18);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background .15s;
+}
+.cameraFlipBtnSmall:hover { background: rgba(255,255,255,0.28); }
+
+/* ── Capture preview screen ── */
+.cameraCapturePreview {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  background: #000;
+  min-height: 0;
+}
+
+.cameraCaptureMedia {
+  flex: 1;
+  width: 100%;
+  min-height: 0;
+  object-fit: contain;
+  display: block;
+}
+
+.cameraCaptureBar {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 14px 16px 28px;
+  background: rgba(0,0,0,0.75);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+.cameraCaptionInput {
+  width: 100%;
+  background: rgba(255,255,255,0.1);
+  border: 1px solid rgba(255,255,255,0.18);
+  border-radius: 10px;
+  color: #fff;
+  font-size: 14px;
+  padding: 9px 14px;
+  outline: none;
+  box-sizing: border-box;
+  transition: border-color .15s, background .15s;
+}
+.cameraCaptionInput::placeholder { color: rgba(255,255,255,0.4); }
+.cameraCaptionInput:focus {
+  border-color: rgba(255,255,255,0.45);
+  background: rgba(255,255,255,0.14);
+}
+
+.cameraCaptureRowBtns {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.cameraRetakeBtn {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 9px 18px;
+  border-radius: 10px;
+  border: 1.5px solid rgba(255,255,255,0.3);
+  background: transparent;
+  color: rgba(255,255,255,0.85);
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background .15s, border-color .15s;
+}
+.cameraRetakeBtn:hover {
+  background: rgba(255,255,255,0.1);
+  border-color: rgba(255,255,255,0.5);
+}
+
+.cameraSendBtn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 22px;
+  border-radius: 10px;
+  border: none;
+  background: var(--accent, #8e75f2);
+  color: #fff;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: filter .15s, transform .1s;
+  flex: 1;
+  justify-content: center;
+}
+.cameraSendBtn:hover { filter: brightness(1.12); }
+.cameraSendBtn:active { transform: scale(0.97); }
+
+/* Captured video preview wrapper */
+.capturedVideoWrap {
+  position: relative;
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  overflow: hidden;
+  background: #000;
+}
+.capturedVideoPlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0,0,0,0.35);
+  color: #fff;
+  pointer-events: none;
+}
+.capturedVideoPlay svg {
+  filter: drop-shadow(0 2px 6px rgba(0,0,0,0.6));
+}
+

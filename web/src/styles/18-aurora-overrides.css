@@ -1,0 +1,461 @@
+/* ════════════════════════════════════════════════════════════════════
+   Редизайн «Аврора 2.0» — финальный слой.
+   Единая «сцена» со стеклянными панелями, градиентные пузыри от акцента
+   пользователя, группировка сообщений, микро-анимации, круглые аватары.
+   Все цвета — от var(--accent), чтобы работал выбор акцента в настройках.
+   ════════════════════════════════════════════════════════════════════ */
+
+::selection { background: color-mix(in srgb, var(--accent) 32%, transparent); }
+
+/* ── 1. Единая сцена: общий аврора-фон, панели — стекло ───────────────
+   --app-bg задаётся inline из utils/appBackground.ts (кастомный фон
+   пользователя: сплошной цвет или градиент); без него — дефолтная аврора. */
+.layout {
+  background: var(--app-bg,
+    radial-gradient(ellipse 55% 45% at 6% 0%, color-mix(in srgb, var(--accent) 11%, transparent), transparent 65%),
+    radial-gradient(ellipse 50% 40% at 100% 14%, color-mix(in srgb, var(--accent-2) 8%, transparent), transparent 65%),
+    radial-gradient(ellipse 70% 50% at 55% 112%, color-mix(in srgb, var(--accent) 6%, transparent), transparent 70%),
+    var(--bg));
+}
+.sidebar {
+  background: color-mix(in srgb, var(--sidebar) 72%, transparent);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+}
+/* --chat-bg — задел под индивидуальные фоны чатов (картинка/градиент per-chat) */
+.chatArea { background: var(--chat-bg, transparent); }
+.chatHeader {
+  background: color-mix(in srgb, var(--sidebar) 52%, transparent);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+}
+
+/* ── 2. Пузыри: градиент от акцента у исходящих, группировка серий ──── */
+.bubble { border-radius: 18px; }
+.msg.in .bubble {
+  background: color-mix(in srgb, var(--panel) 92%, transparent);
+  border: 1px solid var(--border);
+  border-radius: 18px;
+}
+.msg.out .bubble {
+  /* авто-контраст: тёмный текст на светлом акценте, белый — на тёмном */
+  --bubble-ink: #fff;
+  --bubble-ink: lch(from var(--accent) calc((67 - l) * infinity) 0 0);
+  color: var(--bubble-ink);
+  background: linear-gradient(135deg, color-mix(in oklch, var(--accent) 94%, black) 0%, color-mix(in oklch, var(--accent) 76%, var(--accent-2)) 100%);
+  border: none;
+  border-radius: 18px;
+  box-shadow: 0 2px 10px color-mix(in srgb, var(--accent) 22%, transparent);
+}
+/* текст, время, статусы и ссылки внутри исходящего — в цвет чернил пузыря */
+.msg.out .bubble .bubbleTime { color: inherit; opacity: .72; }
+.msg.out .bubble .msgStatus.sent,
+.msg.out .bubble .msgStatus.sending { color: inherit; opacity: .72; }
+.msg.out .bubble .msgStatus.read {
+  color: inherit;
+  filter: drop-shadow(0 0 3px color-mix(in srgb, currentColor 45%, transparent));
+}
+.msg.out .bubble .bubbleLink { color: inherit; text-decoration: underline; }
+/* группировка: серия сообщений одного направления визуально склеивается */
+.msg.out + .msg.out .bubble { border-top-right-radius: 7px; }
+.msg.out:has(+ .msg.out) .bubble { border-bottom-right-radius: 7px; }
+.msg.in + .msg.in .bubble { border-top-left-radius: 7px; }
+.msg.in:has(+ .msg.in) .bubble { border-bottom-left-radius: 7px; }
+/* «хвостик» — у последнего сообщения серии */
+.msg.out:not(:has(+ .msg.out)) .bubble { border-bottom-right-radius: 5px; }
+.msg.in:not(:has(+ .msg.in)) .bubble { border-bottom-left-radius: 5px; }
+
+/* ── 3. Микро-анимации ──────────────────────────────────────────────── */
+@keyframes auroraMsgIn {
+  from { opacity: 0; transform: translateY(6px) scale(.985); }
+  to   { opacity: 1; transform: none; }
+}
+.msg { animation: auroraMsgIn .22s ease both; }
+@keyframes auroraPop {
+  from { opacity: 0; transform: scale(.96) translateY(8px); }
+  to   { opacity: 1; transform: none; }
+}
+.modalCard { border-radius: 22px; animation: auroraPop .2s cubic-bezier(.2,.8,.3,1.1); }
+.chatItem { position: relative; border-radius: 14px; transition: background .15s, transform .15s ease; }
+.chatItem:hover { transform: translateX(2px); }
+.composerSend:not(:disabled):active { transform: scale(.9); }
+.authBtn:not(:disabled):active { transform: translateY(0) scale(.98); }
+
+/* ── 4. Список чатов ────────────────────────────────────────────────── */
+.chatItem.active {
+  background: linear-gradient(90deg, var(--accent-dim), color-mix(in srgb, var(--accent-2) 9%, transparent));
+}
+.chatItem.active::before {
+  content: '';
+  position: absolute;
+  left: 0; top: 22%; bottom: 22%;
+  width: 3px;
+  border-radius: 3px;
+  background: var(--grad-accent);
+}
+.ciBadge { background: var(--grad-accent); }
+.ciBadgeMuted { background: var(--muted); }
+.ciOnlineDot {
+  background: var(--success);
+  bottom: 0; right: 0;
+  box-shadow: 0 0 6px color-mix(in srgb, var(--success) 70%, transparent);
+}
+
+/* ── 5. Круглые аватары (везде, включая группы) ─────────────────────── */
+.ciAvatar, .ciAvatarPhoto, .ciAvatarSaved,
+.srAvatar, .meAvatar, .chAvatar, .chAvatarSaved,
+.chAvatarWrap, .chAvatarWrap.group,
+.fwdItemAvatarSaved, .memberChipAvatar, .modalUserAvatar,
+.msgSenderAvatarBtn, .msgSenderAvatarBtn img,
+.upAvatar, .upAvatarRing, .giAvatarFallback,
+.psHubAvatar, .psAvatarWrap, .psAvatarImg, .psAvatarFallback, .psAvatarOverlay,
+.incomingCallAvatar, .callAvatarWrap, .callAvatarPulse, .nsMemberAvatar {
+  border-radius: 50%;
+}
+
+/* ── 6. Композер: плавающая капсула ─────────────────────────────────── */
+.composer {
+  border-top: none;
+  background: transparent;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  padding: 6px 14px 14px;
+}
+.composerInputWrap {
+  background: color-mix(in srgb, var(--panel) 88%, transparent);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border-radius: 22px;
+  box-shadow: 0 6px 22px color-mix(in srgb, var(--bg) 55%, transparent);
+}
+.composerInputWrap:focus-within {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-dim), 0 6px 22px color-mix(in srgb, var(--bg) 55%, transparent);
+}
+.composerSend {
+  background: var(--grad-accent);
+  border-radius: 50%;
+  box-shadow: var(--glow);
+}
+.composerSend:not(:disabled):hover { opacity: 1; filter: brightness(1.08); transform: scale(1.05); }
+
+/* ── 7. Экран входа: живая аврора ───────────────────────────────────── */
+.authWrap {
+  background:
+    radial-gradient(ellipse 60% 55% at 18% 0%, color-mix(in srgb, var(--accent) 20%, transparent), transparent 65%),
+    radial-gradient(ellipse 50% 45% at 85% 12%, color-mix(in srgb, var(--accent-2) 13%, transparent), transparent 65%),
+    radial-gradient(ellipse 60% 50% at 50% 115%, color-mix(in srgb, var(--success) 7%, transparent), transparent 70%),
+    var(--bg);
+  background-size: 170% 170%, 170% 170%, 170% 170%;
+  animation: auroraShift 26s ease-in-out infinite alternate;
+}
+@keyframes auroraShift {
+  from { background-position: 0% 0%, 100% 0%, 50% 100%; }
+  to   { background-position: 80% 45%, 10% 55%, 35% 60%; }
+}
+.authCard {
+  border-radius: 24px;
+  background: color-mix(in srgb, var(--sidebar) 84%, transparent);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+}
+.authTitle {
+  background: var(--grad-accent);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+  letter-spacing: .09em;
+}
+.authBtn {
+  background: var(--grad-accent);
+  box-shadow: var(--glow);
+}
+.authBtn:hover:not(:disabled) { opacity: 1; filter: brightness(1.08); transform: translateY(-1px); }
+
+/* ── 8. Меню, панели, скроллбары ────────────────────────────────────── */
+.ctxMenu {
+  border-radius: 14px;
+  box-shadow: var(--shadow);
+  background: color-mix(in srgb, var(--panel) 94%, transparent);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+}
+.profilePanel {
+  border-radius: 18px;
+  background: color-mix(in srgb, var(--sidebar) 90%, transparent);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+}
+.messages::-webkit-scrollbar-thumb,
+.chatList::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, var(--accent) 28%, transparent);
+  border-radius: 4px;
+}
+
+/* ── 9. Доступность: уважение reduced-motion ────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  .msg, .modalCard { animation: none; }
+  .authWrap { animation: none; }
+  .chatItem, .chatItem:hover { transform: none; transition: background .15s; }
+}
+
+/* Кнопки голосовых/кружков: градиент в активных состояниях, как у composerSend */
+.composerMicLocked,
+.composerMicSend { background: var(--grad-accent); }
+.composerMicSend:hover { background: var(--grad-accent); filter: brightness(1.12); }
+
+/* ── Вкладка «Внешний вид»: выбор фона приложения ───────────────────── */
+.apBgPresets {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  margin-top: 10px;
+}
+.apBgPreset {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 6px;
+  border-radius: 14px;
+  border: 1.5px solid var(--border);
+  background: var(--panel);
+  transition: border-color .15s, transform .12s;
+}
+.apBgPreset:hover { transform: translateY(-1px); }
+.apBgPresetActive { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-dim); }
+.apBgPresetFill {
+  display: block;
+  height: 52px;
+  border-radius: 9px;
+  border: 1px solid var(--border);
+}
+/* мини-превью дефолтной авроры */
+.apBgPresetAurora {
+  background:
+    radial-gradient(ellipse 70% 60% at 10% 0%, color-mix(in srgb, var(--accent) 30%, transparent), transparent 70%),
+    radial-gradient(ellipse 60% 55% at 95% 20%, color-mix(in srgb, var(--accent-2) 22%, transparent), transparent 70%),
+    var(--bg);
+}
+.apBgPresetName {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--muted);
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.apBgPresetActive .apBgPresetName { color: var(--accent); }
+
+.apBgCustomRow { margin-top: 12px; display: flex; flex-direction: column; gap: 10px; }
+.apBgModeTabs {
+  display: flex;
+  background: var(--panel);
+  border-radius: 10px;
+  padding: 3px;
+  gap: 3px;
+  width: fit-content;
+}
+.apBgModeTab {
+  padding: 6px 16px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+  transition: all .15s;
+}
+.apBgModeTab.active {
+  background: var(--sidebar);
+  color: var(--accent);
+  box-shadow: 0 1px 4px rgba(0,0,0,.15);
+}
+.apBgPickers { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.apBgPickerLabel { flex-shrink: 0; }
+.apBgAngleRow { display: flex; align-items: center; gap: 8px; min-width: 140px; flex: 1; }
+.apBgAngleSlider { flex: 1; accent-color: var(--accent); }
+.apBgAngleValue { font-size: 12px; color: var(--muted); min-width: 34px; text-align: right; }
+
+@media (max-width: 480px) {
+  .apBgPresets { grid-template-columns: repeat(2, 1fr); }
+}
+
+/* ── 10. Контент внутри исходящего пузыря — всё от «чернил» пузыря ────
+   Иконки файлов, «Переслано от», цитаты-ответы: цвета считаются от
+   currentColor (--bubble-ink с авто-контрастом), а не от палитры темы,
+   поэтому читаемы на любом пользовательском акценте. ────────────────── */
+.msg.out .bubble .bubbleFileName { color: inherit; }
+.msg.out .bubble .bubbleFileDownloadBtn {
+  background: color-mix(in srgb, currentColor 16%, transparent);
+  color: inherit;
+}
+/* инлайновые цвета по расширению (DOC синий и т.п.) гасим на стеклянный вариант */
+.msg.out .bubble .bubbleFileIcon {
+  background: color-mix(in srgb, currentColor 13%, transparent) !important;
+  border-color: color-mix(in srgb, currentColor 40%, transparent) !important;
+}
+.msg.out .bubble .bubbleFileIcon svg path,
+.msg.out .bubble .bubbleFileIcon svg polyline {
+  stroke: currentColor;
+}
+.msg.out .bubble .bubbleFileIcon svg path {
+  fill: color-mix(in srgb, currentColor 18%, transparent);
+}
+.msg.out .bubble .bubbleFileIconLabel { color: inherit !important; }
+
+.msg.out .bubble .bubbleForwardedBadge {
+  color: inherit;
+  opacity: .9;
+  border-bottom-color: color-mix(in srgb, currentColor 30%, transparent);
+}
+.msg.out .bubble .bubbleForwardedName {
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.msg.out .bubble .bubbleReply {
+  border-left-color: currentColor;
+  background: color-mix(in srgb, currentColor 12%, transparent);
+}
+.msg.out .bubble .bubbleReplySender { color: inherit; }
+.msg.out .bubble .bubbleReplyText { color: inherit; opacity: .78; }
+.msg.out .bubble .bubbleReplyExpand { color: inherit; opacity: .85; text-decoration: underline; }
+
+/* ── Права модератора: список переключателей в GroupInfoModal ────────── */
+.giPermList { display: flex; flex-direction: column; gap: 6px; margin: 14px 0 4px; }
+.giPermRow {
+  display: flex; align-items: center; gap: 12px;
+  width: 100%; text-align: left;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: var(--panel);
+  border: 1.5px solid var(--border);
+  transition: border-color .15s, background .15s;
+}
+.giPermRow:hover:not(:disabled) { border-color: var(--accent-border); }
+.giPermRowOn { border-color: var(--accent-border); background: var(--accent-dim); }
+.giPermText { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.giPermLabel { font-size: 14px; font-weight: 600; color: var(--text); }
+.giPermHint { font-size: 12px; color: var(--muted); }
+.giPermToggle {
+  flex-shrink: 0;
+  width: 40px; height: 24px;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--muted) 40%, transparent);
+  position: relative;
+  transition: background .18s;
+}
+.giPermToggleOn { background: var(--grad-accent); }
+.giPermKnob {
+  position: absolute; top: 3px; left: 3px;
+  width: 18px; height: 18px;
+  border-radius: 50%;
+  background: #fff;
+  transition: transform .18s;
+  box-shadow: 0 1px 3px rgba(0,0,0,.3);
+}
+.giPermToggleOn .giPermKnob { transform: translateX(16px); }
+
+/* ── Модалка «Фон чата» ──────────────────────────────────────────────── */
+.cbgCard { width: min(440px, 100%); padding: 18px 18px 16px; gap: 0; }
+.cbgHeader { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+.cbgTitle { font-size: 17px; font-weight: 700; }
+.cbgPreview {
+  height: 120px;
+  border-radius: 16px;
+  border: 1px solid var(--border);
+  background: var(--panel);
+  padding: 12px;
+  display: flex; flex-direction: column; gap: 6px; justify-content: flex-end;
+  position: relative;
+  overflow: hidden;
+}
+.cbgPreviewBubble { max-width: 70%; padding: 7px 11px; border-radius: 14px; font-size: 13px; }
+.cbgPreviewIn  { align-self: flex-start; background: color-mix(in srgb, var(--panel) 88%, #fff); color: var(--text); border: 1px solid var(--border); }
+.cbgPreviewOut { align-self: flex-end; background: var(--grad-accent); color: #fff; }
+.cbgPreviewHint { position: absolute; top: 10px; left: 12px; font-size: 12px; color: var(--muted); }
+.cbgPresets { margin: 14px 0 0; }
+.cbgModeTabs { margin: 14px 0 0; }
+.cbgImageBtn { position: relative; cursor: pointer; overflow: hidden; }
+.cbgImageBtn .apColorInput { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+.cbgPickers { margin-top: 12px; }
+.cbgEveryone {
+  display: flex; align-items: center; gap: 12px; width: 100%; text-align: left;
+  margin-top: 14px; padding: 10px 12px;
+  border-radius: 12px; background: var(--panel); border: 1.5px solid var(--border);
+  transition: border-color .15s, background .15s;
+}
+.cbgEveryoneOn { border-color: var(--accent-border); background: var(--accent-dim); }
+.cbgEveryoneText { display: flex; flex-direction: column; gap: 2px; }
+.cbgEveryoneLabel { font-size: 14px; font-weight: 600; }
+.cbgEveryoneHint { font-size: 12px; color: var(--muted); }
+.cbgError { margin-top: 10px; color: var(--danger); font-size: 13px; }
+.cbgActions { display: flex; gap: 10px; margin-top: 16px; }
+.cbgRemoveBtn { flex: 1; padding: 11px; border-radius: 12px; background: var(--panel); color: var(--text); font-weight: 600; border: 1px solid var(--border); }
+.cbgRemoveBtn:hover:not(:disabled) { border-color: var(--danger); color: var(--danger); }
+.cbgApplyBtn { flex: 1; padding: 11px; border-radius: 12px; background: var(--grad-accent); color: #fff; font-weight: 600; box-shadow: var(--glow); }
+.cbgApplyBtn:disabled, .cbgRemoveBtn:disabled { opacity: .5; cursor: not-allowed; }
+
+/* ── Плашка «Фон чата обновлён» (SharedBgPrompt) ───────────────────────────
+   Появляется в шапке списка сообщений, когда общий фон сменили после личного. */
+.sbgPrompt {
+  display: flex; align-items: center; gap: 10px;
+  margin: 8px 12px 0; padding: 8px 10px 8px 12px;
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--accent) 14%, var(--card));
+  border: 1px solid color-mix(in srgb, var(--accent) 26%, transparent);
+  backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+  font-size: 13px; flex-shrink: 0;
+  animation: sbgPromptIn .26s cubic-bezier(.2,.8,.2,1);
+}
+@keyframes sbgPromptIn { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .sbgPrompt { animation: none; } }
+.sbgPromptSwatch {
+  width: 26px; height: 26px; border-radius: 8px; flex-shrink: 0;
+  border: 1px solid color-mix(in srgb, var(--accent) 30%, transparent);
+  box-shadow: 0 1px 4px rgba(0,0,0,.25);
+}
+.sbgPromptText { flex: 1; color: var(--text); font-weight: 500; }
+.sbgPromptApply {
+  padding: 6px 14px; border: none; border-radius: 9px;
+  background: var(--grad-accent); color: #fff; font-size: 12.5px; font-weight: 600;
+  cursor: pointer; box-shadow: var(--glow); transition: opacity .12s;
+}
+.sbgPromptApply:hover:not(:disabled) { opacity: .9; }
+.sbgPromptClose {
+  display: grid; place-items: center; width: 28px; height: 28px; flex-shrink: 0;
+  border: none; border-radius: 8px; background: none; color: var(--muted);
+  font-size: 14px; cursor: pointer; transition: background .12s, color .12s;
+}
+.sbgPromptClose:hover:not(:disabled) { background: color-mix(in srgb, var(--text) 10%, transparent); color: var(--text); }
+.sbgPromptApply:disabled, .sbgPromptClose:disabled { opacity: .5; cursor: not-allowed; }
+
+/* ── Разделители дат в переписке + плавающая «пилюля» даты ──────────────────
+   Inline-разделитель появляется на смене дня; плавающая пилюля «едет» сверху
+   при прокрутке и мягко тает в покое — всегда понятно, в каком дне находишься. */
+.msgDateDivider { display: flex; justify-content: center; padding: 10px 0 6px; }
+.msgDatePill {
+  font-size: 12px; font-weight: 600; letter-spacing: .01em;
+  color: var(--text);
+  padding: 4px 14px; border-radius: 20px;
+  background: color-mix(in srgb, var(--card) 78%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent) 18%, var(--border));
+  backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+  box-shadow: 0 2px 10px rgba(0,0,0,.18);
+}
+/* Sticky-обёртка нулевой высоты — пилюля не занимает места в потоке сообщений */
+.msgsFloatingDate {
+  position: sticky; top: 0; height: 0; z-index: 6;
+  display: flex; justify-content: center; pointer-events: none; overflow: visible;
+}
+.msgDatePillFloat {
+  margin-top: 8px;
+  opacity: 0; transform: translateY(-6px) scale(.96);
+  transition: opacity .22s ease, transform .22s ease;
+  box-shadow: 0 4px 16px rgba(0,0,0,.28);
+}
+.msgsFloatingDateShow .msgDatePillFloat { opacity: 1; transform: none; }
+@media (prefers-reduced-motion: reduce) {
+  .msgDatePillFloat { transition: opacity .22s ease; transform: none; }
+}

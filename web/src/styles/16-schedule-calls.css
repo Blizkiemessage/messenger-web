@@ -1,0 +1,901 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   F1 — Капсула времени: schedule buttons in Composer
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.composerScheduleBtn,
+.composerScheduledListBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: color 0.15s, background 0.15s;
+}
+.composerScheduleBtn:hover { color: var(--accent); background: var(--accent-faint, rgba(88,166,255,.1)); }
+.composerScheduledListBtn:hover { color: var(--accent); background: var(--accent-faint, rgba(88,166,255,.1)); }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   F1 — ScheduleDatePicker  (custom calendar + time picker)
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.sdpBackdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+  background: rgba(0,0,0,.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: sdpFadeIn 0.15s ease;
+}
+@keyframes sdpFadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+.sdpPanel {
+  width: 340px;
+  background: var(--panel);
+  border-radius: 16px;
+  border: 1px solid var(--border);
+  padding: 18px 20px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  box-shadow: 0 16px 48px rgba(0,0,0,.6);
+  animation: sdpSlideUp 0.2s cubic-bezier(.22,.68,0,1.2);
+  user-select: none;
+}
+@keyframes sdpSlideUp {
+  from { transform: translateY(20px) scale(.97); opacity: 0; }
+  to   { transform: translateY(0)    scale(1);   opacity: 1; }
+}
+
+/* ── Header ── */
+.sdpHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.sdpTitle {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+}
+.sdpClose {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  border-radius: 50%;
+  transition: background 0.12s, color 0.12s;
+}
+.sdpClose:hover { background: var(--hover); color: var(--text); }
+
+/* ── Calendar ── */
+.sdpCalendar {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.sdpMonthNav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 2px;
+}
+.sdpMonthLabel {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+  letter-spacing: 0.01em;
+}
+.sdpMonthBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  border-radius: 50%;
+  transition: background 0.12s, color 0.12s;
+}
+.sdpMonthBtn:hover { background: var(--hover); color: var(--text); }
+
+.sdpDowRow {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  text-align: center;
+}
+.sdpDowCell {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--muted);
+  padding: 4px 0;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.sdpDayGrid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 2px;
+}
+.sdpDayEmpty { height: 34px; }
+
+.sdpDay {
+  height: 34px;
+  border: none;
+  background: transparent;
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  border-radius: 50%;
+  transition: background 0.12s, color 0.12s;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  aspect-ratio: 1;
+  margin: 0 auto;
+  width: 34px;
+}
+.sdpDay:hover:not(:disabled):not(.sdpDaySelected) {
+  background: var(--hover);
+}
+.sdpDayPast {
+  color: var(--muted);
+  opacity: 0.4;
+  cursor: default;
+}
+.sdpDayToday:not(.sdpDaySelected) {
+  color: var(--accent);
+  font-weight: 700;
+}
+.sdpDayToday:not(.sdpDaySelected)::after {
+  content: '';
+  position: absolute;
+  bottom: 3px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+.sdpDaySelected {
+  background: var(--accent) !important;
+  color: #fff !important;
+  font-weight: 700;
+}
+.sdpDaySelected::after { display: none; }
+
+/* ── Time picker ── */
+.sdpTimePicker {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 10px 14px;
+}
+.sdpTimeLabel {
+  font-size: 13px;
+  color: var(--muted);
+}
+.sdpTimeInputs {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.sdpTimeSep {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--text);
+  line-height: 1;
+  margin-bottom: 2px;
+  opacity: 0.8;
+}
+
+/* Spin widget */
+.sdpSpinWrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+.sdpSpinArrow {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 18px;
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  border-radius: 6px;
+  transition: background 0.1s, color 0.1s;
+}
+.sdpSpinArrow:hover { background: var(--hover); color: var(--text); }
+.sdpSpinInput {
+  width: 38px;
+  height: 36px;
+  text-align: center;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--panel);
+  color: var(--text);
+  font-size: 20px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  outline: none;
+  transition: border-color 0.15s;
+}
+.sdpSpinInput:focus { border-color: var(--accent); }
+
+/* ── Summary line ── */
+.sdpSummary {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--muted);
+  background: var(--bg);
+  border-radius: 8px;
+  padding: 7px 10px;
+}
+
+/* ── Error ── */
+.sdpError {
+  font-size: 12px;
+  color: #ef4444;
+  padding: 0 2px;
+}
+
+/* ── Actions ── */
+.sdpActions {
+  display: flex;
+  gap: 8px;
+}
+.sdpConfirm {
+  flex: 1;
+  padding: 9px 0;
+  border-radius: 10px;
+  border: none;
+  background: var(--accent);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: filter 0.15s;
+}
+.sdpConfirm:hover { filter: brightness(1.12); }
+.sdpCancel {
+  padding: 9px 16px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--muted);
+  font-size: 13px;
+  cursor: pointer;
+  transition: background 0.13s, color 0.13s;
+}
+.sdpCancel:hover { background: var(--hover); color: var(--text); }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   F1 — ScheduledMessagesModal
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.smModal {
+  width: 420px;
+  max-width: 96vw;
+  max-height: 70vh;
+  background: var(--panel);
+  border-radius: 14px;
+  border: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-shadow: 0 12px 40px rgba(0,0,0,.55);
+  animation: modalSlideUp 0.2s cubic-bezier(.22,.68,0,1.2);
+}
+
+.smHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.smTitle {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+}
+.smCloseBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  border-radius: 50%;
+  transition: background 0.12s, color 0.12s;
+}
+.smCloseBtn:hover { background: var(--hover); color: var(--text); }
+
+.smEmpty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 40px 20px;
+  color: var(--muted);
+  font-size: 13px;
+  text-align: center;
+  flex: 1;
+}
+.smEmptyError { color: #ef4444; }
+
+.smList {
+  overflow-y: auto;
+  flex: 1;
+  padding: 8px 0;
+}
+
+.smItem {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 16px;
+  transition: background 0.12s;
+}
+.smItem:hover { background: var(--hover); }
+
+.smItemIcon {
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: rgba(88,166,255,.12);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--accent);
+  margin-top: 1px;
+}
+
+.smItemBody {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.smItemPreview {
+  font-size: 13px;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.smItemTime {
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.smCancelBtn {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  border-radius: 50%;
+  transition: background 0.12s, color 0.12s;
+}
+.smCancelBtn:hover:not(:disabled) { background: rgba(239,68,68,.15); color: #ef4444; }
+.smCancelBtn:disabled { opacity: 0.4; cursor: default; }
+
+/* Edit button (pencil) */
+.smEditBtn {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  border-radius: 50%;
+  transition: background 0.12s, color 0.12s;
+}
+.smEditBtn:hover { background: rgba(88,166,255,.12); color: var(--accent); }
+
+/* Edit card (expanded below the item) */
+.smEditCard {
+  margin: 0 12px 6px;
+  padding: 12px 14px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.smEditField {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.smEditLabel {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.smEditTextarea {
+  width: 100%;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--panel);
+  color: var(--text);
+  font-size: 13px;
+  line-height: 1.5;
+  resize: vertical;
+  min-height: 60px;
+  outline: none;
+  box-sizing: border-box;
+  font-family: inherit;
+  transition: border-color 0.15s;
+}
+.smEditTextarea:focus { border-color: var(--accent); }
+
+.smEditTimeBtn {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 7px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--panel);
+  color: var(--text);
+  font-size: 13px;
+  cursor: pointer;
+  text-align: left;
+  transition: border-color 0.15s, background 0.12s;
+}
+.smEditTimeBtn:hover { border-color: var(--accent); background: var(--hover); }
+.smEditTimeBtn svg:last-child { margin-left: auto; color: var(--muted); }
+
+.smEditError {
+  font-size: 12px;
+  color: #ef4444;
+}
+.smEditActions {
+  display: flex;
+  gap: 8px;
+}
+.smEditSaveBtn {
+  flex: 1;
+  padding: 7px 0;
+  border-radius: 8px;
+  border: none;
+  background: var(--accent);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: filter 0.15s;
+}
+.smEditSaveBtn:hover:not(:disabled) { filter: brightness(1.1); }
+.smEditSaveBtn:disabled { opacity: 0.5; cursor: default; }
+.smEditCancelBtn {
+  padding: 7px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--muted);
+  font-size: 13px;
+  cursor: pointer;
+  transition: background 0.12s, color 0.12s;
+}
+.smEditCancelBtn:hover:not(:disabled) { background: var(--hover); color: var(--text); }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   E3: WebRTC Call UI
+   ─────────────────────────────────────────────────────────────────────────── */
+
+/* ── Incoming call overlay ──────────────────────────────────────────────── */
+.incomingCallOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: 3000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.72);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  animation: fadeInCall 0.25s ease;
+}
+
+.incomingCallCard {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 24px;
+  padding: 36px 48px 32px;
+  box-shadow: 0 24px 64px rgba(0,0,0,0.6);
+  min-width: 260px;
+  position: relative;
+}
+
+/* Pulsing ring behind avatar */
+.incomingCallRing {
+  position: absolute;
+  top: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 100px;
+  height: 100px;
+  border-radius: 50%;
+  border: 2px solid var(--accent);
+  animation: callRingPulse 1.6s ease-out infinite;
+}
+.incomingCallRingInner {
+  position: absolute;
+  inset: 8px;
+  border-radius: 50%;
+  border: 2px solid var(--accent);
+  opacity: 0.5;
+  animation: callRingPulse 1.6s 0.4s ease-out infinite;
+}
+
+@keyframes callRingPulse {
+  0%   { transform: scale(1); opacity: 0.6; }
+  100% { transform: scale(1.6); opacity: 0; }
+}
+
+.incomingCallAvatar {
+  position: relative;
+  z-index: 1;
+  width: 80px;
+  height: 80px;
+}
+
+.incomingCallLabel {
+  font-size: 12px;
+  color: var(--muted);
+  letter-spacing: 0.02em;
+  margin-top: 4px;
+}
+
+.incomingCallName {
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--text);
+  text-align: center;
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.incomingCallActions {
+  display: flex;
+  gap: 36px;
+  margin-top: 12px;
+}
+
+/* Each button + its label stacked vertically */
+.incomingCallBtnWrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.incomingCallBtnLabel {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--muted);
+  letter-spacing: 0.01em;
+}
+
+/* Icon-only buttons — no filled background */
+.callBtnReject,
+.callBtnAccept {
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  transition: transform 0.13s, background 0.15s;
+}
+.callBtnReject {
+  color: var(--danger, #f85149);
+}
+.callBtnAccept {
+  color: var(--success, #3fb950);
+}
+.callBtnReject:hover  { transform: scale(1.1); background: rgba(248, 81, 73, 0.12); }
+.callBtnAccept:hover  { transform: scale(1.1); background: rgba(63, 185, 80, 0.12); }
+.callBtnReject:active,
+.callBtnAccept:active { transform: scale(0.92); }
+
+/* ── Active call overlay ──────────────────────────────────────────────────── */
+.callOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: 2500;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background:
+    radial-gradient(ellipse 70% 50% at 50% 0%, rgba(142,117,242,0.18), transparent 70%),
+    radial-gradient(ellipse 60% 45% at 80% 100%, rgba(226,110,193,0.10), transparent 70%),
+    linear-gradient(160deg, #0b0911 0%, #1a1428 100%);
+  animation: fadeInCall 0.3s ease;
+}
+
+.callOverlay.callOverlayVideo {
+  background: #000;
+}
+
+@keyframes fadeInCall {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+/* Remote video — full screen */
+.callVideoRemote {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* Local video — PIP corner */
+.callVideoLocal {
+  position: absolute;
+  bottom: 120px;
+  right: 20px;
+  width: 140px;
+  height: 100px;
+  border-radius: 12px;
+  object-fit: cover;
+  border: 2px solid rgba(255,255,255,0.2);
+  box-shadow: 0 4px 16px rgba(0,0,0,0.5);
+  z-index: 1;
+  transition: opacity 0.2s;
+}
+.callVideoLocal.hidden { opacity: 0; }
+
+/* Center info (audio call or pre-connect) */
+.callCenterInfo {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  z-index: 1;
+}
+
+.callAvatarWrap {
+  position: relative;
+  width: 96px;
+  height: 96px;
+}
+
+.callAvatarPulse {
+  position: absolute;
+  inset: -8px;
+  border-radius: 50%;
+  border: 2px solid var(--accent);
+  animation: callRingPulse 2s ease-out infinite;
+  opacity: 0.6;
+}
+
+.callPeerName {
+  font-size: 24px;
+  font-weight: 600;
+  color: #fff;
+  text-align: center;
+  z-index: 1;
+  text-shadow: 0 1px 4px rgba(0,0,0,0.4);
+}
+
+/* Status / duration */
+.callStatusText {
+  font-size: 14px;
+  color: rgba(255,255,255,0.6);
+  margin-top: 8px;
+  z-index: 1;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+}
+
+/* Controls bar */
+.callControls {
+  position: absolute;
+  bottom: 36px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  z-index: 2;
+  background: rgba(0,0,0,0.35);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-radius: 64px;
+  padding: 12px 24px;
+  border: 1px solid rgba(255,255,255,0.08);
+}
+
+.callControlBtn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  border: none;
+  cursor: pointer;
+  background: rgba(255,255,255,0.1);
+  color: #fff;
+  transition: background 0.15s, transform 0.1s;
+  justify-content: center;
+  position: relative;
+}
+.callControlBtn:hover    { background: rgba(255,255,255,0.18); }
+.callControlBtn:active   { transform: scale(0.93); }
+.callControlBtn.active   { background: rgba(255,255,255,0.9); color: #111; }
+
+.callControlEnd {
+  background: var(--danger);
+  color: #fff;
+  box-shadow: 0 4px 16px rgba(248,81,73,0.4);
+}
+.callControlEnd:hover  { background: #ff3b2f; box-shadow: 0 6px 24px rgba(248,81,73,0.55); }
+
+.callControlLabel {
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  position: absolute;
+  bottom: -20px;
+  white-space: nowrap;
+  color: rgba(255,255,255,0.7);
+}
+.callControlBtn.callControlEnd .callControlLabel { color: rgba(255,255,255,0.7); }
+
+/* ── "Calling…" screen — shown to caller before callee answers ────────── */
+.callOverlay:not(.callOverlayVideo) .callCenterInfo {
+  margin-top: -40px;
+}
+
+/* ── Audio output picker ─────────────────────────────────────────────────── */
+
+/* Wrapper keeps the button and the popup together */
+.callAudioOutputWrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Popup list that floats above the button */
+.callAudioPicker {
+  position: absolute;
+  bottom: calc(100% + 20px);
+  left: 50%;
+  transform: translateX(-50%);
+  min-width: 230px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px;
+  background: rgba(18, 22, 30, 0.97);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 16px;
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.65);
+  z-index: 10;
+  animation: fadeInCall 0.15s ease;
+}
+
+/* Arrow pointing down toward the button */
+.callAudioPicker::after {
+  content: '';
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  border: 7px solid transparent;
+  border-top-color: rgba(255, 255, 255, 0.12);
+}
+
+/* Each device row inside the picker */
+.callAudioPickerItem {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  border: none;
+  cursor: pointer;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 13px;
+  font-weight: 500;
+  text-align: left;
+  transition: background 0.12s, color 0.12s;
+  width: 100%;
+}
+.callAudioPickerItem:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+}
+.callAudioPickerItem.active {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.callAudioPickerLabel {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.callAudioPickerCheck {
+  flex-shrink: 0;
+  color: var(--accent);
+}
+

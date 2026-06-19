@@ -1,0 +1,1165 @@
+/* ── Studio pack type filter (Стикеры / Эмодзи) ─────────────────────── */
+.studioPackTypeFilter {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 12px;
+  background: var(--bg, #141824);
+  border-radius: 10px;
+  padding: 3px;
+}
+.studioPackTypeBtn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  padding: 7px 10px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text-muted, var(--muted));
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background .15s, color .15s;
+}
+.studioPackTypeBtn:hover { background: var(--hover); color: var(--text); }
+.studioPackTypeBtn.active {
+  background: var(--card, #1c2333);
+  color: var(--text);
+  box-shadow: 0 1px 4px rgba(0,0,0,.25);
+}
+.studioPackTypeCnt {
+  background: var(--accent-dim);
+  color: var(--accent);
+  font-size: 10px;
+  font-weight: 700;
+  border-radius: 8px;
+  padding: 1px 5px;
+  min-width: 16px;
+  text-align: center;
+}
+
+.studioQuotaBadge {
+  display: inline-block;
+  background: var(--accent-dim);
+  color: var(--accent);
+  border-radius: 6px;
+  padding: 4px 10px;
+  font-size: 12px;
+  font-weight: 600;
+  margin-bottom: 12px;
+}
+
+.studioLoading { display: flex; justify-content: center; padding: 24px; }
+.studioEmpty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 32px 16px;
+  color: var(--text-muted, var(--muted));
+  font-size: 14px;
+  text-align: center;
+}
+
+.studioPackRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border);
+}
+.studioPackThumb {
+  width: 48px; height: 48px;
+  border-radius: 10px;
+  overflow: hidden;
+  background: var(--accent-dim);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 20px; font-weight: 700; color: var(--accent);
+  flex-shrink: 0;
+}
+.studioPackThumb img { width: 100%; height: 100%; object-fit: cover; }
+.studioPackInfo { flex: 1; min-width: 0; }
+.studioPackName { font-size: 14px; font-weight: 600; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.studioPackMeta { font-size: 12px; color: var(--text-muted, var(--muted)); margin-top: 2px; }
+.studioPackActions { display: flex; gap: 6px; }
+.studioIconBtn {
+  width: 30px; height: 30px;
+  background: none; border: none; cursor: pointer;
+  border-radius: 6px;
+  display: flex; align-items: center; justify-content: center;
+  color: var(--text-muted, var(--muted));
+  transition: background .15s, color .15s;
+}
+.studioIconBtn:hover { background: var(--accent-dim); color: var(--accent); }
+.studioIconBtnDanger:hover { background: #e74c3c22; color: #e74c3c; }
+
+.studioEditDialog {
+  margin-top: 12px;
+  padding: 14px;
+  background: var(--input-bg, var(--surface));
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.studioEditDialog h4 { margin: 0; font-size: 14px; color: var(--text); }
+.studioEditActions { display: flex; gap: 8px; justify-content: flex-end; }
+
+.studioStepBar { display: flex; gap: 12px; margin-bottom: 16px; align-items: center; }
+.studioStep {
+  width: 28px; height: 28px;
+  border-radius: 50%;
+  background: var(--border);
+  color: var(--text-muted, var(--muted));
+  display: flex; align-items: center; justify-content: center;
+  font-size: 12px; font-weight: 700;
+  transition: background .2s, color .2s;
+}
+.studioStep.done { background: var(--accent-dim); color: var(--accent); }
+.studioStep.current { background: var(--accent); color: #fff; }
+
+.studioStepBody { display: flex; flex-direction: column; gap: 12px; }
+.studioStepBody h4 { margin: 0; font-size: 14px; color: var(--text); }
+
+.studioInput {
+  width: 100%;
+  background: var(--input-bg, var(--surface));
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 9px 12px;
+  font-size: 13px;
+  color: var(--text);
+  outline: none;
+  transition: border-color .15s;
+  box-sizing: border-box;
+}
+.studioInput:focus { border-color: var(--accent); }
+
+.studioRadioRow { display: flex; gap: 16px; font-size: 13px; color: var(--text); }
+.studioRadioRow label { display: flex; align-items: center; gap: 6px; cursor: pointer; }
+
+.studioToggleRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 13px;
+  color: var(--text);
+  cursor: pointer;
+}
+
+.studioHint { margin: 0; font-size: 12px; color: var(--text-muted, var(--muted)); }
+.studioWizardFooter { display: flex; gap: 8px; justify-content: flex-end; margin-top: 8px; }
+
+.studioBtnPrimary {
+  padding: 8px 20px;
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity .15s;
+}
+.studioBtnPrimary:disabled { opacity: .5; cursor: default; }
+.studioBtnPrimary:hover:not(:disabled) { opacity: .85; }
+
+.studioBtnSecondary {
+  padding: 8px 16px;
+  background: var(--accent-dim);
+  color: var(--accent);
+  border: none;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: opacity .15s;
+}
+.studioBtnSecondary:hover { opacity: .8; }
+
+.studioItemGrid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+
+.studioItemCell {
+  position: relative;
+  aspect-ratio: 1;
+  border-radius: 8px;
+  overflow: hidden;
+  background: var(--accent-dim);
+  border: 2px solid transparent;
+  cursor: default;
+}
+.studioItemCell img { width: 100%; height: 100%; object-fit: contain; }
+.studioItemSelectable { cursor: pointer; }
+.studioItemSelectable:hover { border-color: var(--accent); }
+.studioItemSelectable.selected { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent); }
+
+.studioItemOverlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0,0,0,.4);
+  display: flex; align-items: center; justify-content: center;
+}
+.studioItemDone {
+  position: absolute; top: 4px; right: 4px;
+  background: #27ae60; color: #fff;
+  border-radius: 50%; width: 16px; height: 16px;
+  font-size: 10px;
+  display: flex; align-items: center; justify-content: center;
+}
+.studioItemError {
+  position: absolute; top: 4px; right: 4px;
+  background: #e74c3c; color: #fff;
+  border-radius: 50%; width: 16px; height: 16px;
+  font-size: 10px;
+  display: flex; align-items: center; justify-content: center;
+  cursor: help;
+}
+.studioItemRemove {
+  position: absolute; top: 2px; left: 4px;
+  background: rgba(0,0,0,.5); color: #fff;
+  border: none; border-radius: 50%;
+  width: 18px; height: 18px;
+  font-size: 9px; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  opacity: 0;
+  transition: opacity .15s;
+}
+.studioItemCell:hover .studioItemRemove { opacity: 1; }
+
+.studioItemEmoji {
+  position: absolute;
+  bottom: 2px; left: 50%;
+  transform: translateX(-50%);
+  width: 32px;
+  background: rgba(0,0,0,.5);
+  border: none; border-radius: 4px;
+  color: #fff; font-size: 13px;
+  text-align: center; padding: 1px 2px;
+  outline: none;
+}
+
+.studioItemEmojiTag {
+  position: absolute;
+  bottom: 2px; right: 2px;
+  background: rgba(0,0,0,.5);
+  color: #fff; font-size: 11px;
+  border-radius: 3px;
+  padding: 1px 3px;
+  pointer-events: none;
+}
+
+.studioItemUploadBtn {
+  position: absolute; bottom: 2px; left: 4px;
+  background: var(--accent); color: #fff;
+  border: none; border-radius: 50%;
+  width: 18px; height: 18px;
+  font-size: 11px; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  opacity: 0;
+  transition: opacity .15s;
+}
+.studioItemCell:hover .studioItemUploadBtn { opacity: 1; }
+
+.studioBackBtn {
+  width: 30px; height: 30px;
+  background: none; border: none; cursor: pointer;
+  border-radius: 6px;
+  display: flex; align-items: center; justify-content: center;
+  color: var(--text-muted, var(--muted));
+  flex-shrink: 0;
+  transition: background .15s;
+}
+.studioBackBtn:hover { background: var(--accent-dim); color: var(--accent); }
+
+.studioItemCountBadge {
+  display: inline-block;
+  background: var(--accent-dim);
+  color: var(--accent);
+  border-radius: 6px;
+  padding: 4px 10px;
+  font-size: 12px;
+  font-weight: 600;
+  margin-bottom: 12px;
+}
+
+/* ── Browse / discover packs ── */
+
+.stickerBrowseHeader {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.stickerBrowseBack {
+  width: 28px; height: 28px;
+  background: none; border: none; cursor: pointer;
+  border-radius: 6px;
+  display: flex; align-items: center; justify-content: center;
+  color: var(--text-muted, var(--muted));
+  flex-shrink: 0;
+  transition: background .15s;
+}
+.stickerBrowseBack:hover { background: var(--accent-dim); color: var(--accent); }
+
+.stickerBrowseSearch {
+  flex: 1;
+  background: var(--input-bg, var(--surface));
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 5px 10px;
+  font-size: 13px;
+  color: var(--text);
+  outline: none;
+  transition: border-color .15s;
+}
+.stickerBrowseSearch:focus { border-color: var(--accent); }
+
+.stickerBrowseList {
+  flex: 1;
+  overflow-y: auto;
+  padding: 4px 0;
+}
+.stickerBrowseList::-webkit-scrollbar { width: 4px; }
+.stickerBrowseList::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+
+.stickerBrowseRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  cursor: pointer;
+  transition: background .12s;
+}
+.stickerBrowseRow:hover { background: var(--accent-dim); }
+
+.stickerBrowseRowInfo { flex: 1; min-width: 0; }
+.stickerBrowseRowName { font-size: 13px; font-weight: 600; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.stickerBrowseRowMeta { font-size: 11px; color: var(--text-muted, var(--muted)); }
+
+.stickerInstallBtn {
+  padding: 4px 12px;
+  background: var(--accent);
+  color: #fff;
+  border: none; border-radius: 6px;
+  font-size: 12px; font-weight: 600;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: opacity .15s;
+}
+.stickerInstallBtn:hover:not(:disabled) { opacity: .85; }
+.stickerInstallBtn:disabled { opacity: .5; cursor: default; }
+.stickerInstallBtn.installed { background: var(--accent-dim); color: var(--accent); }
+
+.stickerBrowsePreview { display: flex; flex-direction: column; flex: 1; min-height: 0; overflow: hidden; }
+
+.stickerBrowsePreviewHeader {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.stickerBrowsePreviewThumb {
+  width: 40px; height: 40px;
+  border-radius: 8px;
+  overflow: hidden;
+  background: var(--accent-dim);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 18px; font-weight: 700; color: var(--accent);
+  flex-shrink: 0;
+}
+.stickerBrowsePreviewThumb img { width: 100%; height: 100%; object-fit: cover; }
+.stickerBrowsePreviewInfo { flex: 1; min-width: 0; }
+.stickerBrowsePreviewName { font-size: 13px; font-weight: 600; color: var(--text); }
+.stickerBrowsePreviewDesc { font-size: 11px; color: var(--text-muted, var(--muted)); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* ── Manage packs mode ── */
+.stickerManageHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px 6px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.stickerManageTitle {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+}
+.stickerManageDone {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--accent);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 2px 4px;
+  border-radius: 4px;
+  transition: opacity .15s;
+}
+.stickerManageDone:hover { opacity: .75; }
+
+.stickerManageList {
+  flex: 1;
+  overflow-y: auto;
+  padding: 4px 0;
+}
+.stickerManageList::-webkit-scrollbar { width: 4px; }
+.stickerManageList::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+
+.stickerManageRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 12px;
+  transition: background .12s;
+}
+.stickerManageRow:hover { background: var(--accent-dim); }
+
+.stickerManageThumb {
+  width: 40px; height: 40px;
+  border-radius: 9px;
+  overflow: hidden;
+  background: var(--accent-dim);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 18px; font-weight: 700; color: var(--accent);
+  flex-shrink: 0;
+}
+
+.stickerManageInfo { flex: 1; min-width: 0; }
+.stickerManageName {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.stickerManageMeta {
+  font-size: 11px;
+  color: var(--text-muted, var(--muted));
+  margin-top: 1px;
+}
+
+.stickerManageRemoveBtn {
+  width: 28px; height: 28px;
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer;
+  color: var(--text-muted, var(--muted));
+  transition: background .12s, border-color .12s, color .12s;
+  flex-shrink: 0;
+}
+.stickerManageRemoveBtn:hover:not(:disabled) {
+  background: #e74c3c18;
+  border-color: #e74c3c66;
+  color: #e74c3c;
+}
+.stickerManageRemoveBtn:disabled { opacity: .4; cursor: default; }
+
+/* ── Pack cover fallback letter ── */
+.packCoverFallback {
+  font-size: 16px; font-weight: 700; color: var(--accent);
+  display: flex; align-items: center; justify-content: center;
+  width: 100%; height: 100%;
+}
+
+/* ── Studio: logo upload ── */
+.studioLogoRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.studioLogoBtn {
+  position: relative;
+  width: 64px; height: 64px;
+  border-radius: 14px;
+  overflow: hidden;
+  background: var(--accent-dim);
+  border: 2px dashed var(--border);
+  cursor: pointer;
+  flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  transition: border-color .15s;
+  padding: 0;
+}
+.studioLogoBtn:hover { border-color: var(--accent); }
+.studioLogoBtn:hover .studioLogoBtnOverlay { opacity: 1; }
+.studioLogoBtn:focus-visible { outline: 2px solid var(--accent); }
+
+.studioLogoPlaceholder {
+  display: flex; align-items: center; justify-content: center;
+  color: var(--text-muted, var(--muted));
+}
+
+.studioLogoBtnOverlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, .45);
+  display: flex; align-items: center; justify-content: center;
+  color: #fff;
+  opacity: 0;
+  transition: opacity .15s;
+  border-radius: 12px;
+}
+
+.studioLogoBtnLoading {
+  cursor: default;
+  border-style: solid;
+}
+
+.studioLogoHint {
+  font-size: 13px;
+  color: var(--text);
+  line-height: 1.4;
+}
+.studioLogoHint small {
+  font-size: 11px;
+  color: var(--text-muted, var(--muted));
+}
+
+/* ── Sticker button in chat (clickable pack preview) ── */
+.bubbleStickerBtn {
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: default;
+  display: inline-block;
+  line-height: 0;
+  border-radius: 8px;
+}
+.bubbleStickerBtnClickable {
+  cursor: pointer;
+}
+.bubbleStickerBtnClickable:hover .bubbleSticker {
+  filter: brightness(.92);
+}
+
+/* ── Sticker Pack Preview Modal ── */
+.packPreviewOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, .55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1100;
+  padding: 16px;
+}
+
+.packPreviewModal {
+  background: var(--panel);
+  border-radius: 16px;
+  width: min(420px, 96vw);
+  max-height: min(640px, 90dvh);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-shadow: 0 16px 48px rgba(0, 0, 0, .4);
+}
+
+.packPreviewHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px 12px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.packPreviewTitle {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+}
+.packPreviewClose {
+  width: 28px; height: 28px;
+  background: none; border: none; cursor: pointer;
+  border-radius: 6px;
+  display: flex; align-items: center; justify-content: center;
+  color: var(--text-muted, var(--muted));
+  transition: background .15s, color .15s;
+}
+.packPreviewClose:hover { background: var(--accent-dim); color: var(--accent); }
+
+.packPreviewLoading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 48px;
+}
+
+.packPreviewIdentity {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.packPreviewLogo {
+  width: 56px; height: 56px;
+  border-radius: 12px;
+  overflow: hidden;
+  background: var(--accent-dim);
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+  font-size: 22px; font-weight: 700; color: var(--accent);
+}
+
+.packPreviewInfo { flex: 1; min-width: 0; }
+.packPreviewName {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.packPreviewDesc {
+  font-size: 12px;
+  color: var(--text-muted, var(--muted));
+  margin-top: 2px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.packPreviewCount {
+  font-size: 11px;
+  color: var(--text-muted, var(--muted));
+  margin-top: 4px;
+}
+
+.packPreviewGrid {
+  flex: 1;
+  overflow-y: auto;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
+  padding: 12px;
+}
+.packPreviewGrid::-webkit-scrollbar { width: 5px; }
+.packPreviewGrid::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+
+.packPreviewCell {
+  aspect-ratio: 1;
+  border-radius: 8px;
+  overflow: hidden;
+  background: var(--accent-dim);
+  display: flex; align-items: center; justify-content: center;
+}
+.packPreviewCell img,
+.packPreviewCell video {
+  width: 100%; height: 100%;
+  object-fit: contain;
+}
+
+.packPreviewFooter {
+  padding: 12px 16px;
+  border-top: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.packPreviewBtn {
+  width: 100%;
+  padding: 11px;
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity .15s;
+}
+.packPreviewBtn:hover:not(:disabled) { opacity: .88; }
+.packPreviewBtn:disabled { opacity: .5; cursor: default; }
+.packPreviewBtn.packPreviewBtnRemove {
+  background: var(--accent-dim);
+  color: var(--accent);
+}
+
+/* ── Pack Preview — Report ── */
+.packPreviewReportRow {
+  padding: 8px 16px 0;
+  display: flex;
+  justify-content: flex-end;
+  flex-shrink: 0;
+}
+.packPreviewReportBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 11px;
+  color: var(--text-muted, var(--muted));
+  padding: 4px 8px;
+  border-radius: 6px;
+  transition: background .15s, color .15s;
+}
+.packPreviewReportBtn:hover { background: rgba(239,68,68,.1); color: #ef4444; }
+
+.packPreviewBack {
+  width: 28px; height: 28px;
+  background: none; border: none; cursor: pointer;
+  border-radius: 6px;
+  display: flex; align-items: center; justify-content: center;
+  color: var(--text-muted, var(--muted));
+  transition: background .15s, color .15s;
+  flex-shrink: 0;
+}
+.packPreviewBack:hover { background: var(--accent-dim); color: var(--accent); }
+
+.packReportView {
+  flex: 1;
+  overflow-y: auto;
+  padding: 20px 16px 8px;
+  display: flex;
+  flex-direction: column;
+}
+
+.packReportPackInfo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 20px;
+  padding: 10px 12px;
+  background: var(--accent-dim);
+  border-radius: 10px;
+}
+.packReportLogo {
+  width: 40px; height: 40px;
+  border-radius: 8px;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+.packReportPackName {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.packReportLabel {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted, var(--muted));
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  margin-bottom: 6px;
+  display: block;
+}
+.packReportTextarea {
+  width: 100%;
+  background: var(--input-bg, var(--bg));
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  color: var(--text);
+  font-size: 13px;
+  padding: 10px 12px;
+  resize: none;
+  outline: none;
+  transition: border-color .15s;
+  font-family: inherit;
+}
+.packReportTextarea:focus { border-color: var(--accent); }
+.packReportError {
+  font-size: 12px;
+  color: #ef4444;
+  margin-top: 6px;
+}
+
+.packReportDone {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 24px 16px;
+  gap: 8px;
+}
+.packReportDoneTitle {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text);
+  margin: 0;
+}
+.packReportDoneDesc {
+  font-size: 13px;
+  color: var(--text-muted, var(--muted));
+  margin: 0;
+}
+
+/* ── Sticker Studio — Items Toolbar (redesigned) ── */
+.studioItemsToolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 20px 10px;
+  flex-shrink: 0;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 12px;
+}
+.studioItemsCounter {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+}
+.studioItemsCount {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--text);
+  line-height: 1;
+}
+.studioItemsMax {
+  font-size: 13px;
+  color: var(--text-muted, var(--muted));
+}
+.studioItemsLabel {
+  font-size: 12px;
+  color: var(--text-muted, var(--muted));
+  text-transform: lowercase;
+}
+.studioAddItemsBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 14px;
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity .15s;
+}
+.studioAddItemsBtn:hover { opacity: .85; }
+
+/* ── Video Trimmer Modal ── */
+
+.trimmerModal {
+  background: var(--panel);
+  border-radius: 16px;
+  width: min(560px, 96vw);
+  max-height: 90dvh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-shadow: 0 16px 48px rgba(0,0,0,.4);
+}
+
+.trimmerBody {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 16px 20px;
+  overflow-y: auto;
+}
+
+.trimmerPreview {
+  position: relative;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background: #000;
+  border-radius: 8px;
+  overflow: hidden;
+  max-height: 220px;
+  min-height: 100px;
+}
+
+.trimmerMedia {
+  max-width: 100%;
+  max-height: 220px;
+  object-fit: contain;
+  display: block;
+}
+
+.trimmerPlayBtn {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0,0,0,.25);
+  border: none;
+  cursor: pointer;
+  color: #fff;
+  opacity: 0;
+  transition: opacity .15s;
+}
+.trimmerPreview:hover .trimmerPlayBtn { opacity: 1; }
+.trimmerPlayBtn svg { filter: drop-shadow(0 1px 3px rgba(0,0,0,.5)); }
+
+/* Time info row */
+.trimmerTimeBar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 12px;
+  color: var(--text-muted, var(--muted));
+  font-variant-numeric: tabular-nums;
+}
+.trimmerTimeLabel { font-size: 12px; color: var(--text-muted, var(--muted)); }
+.trimmerDuration { font-size: 13px; font-weight: 700; }
+.trimmerOk   { color: #27ae60; }
+.trimmerOver { color: #e74c3c; }
+
+/* Timeline strip */
+.trimmerTimeline {
+  position: relative;
+  height: 52px;
+  background: var(--input-bg, var(--surface));
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+  cursor: crosshair;
+  user-select: none;
+}
+
+/* Dark overlay for out-of-range areas */
+.trimmerDimLeft, .trimmerDimRight {
+  position: absolute;
+  top: 0; bottom: 0;
+  background: rgba(0,0,0,.45);
+  pointer-events: none;
+  z-index: 1;
+}
+.trimmerDimLeft  { left: 0; }
+.trimmerDimRight { right: 0; }
+
+/* Selected range bar */
+.trimmerRange {
+  position: absolute;
+  top: 0; bottom: 0;
+  background: var(--accent);
+  opacity: .22;
+  pointer-events: none;
+  z-index: 2;
+}
+
+/* Playhead line */
+.trimmerPlayhead {
+  position: absolute;
+  top: 0; bottom: 0;
+  width: 2px;
+  background: #fff;
+  transform: translateX(-50%);
+  pointer-events: none;
+  z-index: 4;
+  box-shadow: 0 0 4px rgba(0,0,0,.5);
+}
+
+/* IN / OUT handles */
+.trimmerHandle {
+  position: absolute;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 5;
+  cursor: ew-resize;
+  color: var(--accent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 36px;
+  filter: drop-shadow(0 1px 3px rgba(0,0,0,.4));
+}
+.trimmerHandleIn  { transform: translate(-100%, -50%); }
+.trimmerHandleOut { transform: translate(0%,  -50%); }
+
+/* Time ticks */
+.trimmerTick {
+  position: absolute;
+  top: 0; bottom: 0;
+  width: 1px;
+  background: rgba(255,255,255,.12);
+  pointer-events: none;
+  z-index: 0;
+}
+.trimmerTickLabel {
+  position: absolute;
+  bottom: 3px;
+  left: 3px;
+  font-size: 9px;
+  color: rgba(255,255,255,.4);
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+/* Fine-tune inputs */
+.trimmerInputRow {
+  display: flex;
+  gap: 12px;
+}
+.trimmerInputGroup {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12px;
+  color: var(--text-muted, var(--muted));
+}
+.trimmerInput {
+  width: 100%;
+  background: var(--input-bg, var(--surface));
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 5px 8px;
+  font-size: 13px;
+  color: var(--text);
+  outline: none;
+  font-variant-numeric: tabular-nums;
+  box-sizing: border-box;
+  transition: border-color .15s;
+}
+.trimmerInput:focus { border-color: var(--accent); }
+.trimmerInput:read-only { opacity: .5; cursor: default; }
+
+
+/* ── Browse type slider (StickersTab + EmojiPackSection) ─────────────────── */
+.browseTypeSlider {
+  display: flex;
+  align-items: center;
+  background: var(--accent-dim);
+  border-radius: 8px;
+  padding: 3px;
+  margin: 6px 10px 4px;
+  gap: 2px;
+  flex-shrink: 0;
+}
+.browseTypeBtn {
+  flex: 1;
+  padding: 5px 8px;
+  background: none;
+  border: none;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-muted, var(--muted));
+  cursor: pointer;
+  transition: background .15s, color .15s;
+  white-space: nowrap;
+}
+.browseTypeBtn.active {
+  background: var(--bg-secondary, var(--panel));
+  color: var(--text);
+  box-shadow: 0 1px 3px rgba(0,0,0,.12);
+}
+.browseTypeBtn:not(.active):hover { color: var(--text); }
+
+/* ── Emoji browse search input ───────────────────────────────────────────── */
+.emojiPackBrowseSearch {
+  flex: 1;
+  background: var(--accent-dim);
+  border: 1.5px solid transparent;
+  border-radius: 8px;
+  padding: 6px 10px;
+  font-size: 13px;
+  color: var(--text);
+  outline: none;
+  transition: border-color .15s;
+}
+.emojiPackBrowseSearch::placeholder { color: var(--text-muted, var(--muted)); }
+.emojiPackBrowseSearch:focus { border-color: var(--accent); }
+
+/* ── Studio item grid — smaller cells in edit mode ───────────────────────── */
+.studioItemGridSm { grid-template-columns: repeat(5, 1fr); gap: 6px; }
+.studioItemGridSm .studioItemCell {
+  border-radius: 6px;
+}
+.studioItemGridSm .studioItemCell img,
+.studioItemGridSm .studioItemCell video {
+  width: 100%; height: 100%; object-fit: contain;
+}
+
+/* ── Studio item emoji hint button ───────────────────────────────────────── */
+.studioItemEmojiBtn {
+  position: absolute;
+  bottom: 2px; right: 2px;
+  background: rgba(0,0,0,.55);
+  border: none;
+  border-radius: 4px;
+  min-width: 18px; height: 18px;
+  padding: 0 3px;
+  font-size: 12px;
+  line-height: 18px;
+  text-align: center;
+  cursor: pointer;
+  color: #fff;
+  display: flex; align-items: center; justify-content: center;
+  opacity: 0;
+  transition: opacity .15s, background .15s;
+}
+.studioItemCell:hover .studioItemEmojiBtn { opacity: 1; }
+.studioItemEmojiBtn.open { opacity: 1; background: var(--accent); }
+.studioItemEmojiBtn svg { display: block; }
+.studioEmojiSaving { font-size: 11px; }
+
+/* ── Studio emoji picker portal (full-screen overlay) ───────────────────── */
+.studioItemEmojiPickerPortal {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0,0,0,.35);
+  backdrop-filter: blur(2px);
+}
+.studioItemEmojiPickerWrap {
+  display: flex;
+  flex-direction: column;
+  border-radius: 14px;
+  overflow: hidden;
+  box-shadow: 0 8px 40px rgba(0,0,0,.35);
+  max-width: calc(100vw - 32px);
+  max-height: calc(100vh - 64px);
+}
+.studioItemEmojiPickerToolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px 8px;
+  background: var(--panel, #1e1e2e);
+  border-bottom: 1px solid var(--border);
+}
+.studioItemEmojiPickerLabel {
+  flex: 1;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+}
+.studioItemEmojiPickerClear {
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text-muted, var(--muted));
+  font-size: 12px;
+  cursor: pointer;
+  padding: 4px 10px;
+  transition: color .15s, border-color .15s;
+}
+.studioItemEmojiPickerClear:hover { color: var(--text); border-color: var(--text-muted, var(--muted)); }
+.studioItemEmojiPickerClose {
+  background: none;
+  border: none;
+  color: var(--text-muted, var(--muted));
+  font-size: 16px;
+  cursor: pointer;
+  width: 28px; height: 28px;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: 6px;
+  transition: background .12s, color .12s;
+}
+.studioItemEmojiPickerClose:hover { background: var(--hover); color: var(--text); }
+

@@ -1,0 +1,932 @@
+/* ── ProfileSettingsModal ─────────────────────────────────────────────── */
+.psCard {
+  width: min(440px, 100%);
+  max-height: 90vh;
+  background: var(--sidebar);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-shadow: var(--shadow);
+  animation: slideUp .2s ease;
+}
+.psHeader {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 18px 20px 14px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.psBackBtn {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-secondary, var(--muted));
+  transition: background .15s, color .15s;
+  flex-shrink: 0;
+}
+.psBackBtn:hover { background: var(--panel); color: var(--text); }
+.psTitle { font-size: 17px; font-weight: 700; flex: 1; }
+.psBody {
+  overflow-y: auto;
+  flex: 1;
+  padding: 16px 20px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.psBody::-webkit-scrollbar { width: 4px; }
+.psBody::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+
+/* Section label (e.g. "Пароль" above the fields) */
+.psSectionLabel {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  margin-bottom: -4px;
+}
+
+/* Divider with centered text between two sections */
+.psSectionDivider {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  margin: 4px 0;
+}
+.psSectionDivider::before,
+.psSectionDivider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--border);
+}
+
+/* Hub screen */
+.psHub {
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  flex: 1;
+}
+.psHub::-webkit-scrollbar { width: 4px; }
+.psHub::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+
+/* Mini profile card at top of hub */
+.psHubProfile {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 18px 20px;
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+  transition: background .15s;
+  flex-shrink: 0;
+}
+.psHubProfile:hover { background: var(--panel); }
+.psHubAvatar {
+  width: 52px;
+  height: 52px;
+  border-radius: 16px;
+  overflow: hidden;
+  flex-shrink: 0;
+  background: var(--accent-dim, rgba(142,117,242,0.15));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.psHubAvatarImg { width: 100%; height: 100%; object-fit: cover; display: block; }
+.psHubAvatarLetter {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--accent, #8e75f2);
+  line-height: 1;
+}
+.psHubProfileInfo { flex: 1; min-width: 0; }
+.psHubName {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.psHubUsername {
+  font-size: 13px;
+  color: var(--muted);
+  margin-top: 2px;
+}
+.psHubChevron { color: var(--muted); flex-shrink: 0; }
+
+/* Menu items list */
+.psHubMenu {
+  padding: 8px 0;
+  display: flex;
+  flex-direction: column;
+}
+.psHubItem {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 20px;
+  text-align: left;
+  transition: background .12s;
+}
+.psHubItem:hover { background: var(--panel); }
+.psHubItemIcon {
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: filter .15s;
+}
+.psHubItem:hover .psHubItemIcon { filter: brightness(1.1); }
+.psHubItemText {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.psHubItemLabel {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+}
+.psHubItemDesc {
+  font-size: 12px;
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Hub footer with danger action */
+.psHubFooter {
+  padding: 8px 20px 20px;
+  border-top: 1px solid var(--border);
+  margin-top: auto;
+}
+
+/* Avatar section */
+.psAvatarSection {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+.psAvatarWrap {
+  width: 90px;
+  height: 90px;
+  border-radius: 26px;
+  overflow: hidden;
+  cursor: pointer;
+  position: relative;
+  box-shadow: 0 4px 16px rgba(0,0,0,.2);
+  transition: transform .15s;
+}
+.psAvatarWrap:hover { transform: scale(1.04); }
+.psAvatarImg { width: 100%; height: 100%; object-fit: cover; display: block; }
+.psAvatarFallback {
+  width: 100%;
+  height: 100%;
+  background: var(--accent-dim);
+  color: var(--accent);
+  display: grid;
+  place-items: center;
+  font-size: 34px;
+  font-weight: 800;
+}
+.psAvatarOverlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0,0,0,.45);
+  display: grid;
+  place-items: center;
+  color: #fff;
+  opacity: 0;
+  transition: opacity .15s;
+  border-radius: 26px;
+}
+.psAvatarWrap:hover .psAvatarOverlay { opacity: 1; }
+.psAvatarHint { font-size: 12px; color: var(--muted); }
+
+/* Fields */
+.psField { display: flex; flex-direction: column; gap: 6px; }
+.psLabel { font-size: 11.5px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
+.psInput {
+  width: 100%;
+  background: var(--panel);
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius);
+  padding: 10px 14px;
+  outline: none;
+  font-size: 14px;
+  color: var(--text);
+  transition: border-color .15s;
+}
+.psInput:focus { border-color: var(--accent); }
+.psInputPrefix { position: relative; }
+.psAt {
+  position: absolute;
+  left: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--muted);
+  font-size: 14px;
+  pointer-events: none;
+}
+.psInputPad { padding-left: 28px; }
+.psTextarea {
+  width: 100%;
+  background: var(--panel);
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius);
+  padding: 10px 14px;
+  outline: none;
+  font-size: 14px;
+  color: var(--text);
+  font-family: inherit;
+  resize: vertical;
+  line-height: 1.5;
+  min-height: 80px;
+  transition: border-color .15s;
+}
+.psTextarea:focus { border-color: var(--accent); }
+.psPrivacyLabel {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12.5px;
+  color: var(--muted);
+  cursor: pointer;
+  user-select: none;
+}
+.psPrivacyLabel:hover { color: var(--text); }
+.psCheckbox {
+  width: 15px;
+  height: 15px;
+  accent-color: var(--accent);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.psInputWrap { position: relative; }
+.psInputWrap .psInput { padding-right: 42px; }
+.psEye {
+  position: absolute;
+  right: 12px; top: 50%;
+  transform: translateY(-50%);
+  color: var(--muted);
+  padding: 4px;
+  line-height: 0;
+  transition: color .15s;
+}
+.psEye:hover { color: var(--text); }
+.psPassStatus {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+.psError {
+  background: var(--danger-dim);
+  border: 1px solid rgba(220,38,38,.2);
+  color: var(--danger);
+  border-radius: var(--radius);
+  padding: 10px 12px;
+  font-size: 13px;
+}
+.psOk {
+  background: var(--success-dim);
+  border: 1px solid rgba(63,185,80,.2);
+  color: var(--success);
+  border-radius: var(--radius);
+  padding: 10px 12px;
+  font-size: 13px;
+}
+.psSaveBtn {
+  width: 100%;
+  background: var(--accent);
+  color: #fff;
+  border-radius: var(--radius);
+  padding: 12px;
+  font-weight: 600;
+  font-size: 14px;
+  transition: opacity .15s, transform .1s;
+  margin-top: 4px;
+}
+.psSaveBtn:hover:not(:disabled) { opacity: .9; transform: translateY(-1px); }
+.psSaveBtn:disabled { opacity: .45; cursor: not-allowed; }
+
+/* date input theming */
+input[type="date"].psInput::-webkit-calendar-picker-indicator {
+  filter: invert(0.5);
+  cursor: pointer;
+}
+
+/* ── Context Menu ─────────────────────────────────────────────────── */
+.ctxMenu {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 5px;
+  box-shadow: 0 8px 32px rgba(0,0,0,.35);
+  min-width: 170px;
+}
+.ctxItem {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  padding: 9px 12px;
+  border-radius: 7px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 13.5px;
+  color: var(--text);
+  transition: background .15s;
+}
+.ctxItem:hover { background: var(--hover); }
+.ctxItemDanger { color: var(--danger, #f87171); }
+.ctxItemDanger:hover { background: rgba(248,113,113,.12); }
+.ctxDivider {
+  height: 1px;
+  background: var(--border);
+  margin: 4px 0;
+}
+
+/* ── System message ───────────────────────────────────────────────── */
+.msgSystem {
+  display: flex;
+  justify-content: center;
+  padding: 4px 0;
+}
+.msgSystem span {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  color: var(--muted);
+  font-size: 12px;
+  padding: 3px 12px;
+  border-radius: 20px;
+}
+
+/* ── Privacy toggle ───────────────────────────────────────────────── */
+.psPrivacySection {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 18px;
+}
+.psPrivacyTitle {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: .05em;
+}
+.psPrivacyDesc {
+  font-size: 13px;
+  color: var(--muted);
+  line-height: 1.5;
+}
+.psPrivacyRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 12px 0;
+  border-top: 1px solid var(--border);
+}
+.psPrivacyRowText { flex: 1; }
+.psPrivacyRowLabel { font-size: 14px; font-weight: 500; color: var(--text); }
+.psPrivacyRowSub { font-size: 12px; color: var(--muted); margin-top: 2px; line-height: 1.4; }
+.psToggle {
+  width: 44px;
+  height: 24px;
+  border-radius: 12px;
+  background: var(--border);
+  position: relative;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background .2s;
+}
+.psToggle.on { background: var(--accent); }
+.psToggleKnob {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #fff;
+  transition: transform .2s;
+  box-shadow: 0 1px 4px rgba(0,0,0,.25);
+}
+.psToggle.on .psToggleKnob { transform: translateX(20px); }
+
+/* ── Delete account section ─────────────────────────────────────────────── */
+.psDeleteSection {
+  padding: 16px 24px 24px;
+  border-top: 1px solid var(--border);
+  margin-top: 4px;
+}
+.psDeleteBtn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 11px 16px;
+  border-radius: 12px;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--danger, #f87171);
+  background: rgba(248, 113, 113, 0.08);
+  border: 1px solid rgba(248, 113, 113, 0.25);
+  transition: background .15s, border-color .15s;
+  justify-content: center;
+}
+.psDeleteBtn:hover {
+  background: rgba(248, 113, 113, 0.16);
+  border-color: rgba(248, 113, 113, 0.45);
+}
+.psDeleteCancelBtn {
+  flex: 1;
+  padding: 10px 0;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+  background: var(--panel);
+  border: 1px solid var(--border);
+  transition: background .15s;
+}
+.psDeleteCancelBtn:hover { background: var(--hover); }
+.psDeleteCancelBtn:disabled { opacity: .5; }
+.psDeleteConfirmBtn {
+  flex: 1;
+  padding: 10px 0;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 700;
+  color: #fff;
+  background: var(--danger, #f87171);
+  border: none;
+  transition: opacity .15s;
+}
+.psDeleteConfirmBtn:hover:not(:disabled) { opacity: .85; }
+.psDeleteConfirmBtn:disabled { opacity: .5; }
+
+/* ── Char counters (bio / group description) ─────────────────────────── */
+.giCharCounter,
+.psCharCounter {
+  position: absolute;
+  bottom: 8px;
+  right: 10px;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--muted);
+  pointer-events: none;
+  transition: color .15s;
+}
+.giCharCounterMax,
+.psCharCounterMax {
+  color: var(--danger, #f87171);
+  font-weight: 700;
+}
+
+/* psTextarea wrapper for counter positioning */
+.psTextareaWrap {
+  position: relative;
+}
+.psTextareaWrap .psTextarea {
+  padding-bottom: 26px;
+}
+.psTextareaWrap .psCharCounter {
+  bottom: 9px;
+  right: 12px;
+}
+
+/* ── AppearanceTab ───────────────────────────────────────────────────── */
+.apSection {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.apSectionTitle {
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: .05em;
+}
+.apSectionSub {
+  font-size: 13px;
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+/* Preview strip */
+.apPreview {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.apPreviewLabel {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: .05em;
+}
+.apPreviewRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.apPreviewBtn {
+  padding: 7px 18px;
+  border-radius: 9px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #fff;
+  border: none;
+  cursor: default;
+  transition: background .2s;
+}
+.apPreviewBadge {
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 700;
+  transition: all .2s;
+}
+.apPreviewInput {
+  padding: 6px 12px;
+  border-radius: 9px;
+  border: 1.5px solid;
+  font-size: 13px;
+  color: var(--muted);
+  background: var(--sidebar);
+  transition: all .2s;
+}
+
+/* Preset swatches */
+.apPresets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 4px 0;
+}
+.apPreset {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  display: grid;
+  place-items: center;
+  transition: transform .15s, border-color .15s;
+  position: relative;
+  flex-shrink: 0;
+}
+.apPreset:hover { transform: scale(1.12); }
+.apPreset.apPresetActive {
+  border-color: var(--text);
+  transform: scale(1.08);
+}
+.apPresetDot {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  display: block;
+  transition: transform .15s;
+}
+.apPresetCheck {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  color: #fff;
+  opacity: 0;
+  transition: opacity .15s;
+  filter: drop-shadow(0 1px 2px rgba(0,0,0,.4));
+}
+.apPreset.apPresetActive .apPresetCheck { opacity: 1; }
+
+/* Custom colour picker row */
+.apCustomRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.apColorPickerLabel {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  padding: 10px 14px;
+  background: var(--panel);
+  border: 1.5px solid var(--border);
+  border-radius: 12px;
+  transition: border-color .15s;
+  flex: 1;
+}
+.apColorPickerLabel:hover { border-color: var(--accent); }
+.apColorInput {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+}
+.apColorPickerLabel:has(.apColorInput:focus-within) { border-color: var(--accent); }
+/* Trigger native picker on label click */
+.apColorPickerLabel { position: relative; overflow: visible; }
+.apColorInput {
+  position: absolute;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  opacity: 0;
+  cursor: pointer;
+  border: none;
+  padding: 0;
+}
+.apColorSwatch {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  border: 2px solid var(--border);
+  flex-shrink: 0;
+  transition: background .15s;
+  pointer-events: none;
+}
+.apColorHex {
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--text);
+  font-family: monospace;
+  letter-spacing: .04em;
+  pointer-events: none;
+}
+.apColorArrow {
+  margin-left: auto;
+  color: var(--muted);
+  pointer-events: none;
+}
+
+/* Reset button */
+.apResetBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--muted);
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  padding: 8px 14px;
+  cursor: pointer;
+  transition: color .15s, border-color .15s, background .15s;
+  align-self: flex-start;
+}
+.apResetBtn:hover {
+  color: var(--text);
+  border-color: var(--accent);
+  background: var(--accent-dim);
+}
+.apActionsRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  justify-content: flex-end;
+  margin-top: 8px;
+}
+.apSaveBtn {
+  padding: 10px 24px;
+  border-radius: 11px;
+  font-size: 13.5px;
+  font-weight: 700;
+  color: #fff;
+  background: var(--accent);
+  border: none;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: opacity .15s, transform .1s;
+  box-shadow: 0 2px 10px color-mix(in srgb, var(--accent) 35%, transparent);
+}
+.apSaveBtn:disabled { opacity: .4; cursor: default; }
+.apSaveBtn:not(:disabled):hover { opacity: .88; transform: translateY(-1px); }
+.apSaveBtn:not(:disabled):active { transform: translateY(0); }
+.apSaveBtnOk { background: var(--success); box-shadow: 0 2px 10px color-mix(in srgb, var(--success) 35%, transparent); }
+
+/* ── Chat search bar ─────────────────────────────────────────────────── */
+.chSearchToggle {
+  width: 36px; height: 36px;
+  display: grid; place-items: center;
+  border-radius: 10px;
+  color: var(--muted);
+  flex-shrink: 0;
+  margin-right: 4px;
+  transition: background .15s, color .15s;
+}
+.chSearchToggle:hover,
+.chSearchToggle.active { background: var(--accent-dim); color: var(--accent); }
+
+/* ── Header dropdown menus (call type / more) ───────────────────────── */
+.chHeaderDropMenu {
+  position: fixed;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: 0 12px 32px rgba(0,0,0,.45);
+  padding: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 180px;
+  z-index: 9999;
+  animation: fadeInScale .15s ease;
+}
+@keyframes fadeInScale {
+  from { opacity: 0; transform: scale(.95) translateY(-4px); }
+  to   { opacity: 1; transform: scale(1) translateY(0); }
+}
+.chHeaderDropItem {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 12px;
+  border-radius: 8px;
+  font-size: 13.5px;
+  color: var(--text);
+  white-space: nowrap;
+  transition: background .12s;
+}
+.chHeaderDropItem:hover { background: var(--panel); }
+.chDropPinBadge {
+  margin-left: auto;
+  background: var(--accent);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  min-width: 18px;
+  height: 18px;
+  border-radius: 9px;
+  display: grid;
+  place-items: center;
+  padding: 0 5px;
+}
+
+.chSearchBar {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 14px 12px;
+  border-top: 1px solid var(--border);
+  background: var(--sidebar);
+  animation: slideDown .18s ease;
+}
+@keyframes slideDown {
+  from { opacity: 0; transform: translateY(-6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.chSearchInputWrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--panel);
+  border: 1.5px solid var(--border);
+  border-radius: 10px;
+  padding: 8px 12px;
+  transition: border-color .15s;
+}
+.chSearchInputWrap:focus-within { border-color: var(--accent); }
+.chSearchIcon { color: var(--muted); flex-shrink: 0; }
+.chSearchInput {
+  flex: 1;
+  background: none;
+  border: none;
+  outline: none;
+  font-size: 13.5px;
+  color: var(--text);
+}
+.chSearchInput::placeholder { color: var(--muted); }
+.chSearchCount {
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--muted);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.chSearchActions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  justify-content: flex-end;
+}
+.chSearchNav {
+  width: 30px; height: 30px;
+  display: grid; place-items: center;
+  border-radius: 8px;
+  color: var(--muted);
+  background: var(--panel);
+  border: 1px solid var(--border);
+  transition: background .12s, color .12s;
+}
+.chSearchNav:hover { background: var(--accent-dim); color: var(--accent); }
+.chSearchReset {
+  padding: 5px 12px;
+  border-radius: 8px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--muted);
+  background: var(--panel);
+  border: 1px solid var(--border);
+  transition: background .12s, color .12s;
+}
+.chSearchReset:hover { color: var(--text); background: var(--hover, var(--border)); }
+.chSearchClose {
+  width: 30px; height: 30px;
+  display: grid; place-items: center;
+  border-radius: 8px;
+  color: var(--muted);
+  transition: background .12s, color .12s;
+}
+.chSearchClose:hover { background: var(--panel); color: var(--text); }
+
+/* Search highlight in messages */
+.msgHighlight {
+  background: rgba(234,179,8,.35);
+  color: inherit;
+  border-radius: 3px;
+  padding: 0 1px;
+}
+.msgSearchFocus .bubble {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 14px;
+}
+
+/* Char counters */
+.giCharCounter, .psCharCounter {
+  position: absolute; bottom: 8px; right: 10px;
+  font-size: 11px; font-weight: 500; color: var(--muted);
+  pointer-events: none; transition: color .15s;
+}
+.giCharCounterMax, .psCharCounterMax { color: var(--danger); font-weight: 700; }
+.psTextareaWrap { position: relative; }
+.psTextareaWrap .psTextarea { padding-bottom: 26px; }
+.psTextareaWrap .psCharCounter { bottom: 9px; right: 12px; }
+.giEditTextareaWrap { position: relative; width: 100%; }
+
+/* ── giCard — GroupInfoModal overlay on upCard ───────────────────────── */
+.giCard {
+  width: min(440px, 100%);
+  height: min(92dvh, 780px);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.giMembersSection { padding-bottom: 8px; }
+.giDescToggle {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-size: 12px; font-weight: 600; color: var(--accent);
+  background: none; border: none; padding: 0;
+  cursor: pointer; margin-top: 4px;
+  transition: opacity .15s;
+}
+.giDescToggle:hover { opacity: .75; }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   ✅ NEW STYLES — Admin group management (append to end of app.css)
+   ═══════════════════════════════════════════════════════════════════════════ */
+

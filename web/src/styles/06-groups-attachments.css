@@ -1,0 +1,1282 @@
+/* ── Group closed banner (replaces Composer) ─────────────────────────────── */
+.groupClosedBanner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 14px 20px;
+  background: var(--surface);
+  border-top: 1px solid var(--border);
+  color: var(--muted);
+  font-size: 13.5px;
+  font-weight: 500;
+  flex-shrink: 0;
+}
+.groupClosedBanner svg {
+  flex-shrink: 0;
+  opacity: .7;
+}
+
+/* ── Closed badge in GroupInfoModal header ───────────────────────────────── */
+.giClosedBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--danger);
+  background: color-mix(in srgb, var(--danger) 12%, transparent);
+  border-radius: 6px;
+  padding: 2px 7px;
+  margin-left: 8px;
+  vertical-align: middle;
+}
+
+/* ── Danger zone — delete group button ───────────────────────────────────── */
+.giDangerZone {
+  padding: 12px 20px 16px;
+  border-top: 1px solid var(--border);
+  margin-top: 4px;
+}
+.giDeleteGroupBtn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 11px 14px;
+  background: color-mix(in srgb, var(--danger) 8%, transparent);
+  border: 1px solid color-mix(in srgb, var(--danger) 25%, transparent);
+  border-radius: 12px;
+  color: var(--danger);
+  font-size: 13.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background .15s, border-color .15s;
+}
+.giDeleteGroupBtn:hover {
+  background: color-mix(in srgb, var(--danger) 15%, transparent);
+  border-color: color-mix(in srgb, var(--danger) 40%, transparent);
+}
+
+/* ── Right-click context menu: admin action ──────────────────────────────── */
+.ctxItemAdmin {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 9px 14px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 13.5px;
+  font-weight: 500;
+  color: var(--accent);
+  text-align: left;
+  transition: background .12s;
+  border-radius: 8px;
+}
+.ctxItemAdmin:hover {
+  background: var(--accent-dim);
+}
+
+/* ── Jump-to-message context menu item ──────────────────────────────────── */
+.ctxItemJump {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 9px 14px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 13.5px;
+  font-weight: 500;
+  color: var(--accent);
+  text-align: left;
+  transition: background .12s;
+  border-radius: 8px;
+  white-space: nowrap;
+}
+.ctxItemJump:hover { background: var(--accent-dim); }
+
+/* ── Delete group dialog ─────────────────────────────────────────────────── */
+.giDeleteDialog {
+  background: var(--card);
+  border-radius: 20px;
+  padding: 28px 24px 24px;
+  width: min(400px, 92vw);
+  position: relative;
+  box-shadow: 0 8px 40px rgba(0,0,0,.18);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+.giDeleteDialogClose {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--surface);
+  border: none;
+  color: var(--muted);
+  cursor: pointer;
+  transition: background .15s, color .15s;
+}
+.giDeleteDialogClose:hover { background: var(--border); color: var(--text); }
+
+.giDeleteDialogIcon {
+  width: 60px;
+  height: 60px;
+  border-radius: 18px;
+  background: color-mix(in srgb, var(--danger) 10%, transparent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--danger);
+  margin-bottom: 6px;
+}
+.giDeleteDialogTitle {
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--text);
+}
+.giDeleteDialogSubtitle {
+  font-size: 13px;
+  color: var(--muted);
+  margin-bottom: 8px;
+}
+
+/* Delete dialog option cards */
+.giDeleteOption {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  padding: 14px 16px;
+  border-radius: 14px;
+  border: 1.5px solid var(--border);
+  background: var(--surface);
+  cursor: pointer;
+  text-align: left;
+  transition: border-color .15s, background .15s;
+  margin-top: 6px;
+}
+.giDeleteOption:hover {
+  border-color: var(--accent);
+  background: var(--accent-dim);
+}
+.giDeleteOptionSafe:hover {
+  border-color: var(--accent);
+}
+.giDeleteOptionDanger:hover {
+  border-color: var(--danger);
+  background: color-mix(in srgb, var(--danger) 6%, transparent);
+}
+.giDeleteOptionIcon {
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.giDeleteOptionSafe .giDeleteOptionIcon {
+  background: var(--accent-dim);
+  color: var(--accent);
+}
+.giDeleteOptionDanger .giDeleteOptionIcon {
+  background: color-mix(in srgb, var(--danger) 10%, transparent);
+  color: var(--danger);
+}
+.giDeleteOptionText { flex: 1; }
+.giDeleteOptionTitle {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+}
+.giDeleteOptionDesc {
+  font-size: 12px;
+  color: var(--muted);
+  margin-top: 2px;
+  line-height: 1.4;
+}
+.giDeleteOptionSafe svg:last-child { color: var(--muted); }
+.giDeleteOptionDanger svg:last-child { color: var(--muted); }
+
+/* ── Transfer admin modal ─────────────────────────────────────────────────── */
+.giTransferModal {
+  background: var(--card);
+  border-radius: 20px;
+  padding: 28px 20px 22px;
+  width: min(380px, 92vw);
+  max-height: 70vh;
+  overflow-y: auto;
+  position: relative;
+  box-shadow: 0 8px 40px rgba(0,0,0,.18);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.giTransferTitle {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text);
+  padding-right: 28px;
+}
+.giTransferSubtitle {
+  font-size: 13px;
+  color: var(--muted);
+  margin-bottom: 8px;
+}
+.giTransferList {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 280px;
+  overflow-y: auto;
+  padding-right: 2px;
+}
+.giTransferEmpty {
+  font-size: 13px;
+  color: var(--muted);
+  text-align: center;
+  padding: 20px 0;
+}
+.giTransferItem {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: var(--surface);
+  border: 1.5px solid transparent;
+  cursor: pointer;
+  width: 100%;
+  text-align: left;
+  transition: border-color .15s, background .15s;
+}
+.giTransferItem:hover {
+  border-color: var(--border);
+  background: var(--hover);
+}
+.giTransferItemSelected {
+  border-color: var(--accent) !important;
+  background: var(--accent-dim) !important;
+}
+.giTransferItemInfo { flex: 1; }
+.giTransferItemName {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--text);
+}
+.giTransferItemSub {
+  font-size: 12px;
+  color: var(--muted);
+}
+.giTransferCheck {
+  width: 24px;
+  height: 24px;
+  border-radius: 7px;
+  background: var(--accent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  flex-shrink: 0;
+}
+.giTransferError {
+  font-size: 12.5px;
+  color: var(--danger);
+  font-weight: 500;
+  margin-top: 4px;
+}
+.giTransferBtns {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+  justify-content: flex-end;
+}
+
+/* giConfirmOverlay — defined above, deduped */
+
+/* ── confirmIconAdmin — star/admin colour variant ────────────────────────── */
+.confirmIconAdmin {
+  color: var(--accent);
+  background: var(--accent-dim);
+}
+.confirmAdmin {
+  padding: 9px 20px;
+  border-radius: 10px;
+  font-size: 13.5px;
+  font-weight: 700;
+  color: #fff;
+  background: var(--accent);
+  border: none;
+  cursor: pointer;
+  transition: opacity .15s;
+}
+.confirmAdmin:disabled { opacity: .4; cursor: default; }
+.confirmAdmin:not(:disabled):hover { opacity: .85; }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   ✅ FILE SHARING STYLES — append to end of app.css
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ── ChatArea inner wrapper (needed for drag overlay positioning) ─────────── */
+.chatAreaInner {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  position: relative;
+  overflow: hidden;
+}
+
+/* ── Drag & drop overlay ─────────────────────────────────────────────────── */
+.dropOverlay {
+  position: absolute;
+  inset: 0;
+  z-index: 500;
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  border: 2.5px dashed var(--accent);
+  border-radius: 12px;
+  margin: 6px;
+  animation: dropOverlayIn .15s ease;
+}
+@keyframes dropOverlayIn {
+  from { opacity: 0; transform: scale(.97); }
+  to   { opacity: 1; transform: scale(1); }
+}
+.dropOverlayBox {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 32px 40px;
+  background: var(--card);
+  border-radius: 20px;
+  box-shadow: 0 8px 32px rgba(0,0,0,.15);
+}
+.dropOverlayIcon {
+  width: 72px;
+  height: 72px;
+  border-radius: 20px;
+  background: var(--accent-dim);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--accent);
+}
+.dropOverlayTitle {
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--text);
+}
+.dropOverlaySub {
+  font-size: 13px;
+  color: var(--muted);
+}
+
+/* ── Composer wrapper (contains staging card + composer bar) ─────────────── */
+.composerWrap {
+  display: flex;
+  flex-direction: column;
+  border-top: 1px solid var(--border);
+  background: color-mix(in srgb, var(--sidebar) 85%, transparent);
+  backdrop-filter: blur(10px);
+  flex-shrink: 0;
+}
+
+/* ── Format Toolbar ──────────────────────────────────────────────────────── */
+.fmtToolbar {
+  background: var(--sidebar);
+  border-bottom: 1px solid var(--border);
+  animation: fmtIn .13s ease;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+@keyframes fmtIn {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.fmtRow {
+  display: flex;
+  align-items: center;
+  height: 40px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.fmtRow::-webkit-scrollbar { display: none; }
+.fmtRowLink {
+  padding: 0 4px;
+  gap: 4px;
+  height: 44px;
+}
+.fmtBtn {
+  height: 40px;
+  padding: 0 13px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text);
+  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  transition: background .1s, color .1s;
+  flex-shrink: 0;
+  border-radius: 0;
+}
+.fmtBtn:hover  { background: var(--panel); }
+.fmtBtn:active { background: rgba(142,117,242,0.1); color: var(--accent); }
+.fmtBtnIcon   { padding: 0 11px; color: var(--muted); }
+.fmtBtnBack   { color: var(--accent); }
+.fmtBtnNext   { gap: 4px; }
+.fmtBtnFmt    { padding: 0 11px; font-size: 15px; color: var(--text); }
+.fmtBtnSpoiler { color: var(--muted); }
+.fmtBtnActive  { background: rgba(142,117,242,0.12); color: var(--accent); }
+.fmtBtnActive:hover { background: rgba(142,117,242,0.18); }
+.fmtBtnReset   { font-size: 12px; color: var(--muted); padding: 0 10px; }
+.fmtSep {
+  width: 1px;
+  height: 20px;
+  background: var(--border);
+  flex-shrink: 0;
+}
+.fmtLinkInput {
+  flex: 1;
+  height: 32px;
+  background: var(--panel);
+  border: 1.5px solid var(--border);
+  border-radius: 8px;
+  padding: 0 10px;
+  font-size: 13px;
+  color: var(--text);
+  outline: none;
+  min-width: 0;
+  font-family: inherit;
+}
+.fmtLinkInput:focus { border-color: var(--accent, #8e75f2); }
+.fmtBtnApply {
+  height: 32px;
+  padding: 0 14px;
+  background: var(--accent, #8e75f2);
+  color: #fff;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  flex-shrink: 0;
+  transition: filter .12s;
+}
+.fmtBtnApply:hover { filter: brightness(1.1); }
+
+/* ── Markdown in bubbles ─────────────────────────────────────────────────── */
+.bubbleText {
+  font-synthesis: weight style; /* allow synthetic bold/italic on devices lacking font variants */
+  -webkit-font-smoothing: antialiased;
+}
+.bubbleText strong { font-weight: 700; }
+.bubbleText em     { font-style: italic; }
+
+/* Explicit styles for the Ж (Bold) and К (Italic) format buttons */
+.fmtBtnFmt strong { font-weight: 700; }
+.fmtBtnFmt em     { font-style: italic; }
+
+.msgSpoiler {
+  background: rgba(127,127,127,0.38);
+  color: transparent;
+  border-radius: 4px;
+  cursor: pointer;
+  padding: 1px 3px;
+  user-select: none;
+  transition: color .15s, background .15s;
+}
+.msgSpoiler.revealed {
+  color: inherit;
+  background: rgba(127,127,127,0.15);
+  user-select: text;
+}
+
+.msgList {
+  margin: 4px 0 4px 18px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.msgList li { line-height: 1.5; }
+.msgListOl { list-style-type: decimal; }
+
+/* ── Override: remove border-top from .composer itself (now on .composerWrap) */
+.composer {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px 12px;
+  border-top: none;         /* border is on .composerWrap now */
+  background: transparent;
+  backdrop-filter: none;
+}
+
+/* ── Attach button ───────────────────────────────────────────────────────── */
+.composerAttach {
+  width: 38px;
+  height: 38px;
+  border-radius: 11px;
+  background: var(--surface);
+  border: 1.5px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  color: var(--muted);
+  cursor: pointer;
+  transition: color .15s, border-color .15s, background .15s, transform .1s;
+}
+.composerAttach:hover:not(:disabled) {
+  color: var(--accent);
+  border-color: var(--accent);
+  background: var(--accent-dim);
+  transform: scale(1.06);
+}
+.composerAttach:disabled { opacity: .4; cursor: not-allowed; }
+.composerAttachActive {
+  color: var(--accent);
+  border-color: var(--accent);
+  background: var(--accent-dim);
+}
+
+/* ── Emoji picker button & panel ────────────────────────────────────────── */
+.composerEmojiWrap { position: relative; flex-shrink: 0; }
+.composerEmojiBtn {
+  display: grid; place-items: center;
+  width: 36px; height: 36px;
+  border-radius: 10px;
+  border: none; background: none; cursor: pointer;
+  color: var(--muted);
+  transition: color .15s, background .15s;
+  flex-shrink: 0;
+}
+.composerEmojiBtn:hover,
+.composerEmojiBtn.active { color: var(--accent); background: var(--accent-dim); }
+/* .composerEmojiPanel is defined in the sticker/GIF section below */
+
+/* ── Spinner animation for upload send button ────────────────────────────── */
+.composerSpinner {
+  animation: spinnerRotate 0.9s linear infinite;
+}
+@keyframes spinnerRotate {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+.composerSendLoading {
+  opacity: 0.7 !important;
+  cursor: default;
+}
+
+/* ── File staging card ───────────────────────────────────────────────────── */
+.fileStagingCard {
+  margin: 10px 14px 4px;
+  background: var(--panel);
+  border: 1.5px solid var(--border);
+  border-radius: 14px;
+  padding: 12px 14px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  animation: stagingSlideIn .2s cubic-bezier(.34,1.56,.64,1);
+}
+@keyframes stagingSlideIn {
+  from { opacity: 0; transform: translateY(8px) scale(.97); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+.fileStagingUploading {
+  border-color: var(--accent);
+}
+.fileStagingRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.fileStagingMeta {
+  flex: 1;
+  min-width: 0;
+}
+.fileStagingName {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.fileStagingSize {
+  font-size: 12px;
+  color: var(--muted);
+  margin-top: 2px;
+}
+.fileStagingRemove {
+  height: 28px;
+  padding: 0 10px;
+  gap: 5px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--muted);
+  cursor: pointer;
+  flex-shrink: 0;
+  font-size: 12px;
+  transition: background .15s, color .15s;
+}
+.fileStagingRemove:hover { background: var(--danger); color: #fff; border-color: var(--danger); }
+
+/* ── Multi-file staging ──────────────────────────────────────────────────── */
+.fileStagingHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.fileStagingCount {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--text);
+}
+.fileStagingBatchHint {
+  font-weight: 400;
+  color: var(--muted);
+}
+.fileStagingMultiList {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+  scrollbar-width: thin;
+}
+.fileStagingMultiList::-webkit-scrollbar { height: 4px; }
+.fileStagingMultiList::-webkit-scrollbar-track { background: transparent; }
+.fileStagingMultiList::-webkit-scrollbar-thumb { background: var(--border); border-radius: 99px; }
+.fileStagingMultiItem {
+  position: relative;
+  flex-shrink: 0;
+  width: 80px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.fileStagingThumb {
+  width: 80px;
+  height: 80px;
+  object-fit: cover;
+  border-radius: 10px;
+  border: 1.5px solid var(--border);
+  display: block;
+}
+.fileStagingMultiIcon {
+  width: 80px;
+  height: 80px;
+  border-radius: 10px;
+  border: 1.5px solid var(--border);
+  background: var(--surface);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.fileStagingThumbOverlay {
+  position: absolute;
+  top: 0; left: 0;
+  width: 80px;
+  height: 80px;
+  border-radius: 10px;
+  overflow: hidden;
+  pointer-events: none;
+  display: flex;
+  align-items: flex-end;
+}
+.fileStagingThumbProgressFill {
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  background: color-mix(in srgb, #000 50%, transparent);
+  transition: height .25s ease;
+}
+.fileStagingThumbPct {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 700;
+  color: #fff;
+}
+.fileStagingMultiRemove {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: color-mix(in srgb, #000 55%, transparent);
+  border: none;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background .15s;
+}
+.fileStagingMultiRemove:hover { background: var(--danger); }
+.fileStagingMultiName {
+  font-size: 10.5px;
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 80px;
+}
+.fileStagingAddMore {
+  flex-shrink: 0;
+  width: 80px;
+  height: 80px;
+  border-radius: 10px;
+  border: 2px dashed var(--border);
+  background: transparent;
+  color: var(--muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: border-color .15s, color .15s, background .15s;
+}
+.fileStagingAddMore:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+}
+
+.fileStagingErr {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12.5px;
+  color: var(--danger);
+  font-weight: 500;
+}
+
+/* ── Upload progress bar ─────────────────────────────────────────────────── */
+.fileProgressTrack {
+  position: relative;
+  height: 6px;
+  background: var(--border);
+  border-radius: 999px;
+  overflow: hidden;
+}
+.fileProgressFill {
+  position: absolute;
+  inset-block: 0;
+  left: 0;
+  background: linear-gradient(90deg, var(--accent), color-mix(in srgb, var(--accent) 70%, #fff));
+  border-radius: 999px;
+  transition: width .25s ease;
+  animation: progressShimmer 1.5s infinite linear;
+  background-size: 200% 100%;
+}
+@keyframes progressShimmer {
+  0%   { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+.fileProgressPct {
+  display: block;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--accent);
+  text-align: right;
+  margin-top: 3px;
+}
+
+/* ── File caption row (input + send button) ──────────────────────────────── */
+.fileCaptionRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.fileCaptionInput {
+  flex: 1;
+  min-width: 0;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  padding: 7px 12px;
+  font-size: 13.5px;
+  outline: none;
+  transition: border-color .15s;
+  color: var(--text);
+}
+.fileCaptionInput:focus { border-color: color-mix(in srgb, var(--accent) 50%, transparent); }
+.fileCaptionInput::placeholder { color: var(--muted); }
+.fileCaptionInput:disabled { opacity: .6; }
+.fileCaptionSendBtn {
+  flex-shrink: 0;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: var(--accent);
+  border: none;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background .15s, transform .1s;
+}
+.fileCaptionSendBtn:hover { background: color-mix(in srgb, var(--accent) 85%, #000); }
+.fileCaptionSendBtn:active { transform: scale(.93); }
+.fileCaptionSendBtn:disabled { opacity: .5; cursor: default; }
+
+/* ── File icon badge (staging card) ─────────────────────────────────────── */
+.fileIconBadge {
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  border: 1.5px solid;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  gap: 1px;
+  position: relative;
+}
+.fileIconLabel {
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: -.02em;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   BUBBLE ATTACHMENT STYLES
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* bubble with attachment: tighter padding on top */
+.bubbleWithAttach { padding-top: 0 !important; overflow: hidden; }
+
+/* ── Image attachment ────────────────────────────────────────────────────── */
+.bubbleAttachImg {
+  margin: 0 -12px;
+  margin-top: 0;
+}
+.bubbleAttachImg:first-child { border-radius: 14px 14px 0 0; overflow: hidden; }
+.bubbleAttachImgOwn { }
+.bubbleImgLink {
+  display: block;
+  position: relative;
+  overflow: hidden;
+  cursor: zoom-in;
+}
+.bubbleImg {
+  display: block;
+  width: 100%;
+  max-width: 320px;
+  min-width: 120px;
+  max-height: 320px;
+  object-fit: cover;
+  border-radius: 0;
+  transition: opacity .2s;
+}
+.bubbleImg:hover { opacity: .92; }
+.bubbleImgOverlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0,0,0,.3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  opacity: 0;
+  transition: opacity .2s;
+}
+.bubbleImgLink:hover .bubbleImgOverlay { opacity: 1; }
+
+/* ── Video attachment — custom player ────────────────────────────────────── */
+.bubbleAttachVideo {
+  margin: 0 -12px;
+}
+
+/* Outer wrapper: contains video + overlays */
+.bubbleVideoWrap {
+  position: relative;
+  cursor: pointer;
+  background: #000;
+  overflow: hidden;
+  border-radius: 12px;
+  user-select: none;
+  /* max width matches image bubbles */
+  max-width: 320px;
+}
+
+.bubbleVideo {
+  display: block;
+  width: 100%;
+  max-height: 380px;
+  object-fit: contain;
+  border-radius: 12px;
+  background: #000;
+}
+
+/* ── Initial poster overlay (before first play) ── */
+.bvPoster {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0,0,0,0.18);
+  border-radius: 12px;
+}
+.bvPlayCircle {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: rgba(0,0,0,0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  transition: transform .15s, background .15s;
+  padding-left: 3px; /* optical center for play icon */
+}
+.bubbleVideoWrap:hover .bvPlayCircle {
+  transform: scale(1.1);
+  background: rgba(0,0,0,0.72);
+}
+.bvDurBadge {
+  position: absolute;
+  bottom: 8px;
+  right: 10px;
+  background: rgba(0,0,0,0.6);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 7px;
+  border-radius: 10px;
+  pointer-events: none;
+}
+
+/* ── Controls overlay (fade on hover / showControls class) ── */
+.bvControls {
+  position: absolute;
+  bottom: 0; left: 0; right: 0;
+  padding: 28px 10px 8px;
+  background: linear-gradient(to top, rgba(0,0,0,0.72) 0%, transparent 100%);
+  border-radius: 0 0 12px 12px;
+  opacity: 0;
+  transition: opacity .2s;
+  pointer-events: none;
+}
+.bubbleVideoWrap.bvCtrl .bvControls,
+.bubbleVideoWrap:hover .bvControls {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+/* Progress bar */
+.bvProgress {
+  position: relative;
+  height: 3px;
+  border-radius: 2px;
+  background: rgba(255,255,255,0.22);
+  margin-bottom: 7px;
+  cursor: pointer;
+  transition: height .12s;
+}
+.bvProgress:hover { height: 5px; }
+.bvProgressBuf {
+  position: absolute; inset: 0;
+  width: 0;
+  background: rgba(255,255,255,0.3);
+  border-radius: 2px;
+  pointer-events: none;
+}
+.bvProgressFill {
+  position: absolute; inset: 0;
+  width: 0;
+  background: var(--accent);
+  border-radius: 2px;
+  pointer-events: none;
+}
+.bvProgressThumb {
+  position: absolute;
+  top: 50%;
+  width: 11px; height: 11px;
+  border-radius: 50%;
+  background: #fff;
+  transform: translate(-50%, -50%) scale(0);
+  transition: transform .12s;
+  pointer-events: none;
+}
+.bvProgress:hover .bvProgressThumb { transform: translate(-50%, -50%) scale(1); }
+
+/* Control bar row */
+.bvBar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.bvBtn {
+  border: none;
+  background: transparent;
+  color: #fff;
+  padding: 2px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  opacity: 0.88;
+  border-radius: 4px;
+  transition: opacity .12s, transform .1s;
+  flex-shrink: 0;
+}
+.bvBtn:hover { opacity: 1; transform: scale(1.12); }
+.bvTime {
+  font-size: 11px;
+  font-weight: 600;
+  color: rgba(255,255,255,0.9);
+  white-space: nowrap;
+  letter-spacing: .2px;
+}
+.bvBarRight {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+/* Paused hint (centered play icon shown when paused after first play) */
+.bvPauseHint {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+.bvPauseHint svg {
+  width: 48px; height: 48px;
+  background: rgba(0,0,0,0.45);
+  border-radius: 50%;
+  padding: 10px;
+  padding-left: 13px;
+  color: #fff;
+  opacity: 0;
+  animation: bvPauseFlash .35s ease forwards;
+}
+@keyframes bvPauseFlash {
+  0%   { opacity: .9; transform: scale(1.08); }
+  100% { opacity: 0;  transform: scale(1);    }
+}
+
+/* Legacy selectors kept for compatibility (no longer rendered) */
+.bubbleVideoFullscreenBtn {
+  display: none;
+  opacity: 0;
+  transition: opacity .2s;
+}
+.bubbleVideoPlayer:hover .bubbleVideoFullscreenBtn { opacity: 1; }
+
+/* ── Caption below image/video ───────────────────────────────────────────── */
+.bubbleCaption {
+  font-size: 13.5px;
+  color: var(--text);
+  padding: 8px 12px 2px;
+  line-height: 1.4;
+  white-space: pre-wrap;
+}
+.bubbleCaptionFile {
+  padding: 6px 0 2px;
+}
+
+/* ── File attachment card ────────────────────────────────────────────────── */
+.bubbleAttachFile {
+  min-width: 220px;
+  max-width: 300px;
+}
+.bubbleFileCard {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 10px 10px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  border-radius: 10px;
+  text-align: left;
+  transition: background .15s;
+}
+.bubbleFileCard:hover {
+  background: rgba(0,0,0,.06);
+}
+.out .bubbleFileCard:hover {
+  background: rgba(255,255,255,.12);
+}
+.bubbleFileIcon {
+  width: 44px;
+  height: 44px;
+  border-radius: 11px;
+  border: 1.5px solid;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  gap: 1px;
+}
+.bubbleFileIconLabel {
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: -.02em;
+}
+.bubbleFileMeta {
+  flex: 1;
+  min-width: 0;
+}
+.bubbleFileName {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 160px;
+}
+.out .bubbleFileName { color: inherit; }
+.bubbleFileSize {
+  font-size: 11.5px;
+  color: var(--muted);
+  margin-top: 2px;
+}
+.out .bubbleFileSize { color: inherit; opacity: .65; }
+.bubbleFileDownloadBtn {
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--accent-dim);
+  color: var(--accent);
+  flex-shrink: 0;
+  transition: background .15s;
+}
+.out .bubbleFileDownloadBtn {
+  background: rgba(255,255,255,.2);
+  color: #fff;
+}
+.bubbleFileCard:hover .bubbleFileDownloadBtn {
+  background: var(--accent);
+  color: #fff;
+}
+.out .bubbleFileCard:hover .bubbleFileDownloadBtn {
+  background: rgba(255,255,255,.35);
+}
+
+/* Legacy poster selectors — no longer rendered, kept for safety */
+.bubbleVideoPoster { display: none; }
+.bubbleVideoThumb  { display: none; }
+.bubbleVideoPlayBtn { display: none; }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   ✅ FIXES: cancel upload, group avatar overlay, chat header real avatar
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* Cancel upload button */
+.fileStagingCancel {
+  height: 28px; padding: 0 10px; gap: 5px; border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  background: color-mix(in srgb, var(--danger) 15%, transparent);
+  border: 1px solid color-mix(in srgb, var(--danger) 40%, transparent);
+  color: var(--danger); cursor: pointer; flex-shrink: 0;
+  font-size: 12px; transition: background .15s;
+}
+.fileStagingCancel:hover { background: var(--danger); color: #fff; }
+
+/* Chat header: wrapper for Avatar component.
+   overflow:visible so the outline-based presence ring is not clipped. */
+.chAvatarWrap {
+  width: 38px; height: 38px; flex-shrink: 0;
+  border-radius: 12px;
+  overflow: visible;
+}
+.chAvatarWrap.group { border-radius: 14px; }
+
+/* Group avatar overlay (camera icon on hover) */
+.giAvatarOverlay {
+  position: absolute; inset: 0;
+  background: rgba(0,0,0,.45);
+  display: flex; align-items: center; justify-content: center;
+  color: #fff; border-radius: inherit;
+  opacity: 0; transition: opacity .18s;
+}
+.upAvatar:hover .giAvatarOverlay { opacity: 1; }
+
+/* Spin animation for avatar upload spinner */
+@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   ✅ LATEST FIXES: cancel upload, group avatar overlay, chat header avatar
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* Cancel upload button (square-stop icon, red) */
+.fileStagingCancel {
+  width: 28px; height: 28px; border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  background: color-mix(in srgb, var(--danger) 15%, transparent);
+  border: 1px solid color-mix(in srgb, var(--danger) 40%, transparent);
+  color: var(--danger); cursor: pointer; flex-shrink: 0;
+  transition: background .15s, color .15s;
+}
+.fileStagingCancel:hover { background: var(--danger); color: #fff; }
+
+/* Chat header: overflow:visible so the outline ring is not clipped */
+.chAvatarWrap {
+  width: 38px; height: 38px;
+  flex-shrink: 0;
+  border-radius: 12px;
+  overflow: visible;
+}
+.chAvatarWrap.group { border-radius: 14px; }
+
+/* Group avatar overlay — camera icon appears on hover (admin only) */
+.giAvatarOverlay {
+  position: absolute; inset: 0;
+  background: rgba(0,0,0,.48);
+  display: flex; align-items: center; justify-content: center;
+  color: #fff; border-radius: inherit;
+  opacity: 0; transition: opacity .18s;
+  cursor: pointer;
+}
+.upAvatar:hover .giAvatarOverlay { opacity: 1; }
+
+/* Spin animation reused for avatar upload spinner */
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   ✅ PIN & SIDEBAR AVATAR STYLES
+   ═══════════════════════════════════════════════════════════════════════════ */
+

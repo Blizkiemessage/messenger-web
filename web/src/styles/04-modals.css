@@ -1,0 +1,944 @@
+/* ── Modal ──────────────────────────────────────────────────────────── */
+.modalOverlay {
+  position: fixed;
+  inset: 0;
+  /* ✅ No backdrop-filter — it creates a stacking context that traps
+     position:fixed children (giConfirmOverlay), making their bg transparent. */
+  background: rgba(0,0,0,.62);
+  display: grid;
+  place-items: center;
+  z-index: 100;
+  padding: 16px;
+  animation: fadeIn .15s ease;
+}
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+.modalCard {
+  width: min(480px, 100%);
+  background: var(--sidebar);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  display: flex;
+  flex-direction: column;
+  max-height: min(680px, 90vh);
+  box-shadow: var(--shadow);
+  animation: slideUp .2s ease;
+}
+@keyframes slideUp { from { transform: translateY(12px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+.modalHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px 20px 0;
+  flex-shrink: 0;
+}
+.modalTitle { font-size: 17px; font-weight: 700; }
+.modalClose {
+  width: 32px; height: 32px;
+  border-radius: 8px;
+  color: var(--muted);
+  display: grid; place-items: center;
+  transition: background .15s, color .15s;
+}
+.modalClose:hover { background: var(--panel); color: var(--text); }
+.modalBody {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.modalBody::-webkit-scrollbar { width: 4px; }
+.modalBody::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+.modalField { display: flex; flex-direction: column; gap: 6px; }
+.modalLabel {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: .04em;
+}
+.modalOptional { font-weight: 400; text-transform: none; letter-spacing: 0; font-size: 11px; }
+.modalInput {
+  background: var(--panel);
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius);
+  padding: 11px 14px;
+  font-size: 14px;
+  color: var(--text);
+  outline: none;
+  transition: border-color .15s;
+}
+.modalInput:focus { border-color: var(--accent); }
+.modalTextarea {
+  background: var(--panel);
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius);
+  padding: 11px 14px;
+  font-size: 14px;
+  color: var(--text);
+  outline: none;
+  resize: none;
+  font-family: inherit;
+  line-height: 1.5;
+  transition: border-color .15s;
+}
+.modalTextarea:focus { border-color: var(--accent); }
+.modalSearch {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--panel);
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius);
+  padding: 0 12px;
+  transition: border-color .15s;
+}
+.modalSearch:focus-within { border-color: var(--accent); }
+.modalSearchInput {
+  flex: 1;
+  border: none;
+  outline: none;
+  background: transparent;
+  padding: 10px 0;
+  font-size: 13px;
+  color: var(--text);
+}
+.modalSearchInput::placeholder { color: var(--muted); }
+.modalSearchSpin { color: var(--muted); font-size: 13px; }
+
+/* Selected member chips */
+.memberChips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.memberChip {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px 4px 5px;
+  border-radius: 20px;
+  background: var(--accent-dim);
+  border: 1px solid var(--accent-border);
+  color: var(--accent);
+  font-size: 12.5px;
+  font-weight: 600;
+  transition: background .15s;
+}
+.memberChip:hover { background: rgba(142,117,242,.25); }
+.memberChipAvatar {
+  width: 20px; height: 20px;
+  border-radius: 6px;
+  background: var(--accent);
+  color: #fff;
+  display: grid; place-items: center;
+  font-size: 10px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+/* User list in modal */
+.modalListLabel {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  padding: 0 2px;
+  margin-bottom: -6px;
+}
+.modalUserList { display: flex; flex-direction: column; gap: 2px; }
+.modalUserItem {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  text-align: left;
+  width: 100%;
+  transition: background .1s;
+}
+.modalUserItem:hover { background: var(--panel); }
+.modalUserAvatar {
+  width: 36px; height: 36px;
+  border-radius: 11px;
+  background: var(--accent-dim);
+  color: var(--accent);
+  display: grid; place-items: center;
+  font-weight: 700; font-size: 15px;
+  flex-shrink: 0;
+}
+.modalUserInfo { flex: 1; min-width: 0; }
+.modalUserName { font-size: 13.5px; font-weight: 600; }
+.modalUserSub { font-size: 12px; color: var(--muted); margin-top: 1px; }
+.modalUserCheck { color: var(--accent); opacity: .5; }
+.modalUserItem:hover .modalUserCheck { opacity: 1; }
+.modalUserItemDisabled { opacity: .5; cursor: not-allowed !important; }
+.modalUserItemDisabled:hover { background: transparent !important; }
+.modalUserLock { color: var(--muted); display: flex; align-items: center; }
+.modalUserAdded { color: var(--success, #3fb950); display: flex; align-items: center; }
+.modalUserAdding { color: var(--muted); font-size: 13px; }
+.modalEmpty { color: var(--muted); font-size: 13px; text-align: center; padding: 12px; }
+.modalError {
+  margin: 0 20px;
+  padding: 10px 14px;
+  background: var(--danger-dim);
+  border: 1px solid rgba(220,38,38,.2);
+  color: var(--danger);
+  border-radius: var(--radius);
+  font-size: 13px;
+  flex-shrink: 0;
+}
+.modalFooter {
+  display: flex;
+  gap: 8px;
+  padding: 16px 20px;
+  border-top: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.modalCancelBtn {
+  flex: 1;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 11px;
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--muted);
+  transition: background .15s;
+}
+.modalCancelBtn:hover { background: var(--border); }
+.modalCreateBtn {
+  flex: 2;
+  background: var(--accent);
+  color: #fff;
+  border-radius: var(--radius);
+  padding: 11px;
+  font-weight: 600;
+  font-size: 14px;
+  transition: opacity .15s;
+}
+.modalCreateBtn:disabled { opacity: .45; cursor: not-allowed; }
+.modalCreateBtn:not(:disabled):hover { opacity: .9; }
+
+/* ── Message status (checkmarks) ────────────────────────────────────── */
+.bubbleMeta {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 5px;
+}
+.bubbleTime {
+  font-size: 11px;
+  color: var(--muted);
+  line-height: 1;
+}
+.msgStatus {
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+  transition: color .25s, filter .25s;
+}
+.msgStatus.sent {
+  color: var(--muted);
+  opacity: .65;
+}
+.msgStatus.read {
+  color: var(--accent);
+  filter: drop-shadow(0 0 3px color-mix(in srgb, var(--accent) 50%, transparent));
+}
+/* Sending spinner */
+.msgStatus.sending {
+  color: var(--muted);
+  opacity: .7;
+  animation: msgStatusSpin .9s linear infinite;
+  transform-origin: center;
+}
+@keyframes msgStatusSpin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+/* Error badge — looks like a button (reset button styles) */
+.msgStatus.error {
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  color: #e53935;
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+  border-radius: 50%;
+  transition: opacity .15s;
+}
+.msgStatus.error:hover { opacity: .75; }
+.msgStatus.error:active { opacity: .5; }
+
+/* ── "Who read" eye button inside message bubble ───────────────────── */
+.bubbleReadersBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--muted);
+  opacity: .55;
+  flex-shrink: 0;
+  transition: opacity .15s, color .15s;
+  line-height: 1;
+}
+.bubbleReadersBtn:hover { opacity: 1; color: var(--accent); }
+
+/* ── Message selection ──────────────────────────────────────────────── */
+.msg.out .bubble {
+  cursor: context-menu;
+  position: relative;
+  transition: background .15s, box-shadow .15s, transform .1s;
+}
+.msg.out.selected .bubble {
+  background: color-mix(in srgb, var(--accent) 25%, transparent);
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 35%, transparent);
+  transform: scale(1.01);
+}
+.msgCheckmark {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  z-index: 20;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: #fff;
+  display: grid;
+  place-items: center;
+  box-shadow: 0 2px 6px rgba(0,0,0,.25);
+  animation: popIn .15s ease;
+}
+@keyframes popIn {
+  from { transform: scale(0); opacity: 0; }
+  to   { transform: scale(1); opacity: 1; }
+}
+
+/* selecting mode — dim incoming messages slightly */
+.layout.selecting .msg.in .bubble { opacity: .55; }
+
+/* ── Selection toolbar in chat header ───────────────────────────────── */
+.selCancelBtn {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  color: var(--muted);
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  transition: background .15s, color .15s;
+}
+.selCancelBtn:hover { background: var(--panel); color: var(--text); }
+.selInfo {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.selCount {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--accent);
+}
+.selLabel {
+  font-size: 14px;
+  color: var(--muted);
+}
+.selDeleteBtn {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 8px 16px;
+  border-radius: 10px;
+  background: var(--danger-dim);
+  color: var(--danger);
+  border: 1px solid rgba(220,38,38,.2);
+  font-size: 13.5px;
+  font-weight: 600;
+  flex-shrink: 0;
+  transition: background .15s, border-color .15s;
+}
+.selDeleteBtn:hover {
+  background: rgba(220,38,38,.18);
+  border-color: rgba(220,38,38,.35);
+}
+
+/* ── Delete confirm modal ───────────────────────────────────────────── */
+.confirmCard {
+  width: min(380px, 100%);
+  background: var(--sidebar);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 32px 28px 24px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  text-align: center;
+  box-shadow: var(--shadow);
+  animation: slideUp .2s ease;
+}
+.confirmIcon {
+  width: 60px;
+  height: 60px;
+  border-radius: 18px;
+  background: var(--danger-dim);
+  color: var(--danger);
+  display: grid;
+  place-items: center;
+  margin-bottom: 4px;
+}
+.confirmTitle {
+  font-size: 18px;
+  font-weight: 700;
+}
+.confirmText {
+  font-size: 13.5px;
+  color: var(--muted);
+  line-height: 1.55;
+  max-width: 280px;
+}
+.confirmBtns {
+  display: flex;
+  gap: 10px;
+  width: 100%;
+  margin-top: 6px;
+}
+.confirmCancel {
+  flex: 1;
+  padding: 12px;
+  border-radius: 12px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+  transition: background .15s;
+}
+.confirmCancel:hover { background: var(--border); }
+.confirmCancel:disabled { opacity: .5; cursor: not-allowed; }
+.confirmDelete {
+  flex: 1;
+  padding: 12px;
+  border-radius: 12px;
+  background: var(--danger);
+  color: #fff;
+  font-size: 14px;
+  font-weight: 600;
+  transition: opacity .15s;
+}
+.confirmDelete:hover { opacity: .85; }
+.confirmDelete:disabled { opacity: .5; cursor: not-allowed; }
+
+/* ── Delete scope toggle (У себя / У всех) ─────────────────────────── */
+.delToggle {
+  display: flex;
+  width: 100%;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 4px;
+  gap: 4px;
+  margin: 4px 0 6px;
+}
+.delToggleBtn {
+  flex: 1;
+  padding: 9px 14px;
+  border-radius: 9px;
+  border: none;
+  cursor: pointer;
+  font-size: 13.5px;
+  font-family: inherit;
+  font-weight: 600;
+  color: var(--muted);
+  background: transparent;
+  transition: background .18s ease, color .18s ease, box-shadow .18s ease;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+.delToggleBtn:disabled { cursor: not-allowed; opacity: .5; }
+.delToggleActive {
+  background: var(--sidebar);
+  color: var(--text);
+  box-shadow: 0 1px 6px rgba(0,0,0,.22), 0 0 0 1px var(--border);
+}
+
+/* ── Profile panel (sidebar bottom) — new design ────────────────────── */
+.ppTopRow { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
+.ppInfo { flex: 1; min-width: 0; }
+.ppName { font-size: 15px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ppSub { font-size: 12px; color: var(--muted); margin-top: 2px; }
+.ppSettingsBtn {
+  display: flex; align-items: center; gap: 8px; width: 100%;
+  padding: 10px 12px; border-radius: 10px;
+  background: var(--accent-dim); color: var(--accent);
+  font-size: 13.5px; font-weight: 600;
+  border: 1px solid var(--accent-border); transition: background .15s;
+}
+.ppSettingsBtn:hover { background: rgba(142,117,242,.25); }
+
+/* ── Chat header clickable button ───────────────────────────────────── */
+.chHeaderBtn {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
+  min-width: 0;
+  padding: 4px 8px;
+  border-radius: 10px;
+  text-align: left;
+  transition: background .15s;
+}
+.chHeaderBtn:hover { background: var(--panel); }
+
+/* ── Group message avatars ──────────────────────────────────────────── */
+.msg.inGroup {
+  display: flex;
+  align-items: flex-end;
+  gap: 6px;
+}
+.msgAvatarSlot {
+  width: 32px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: flex-end;
+}
+.msgSenderAvatarBtn {
+  cursor: pointer;
+  border-radius: 10px;
+  transition: opacity .15s;
+  line-height: 0;
+}
+.msgSenderAvatarBtn:hover { opacity: .8; }
+.bubbleSenderName {
+  display: block;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--accent);
+  margin-bottom: 3px;
+  text-align: left;
+  cursor: pointer;
+  background: none;
+  border: none;
+  padding: 0;
+  font-family: inherit;
+  transition: opacity .15s;
+}
+.bubbleSenderName:hover { opacity: .75; }
+
+/* ── UserProfileModal (profile view card) ───────────────────────────── */
+/* ── UserProfileModal (upCard) ───────────────────────────────────────── */
+.upCard {
+  position: relative;
+  width: min(380px, 100%);
+  max-height: 92dvh;
+  overflow-y: auto;
+  background: var(--sidebar);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  box-shadow: 0 8px 32px rgba(0,0,0,.35);
+  animation: slideUp .2s ease;
+}
+.upCloseBtn {
+  position: absolute; top: 12px; right: 12px;
+  width: 30px; height: 30px; border-radius: 9px;
+  background: var(--panel); border: 1px solid var(--border);
+  color: var(--muted); display: grid; place-items: center;
+  z-index: 2; transition: background .15s, color .15s;
+}
+.upCloseBtn:hover { background: var(--border); color: var(--text); }
+.upLoading { padding: 48px; text-align: center; color: var(--muted); font-size: 14px; }
+
+/* Header — clean, no heavy gradient */
+.upHeader {
+  display: flex; flex-direction: column; align-items: center;
+  gap: 6px; padding: 32px 24px 20px;
+  border-bottom: 1px solid var(--border);
+}
+.upAvatarRing {
+  padding: 3px;
+  border-radius: 27px;
+  background: linear-gradient(135deg, var(--accent), color-mix(in srgb, var(--accent) 40%, var(--sidebar)));
+  margin-bottom: 2px;
+}
+.upAvatar {
+  width: 72px; height: 72px; border-radius: 22px; overflow: hidden;
+  background: var(--accent-dim); display: grid; place-items: center;
+}
+.upAvatarImg { width: 100%; height: 100%; object-fit: cover; display: block; }
+.upAvatarLetter { font-size: 28px; font-weight: 800; color: var(--accent); }
+.upName { font-size: 18px; font-weight: 700; text-align: center; }
+.upUsername { font-size: 13px; color: var(--muted); }
+
+/* Info rows — like ppAction style */
+.upInfoSection {
+  display: flex; flex-direction: column;
+  padding: 8px;
+  border-bottom: 1px solid var(--border);
+}
+.upInfoRow {
+  display: flex; align-items: flex-start; gap: 10px;
+  padding: 10px 10px;
+  border-radius: 10px;
+  transition: background .1s;
+}
+.upInfoRow:hover { background: var(--panel); }
+.upInfoIcon {
+  width: 32px; height: 32px; border-radius: 9px;
+  background: var(--panel); display: grid; place-items: center;
+  color: var(--muted); flex-shrink: 0; margin-top: 1px;
+}
+.upInfoContent { flex: 1; min-width: 0; }
+.upInfoLabel {
+  font-size: 10.5px; font-weight: 700; color: var(--muted);
+  text-transform: uppercase; letter-spacing: .05em; margin-bottom: 2px;
+}
+.upInfoValue {
+  font-size: 13.5px; line-height: 1.5;
+  word-break: break-word; overflow-wrap: anywhere; white-space: pre-wrap;
+}
+
+/* Footer */
+.upFooter { padding: 12px; }
+.upChatBtn {
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  width: 100%; padding: 11px; border-radius: 12px;
+  background: var(--accent); color: #fff;
+  font-size: 14px; font-weight: 600;
+  transition: opacity .15s;
+}
+.upChatBtn:hover { opacity: .88; }
+
+/* ── UserProfileModal — 3-dot menu trigger ───────────────────────────── */
+.upMenuWrap { position: absolute; top: 12px; right: 48px; z-index: 3; }
+
+/* Matches .upCloseBtn exactly, just positioned left of it */
+.upMenuBtn {
+  position: relative;
+  width: 30px; height: 30px; border-radius: 9px;
+  display: flex; align-items: center; justify-content: center;
+  background: none; border: none; cursor: pointer;
+  color: var(--muted); transition: background .15s, color .15s;
+}
+.upMenuBtn:hover, .upMenuBtnActive { background: var(--border); color: var(--text); }
+.upMenuBtn:disabled { opacity: .5; pointer-events: none; }
+
+/* Dropdown uses project's .ctxMenu — only needs position override */
+.upMenuDropdown {
+  position: absolute; top: 38px; right: 0;
+  animation: upMenuIn .12s ease;
+}
+@keyframes upMenuIn {
+  from { opacity: 0; transform: translateY(-6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* Alias + blocked status pills under username */
+.upAliasBadge {
+  display: inline-flex; align-items: center; gap: 4px;
+  color: var(--accent); font-size: 12px; margin-top: 4px;
+  background: rgba(142,117,242,.12); padding: 2px 9px 2px 7px;
+  border-radius: 20px; font-weight: 500;
+}
+.upBlockedBadge {
+  display: inline-flex; align-items: center; gap: 4px;
+  color: var(--danger, #f87171); font-size: 12px; margin-top: 4px;
+  background: rgba(248,113,113,.12); padding: 2px 9px 2px 7px;
+  border-radius: 20px; font-weight: 500;
+}
+
+/* Inline error notification */
+.upErrorBar {
+  margin: 0 16px 4px; padding: 7px 12px; border-radius: 8px;
+  background: rgba(248,113,113,.12); color: var(--danger, #f87171);
+  font-size: 13px; text-align: center;
+}
+
+/* Alias rename dialog */
+.upAliasDialog {
+  padding: 12px 16px 16px; border-top: 1px solid var(--border);
+  display: flex; flex-direction: column; gap: 10px;
+}
+.upAliasHint { font-size: 12px; color: var(--muted); margin: 0; }
+.upAliasInput {
+  width: 100%; padding: 9px 12px; border-radius: 9px;
+  border: 1.5px solid var(--border); background: var(--bg);
+  color: var(--text); font-size: 14px; font-family: inherit;
+  transition: border-color .15s; box-sizing: border-box;
+}
+.upAliasInput:focus { border-color: var(--accent); outline: none; }
+.upAliasActions { display: flex; gap: 8px; }
+.upAliasSave {
+  flex: 1; padding: 8px 12px; border-radius: 9px;
+  background: var(--accent); color: #fff;
+  border: none; cursor: pointer;
+  font-size: 14px; font-weight: 500; font-family: inherit;
+  transition: opacity .15s;
+}
+.upAliasSave:disabled { opacity: .45; cursor: not-allowed; }
+.upAliasSave:not(:disabled):hover { opacity: .86; }
+.upAliasCancel {
+  flex: 1; padding: 8px 12px; border-radius: 9px;
+  background: var(--hover); color: var(--text);
+  border: none; cursor: pointer;
+  font-size: 14px; font-family: inherit; transition: background .12s;
+}
+.upAliasCancel:hover { background: var(--border); }
+
+/* Blocked composer panel */
+.composerBlocked {
+  display: flex; align-items: center; justify-content: center;
+  gap: 10px; padding: 18px 20px;
+  color: var(--muted); font-size: 14px;
+  background: var(--surface); border-top: 1px solid var(--border);
+}
+
+/* Alias delete button inside alias dialog */
+.upAliasDelete {
+  display: inline-flex; align-items: center; gap: 5px;
+  background: none; border: none; padding: 3px 6px 3px 4px;
+  font-size: 12px; color: var(--danger, #f87171); cursor: pointer;
+  border-radius: 6px; opacity: 0.7; align-self: flex-start;
+  font-family: inherit;
+  transition: background .12s, opacity .15s;
+}
+.upAliasDelete:hover { opacity: 1; background: rgba(248,113,113,.1); }
+
+/* ── GroupInfoModal ──────────────────────────────────────────────────── */
+.groupInfoCard {
+  position: relative;
+  width: min(420px, 100%);
+  max-height: 85vh;
+  background: var(--sidebar);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  overflow-y: auto;
+  scroll-behavior: smooth;
+  box-shadow: var(--shadow);
+  animation: slideUp .2s ease;
+}
+.groupInfoCard::-webkit-scrollbar { width: 5px; }
+.groupInfoCard::-webkit-scrollbar-track { background: transparent; border-radius: 5px; }
+.groupInfoCard::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 5px;
+  transition: background .2s;
+}
+.groupInfoCard::-webkit-scrollbar-thumb:hover { background: var(--muted); }
+.giHeader {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 32px 24px 18px;
+  border-bottom: 1px solid var(--border);
+}
+.giAvatarFallback {
+  width: 72px; height: 72px; border-radius: 22px;
+  background: var(--accent-dim);
+  color: var(--accent);
+  display: grid; place-items: center;
+  font-size: 28px; font-weight: 800;
+  border: 2px solid var(--accent-border);
+  box-shadow: 0 4px 16px rgba(0,0,0,.15);
+}
+.giName { font-size: 18px; font-weight: 700; }
+.giMeta { font-size: 13px; color: var(--muted); }
+.giNameRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.giEditBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  color: var(--muted);
+  transition: background .15s, color .15s;
+  flex-shrink: 0;
+}
+.giEditBtn:hover { background: var(--panel); color: var(--accent); }
+.giEditForm {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 0 4px;
+}
+.giEditInput {
+  width: 100%;
+  background: var(--panel);
+  border: 1.5px solid var(--border);
+  border-radius: 10px;
+  padding: 8px 12px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+  text-align: center;
+  outline: none;
+  transition: border-color .15s;
+}
+.giEditInput:focus { border-color: var(--accent); }
+.giEditTextareaWrap {
+  position: relative;
+  width: 100%;
+}
+.giEditTextarea {
+  width: 100%;
+  background: var(--panel);
+  border: 1.5px solid var(--border);
+  border-radius: 10px;
+  padding: 8px 12px 24px;
+  font-size: 13px;
+  color: var(--text);
+  outline: none;
+  resize: none;
+  font-family: inherit;
+  line-height: 1.5;
+  transition: border-color .15s;
+}
+.giEditTextarea:focus { border-color: var(--accent); }
+.giEditError { font-size: 12px; color: var(--danger, #f87171); text-align: center; }
+.giEditBtns {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+}
+.giEditCancelBtn {
+  padding: 7px 16px;
+  border-radius: 9px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--muted);
+  background: var(--panel);
+  border: 1px solid var(--border);
+  transition: background .15s;
+}
+.giEditCancelBtn:hover { background: var(--hover); }
+.giEditSaveBtn {
+  padding: 7px 16px;
+  border-radius: 9px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #fff;
+  background: var(--accent);
+  transition: opacity .15s;
+}
+.giEditSaveBtn:disabled { opacity: .5; }
+.giEditSaveBtn:not(:disabled):hover { opacity: .85; }
+
+.giAddMembersBtn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 12px 20px 16px;
+  padding: 11px 14px;
+  border-radius: 12px;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--accent);
+  background: var(--accent-dim);
+  border: 1px solid var(--accent-border);
+  cursor: pointer;
+  transition: opacity .15s, background .15s;
+  width: calc(100% - 40px);
+}
+.giAddMembersBtn:hover { opacity: .85; background: var(--accent-dim); }
+
+.giDescSection {
+  margin: 0 12px 4px;
+  padding: 10px 14px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.giDescLabel {
+  font-size: 10.5px;
+  font-weight: 700;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: .05em;
+}
+.giDesc {
+  font-size: 13.5px;
+  color: var(--text);
+  line-height: 1.55;
+  word-break: break-word;
+  white-space: pre-wrap;
+}
+.giDescToggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--accent);
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  align-self: flex-start;
+  transition: opacity .15s;
+}
+.giDescToggle:hover { opacity: .75; }
+.giMemberLabel {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  padding: 16px 20px 6px;
+}
+.giMemberList { padding: 0 8px 16px; display: flex; flex-direction: column; gap: 2px; }
+.giMemberItem {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  border-radius: 12px;
+  width: 100%;
+  text-align: left;
+  transition: background .1s;
+}
+.giMemberItem:hover { background: var(--panel); }
+.giMemberInfo { flex: 1; min-width: 0; }
+.giMemberName { font-size: 13.5px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.giMemberSub { font-size: 12px; color: var(--muted); margin-top: 1px; }
+.giBadges { display: flex; gap: 4px; flex-shrink: 0; }
+.giYouBadge, .giAdminBadge, .giModeratorBadge {
+  font-size: 10.5px;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 6px;
+}
+.giYouBadge { background: var(--accent-dim); color: var(--accent); border: 1px solid var(--accent-border); }
+.giAdminBadge { background: rgba(63,185,80,.12); color: var(--success); border: 1px solid rgba(63,185,80,.25); }
+.giModeratorBadge { background: rgba(251,191,36,.12); color: #fbbf24; border: 1px solid rgba(251,191,36,.25); }
+.giConfirmOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,.68);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  display: grid;
+  place-items: center;
+  z-index: 10500;
+  animation: fadeIn .15s ease;
+}
+
