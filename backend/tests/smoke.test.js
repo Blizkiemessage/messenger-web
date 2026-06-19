@@ -389,6 +389,22 @@ describe('TOTP secret encryption at rest', () => {
   });
 });
 
+// ── 4d. Admin token expiry (audit #4) ─────────────────────────────────────────
+describe('jwt — admin token expiry', () => {
+  const { sign, verify } = require('../src/utils/jwt');
+
+  test('admin token is signed with a future exp claim', () => {
+    const payload = verify(sign({ sub: 'admin', jti: 'sess-1' }, { expiresIn: '12h' }));
+    assert.ok(payload.exp, 'exp claim must be present');
+    assert.ok(payload.exp * 1000 > Date.now(), 'exp must be in the future');
+  });
+
+  test('an expired admin token is rejected by verify()', () => {
+    const expired = sign({ sub: 'admin', jti: 'sess-2' }, { expiresIn: '-1s' });
+    assert.throws(() => verify(expired));
+  });
+});
+
 // ── 5. Upload MIME allowlist ──────────────────────────────────────────────────
 describe('upload MIME allowlist', () => {
   const allowed = [

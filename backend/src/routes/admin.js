@@ -60,7 +60,10 @@ router.post('/login', adminLoginLimiter, async (req, res, next) => {
     db.prepare('INSERT INTO sessions (id, user_id, created_at, revoked, user_agent, last_used_at, ip_address) VALUES (?, ?, ?, 0, ?, ?, ?)')
       .run([jti, user.id, now, req.headers['user-agent'] || null, now, ip]);
 
-    const token = sign({ sub: user.id, jti });
+    // Admin tokens are time-bounded (hard JWT expiry on top of the revocable
+    // session row). 12h ≈ one working day; on expiry the panel receives 401 and
+    // drops back to the login screen (see public/admin/admin.js).
+    const token = sign({ sub: user.id, jti }, { expiresIn: '12h' });
     res.json({ token });
   } catch (err) {
     next(err);
