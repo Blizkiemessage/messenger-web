@@ -2,6 +2,33 @@
 
 const crypto = require('crypto');
 const bcrypt = require('bcryptjs');
+const { encrypt, decrypt } = require('../crypto/aes');
+
+// ── TOTP secret encryption at rest ───────────────────────────────────────────
+// A TOTP secret must be recoverable to recompute codes, so it can't be hashed —
+// it's reversibly encrypted (AES-256-GCM, same key family as messages) before it
+// touches the DB. A short marker prefix distinguishes encrypted values from
+// legacy plaintext base32 secrets (base32 never contains ':' or lowercase), so
+// old rows keep working until migration 011 re-encrypts them.
+const SECRET_MARKER = 'enc:v1:';
+
+/** Pack a plaintext secret into a single encrypted, self-describing string. */
+function encryptSecret(plain) {
+  const { ciphertext, iv, authTag } = encrypt(plain);
+  return SECRET_MARKER + [iv, authTag, ciphertext].join(':'); // base64 parts, ':'-free
+}
+
+/** Reverse encryptSecret(); legacy (unmarked) values pass through unchanged. */
+function decryptSecret(stored) {
+  if (typeof stored !== 'string' || !stored.startsWith(SECRET_MARKER)) return stored;
+  const [iv, authTag, ciphertext] = stored.slice(SECRET_MARKER.length).split(':');
+  return decrypt({ ciphertext, iv, authTag });
+}
+
+/** True if the stored value is already encrypted (used by the migration). */
+function isEncryptedSecret(stored) {
+  return typeof stored === 'string' && stored.startsWith(SECRET_MARKER);
+}
 
 // Base32 alphabet (RFC 4648)
 const BASE32 = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
@@ -85,6 +112,18 @@ function verifyToken(secret, token, windowSteps = 1) {
   return false;
 }
 
+/**
+ * Verify a token against a STORED secret (encrypted or legacy plaintext).
+ * This is what routes should call — it decrypts the at-rest secret first, so
+ * call sites never handle the raw secret. Returns false on any decrypt failure.
+ */
+function verifyTotp(storedSecret, token, windowSteps = 1) {
+  if (!storedSecret) return false;
+  let secret;
+  try { secret = decryptSecret(storedSecret); } catch { return false; }
+  return verifyToken(secret, token, windowSteps);
+}
+
 /** Generate n plain-text backup codes in XXXXXX-XXXXXX format */
 function generateBackupCodes(count = 10) {
   return Array.from({ length: count }, () => {
@@ -133,6 +172,10 @@ module.exports = {
   generateSecret,
   generateUri,
   verifyToken,
+  verifyTotp,
+  encryptSecret,
+  decryptSecret,
+  isEncryptedSecret,
   generateBackupCodes,
   hashBackupCodes,
   verifyAndConsumeBackupCode,

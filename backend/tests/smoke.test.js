@@ -353,6 +353,42 @@ describe('searchable encryption (no plaintext at rest)', () => {
   });
 });
 
+// ── 4c. TOTP secret encryption at rest (audit #3) ─────────────────────────────
+describe('TOTP secret encryption at rest', () => {
+  const {
+    generateSecret, encryptSecret, decryptSecret, isEncryptedSecret,
+    verifyToken, verifyTotp,
+  } = require('../src/utils/totp');
+
+  test('round-trips a secret and marks it as encrypted', () => {
+    const secret = generateSecret();
+    const stored = encryptSecret(secret);
+    assert.equal(isEncryptedSecret(stored), true, 'stored value must carry the encryption marker');
+    assert.equal(stored.includes(secret), false, 'plaintext secret must not appear in the stored value');
+    assert.equal(decryptSecret(stored), secret, 'decrypt must recover the original secret');
+  });
+
+  test('legacy plaintext secrets pass through decrypt unchanged', () => {
+    const legacy = generateSecret(); // unmarked base32, as old rows stored it
+    assert.equal(isEncryptedSecret(legacy), false);
+    assert.equal(decryptSecret(legacy), legacy, 'legacy value must be returned as-is');
+  });
+
+  test('verifyTotp behaves identically on encrypted and legacy secrets', () => {
+    const secret = generateSecret();
+    const token = '000000';
+    assert.equal(verifyTotp(encryptSecret(secret), token), verifyToken(secret, token),
+      'encrypted secret must verify the same as plaintext');
+    assert.equal(verifyTotp(secret, token), verifyToken(secret, token),
+      'legacy plaintext must still verify');
+  });
+
+  test('verifyTotp returns false for empty/garbage secret', () => {
+    assert.equal(verifyTotp(null, '123456'), false);
+    assert.equal(verifyTotp('enc:v1:bad:data:here', '123456'), false);
+  });
+});
+
 // ── 5. Upload MIME allowlist ──────────────────────────────────────────────────
 describe('upload MIME allowlist', () => {
   const allowed = [

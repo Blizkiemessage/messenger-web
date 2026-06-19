@@ -14,7 +14,7 @@ const { getDb } = require('../config/database');
 const { sign, signAccess, signRefresh, verify } = require('../utils/jwt');
 const { sanitizeUser } = require('../services/userService');
 const { v4: uuidv4 } = require('uuid');
-const { verifyToken, verifyAndConsumeBackupCode } = require('../utils/totp');
+const { verifyTotp, verifyAndConsumeBackupCode } = require('../utils/totp');
 
 const router = express.Router();
 
@@ -174,7 +174,7 @@ router.post('/totp-verify', totpVerifyLimiter, async (req, res, next) => {
     let authenticated = false;
 
     if (/^\d{6}$/.test(trimmed)) {
-      authenticated = verifyToken(user.totp_secret, trimmed);
+      authenticated = verifyTotp(user.totp_secret, trimmed);
     } else {
       // Backup code format: XXXXXX-XXXXXX
       authenticated = await verifyAndConsumeBackupCode(userId, trimmed, db);

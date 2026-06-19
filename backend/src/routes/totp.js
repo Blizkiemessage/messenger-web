@@ -9,7 +9,8 @@ const { sanitizeUser } = require('../services/userService');
 const {
   generateSecret,
   generateUri,
-  verifyToken,
+  verifyTotp,
+  encryptSecret,
   generateBackupCodes,
   hashBackupCodes,
   verifyAndConsumeBackupCode,
@@ -46,8 +47,9 @@ router.post('/setup', async (req, res, next) => {
     const issuer = process.env.APP_NAME || 'Blizkie';
     const uri = generateUri(secret, user.username || user.id, issuer);
 
-    // Store pending secret (not yet active until confirmed)
-    db.prepare('UPDATE users SET totp_pending_secret = ? WHERE id = ?').run(secret, req.userId);
+    // Store the pending secret ENCRYPTED (not yet active until confirmed).
+    // The plaintext `secret`/`uri` are returned to the client for their app only.
+    db.prepare('UPDATE users SET totp_pending_secret = ? WHERE id = ?').run(encryptSecret(secret), req.userId);
 
     const qrDataUrl = await QRCode.toDataURL(uri, { width: 256, margin: 2 });
 
@@ -71,7 +73,7 @@ router.post('/confirm', otpVerifyLimiter, async (req, res, next) => {
     if (user.totp_enabled) return res.status(409).json({ error: 'Двухфакторная аутентификация уже включена' });
     if (!user.totp_pending_secret) return res.status(400).json({ error: 'Сначала выполните настройку (POST /totp/setup)' });
 
-    const valid = verifyToken(user.totp_pending_secret, code.trim());
+    const valid = verifyTotp(user.totp_pending_secret, code.trim());
     if (!valid) {
       return res.status(400).json({ error: 'Неверный код. Проверьте время на устройстве.' });
     }
@@ -117,7 +119,7 @@ router.delete('/disable', otpVerifyLimiter, async (req, res, next) => {
 
     // Accept either a TOTP code or a backup code
     if (/^\d{6}$/.test(trimmed)) {
-      authenticated = verifyToken(user.totp_secret, trimmed);
+      authenticated = verifyTotp(user.totp_secret, trimmed);
     } else {
       authenticated = await verifyAndConsumeBackupCode(req.userId, trimmed, db);
     }
@@ -152,7 +154,7 @@ router.post('/regenerate-backup', otpVerifyLimiter, async (req, res, next) => {
     if (!user) return res.status(404).json({ error: 'User not found' });
     if (!user.totp_enabled) return res.status(400).json({ error: 'Двухфакторная аутентификация не включена' });
 
-    const valid = verifyToken(user.totp_secret, code.trim());
+    const valid = verifyTotp(user.totp_secret, code.trim());
     if (!valid) return res.status(401).json({ error: 'Неверный код' });
 
     const plainCodes = generateBackupCodes(10);
