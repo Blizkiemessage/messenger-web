@@ -99,6 +99,8 @@ web/src/
 
 ## Журнал изменений
 
+- 2026-06-18 | refactor/web | `MessageBubble.tsx` (1149 строк) разбит: презентационные части вынесены в `components/chat/messageBubble/` (`helpers` — размер/категория файла, url-хелперы, кастом-эмодзи; `attachments` — BubbleFileIcon/FileCard/ImageAttachment/VideoAttachment; `MediaPlayers` — AudioPlayer/VideoNotePlayer; `ReactionBar`; `QuotedText`). `MessageBubble.tsx` остаётся оркестратором на прежнем пути (импорт из MessageList не тронут), Props и JSX без изменений. Код перенесён дословно. Сборка (strict tsc + vite) зелёная, приложение грузится без ошибок консоли.
+
 - 2026-06-18 | refactor/backend | `chatService.js` (937 строк) разбит на `services/chat/*.js` по областям: `queries` (getChatById/getUserChats — общий read-слой), `create`, `prefs` (pin/mute/order), `members` (участники/роли/жизненный цикл/инфо группы), `teardown` (удаление ЛС/аккаунта), `backgrounds`. `chatService.js` теперь barrel — реэкспортит те же 20 имён, внешние импортёры (routes/chats, users, socketServer) не тронуты. Цикла нет (chat/* → messageService/userService/chatPermissions в одну сторону). Все 88 тестов зелёные, экспортируемый API идентичен.
 
 - 2026-06-18 | refactor/css | `app.css` (13.5k строк, монолит) разбит на 18 модулей `web/src/styles/*.css` (`01-tokens-auth-layout` … `18-aurora-overrides`). `app.css` теперь barrel: только `@import` шрифта и модулей в ИСХОДНОМ порядке (каскад сохранён). Безопасность правки доказана: конкатенация частей байт-в-байт совпала с оригиналом + у каждого файла сбалансированы `{}` (ни одно правило/@media не разрезано). Сборка зелёная (CSS-бандл тот же), экран входа рендерится стилизованно. Поведение/внешний вид не изменены.
