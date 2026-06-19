@@ -27,6 +27,9 @@ backend/src/
                     #   admin, friends, support, polls, push, search, sessions, linkPreview,
                     #   sticker-packs, gif, totp, calls, notes, folders, health, export, webauthn)
   services/         # бизнес-логика, вызывается из routes
+                    #   chatService.js — barrel; реализация в services/chat/*.js
+                    #   (queries — getChatById/getUserChats; create; prefs — pin/mute;
+                    #    members — участники/роли/группа; teardown — удаление; backgrounds)
   socket/socketServer.js  # весь realtime: new-message, typing, presence, call:* (сигналинг WebRTC)
   utils/            # jwt, s3 (подпись ссылок), otp, logger
   workers/          # dbBackup.js (бэкап БД в S3), s3Cleanup.js
@@ -95,6 +98,8 @@ web/src/
 4. Журнал держать не длиннее ~40 строк: старые записи группировать в одну строку-сводку.
 
 ## Журнал изменений
+
+- 2026-06-18 | refactor/backend | `chatService.js` (937 строк) разбит на `services/chat/*.js` по областям: `queries` (getChatById/getUserChats — общий read-слой), `create`, `prefs` (pin/mute/order), `members` (участники/роли/жизненный цикл/инфо группы), `teardown` (удаление ЛС/аккаунта), `backgrounds`. `chatService.js` теперь barrel — реэкспортит те же 20 имён, внешние импортёры (routes/chats, users, socketServer) не тронуты. Цикла нет (chat/* → messageService/userService/chatPermissions в одну сторону). Все 88 тестов зелёные, экспортируемый API идентичен.
 
 - 2026-06-18 | refactor/css | `app.css` (13.5k строк, монолит) разбит на 18 модулей `web/src/styles/*.css` (`01-tokens-auth-layout` … `18-aurora-overrides`). `app.css` теперь barrel: только `@import` шрифта и модулей в ИСХОДНОМ порядке (каскад сохранён). Безопасность правки доказана: конкатенация частей байт-в-байт совпала с оригиналом + у каждого файла сбалансированы `{}` (ни одно правило/@media не разрезано). Сборка зелёная (CSS-бандл тот же), экран входа рендерится стилизованно. Поведение/внешний вид не изменены.
 
