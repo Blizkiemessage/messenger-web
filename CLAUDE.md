@@ -25,7 +25,10 @@ backend/src/
   middleware/       # auth.js (JWT), errorHandler.js, rateLimits.js, csrfOrigin.js (Origin-проверка мутаций)
   routes/           # 22 файла — REST API, имя файла = префикс (auth, users, chats, messages, upload,
                     #   admin, friends, support, polls, push, search, sessions, linkPreview,
-                    #   sticker-packs, gif, totp, calls, notes, folders, health, export, webauthn)
+                    #   sticker-packs, gif, totp, calls, notes, folders, health, export, webauthn).
+                    #   admin.js — оркестратор: login + auth+isAdmin + монтирует под-роутеры
+                    #     admin/* (stats, users, chats, moderation, stickerRepair, diagnostics);
+                    #     публичные URL не менялись.
   services/         # бизнес-логика, вызывается из routes
                     #   chatService.js — barrel; реализация в services/chat/*.js
                     #   (queries — getChatById/getUserChats; create; prefs — pin/mute;
@@ -102,6 +105,8 @@ web/src/
 4. Журнал держать не длиннее ~40 строк: старые записи группировать в одну строку-сводку.
 
 ## Журнал изменений
+
+- 2026-06-18 | refactor/backend | `admin.js` (765 строк) разбит на оркестратор + 6 под-роутеров в `routes/admin/`: `_shared` (clientIp), `stats`, `users` (+ /sessions/:id), `chats`, `moderation` (content-reports + sticker-packs), `stickerRepair` (большой self-healing handler), `diagnostics` (errors + audit-log + backup). `admin.js` теперь делает только: login route → `router.use(authMiddleware)` → `router.use(isAdmin)` → монтирует под-роутеры (они наследуют auth-гейт). Внешняя точка `app.use('/admin/api', adminRoutes)` и публичные URL не менялись. Проверено механически: `router.stack` отдаёт **те же 19 маршрутов**, что и до правки (METHOD+path). Все 88 backend-тестов зелёные.
 
 - 2026-06-18 | refactor/web | `Composer.tsx` (1576 строк) — вынесены НЕЗАВИСИМЫЕ части в `components/chat/composer/`: `helpers.ts` (fmt/computeWaveformBars/getFileCategory), `icons.tsx` (FileIconBadge/WaveformIcon/VideoNoteIcon), `PreviewPlayer.tsx` (самодостаточный мини-плеер голосового). Стейт-машина записи голоса/видео-кружков (≈30 useState/ref, общие pointer-хендлеры) ОСТАВЛЕНА в Composer.tsx осознанно — она сильно связана, а проверить её без микрофона/входа нельзя, поэтому дробить её рискованно. Код перенесён дословно, Props/поведение не тронуты. Сборка (strict tsc + vite) зелёная, приложение грузится без ошибок консоли.
 
