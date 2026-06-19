@@ -63,6 +63,8 @@ web/src/
     modals/         # все модалки (группы, пересылка, медиа, настройки профиля и т.д.)
     profile/        # вкладки настроек (профиль, пароль, приватность, сессии, passkeys...)
     call/           # IncomingCallModal, CallOverlay
+    notes/          # заметки чата: NotesPanel.tsx — оркестратор (список + переключение);
+                    #   types, helpers, MediaBlocks, NoteSettings, NoteEditor — рядом
     ui/             # переиспользуемые: Avatar, ContextMenu, Toggle, Portal, icons/
   services/webrtcManager.ts  # WebRTC peer connection звонков
   utils/            # theme.ts (тема), accent.ts (акцент пользователя), appBackground.ts (фон
@@ -105,6 +107,8 @@ web/src/
 4. Журнал держать не длиннее ~40 строк: старые записи группировать в одну строку-сводку.
 
 ## Журнал изменений
+
+- 2026-06-18 | refactor/web | `NotesPanel.tsx` (1031 строка) разбит на соседние файлы в `components/notes/`: `types` (модель блоков), `helpers` (uid/parse/serialize/relTime/fmt*/fileColor/canEdit/snippet), `MediaBlocks` (FileIcon/Lightbox/NoteVideoBlock/MediaBlock/UploadBar), `NoteSettings` (права edit/visibility), `NoteEditor` (большой блочный редактор). `NotesPanel.tsx` остаётся оркестратором (список + создание + переключение в редактор) на прежнем пути — импорт из ChatArea не тронут. Код перенесён дословно, Props/поведение не менялись. Сборка (strict tsc + vite) зелёная, приложение грузится без ошибок консоли.
 
 - 2026-06-18 | refactor/backend | `admin.js` (765 строк) разбит на оркестратор + 6 под-роутеров в `routes/admin/`: `_shared` (clientIp), `stats`, `users` (+ /sessions/:id), `chats`, `moderation` (content-reports + sticker-packs), `stickerRepair` (большой self-healing handler), `diagnostics` (errors + audit-log + backup). `admin.js` теперь делает только: login route → `router.use(authMiddleware)` → `router.use(isAdmin)` → монтирует под-роутеры (они наследуют auth-гейт). Внешняя точка `app.use('/admin/api', adminRoutes)` и публичные URL не менялись. Проверено механически: `router.stack` отдаёт **те же 19 маршрутов**, что и до правки (METHOD+path). Все 88 backend-тестов зелёные.
 
