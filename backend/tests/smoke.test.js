@@ -142,7 +142,7 @@ mockModule('../src/utils/s3Delete', { deleteFromS3: () => {} });
 
 // ── Services (loaded after mocks) ────────────────────────────────────────────
 const { validatePassword, loginOrRegister } = require('../src/services/authService');
-const { deleteMessages, editMessage, getChatMessages, saveMessage, forwardMessages, searchMessages } = require('../src/services/messageService');
+const { deleteMessages, editMessage, getChatMessages, saveMessage, forwardMessages, searchMessages, toggleReaction, toggleEmojiReaction } = require('../src/services/messageService');
 const { ALLOWED_TYPES }                     = require('../src/utils/allowedMimeTypes');
 const { encrypt, decrypt }                  = require('../src/crypto/aes');
 const { setChatBackground }                 = require('../src/services/chatService');
@@ -386,6 +386,41 @@ describe('TOTP secret encryption at rest', () => {
   test('verifyTotp returns false for empty/garbage secret', () => {
     assert.equal(verifyTotp(null, '123456'), false);
     assert.equal(verifyTotp('enc:v1:bad:data:here', '123456'), false);
+  });
+});
+
+// ── 4c2. Reactions are scoped to the message's chat (audit #5) ────────────────
+describe('reactions — cross-chat IDOR guard', () => {
+  test('member can react to a message in their own chat', () => {
+    insertMsg('rx-1', 'chat-direct', 'alice', 'hi');
+    const liked = toggleReaction('chat-direct', 'rx-1', 'bob');
+    assert.deepEqual(liked, ['bob']);
+  });
+
+  test('like reaction with a mismatched chatId is rejected (404)', () => {
+    insertMsg('rx-2', 'chat-direct', 'alice', 'secret in DM');
+    // carol is a member of chat-group but NOT of chat-direct; she guesses rx-2's id
+    assert.throws(
+      () => toggleReaction('chat-group', 'rx-2', 'carol'),
+      (err) => { assert.equal(err.status, 404); return true; },
+    );
+    // the message in its real chat is untouched
+    const row = db.prepare('SELECT liked_by FROM messages WHERE id=?').get('rx-2');
+    assert.equal(row.liked_by ?? '[]', '[]');
+  });
+
+  test('emoji reaction with a mismatched chatId is rejected (404)', () => {
+    insertMsg('rx-3', 'chat-direct', 'alice', 'another DM');
+    assert.throws(
+      () => toggleEmojiReaction('chat-group', 'rx-3', 'carol', '👍'),
+      (err) => { assert.equal(err.status, 404); return true; },
+    );
+  });
+
+  test('emoji reaction works when chatId matches', () => {
+    insertMsg('rx-4', 'chat-group', 'alice', 'group msg');
+    const reactions = toggleEmojiReaction('chat-group', 'rx-4', 'carol', '🔥');
+    assert.ok(reactions.some(r => r.userId === 'carol' && r.emoji === '🔥'));
   });
 });
 

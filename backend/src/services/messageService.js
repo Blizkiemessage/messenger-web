@@ -324,13 +324,15 @@ function hideMessages(userId, chatId, messageIds) {
   return hidden;
 }
 
-function toggleReaction(msgId, userId) {
+function toggleReaction(chatId, msgId, userId) {
   const db = getDb();
-  const msg = db.prepare('SELECT liked_by FROM messages WHERE id = ?').get(msgId);
+  // Scope by chat_id so a member of one chat can't react to a message in another
+  // chat by guessing its id (the route only verifies membership of chatId).
+  const msg = db.prepare('SELECT liked_by FROM messages WHERE id = ? AND chat_id = ? AND deleted_at IS NULL').get([msgId, chatId]);
   if (!msg) throw Object.assign(new Error('Message not found'), { status: 404 });
   let liked = JSON.parse(msg.liked_by || '[]');
   liked = liked.includes(userId) ? liked.filter(id => id !== userId) : [...liked, userId];
-  db.prepare('UPDATE messages SET liked_by = ? WHERE id = ?').run([JSON.stringify(liked), msgId]);
+  db.prepare('UPDATE messages SET liked_by = ? WHERE id = ? AND chat_id = ?').run([JSON.stringify(liked), msgId, chatId]);
   return liked;
 }
 
@@ -425,12 +427,13 @@ const CUSTOM_EMOJI_RE = /^:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a
 
 // ✅ NEW: emoji reactions — toggle a specific emoji reaction for a user.
 // One reaction per user per message: adding a new emoji removes the previous one.
-function toggleEmojiReaction(msgId, userId, emoji) {
+function toggleEmojiReaction(chatId, msgId, userId, emoji) {
   if (!ALLOWED_EMOJIS.has(emoji) && !CUSTOM_EMOJI_RE.test(emoji)) {
     throw Object.assign(new Error('Invalid emoji'), { status: 400 });
   }
   const db = getDb();
-  const msg = db.prepare('SELECT reactions FROM messages WHERE id = ?').get(msgId);
+  // Scope by chat_id (see toggleReaction) — prevents cross-chat reaction IDOR.
+  const msg = db.prepare('SELECT reactions FROM messages WHERE id = ? AND chat_id = ? AND deleted_at IS NULL').get([msgId, chatId]);
   if (!msg) throw Object.assign(new Error('Message not found'), { status: 404 });
   let reactions = JSON.parse(msg.reactions || '[]');
 
@@ -444,7 +447,7 @@ function toggleEmojiReaction(msgId, userId, emoji) {
     // Cap total reactions per message at 200
     if (reactions.length < 200) reactions.push({ userId, emoji });
   }
-  db.prepare('UPDATE messages SET reactions = ? WHERE id = ?').run([JSON.stringify(reactions), msgId]);
+  db.prepare('UPDATE messages SET reactions = ? WHERE id = ? AND chat_id = ?').run([JSON.stringify(reactions), msgId, chatId]);
   return reactions;
 }
 

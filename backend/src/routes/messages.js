@@ -271,7 +271,7 @@ router.post('/:chatId/messages/:msgId/react', (req, res, next) => {
       .get([chatId, req.userId]);
     if (!member) return res.status(403).json({ error: 'Forbidden' });
 
-    const likedBy = toggleReaction(msgId, req.userId);
+    const likedBy = toggleReaction(chatId, msgId, req.userId);
 
     const io = req.app.get('io');
     if (io) {
@@ -302,7 +302,7 @@ router.post('/:chatId/messages/:msgId/react2', (req, res, next) => {
       .get([chatId, req.userId]);
     if (!member) return res.status(403).json({ error: 'Forbidden' });
 
-    const reactions = toggleEmojiReaction(msgId, req.userId, emoji);
+    const reactions = toggleEmojiReaction(chatId, msgId, req.userId, emoji);
 
     const io = req.app.get('io');
     if (io) {
