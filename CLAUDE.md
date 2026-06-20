@@ -62,7 +62,9 @@ web/src/
                     #     (helpers, attachments, MediaPlayers, ReactionBar, QuotedText)
                     #   Composer.tsx — крупный (запись голоса/видео-кружков, стейт-машина в нём же);
                     #     чистые куски вынесены в chat/composer/* (helpers, icons, PreviewPlayer)
-    modals/         # все модалки (группы, пересылка, медиа, настройки профиля и т.д.)
+    modals/         # все модалки (группы, пересылка, медиа, настройки профиля и т.д.).
+                    #   StickerStudioModal.tsx — оркестратор; чистые части в modals/stickerStudio/*
+                    #     (types — StudioTab/WizardStep/PendingItem; helpers — константы/formatQuota/getVideoDuration/parseGifDuration)
     profile/        # вкладки настроек (профиль, пароль, приватность, сессии, passkeys...)
     call/           # IncomingCallModal, CallOverlay
     notes/          # заметки чата: NotesPanel.tsx — оркестратор (список + переключение);
@@ -109,6 +111,8 @@ web/src/
 4. Журнал держать не длиннее ~40 строк: старые записи группировать в одну строку-сводку.
 
 ## Журнал изменений
+
+- 2026-06-20 | refactor/web | `StickerStudioModal.tsx` (991 строка) — чистые части вынесены в `components/modals/stickerStudio/`: `types.ts` (StudioTab/WizardStep/PendingItem), `helpers.ts` (MAX_ITEMS/MAX_SECONDS/ACCEPT_TYPES/formatQuota/getVideoDuration/parseGifDuration). Код перенесён дословно, Props/JSX/поведение не менялись. Оркестратор 991→927 строк. Сборка (strict tsc + vite) зелёная.
 
 - 2026-06-18 | refactor/web | `ChatArea.tsx` (990 строк) — самодостаточные слайсы вынесены в `components/chat/chatArea/`: `helpers.ts` (splitMessage/MAX_MSG_CHARS/EMPTY_TYPING), хуки `useMessageSearch` (поиск по сообщениям), `useDragDrop` (перетаскивание файлов), `usePinnedMessages` (закреплённые: загрузка/синк/навигация + pin/unpin одиночный/контекст/массовый). Хуки — behavior-preserving (код перенесён дословно, те же deps), узкие интерфейсы. Связанное ядро (отправка/оптимизм/правка/ответы/опросы/расписание) осознанно оставлено в оркестраторе — оно сильно завязано на общий стейт. ChatArea: 990→853 строк, импорт из App не тронут. Сборка (strict tsc + vite) зелёная, приложение грузится без ошибок консоли.
 
