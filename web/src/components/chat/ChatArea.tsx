@@ -2,7 +2,7 @@
  * ChatArea.tsx
  * ✅ Added: pin/unpin messages, pin navigation, long message auto-split.
  */
-import { useState, useCallback, useMemo, useRef, useEffect, useLayoutEffect, lazy, Suspense } from 'react';
+import { useState, useCallback, useRef, useEffect, useLayoutEffect, lazy, Suspense } from 'react';
 import { useDraftStore } from '../../store/useDraftStore';
 import { useChatsStore, selectActiveChat } from '../../store/useChatsStore';
 import { useSessionStore } from '../../store/useSessionStore';
@@ -16,7 +16,7 @@ import { ReplyPreviewBar } from './ReplyPreviewBar';
 const StickerStudioModal = lazy(() => import('../modals/StickerStudioModal').then(m => ({ default: m.StickerStudioModal })));
 const ChatMediaModal     = lazy(() => import('../modals/ChatMediaModal').then(m => ({ default: m.ChatMediaModal })));
 const ChatBackgroundModal = lazy(() => import('../modals/ChatBackgroundModal').then(m => ({ default: m.ChatBackgroundModal })));
-import { sendChatMessage, getPinnedMessages, pinMessage as apiPin, unpinMessage as apiUnpin, reactToMessage, editMessage as apiEditMessage, scheduleMessage } from '../../api/chats';
+import { sendChatMessage, reactToMessage, editMessage as apiEditMessage, scheduleMessage } from '../../api/chats';
 import { createPoll, votePoll, retractVote } from '../../api/polls';
 import { emitTypingStart, emitTypingStop, emitCallInvite } from '../../socket/socketClient';
 import { useCallStore } from '../../store/useCallStore';
@@ -34,28 +34,10 @@ import { ScheduleDatePicker } from './ScheduleDatePicker';
 import { ScheduledMessagesModal } from '../modals/ScheduledMessagesModal';
 import { NotesPanel } from '../notes/NotesPanel';
 import { AISummaryModal } from '../modals/AISummaryModal';
-
-// ── Max chars per message — split at last word boundary ──────────────────────
-const MAX_MSG_CHARS = 4000;
-
-// Stable empty array so the typingUsers selector doesn't create a new reference
-// on every render (which would cause an infinite re-render loop).
-const EMPTY_TYPING: string[] = [];
-
-function splitMessage(text: string): string[] {
-  if (text.length <= MAX_MSG_CHARS) return [text];
-  const parts: string[] = [];
-  let remaining = text;
-  while (remaining.length > MAX_MSG_CHARS) {
-    // Find last space within the limit
-    let cutAt = remaining.lastIndexOf(' ', MAX_MSG_CHARS);
-    if (cutAt <= 0) cutAt = MAX_MSG_CHARS; // no space found — hard cut
-    parts.push(remaining.slice(0, cutAt));
-    remaining = remaining.slice(cutAt).trimStart();
-  }
-  if (remaining.length > 0) parts.push(remaining);
-  return parts;
-}
+import { splitMessage, EMPTY_TYPING } from './chatArea/helpers';
+import { useMessageSearch } from './chatArea/useMessageSearch';
+import { useDragDrop } from './chatArea/useDragDrop';
+import { usePinnedMessages } from './chatArea/usePinnedMessages';
 
 export function ChatArea() {
   const me              = useSessionStore(s => s.me)!;
@@ -195,46 +177,17 @@ export function ChatArea() {
   }, [scrollToMessageId, setScrollToMessageId]);
 
   // ── Search ────────────────────────────────────────────────────────────────
-  const [searchOpen,  setSearchOpen]  = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [searchIdx,   setSearchIdx]   = useState(0);
-
-  const matchedIds = useMemo<string[]>(() => {
-    const q = searchQuery.trim().toLowerCase();
-    if (!q) return [];
-    return messages.filter(m => !m.is_system && m.text?.toLowerCase().includes(q)).map(m => m.id);
-  }, [messages, searchQuery]);
-
-  const currentMatchId = matchedIds.length > 0 ? matchedIds[searchIdx] : null;
-
-  const handleToggleSearch = useCallback(() => {
-    setSearchOpen(v => { if (v) { setSearchQuery(''); setSearchIdx(0); } return !v; });
-  }, []);
-  const handleSearchChange = useCallback((q: string) => { setSearchQuery(q); setSearchIdx(0); }, []);
-  const handleSearchNext   = useCallback(() => setSearchIdx(i => (i + 1) % matchedIds.length), [matchedIds.length]);
-  const handleSearchPrev   = useCallback(() => setSearchIdx(i => (i - 1 + matchedIds.length) % matchedIds.length), [matchedIds.length]);
-  const handleSearchClose  = useCallback(() => { setSearchOpen(false); setSearchQuery(''); setSearchIdx(0); }, []);
+  const {
+    searchOpen, searchQuery, searchIdx, matchedIds, currentMatchId,
+    handleToggleSearch, handleSearchChange, handleSearchNext, handleSearchPrev, handleSearchClose,
+  } = useMessageSearch(messages);
 
   // ── Pinned messages ───────────────────────────────────────────────────────
-  const [pinnedMessages, setPinnedMessages] = useState<Message[]>([]);
-  const [pinnedOpen,     setPinnedOpen]     = useState(false);
-  const [pinnedIdx,      setPinnedIdx]      = useState(0);
-
-  // Load pinned messages when chat changes
-  useEffect(() => {
-    if (!activeChat) { setPinnedMessages([]); return; }
-    getPinnedMessages(activeChat.id).then(setPinnedMessages).catch(() => setPinnedMessages([]));
-  }, [activeChat?.id]); // eslint-disable-line
-
-  // Also update pinnedMessages from local messages list (after socket updates)
-  useEffect(() => {
-    const pinned = messages.filter(m => m.is_pinned);
-    if (pinned.length !== pinnedMessages.length) setPinnedMessages(pinned);
-  }, [messages]); // eslint-disable-line
-
-  const pinnedFocusId = pinnedOpen && pinnedMessages.length > 0
-    ? pinnedMessages[pinnedIdx]?.id ?? null
-    : null;
+  const {
+    pinnedMessages, pinnedOpen, pinnedIdx, pinnedFocusId,
+    handleTogglePinned, handlePinnedNext, handlePinnedPrev,
+    handlePinSelected, handleUnpinSelected, handlePinMessage, handleUnpinMessage,
+  } = usePinnedMessages(activeChat, messages, selectedIds, clearSelection);
 
   // ── Mention banner: detect @me in unread messages on chat entry ───────────
   useEffect(() => {
@@ -247,15 +200,6 @@ export function ChatArea() {
     );
     if (found) setMentionBannerId(found.id);
   }, [activeChatId, messages.length]); // eslint-disable-line
-
-  const handleTogglePinned = useCallback(() => {
-    setPinnedOpen(v => !v);
-    setPinnedIdx(0);
-  }, []);
-  const handlePinnedNext = useCallback(() =>
-    setPinnedIdx(i => (i + 1) % pinnedMessages.length), [pinnedMessages.length]);
-  const handlePinnedPrev = useCallback(() =>
-    setPinnedIdx(i => (i - 1 + pinnedMessages.length) % pinnedMessages.length), [pinnedMessages.length]);
 
   // ✅ Forward selected messages — open modal
   const handleForwardSelected = useCallback(() => {
@@ -276,70 +220,6 @@ export function ChatArea() {
     setShowForwardModal(true);
     clearSelection();
   }, [selectedIds, setForwardingIds, setShowForwardModal, clearSelection]);
-
-  // ✅ Pin all selected messages
-  const handlePinSelected = useCallback(async () => {
-    if (!activeChat) return;
-    const ids = Array.from(selectedIds);
-    for (const msgId of ids) {
-      try {
-        const updated = await apiPin(activeChat.id, msgId);
-        setPinnedMessages(prev => prev.some(m => m.id === msgId) ? prev : [...prev, updated]);
-        useChatsStore.getState().setMessages(
-          useChatsStore.getState().messages.map(m => m.id === msgId ? { ...m, is_pinned: true } : m)
-        );
-      } catch { /* upstream */ }
-    }
-    clearSelection();
-  }, [activeChat, selectedIds, clearSelection]);
-
-  // ✅ Unpin all selected messages
-  const handleUnpinSelected = useCallback(async () => {
-    if (!activeChat) return;
-    const ids = Array.from(selectedIds);
-    for (const msgId of ids) {
-      try {
-        await apiUnpin(activeChat.id, msgId);
-        setPinnedMessages(prev => prev.filter(m => m.id !== msgId));
-        useChatsStore.getState().setMessages(
-          useChatsStore.getState().messages.map(m => m.id === msgId ? { ...m, is_pinned: false } : m)
-        );
-      } catch { /* upstream */ }
-    }
-    clearSelection();
-  }, [activeChat, selectedIds, clearSelection]);
-
-  // ✅ Pin from context menu — if multi-selection exists, pin all selected;
-  //    otherwise just the right-clicked message
-  const handlePinMessage = useCallback(async (msgId: string) => {
-    if (!activeChat) return;
-    const ids = selectedIds.size > 1 ? Array.from(selectedIds) : [msgId];
-    for (const id of ids) {
-      try {
-        const updated = await apiPin(activeChat.id, id);
-        setPinnedMessages(prev => prev.some(m => m.id === id) ? prev : [...prev, updated]);
-        useChatsStore.getState().setMessages(
-          useChatsStore.getState().messages.map(m => m.id === id ? { ...m, is_pinned: true } : m)
-        );
-      } catch { /* upstream */ }
-    }
-    clearSelection();
-  }, [activeChat, selectedIds, clearSelection]);
-
-  const handleUnpinMessage = useCallback(async (msgId: string) => {
-    if (!activeChat) return;
-    const ids = selectedIds.size > 1 ? Array.from(selectedIds) : [msgId];
-    for (const id of ids) {
-      try {
-        await apiUnpin(activeChat.id, id);
-        setPinnedMessages(prev => prev.filter(m => m.id !== id));
-        useChatsStore.getState().setMessages(
-          useChatsStore.getState().messages.map(m => m.id === id ? { ...m, is_pinned: false } : m)
-        );
-      } catch { /* upstream */ }
-    }
-    clearSelection();
-  }, [activeChat, selectedIds, clearSelection]);
 
   // Delete single message from context menu — selects it then opens confirm modal
   const handleDeleteSingle = useCallback((msgId: string) => {
@@ -611,24 +491,7 @@ export function ChatArea() {
 
 
   // ── Drag & drop ───────────────────────────────────────────────────────────
-  const [dragOver,      setDragOver]      = useState(false);
-  const [droppedFiles,  setDroppedFiles]  = useState<File[]>([]);
-  const dragCounter = useRef(0);
-
-  const handleDragEnter = useCallback((e: React.DragEvent) => {
-    e.preventDefault(); dragCounter.current++;
-    if (e.dataTransfer.types.includes('Files')) setDragOver(true);
-  }, []);
-  const handleDragLeave = useCallback((e: React.DragEvent) => {
-    e.preventDefault(); dragCounter.current--;
-    if (dragCounter.current === 0) setDragOver(false);
-  }, []);
-  const handleDragOver  = useCallback((e: React.DragEvent) => { e.preventDefault(); e.dataTransfer.dropEffect = 'copy'; }, []);
-  const handleDrop      = useCallback((e: React.DragEvent) => {
-    e.preventDefault(); dragCounter.current = 0; setDragOver(false);
-    const files = Array.from(e.dataTransfer.files ?? []);
-    if (files.length > 0) setDroppedFiles(files);
-  }, []);
+  const { dragOver, droppedFiles, setDroppedFiles, handleDragEnter, handleDragLeave, handleDragOver, handleDrop } = useDragDrop();
 
   // ── Poll handlers ─────────────────────────────────────────────────────────
   const handleSendPoll = useCallback(async (data: CreatePollData) => {

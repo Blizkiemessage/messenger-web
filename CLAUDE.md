@@ -56,6 +56,8 @@ web/src/
     auth/           # экраны входа/регистрации/восстановления
     sidebar/        # Sidebar, ChatList, ChatItem, поиск, папки
     chat/           # ChatArea, MessageList, панель эмодзи/стикеров, опросы.
+                    #   ChatArea.tsx — оркестратор чата; самодостаточные слайсы вынесены в
+                    #     chat/chatArea/* (helpers + хуки useMessageSearch/useDragDrop/usePinnedMessages)
                     #   MessageBubble.tsx — оркестратор; презентационные части в chat/messageBubble/*
                     #     (helpers, attachments, MediaPlayers, ReactionBar, QuotedText)
                     #   Composer.tsx — крупный (запись голоса/видео-кружков, стейт-машина в нём же);
@@ -107,6 +109,8 @@ web/src/
 4. Журнал держать не длиннее ~40 строк: старые записи группировать в одну строку-сводку.
 
 ## Журнал изменений
+
+- 2026-06-18 | refactor/web | `ChatArea.tsx` (990 строк) — самодостаточные слайсы вынесены в `components/chat/chatArea/`: `helpers.ts` (splitMessage/MAX_MSG_CHARS/EMPTY_TYPING), хуки `useMessageSearch` (поиск по сообщениям), `useDragDrop` (перетаскивание файлов), `usePinnedMessages` (закреплённые: загрузка/синк/навигация + pin/unpin одиночный/контекст/массовый). Хуки — behavior-preserving (код перенесён дословно, те же deps), узкие интерфейсы. Связанное ядро (отправка/оптимизм/правка/ответы/опросы/расписание) осознанно оставлено в оркестраторе — оно сильно завязано на общий стейт. ChatArea: 990→853 строк, импорт из App не тронут. Сборка (strict tsc + vite) зелёная, приложение грузится без ошибок консоли.
 
 - 2026-06-18 | refactor/web | `NotesPanel.tsx` (1031 строка) разбит на соседние файлы в `components/notes/`: `types` (модель блоков), `helpers` (uid/parse/serialize/relTime/fmt*/fileColor/canEdit/snippet), `MediaBlocks` (FileIcon/Lightbox/NoteVideoBlock/MediaBlock/UploadBar), `NoteSettings` (права edit/visibility), `NoteEditor` (большой блочный редактор). `NotesPanel.tsx` остаётся оркестратором (список + создание + переключение в редактор) на прежнем пути — импорт из ChatArea не тронут. Код перенесён дословно, Props/поведение не менялись. Сборка (strict tsc + vite) зелёная, приложение грузится без ошибок консоли.
 
