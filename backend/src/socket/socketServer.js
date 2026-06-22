@@ -17,6 +17,7 @@ const { verify } = require('../utils/jwt');
 const { getDb } = require('../config/database');
 const { getUserChats } = require('../services/chatService');
 const { saveMessage, deliverPendingMessages } = require('../services/messageService');
+const { deliverDueDailyPrompts } = require('../services/dailyPromptService');
 const { corsOriginCallback } = require('../utils/corsOrigin');
 const { clearExpiredPresenceStatuses } = require('../services/userService');
 
@@ -527,6 +528,33 @@ function initSocket(httpServer) {
       console.error('[Scheduled] Delivery job error:', err.message);
     }
   }, 30 * 1000);
+
+  // ── «Вопрос дня» — рассылка по расписанию ─────────────────────────────────────
+  // Каждые 60 секунд: найти чаты, где наступило время вопроса дня, создать
+  // карточку-вопрос и разослать как обычное сообщение + push. Зеркало job'а выше.
+  setInterval(() => {
+    try {
+      const due = deliverDueDailyPrompts();
+      if (due.length === 0) return;
+
+      for (const { message, members, push } of due) {
+        for (const m of members) {
+          io.to(`user:${m.user_id}`).emit('new-message', message);
+        }
+        if (push?.enabled) {
+          try {
+            const { fireAndForgetPush } = require('../services/pushService');
+            fireAndForgetPush(message.chat_id, message.sender_id, {
+              text: push.text, attachment_type: 'daily_prompt', attachment_meta: message.attachment_meta,
+            }, io);
+          } catch { /* ignore push errors */ }
+        }
+        console.log(`[DailyPrompt] Asked in chat ${message.chat_id} (instance ${message.daily_prompt?.instance_id})`);
+      }
+    } catch (err) {
+      console.error('[DailyPrompt] Delivery job error:', err.message);
+    }
+  }, 60 * 1000);
 
   return io;
 }

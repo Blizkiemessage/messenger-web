@@ -8,6 +8,7 @@ import { useRef, useEffect, useLayoutEffect, useState, useCallback, lazy, Suspen
 import { type Message, type Chat, type MessageReaction } from '../../types';
 import { dayKey, formatDateSeparator } from '../../utils/format';
 import { MessageBubble } from './MessageBubble';
+import { DailyPromptCard } from './DailyPromptCard';
 import { Portal } from '../ui/Portal';
 const EmojiPicker = lazy(() => import('../ui/EmojiPicker').then(m => ({ default: m.EmojiPicker })));
 import { MessageReadersModal } from './MessageReadersModal';
@@ -53,6 +54,8 @@ interface Props {
   onScrollToBottomRef?: (fn: () => void) => void;
   /** Called when user taps the error badge on a failed optimistic message. */
   onRetryMessage?: (msgId: string) => void;
+  /** Открыть тред ответов «Вопроса дня» по карточке в ленте. */
+  onOpenDailyPrompt?: (instanceId: string) => void;
 }
 
 const CTX_WIDTH  = 200;
@@ -66,7 +69,7 @@ export function MessageList({
   searchQuery, matchedIds, currentMatchId, pinnedFocusId,
   hasMoreMessages, loadingMore, onLoadMore,
   onVote, onRetract, onViewVoters, onEdit, meUsername, unreadCount, onMarkRead,
-  onAtBottomChange, onScrollToBottomRef, onRetryMessage,
+  onAtBottomChange, onScrollToBottomRef, onRetryMessage, onOpenDailyPrompt,
 }: Props) {
   const bottomRef      = useRef<HTMLDivElement | null>(null);
   const matchRef       = useRef<HTMLDivElement | null>(null);
@@ -339,6 +342,17 @@ export function MessageList({
         const dateDivider = showDate ? (
           <div className="msgDateDivider"><span className="msgDatePill">{formatDateSeparator(m.created_at)}</span></div>
         ) : null;
+
+        if (m.is_system && m.attachment_type === 'daily_prompt' && m.daily_prompt) {
+          return (
+            <div key={m.id} data-msg-id={m.id}>
+              {dateDivider}
+              <div className="dpCardRow">
+                <DailyPromptCard m={m} onOpen={(id) => onOpenDailyPrompt?.(id)} />
+              </div>
+            </div>
+          );
+        }
 
         if (m.is_system) {
           return (

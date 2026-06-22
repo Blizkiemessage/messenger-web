@@ -15,7 +15,8 @@ import { EmptyState } from './EmptyState';
 import { ReplyPreviewBar } from './ReplyPreviewBar';
 const StickerStudioModal = lazy(() => import('../modals/StickerStudioModal').then(m => ({ default: m.StickerStudioModal })));
 const ChatMediaModal     = lazy(() => import('../modals/ChatMediaModal').then(m => ({ default: m.ChatMediaModal })));
-const ChatBackgroundModal = lazy(() => import('../modals/ChatBackgroundModal').then(m => ({ default: m.ChatBackgroundModal })));
+const ChatSettingsModal = lazy(() => import('../modals/ChatSettingsModal').then(m => ({ default: m.ChatSettingsModal })));
+const DailyPromptThreadModal = lazy(() => import('./DailyPromptThreadModal').then(m => ({ default: m.DailyPromptThreadModal })));
 import { sendChatMessage, reactToMessage, editMessage as apiEditMessage, scheduleMessage } from '../../api/chats';
 import { createPoll, votePoll, retractVote } from '../../api/polls';
 import { emitTypingStart, emitTypingStop, emitCallInvite } from '../../socket/socketClient';
@@ -486,8 +487,11 @@ export function ChatArea() {
   const [showNotes,      setShowNotes]      = useState(false);
   // ── F2: AI summary modal ──────────────────────────────────────────────────
   const [showSummary,    setShowSummary]    = useState(false);
-  // ── Per-chat background picker ────────────────────────────────────────────
-  const [showChatBg,     setShowChatBg]     = useState(false);
+  // ── Chat settings hub (оформление + вопрос дня) ───────────────────────────
+  const [showChatSettings, setShowChatSettings] = useState(false);
+  // ── «Вопрос дня»: тред ответов / архив ────────────────────────────────────
+  const [dpThreadOpen, setDpThreadOpen] = useState(false);
+  const [dpThreadInstance, setDpThreadInstance] = useState<string | null>(null);
 
 
   // ── Drag & drop ───────────────────────────────────────────────────────────
@@ -676,7 +680,7 @@ export function ChatArea() {
         onVideoCall={activeChat?.type === 'direct' ? () => startCall('video') : undefined}
         onOpenNotes={() => setShowNotes(true)}
         onOpenSummary={() => setShowSummary(true)}
-        onOpenChatBg={() => setShowChatBg(true)}
+        onOpenSettings={activeChat?.type !== 'saved' ? () => setShowChatSettings(true) : undefined}
       />
 
       {/* Mini player — appears below header while audio/video is playing */}
@@ -721,6 +725,7 @@ export function ChatArea() {
         onAtBottomChange={setChatAtBottom}
         onScrollToBottomRef={(fn) => { scrollToBottomFnRef.current = fn; }}
         onRetryMessage={handleRetryMessage}
+        onOpenDailyPrompt={(id) => { setDpThreadInstance(id); setDpThreadOpen(true); }}
       />
 
       {/* Scroll-to-bottom button — position:absolute inside chatAreaInner (position:relative).
@@ -832,10 +837,27 @@ export function ChatArea() {
         />
       )}
 
-      {/* Per-chat background picker */}
-      {showChatBg && activeChat && (
+      {/* Chat settings hub: оформление (фон) + вопрос дня */}
+      {showChatSettings && activeChat && (
         <Suspense fallback={null}>
-          <ChatBackgroundModal chat={activeChat} meId={me.id} onClose={() => setShowChatBg(false)} />
+          <ChatSettingsModal
+            chat={activeChat}
+            meId={me.id}
+            onClose={() => setShowChatSettings(false)}
+            onOpenArchive={() => { setShowChatSettings(false); setDpThreadInstance(null); setDpThreadOpen(true); }}
+          />
+        </Suspense>
+      )}
+
+      {/* «Вопрос дня»: тред ответов (instanceId) или архив (null) */}
+      {dpThreadOpen && activeChat && (
+        <Suspense fallback={null}>
+          <DailyPromptThreadModal
+            chat={activeChat}
+            meId={me.id}
+            instanceId={dpThreadInstance}
+            onClose={() => setDpThreadOpen(false)}
+          />
         </Suspense>
       )}
 

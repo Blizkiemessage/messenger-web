@@ -56,6 +56,10 @@ function LastMessagePreview({ msg, typingPreview }: {
   const isAudio    = msg.attachment_type === 'audio';
   const isVN       = msg.attachment_type === 'video_note';
 
+  if (msg.attachment_type === 'daily_prompt') {
+    return <span className="ciPreview">🌙 Вопрос дня</span>;
+  }
+
   if (isSticker) {
     const url = resolveUrl(msg.attachment_url) ?? msg.attachment_url ?? '';
     return (

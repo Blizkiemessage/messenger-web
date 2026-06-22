@@ -40,7 +40,12 @@ interface Props {
   onClose: () => void;
 }
 
-export function ChatBackgroundModal({ chat, meId, onClose }: Props) {
+/**
+ * ChatBackgroundSettings — содержимое выбора фона БЕЗ модальной обёртки.
+ * Используется как секция в хабе «Настройки чата» и внутри ChatBackgroundModal.
+ * onClose вызывается после успешного «Применить»/«Убрать».
+ */
+export function ChatBackgroundSettings({ chat, meId, onClose }: Props) {
   const sharedAllowed = canSetShared(chat, meId);
   const [draft, setDraft] = useState<ChatBg | null>(
     () => parseChatBg(chat.my_chat_bg) || parseChatBg(chat.chat_bg),
@@ -110,13 +115,7 @@ export function ChatBackgroundModal({ chat, meId, onClose }: Props) {
   }
 
   return (
-    <div className="modalOverlay" onClick={e => e.target === e.currentTarget && !busy && onClose()}>
-      <div className="modalCard cbgCard">
-        <div className="cbgHeader">
-          <div className="cbgTitle">Фон чата</div>
-          <button className="upCloseBtn" onClick={onClose} disabled={busy}>✕</button>
-        </div>
-
+    <>
         {/* Превью */}
         <div className="cbgPreview" style={previewCss ? { background: previewCss } : undefined}>
           <div className="cbgPreviewBubble cbgPreviewIn">Привет!</div>
@@ -200,6 +199,20 @@ export function ChatBackgroundModal({ chat, meId, onClose }: Props) {
             {busy ? '…' : 'Применить'}
           </button>
         </div>
+    </>
+  );
+}
+
+/** Самостоятельная модалка фона (используется вне хаба «Настройки чата»). */
+export function ChatBackgroundModal({ chat, meId, onClose }: Props) {
+  return (
+    <div className="modalOverlay" onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
+      <div className="modalCard cbgCard">
+        <div className="cbgHeader">
+          <div className="cbgTitle">Фон чата</div>
+          <button className="upCloseBtn" onClick={onClose}>✕</button>
+        </div>
+        <ChatBackgroundSettings chat={chat} meId={meId} onClose={onClose} />
       </div>
     </div>
   );

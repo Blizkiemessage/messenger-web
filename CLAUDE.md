@@ -21,11 +21,13 @@ backend/src/
   index.js          # точка входа: регистрация всех роутов, intervals (доставка отложенных сообщений и т.п.)
   config/           # env, БД, почта
   crypto/aes.js     # AES-256-GCM шифрование текста сообщений (ключ MESSAGE_ENCRYPTION_KEY)
-  db/versions/      # миграции 001–005 (вся схема БД здесь; новая таблица = новый файл миграции)
+  db/versions/      # миграции 001–012 (вся схема БД здесь; новая таблица = новый файл миграции)
   middleware/       # auth.js (JWT), errorHandler.js, rateLimits.js, csrfOrigin.js (Origin-проверка мутаций)
   routes/           # 22 файла — REST API, имя файла = префикс (auth, users, chats, messages, upload,
                     #   admin, friends, support, polls, push, search, sessions, linkPreview,
-                    #   sticker-packs, gif, totp, calls, notes, folders, health, export, webauthn).
+                    #   sticker-packs, gif, totp, calls, notes, dailyPrompts, folders, health, export, webauthn).
+                    #   dailyPrompts.js — «Вопрос дня» (под /chats/:id/daily-prompt): конфиг, свои
+                    #     вопросы, архив инстансов, ответы (текст/гс/кружок/медиа), ask-now.
                     #   admin.js — оркестратор: login + auth+isAdmin + монтирует под-роутеры
                     #     admin/* (stats, users, chats, moderation, stickerRepair, diagnostics);
                     #     публичные URL не менялись.
@@ -33,7 +35,10 @@ backend/src/
                     #   chatService.js — barrel; реализация в services/chat/*.js
                     #   (queries — getChatById/getUserChats; create; prefs — pin/mute;
                     #    members — участники/роли/группа; teardown — удаление; backgrounds)
-  socket/socketServer.js  # весь realtime: new-message, typing, presence, call:* (сигналинг WebRTC)
+                    #   dailyPromptService.js — логика «Вопроса дня» (конфиг, выбор вопроса
+                    #     «мешком», доставка по поясу чата, стрик, ответы); dailyPromptBank.js — банки.
+  socket/socketServer.js  # весь realtime: new-message, typing, presence, call:* (сигналинг WebRTC);
+                    #   intervals: отложенные сообщения + «Вопрос дня» (рассылка по расписанию)
   utils/            # jwt, s3 (подпись ссылок), otp, logger
   workers/          # dbBackup.js (бэкап БД в S3), s3Cleanup.js
 backend/tests/smoke.test.js   # node --test; запуск: cd backend && npm test
@@ -60,9 +65,16 @@ web/src/
                     #     chat/chatArea/* (helpers + хуки useMessageSearch/useDragDrop/usePinnedMessages)
                     #   MessageBubble.tsx — оркестратор; презентационные части в chat/messageBubble/*
                     #     (helpers, attachments, MediaPlayers, ReactionBar, QuotedText)
+                    #   «Вопрос дня»: DailyPromptCard.tsx — карточка в ленте (отдельная ветка в
+                    #     MessageList, не через MessageBubble); DailyPromptThreadModal.tsx — тред
+                    #     ответов + архив (ввод ответа = переиспользованный Composer)
                     #   Composer.tsx — крупный (запись голоса/видео-кружков, стейт-машина в нём же);
                     #     чистые куски вынесены в chat/composer/* (helpers, icons, PreviewPlayer)
     modals/         # все модалки (группы, пересылка, медиа, настройки профиля и т.д.).
+                    #   ChatSettingsModal.tsx — хаб «Настройки чата» (меню шапки): секции
+                    #     «Оформление» (ChatBackgroundSettings — вынесенный контент фон-модалки) +
+                    #     «Вопрос дня» (modals/chatSettings/DailyPromptSection + helpers). Не для saved.
+                    #   ChatBackgroundModal.tsx — тонкая обёртка над ChatBackgroundSettings (legacy-вход).
                     #   StickerStudioModal.tsx — оркестратор; чистые части в modals/stickerStudio/*
                     #     (types — StudioTab/WizardStep/PendingItem; helpers — константы/formatQuota/getVideoDuration/parseGifDuration)
     profile/        # вкладки настроек (профиль, пароль, приватность, сессии, passkeys...)
@@ -111,6 +123,12 @@ web/src/
 4. Журнал держать не длиннее ~40 строк: старые записи группировать в одну строку-сводку.
 
 ## Журнал изменений
+
+- 2026-06-22 | feature/web | «Вопрос дня» (этап 3/3 — лента + тред). Карточка-вопрос в ленте: `chat/DailyPromptCard` (рендерится отдельной веткой в `MessageList` для `is_system && attachment_type==='daily_prompt'`, НЕ через MessageBubble). Тред/архив: `chat/DailyPromptThreadModal` (один компонент, 2 режима: instanceId→тред, null→архив); ответы рендерятся плеерами из `messageBubble/*`, ввод ответа (текст/гс/кружок/медиа) — переиспользованный `Composer` (только value/onChange/onSend/onSendAttachment → чат-фичи скрыты). Backend: `getChatMessages` обогащает daily_prompt-сообщения полем `daily_prompt{instance_id,answer_count}` (как опросы). Realtime: `useSocket` слушает `daily-prompt-answer`/`-deleted` → обновляет счётчик карточки в сторе + шлёт window-событие в открытый тред. Превью в списке чатов — «🌙 Вопрос дня» (ChatItem). Тип `Message.daily_prompt` добавлен. Архив открывается и с карточки, и из секции настроек (onOpenArchive). Проверено локально (стенд на отдельной БD): карточка из сокета и из истории, открытие треда, live-ответ от второго юзера, live-счётчик «1 ответ», стрик. Сборка strict tsc+vite + 98 backend-тестов зелёные. Фича завершена (этапы 1-3).
+
+- 2026-06-22 | feature/web | «Вопрос дня» (этап 2/3 — UI настроек). Новый хаб `ChatSettingsModal` (меню шапки «Фон чата» → «Настройки чата», иконка-шестерёнка; скрыт для saved). Секции: «Оформление» (контент фон-модалки вынесен в `ChatBackgroundSettings`, `ChatBackgroundModal` стал тонкой обёрткой — внешний API не сломан) + «Вопрос дня» (`modals/chatSettings/DailyPromptSection` + `helpers`: вкл/время/пояс/расписание daily-weekdays-weekly/банки/свои вопросы/порядок/push/«задать сейчас»/стрик; черновик + кнопка «Сохранить» с dirty-трекингом; read-only без права edit_info). API-обёртка `api/dailyPrompts.ts` (конфиг+вопросы+ask-now+архив+ответы). CSS — в слой «Аврора» (cs*/dp*). ChatArea: `showChatBg`→`showChatSettings`, lazy `ChatSettingsModal`. Сборка strict tsc+vite зелёная. Осталось (этап 3): рендер карточки `daily_prompt` в MessageBubble + экран-тред ответов (гс/кружки/медиа) + socket-подписки.
+
+- 2026-06-22 | feature/backend | «Вопрос дня» (этап 1/3 — backend). Миграция 012: `chat_daily_prompts` (конфиг: вкл/время/пояс/расписание/источник/мешок/push), `chat_daily_prompt_questions` (свои вопросы), `daily_prompt_instances` (заданные вопросы = архив; текст в шифре), `daily_prompt_answers` (ответы текст/гс/кружок/медиа — attachment-колонки как у messages). Сервис `dailyPromptService` + банк `dailyPromptBank` (6 тем). Карточка-вопрос = сообщение `attachment_type='daily_prompt'` (переиспользует broadcast/push/пагинацию), ответы — отдельная таблица/тред, в ленту не попадают. Стрик = подряд идущие отвеченные дни (pending-сегодня не сбрасывает). Права управления = как общий фон (edit_info; ЛС оба). Доставка — новый `setInterval` (60с) в socketServer по поясу чата, идемпотентно/день. Роут `routes/dailyPrompts.js` под `/chats/:id/daily-prompt`. +10 тестов (98). UI (хаб «Настройки чата» + карточка + тред) — следующие этапы. Плейнтекста at-rest нет.
 
 - 2026-06-20 | refactor/web | `StickerStudioModal.tsx` (991 строка) — чистые части вынесены в `components/modals/stickerStudio/`: `types.ts` (StudioTab/WizardStep/PendingItem), `helpers.ts` (MAX_ITEMS/MAX_SECONDS/ACCEPT_TYPES/formatQuota/getVideoDuration/parseGifDuration). Код перенесён дословно, Props/JSX/поведение не менялись. Оркестратор 991→927 строк. Сборка (strict tsc + vite) зелёная.
 

@@ -207,6 +207,30 @@ export function useSocket() {
     socket.on('note:updated', onNoteUpdated); // ✅ F4
     socket.on('note:deleted', onNoteDeleted); // ✅ F4
 
+    // ── «Вопрос дня»: ответы ──────────────────────────────────────────────────
+    // Обновляем счётчик на карточке-вопросе в ленте + пробрасываем событие в
+    // открытый тред (DailyPromptThreadModal слушает window-событие).
+    const updatePromptCount = (chatId: string, instanceId: string, count: number) => {
+      const state = useChatsStore.getState();
+      if (state.activeChatId !== chatId) return;
+      state.setMessages(state.messages.map(m => {
+        if (m.daily_prompt && m.daily_prompt.instance_id === instanceId) {
+          return { ...m, daily_prompt: { ...m.daily_prompt, answer_count: count } };
+        }
+        return m;
+      }));
+    };
+    const onDailyPromptAnswer = (p: { chat_id: string; instance_id: string; answer_count: number }) => {
+      updatePromptCount(p.chat_id, p.instance_id, p.answer_count);
+      window.dispatchEvent(new CustomEvent('dp-answer', { detail: p }));
+    };
+    const onDailyPromptAnswerDeleted = (p: { chat_id: string; instance_id: string; answer_count: number }) => {
+      updatePromptCount(p.chat_id, p.instance_id, p.answer_count);
+      window.dispatchEvent(new CustomEvent('dp-answer-deleted', { detail: p }));
+    };
+    socket.on('daily-prompt-answer',         onDailyPromptAnswer);
+    socket.on('daily-prompt-answer-deleted', onDailyPromptAnswerDeleted);
+
     // ── E3: Call signaling ───────────────────────────────────────────────────────
 
     const onCallIncoming = ({
@@ -317,6 +341,8 @@ export function useSocket() {
       socket.off('note:created', onNoteCreated);
       socket.off('note:updated', onNoteUpdated);
       socket.off('note:deleted', onNoteDeleted);
+      socket.off('daily-prompt-answer',         onDailyPromptAnswer);
+      socket.off('daily-prompt-answer-deleted', onDailyPromptAnswerDeleted);
       clearTimeout(pushTimer);
       if (_markReadTimer) clearTimeout(_markReadTimer);
       disconnectSocket();

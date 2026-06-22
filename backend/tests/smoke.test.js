@@ -125,6 +125,59 @@ db.exec(`
     blocked_id TEXT NOT NULL,
     PRIMARY KEY (blocker_id, blocked_id)
   );
+  CREATE TABLE chat_daily_prompts (
+    chat_id TEXT PRIMARY KEY,
+    enabled INTEGER NOT NULL DEFAULT 0,
+    send_time INTEGER NOT NULL DEFAULT 1260,
+    timezone TEXT NOT NULL DEFAULT 'Europe/Moscow',
+    schedule TEXT NOT NULL DEFAULT '{"type":"daily"}',
+    source TEXT NOT NULL DEFAULT '{"banks":["family"],"use_builtin":1,"use_custom":1}',
+    order_mode TEXT NOT NULL DEFAULT 'shuffle',
+    bag_state TEXT NOT NULL DEFAULT '{}',
+    push_enabled INTEGER NOT NULL DEFAULT 1,
+    push_text TEXT,
+    last_sent_date TEXT,
+    updated_by TEXT,
+    updated_at INTEGER NOT NULL DEFAULT 0
+  );
+  CREATE TABLE chat_daily_prompt_questions (
+    id TEXT PRIMARY KEY,
+    chat_id TEXT NOT NULL,
+    text TEXT NOT NULL,
+    sort_order INTEGER NOT NULL DEFAULT 0,
+    created_by TEXT,
+    created_at INTEGER NOT NULL DEFAULT 0
+  );
+  CREATE TABLE daily_prompt_instances (
+    id TEXT PRIMARY KEY,
+    chat_id TEXT NOT NULL,
+    ciphertext TEXT NOT NULL,
+    iv TEXT NOT NULL,
+    auth_tag TEXT NOT NULL,
+    category TEXT,
+    question_key TEXT,
+    date_key TEXT NOT NULL,
+    message_id TEXT,
+    answer_count INTEGER NOT NULL DEFAULT 0,
+    created_at INTEGER NOT NULL
+  );
+  CREATE TABLE daily_prompt_answers (
+    id TEXT PRIMARY KEY,
+    instance_id TEXT NOT NULL,
+    chat_id TEXT NOT NULL,
+    user_id TEXT NOT NULL,
+    ciphertext TEXT NOT NULL DEFAULT '',
+    iv TEXT NOT NULL DEFAULT '',
+    auth_tag TEXT NOT NULL DEFAULT '',
+    attachment_url TEXT,
+    attachment_type TEXT,
+    attachment_name TEXT,
+    attachment_meta TEXT,
+    attachment_size INTEGER,
+    attachment_duration REAL,
+    voice_waveform TEXT,
+    created_at INTEGER NOT NULL
+  );
 `);
 
 // ── Inject mocks into module cache before services are required ───────────────
@@ -774,5 +827,129 @@ describe('backupCrypto — encrypted DB backups', () => {
     delete process.env.DB_BACKUP_ENCRYPTION_KEY;
     assert.throws(() => decryptBackup(enc));
     if (prev !== undefined) process.env.DB_BACKUP_ENCRYPTION_KEY = prev;
+  });
+});
+
+// ── Daily Prompt («Вопрос дня») ───────────────────────────────────────────────
+describe('daily prompt — config, delivery, answers, streak', () => {
+  const dp = require('../src/services/dailyPromptService');
+
+  test('helpers: prevDateKey / weekdayOf / isScheduledDay', () => {
+    assert.equal(dp.prevDateKey('2026-03-01'), '2026-02-28');
+    assert.equal(dp.prevDateKey('2026-01-01'), '2025-12-31');
+    // 2026-06-22 is a Monday (weekday 1)
+    assert.equal(dp.weekdayOf('2026-06-22'), 1);
+    assert.equal(dp.isScheduledDay({ type: 'daily' }, '2026-06-22'), true);
+    assert.equal(dp.isScheduledDay({ type: 'weekdays' }, '2026-06-22'), true);  // Mon
+    assert.equal(dp.isScheduledDay({ type: 'weekdays' }, '2026-06-21'), false); // Sun
+    assert.equal(dp.isScheduledDay({ type: 'weekly', days: [1] }, '2026-06-22'), true);
+    assert.equal(dp.isScheduledDay({ type: 'weekly', days: [3] }, '2026-06-22'), false);
+  });
+
+  test('non-member cannot read config/status', () => {
+    assert.throws(() => dp.getStatus('chat-group', 'stranger'), (e) => e.status === 403);
+  });
+
+  test('member without edit_info cannot manage; admin/direct can', () => {
+    // carol is a plain member of chat-group
+    assert.throws(() => dp.updateConfig('chat-group', 'carol', { enabled: true }), (e) => e.status === 403);
+    // alice is admin of chat-group
+    const cfg = dp.updateConfig('chat-group', 'alice', { enabled: true, send_time: 600 });
+    assert.equal(cfg.enabled, true);
+    assert.equal(cfg.send_time, 600);
+    // both parties manage a direct chat
+    assert.doesNotThrow(() => dp.updateConfig('chat-direct', 'bob', { enabled: true }));
+  });
+
+  test('invalid timezone falls back to default', () => {
+    const cfg = dp.updateConfig('chat-group', 'alice', { timezone: 'Not/AReal_Zone' });
+    assert.equal(cfg.timezone, 'Europe/Moscow');
+  });
+
+  test('custom questions: add (manage only) / list / delete', () => {
+    assert.throws(() => dp.addCustomQuestion('chat-group', 'carol', 'hi'), (e) => e.status === 403);
+    const q = dp.addCustomQuestion('chat-group', 'alice', '  Любимое блюдо?  ');
+    assert.equal(q.text, 'Любимое блюдо?');
+    const list = dp.listCustomQuestions('chat-group', 'carol'); // any member can read
+    assert.ok(list.some(x => x.id === q.id));
+    dp.deleteCustomQuestion('chat-group', 'alice', q.id);
+    assert.ok(!dp.listCustomQuestions('chat-group', 'alice').some(x => x.id === q.id));
+  });
+
+  test('askNow creates an instance + feed card with daily_prompt meta', () => {
+    const { message, members } = dp.askNow('chat-group', 'alice');
+    assert.equal(message.attachment_type, 'daily_prompt');
+    assert.ok(message.daily_prompt.instance_id);
+    assert.equal(message.daily_prompt.answer_count, 0);
+    assert.ok(members.length >= 1);
+    const row = db.prepare('SELECT * FROM messages WHERE id = ?').get(message.id);
+    assert.equal(row.attachment_type, 'daily_prompt');
+    assert.ok(row.ciphertext && row.ciphertext.length > 0);
+    // question text is NOT stored in plaintext on the instance row
+    const inst = db.prepare('SELECT * FROM daily_prompt_instances WHERE id = ?').get(message.daily_prompt.instance_id);
+    assert.equal(inst.chat_id, 'chat-group');
+    assert.ok(!String(inst.ciphertext).includes(message.text));
+  });
+
+  test('deliverDueDailyPrompts fires when due and is idempotent per day', () => {
+    db.prepare('INSERT INTO chats (id,type,name,created_at) VALUES (?,?,?,?)').run(['chat-dp','group','DP',NOW]);
+    db.prepare('INSERT INTO chat_members (chat_id,user_id,role,joined_at,unread_count) VALUES (?,?,?,?,?)').run(['chat-dp','alice','admin',NOW,0]);
+    db.prepare('INSERT INTO chat_members (chat_id,user_id,role,joined_at,unread_count) VALUES (?,?,?,?,?)').run(['chat-dp','bob','member',NOW,0]);
+    dp.updateConfig('chat-dp', 'alice', { enabled: true, send_time: 0, schedule: { type: 'daily' } });
+
+    const first = dp.deliverDueDailyPrompts().filter(r => r.message.chat_id === 'chat-dp');
+    assert.equal(first.length, 1);
+    const second = dp.deliverDueDailyPrompts().filter(r => r.message.chat_id === 'chat-dp');
+    assert.equal(second.length, 0);
+  });
+
+  test('answers: text + media, count increments, non-member blocked, only own can delete', () => {
+    const { message } = dp.askNow('chat-dp', 'alice');
+    const instanceId = message.daily_prompt.instance_id;
+
+    assert.throws(() => dp.addAnswer('chat-dp', 'stranger', instanceId, { text: 'x' }), (e) => e.status === 403);
+    assert.throws(() => dp.addAnswer('chat-dp', 'alice', instanceId, {}), (e) => e.status === 400);
+
+    const a1 = dp.addAnswer('chat-dp', 'alice', instanceId, { text: 'Текстовый ответ' });
+    assert.equal(a1.answer_count, 1);
+    const a2 = dp.addAnswer('chat-dp', 'bob', instanceId, {
+      text: '', attachment: { attachment_url: 's3://x/voice.webm', attachment_type: 'audio', voice_waveform: '[1,2,3]' },
+    });
+    assert.equal(a2.answer_count, 2);
+
+    const thread = dp.getInstanceThread('chat-dp', 'bob', instanceId);
+    assert.equal(thread.answers.length, 2);
+    assert.equal(thread.answers[0].text, 'Текстовый ответ');
+    assert.equal(thread.answers[1].attachment_type, 'audio');
+
+    assert.throws(() => dp.deleteAnswer('chat-dp', 'bob', a1.answer.id), (e) => e.status === 403);
+    const del = dp.deleteAnswer('chat-dp', 'alice', a1.answer.id);
+    assert.equal(del.answer_count, 1);
+  });
+
+  test('computeStreak counts consecutive answered days; pending today does not reset', () => {
+    db.prepare('INSERT INTO chats (id,type,name,created_at) VALUES (?,?,?,?)').run(['chat-streak','group','S',NOW]);
+    const enc = encrypt('q');
+    let i = 0;
+    const mk = (dateKey, answers) => {
+      const id = 'inst-' + dateKey + '-' + (i++);
+      db.prepare('INSERT INTO daily_prompt_instances (id,chat_id,ciphertext,iv,auth_tag,date_key,answer_count,created_at) VALUES (?,?,?,?,?,?,?,?)')
+        .run([id, 'chat-streak', enc.ciphertext, enc.iv, enc.authTag, dateKey, answers, NOW + i]);
+    };
+    mk('2026-06-20', 1);
+    mk('2026-06-21', 1);
+    mk('2026-06-22', 0); // today, pending → skipped, not a reset
+    assert.equal(dp.computeStreak(db, 'chat-streak'), 2);
+  });
+
+  test('pickNext shuffle exhausts bag without repeats within a cycle', () => {
+    const pool = [{ key: 'a', text: 'A' }, { key: 'b', text: 'B' }, { key: 'c', text: 'C' }];
+    let bag = {};
+    const seen = new Set();
+    for (let n = 0; n < 3; n++) {
+      const r = dp.pickNext({ order_mode: 'shuffle', bag_state: JSON.stringify(bag) }, pool);
+      seen.add(r.picked.key); bag = r.newBag;
+    }
+    assert.equal(seen.size, 3);
   });
 });

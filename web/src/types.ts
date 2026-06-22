@@ -96,6 +96,8 @@ export type Message = {
   reply?: MessageReply | null;
   poll_id?: string | null;
   poll?: Poll | null;
+  /** «Вопрос дня»: карточка-вопрос в ленте (attachment_type='daily_prompt'). */
+  daily_prompt?: { instance_id: string; category?: string | null; answer_count: number } | null;
   /** F1: when the message is scheduled for delivery (Unix ms). null = immediate. */
   deliver_at?: number | null;
   /** F1: false = pending delivery, true = delivered and visible. */

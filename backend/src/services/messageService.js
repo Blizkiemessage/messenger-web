@@ -95,6 +95,21 @@ function getChatMessages(chatId, userId, { limit = 50, before = null } = {}) {
     }
   }
 
+  // Attach daily-prompt payload (instance id + live answer count) for prompt cards
+  const promptMsgIds = messages.filter(m => m.attachment_type === 'daily_prompt').map(m => m.id);
+  if (promptMsgIds.length > 0) {
+    const placeholders = promptMsgIds.map(() => '?').join(',');
+    const instances = db.prepare(
+      `SELECT id, message_id, category, answer_count FROM daily_prompt_instances WHERE message_id IN (${placeholders})`
+    ).all(promptMsgIds);
+    const byMsg = {};
+    for (const inst of instances) byMsg[inst.message_id] = inst;
+    for (const m of messages) {
+      const inst = byMsg[m.id];
+      if (inst) m.daily_prompt = { instance_id: inst.id, category: inst.category, answer_count: inst.answer_count };
+    }
+  }
+
   return messages;
 }
 
