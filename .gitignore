@@ -1,4 +1,6 @@
 .claude/worktrees/
+.claude/settings.local.json
+.claude/launch.json
 
 # Dependencies — never commit node_modules (native binaries are OS-specific)
 node_modules/
