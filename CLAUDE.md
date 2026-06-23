@@ -112,6 +112,7 @@ web/src/
 - **Бэкапы БД зашифрованы на уровне приложения** (AES-256-GCM, `utils/backupCrypto.js`) ДО загрузки в S3 — ключи S3 не дают доступа к содержимому. Ключ: `DB_BACKUP_ENCRYPTION_KEY` (64 hex), иначе HKDF от `MESSAGE_ENCRYPTION_KEY` (всегда включено). Опц. изоляция: `DB_BACKUP_S3_BUCKET` + `DB_BACKUP_S3_ACCESS_KEY_ID`/`_SECRET_ACCESS_KEY` (отдельный бакет/ключи только-на-запись). Объекты — `*.db.enc`; восстановление: `npm run restore-backup -- <файл|--s3 ключ> [out.db]` (`--list` для списка).
 - Проверка фронта: `cd web && npm run build` (tsc + vite) — обязательна перед пушем.
 - Тесты бэкенда: `cd backend && npm test`.
+- **Репозиторий публичный** (Vercel Hobby тянет фронт). Секреты — ТОЛЬКО в env (Amvera/Vercel), никогда в коде/`VITE_*` (последние попадают в публичный бандл). Защита от случайного слива: pre-commit хук в `.githooks/` (блокирует `.env`/`.db`/`node_modules`/похожее-на-ключ). **Активация на каждый клон:** `git config core.hooksPath .githooks`. Использует gitleaks, если установлен.
 
 ## Как работать с этим файлом (инструкция агенту)
 

@@ -1,0 +1,61 @@
+#!/bin/sh
+# pre-commit — блокирует попадание в git секретов и чувствительных файлов.
+# Активация (один раз на каждый клон репозитория):
+#     git config core.hooksPath .githooks
+# Обойти осознанно (на свой страх и риск):
+#     git commit --no-verify
+#
+# Если установлен gitleaks — используется он (точнее). Иначе работает
+# встроенный эвристический скан добавляемых строк (без внешних зависимостей).
+
+fail() {
+  echo ""
+  echo "✋  Коммит остановлен pre-commit хуком:"
+  echo "$1"
+  echo ""
+  echo "    Это ложное срабатывание? Тогда: git commit --no-verify"
+  echo ""
+  exit 1
+}
+
+# ── 1. Запрещённые файлы (страховка на случай 'git add -f' мимо .gitignore) ──
+BLOCKED=$(git diff --cached --name-only --diff-filter=AM \
+  | grep -E '(^|/)\.env($|\.)|\.db$|\.db-wal$|\.db-shm$|\.db-journal$|^backend/data/|^web/dist/|/node_modules/' \
+  || true)
+if [ -n "$BLOCKED" ]; then
+  fail "Эти файлы не должны попадать в git (секреты/БД/сборка/зависимости):
+$BLOCKED"
+fi
+
+# ── 2. gitleaks, если доступен — предпочтительный сканер ─────────────────────
+if command -v gitleaks >/dev/null 2>&1; then
+  if ! gitleaks protect --staged --redact --no-banner; then
+    fail "gitleaks обнаружил потенциальный секрет (см. вывод выше)."
+  fi
+  exit 0
+fi
+
+# ── 3. Фолбэк: эвристический поиск секретов в ДОБАВЛЯЕМЫХ строках ────────────
+ADDED=$(git diff --cached --no-color -U0 --diff-filter=AM | grep -E '^\+' | grep -vE '^\+\+\+' || true)
+
+HITS=$(printf '%s\n' "$ADDED" | grep -nEi \
+  -e 'BEGIN ([A-Z]+ )*PRIVATE KEY' \
+  -e 'AKIA[0-9A-Z]{16}' \
+  -e 'ghp_[A-Za-z0-9]{30,}' \
+  -e 'github_pat_[A-Za-z0-9_]{30,}' \
+  -e 'AIza[0-9A-Za-z_-]{30,}' \
+  -e 'xox[baprs]-[0-9A-Za-z-]{10,}' \
+  -e '(secret|token|password|passwd|apikey|api_key|access_key|secret_key|private_key|encryption_key|vapid_private)[a-z0-9_]*[[:space:]]*[:=][[:space:]]*[[:punct:]]?[A-Za-z0-9+/_=-]{20,}' \
+  || true)
+
+# Отфильтровать заведомо безопасное: env-чтение, плейсхолдеры, примеры, length-проверки
+HITS=$(printf '%s\n' "$HITS" \
+  | grep -vEi 'process\.env|import\.meta\.env|<[^>]*>|REDACTED|EXAMPLE|YOUR_|placeholder|\.length|\$\{[A-Z_]+\}' \
+  || true)
+
+if [ -n "$HITS" ]; then
+  fail "Похоже на секрет в добавляемых строках:
+$HITS"
+fi
+
+exit 0
