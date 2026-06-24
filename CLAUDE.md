@@ -30,8 +30,9 @@ backend/src/
                     #   admin, friends, support, polls, push, search, sessions, linkPreview,
                     #   sticker-packs, gif, totp, calls, notes, dailyPrompts, folders, health, export,
                     #   webauthn, assistant).
-                    #   assistant.js — ассистент-помощник v2: GET /assistant/status (вкл/выкл),
-                    #     POST /assistant/ask {question,intents}→{intentId} (LLM-маршрутизатор).
+                    #   assistant.js — ассистент-помощник: GET /assistant/status (вкл/выкл),
+                    #     POST /assistant/ask {question,kb}→{reply,covered,relatedIds}
+                    #     (LLM генерирует ответ по присланной базе знаний).
                     #   dailyPrompts.js — «Вопрос дня» (под /chats/:id/daily-prompt): конфиг, свои
                     #     вопросы, архив инстансов, ответы (текст/гс/кружок/медиа), ask-now.
                     #   invites.js — invite-token (постоянная личная ссылка): /invites/me (+QR),
@@ -45,9 +46,10 @@ backend/src/
                     #    members — участники/роли/группа; teardown — удаление; backgrounds)
                     #   dailyPromptService.js — логика «Вопроса дня» (конфиг, выбор вопроса
                     #     «мешком», доставка по поясу чата, стрик, ответы); dailyPromptBank.js — банки.
-                    #   assistantService.js — LLM-маршрутизатор помощника (этап C v2): по вопросу
-                    #     + каталогу интентов выбирает один id (ноль галлюцинаций); провайдер
-                    #     переиспользован от AI-сводки, env AI_ASSISTANT_* (фолбэк AI_SUMMARY_*).
+                    #   assistantService.js — LLM-генератор ответа помощника (этап C): по вопросу
+                    #     + присланной базе знаний формулирует ответ строго по ней (covered/
+                    #     relatedIds, кнопки резолвит фронт → deep-links валидны); in-memory кэш;
+                    #     провайдер от AI-сводки, env AI_ASSISTANT_* (фолбэк AI_SUMMARY_*, Groq).
   socket/socketServer.js  # весь realtime: new-message, typing, presence, call:* (сигналинг WebRTC);
                     #   intervals: отложенные сообщения + «Вопрос дня» (рассылка по расписанию)
   utils/            # jwt, s3 (подпись ссылок), otp, logger
@@ -71,8 +73,8 @@ web/src/
                     #   Среди действий: assistant?topic= и support (открыть помощника/поддержку)
   assistant/faq.ts  # база знаний ассистента-помощника (Этап C): типизированный реестр
                     #   интентов (вопрос/ключевые слова/ответ-markdown/кнопки-deep-links)
-                    #   + searchFaqScored (с порогами FAQ_SCORE_STRONG/WEAK), getIntentById,
-                    #   INTENT_CATALOG (для LLM-маршрутизатора), TOP_INTENTS/CATEGORY_META.
+                    #   + searchFaqScored (порог FAQ_SCORE_STRONG, локальный фолбэк без ИИ),
+                    #   getIntentById, ASSISTANT_KB (база для LLM-генератора), TOP_INTENTS/CATEGORY_META.
                     #   ЕДИНЫЙ источник «как сделать X» — обновлять при изменении фич (иначе FAQ устареет)
   hooks/useSocket.ts    # ВСЕ подписки на socket-события сервера
   socket/socketClient.ts # подключение + все emit'ы на сервер
@@ -147,6 +149,8 @@ web/src/
 4. Журнал держать не длиннее ~40 строк: старые записи группировать в одну строку-сводку.
 
 ## Журнал изменений
+
+- 2026-06-24 | feature/fullstack | Ассистент: LLM теперь ГЕНЕРИРУЕТ ответ по базе знаний (а не выбирает готовый интент). Причина жалобы «дефолтные ответы не по теме»: уверенные ответы давал локальный поиск по ключевым словам, а LLM-маршрутизатор только выбирал интент/ничего. Переделано: backend `assistantService.answerQuestion(question, kb)` шлёт вопрос + базу знаний (вопрос/ответ/labels кнопок) модели (Groq llama-3.3-70b, env AI_SUMMARY_*), та формулирует ответ СТРОГО по базе и возвращает `{reply, covered, relatedIds}` (JSON-mode, temp 0.3, in-memory кэш 1ч). Не покрыто базой → `covered=false` → честный ответ + поддержка (без галлюцинаций). Кнопки-навигации фронт резолвит сам по `relatedIds` → deep-links всегда валидны. Роут `POST /assistant/ask {question,kb}`. Фронт: при включённом ИИ свободный вопрос ВСЕГДА идёт в генератор (локальный STRONG-матч больше не перехватывает), новый тип сообщения `assistant-generated`; нет ИИ → локальный фолбэк. `faq.ts`: `ASSISTANT_KB`. Проверено на реальном Groq: «сменить номер телефона»/«язык интерфейса» → честно «нет такого», «голосовое маме» → ответ + кнопка. +1 тест переписан (109), сборка зелёная.
 
 - 2026-06-24 | fix/pwa | Деплои не доходили до пользователей: SW (`src/sw.ts`) не вызывал `skipWaiting()` — новая версия зависала в "waiting" и не активировалась, пока открыта хоть одна вкладка; reload отдавал старый закэшированный бандл (выглядело как «ничего не поменялось» после пуша). Добавлен `self.skipWaiting()` (+ уже был `clients.claim()` в activate) → свежая сборка подхватывается на следующем reload без ручной очистки кэша. Разовая особенность: текущий «застрявший» старый SW без skipWaiting обновится только после полного закрытия всех вкладок/PWA один раз; дальше — авто.
 

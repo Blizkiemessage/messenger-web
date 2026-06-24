@@ -1,24 +1,33 @@
 /**
- * assistantService.js — ассистент-помощник (Этап C, v2): LLM-маршрутизатор.
+ * assistantService.js — ассистент-помощник (Этап C): генератор ответа по базе знаний.
  *
- * НЕ генерирует свободные ответы. Получает свободный вопрос пользователя +
- * каталог тем помощи (id → вопрос) и просит LLM выбрать ОДНУ самую подходящую
- * тему (или null). Фронт показывает уже выверенный ответ и кнопки-действия по
- * выбранному id. Так LLM понимает любые формулировки/опечатки/синонимы, но не
- * может выдумать ответ или несуществующее действие.
+ * LLM получает свободный вопрос пользователя + базу знаний приложения (FAQ:
+ * вопрос/ответ/доступные кнопки-действия) и формулирует КАЧЕСТВЕННЫЙ ответ
+ * строго по этой базе:
+ *   - covered=true  → ответ под конкретный вопрос + relatedIds (темы, чьи
+ *     кнопки-навигации уместны). Кнопки берёт ФРОНТ по id → deep-links всегда
+ *     валидны (LLM не выдумывает действия).
+ *   - covered=false → честно «в приложении этого нет / не нашёл» → фронт
+ *     предлагает поддержку. Никаких выдуманных фактов.
  *
- * Провайдер переиспользуется от AI-сводки (OpenAI-совместимый эндпоинт), чтобы
- * не плодить интеграций. Env (с фолбэком на AI_SUMMARY_*):
+ * Провайдер переиспользуется от AI-сводки (OpenAI-совместимый, у пользователя —
+ * Groq + llama-3.3-70b). Env (с фолбэком на AI_SUMMARY_*):
  *   AI_ASSISTANT_ENABLED  | AI_SUMMARY_ENABLED   — "true" чтобы включить
  *   AI_ASSISTANT_API_KEY  | AI_SUMMARY_API_KEY   — ключ
  *   AI_ASSISTANT_BASE_URL | AI_SUMMARY_BASE_URL  — base URL (OpenAI-совместимый)
  *   AI_ASSISTANT_MODEL    | AI_SUMMARY_MODEL      — модель
  */
-const DEFAULT_BASE_URL = 'https://generativelanguage.googleapis.com/v1beta/openai';
-const DEFAULT_MODEL    = 'gemini-2.0-flash';
+const DEFAULT_BASE_URL = 'https://api.groq.com/openai/v1';
+const DEFAULT_MODEL    = 'llama-3.3-70b-versatile';
 
-const MAX_INTENTS  = 60;   // защита от раздутого payload от клиента
-const MAX_QUESTION = 300;  // макс. длина вопроса (символов)
+const MAX_KB        = 60;    // макс. тем в базе (защита payload)
+const MAX_QUESTION  = 400;   // макс. длина вопроса (символов)
+const MAX_ANSWER    = 600;   // макс. длина ответа темы, отдаваемой модели
+const CACHE_TTL_MS  = 60 * 60 * 1000;
+const CACHE_MAX     = 500;
+
+// Простой in-memory кэш по нормализованному вопросу (экономит токены/латентность).
+const cache = new Map(); // key → { value, at }
 
 function cfg() {
   const enabled =
@@ -36,23 +45,53 @@ function isEnabled() {
   return c.enabled && !!c.apiKey;
 }
 
-/** Достать первый JSON-объект из ответа модели (на случай code-fence/текста). */
+function cacheGet(key) {
+  const hit = cache.get(key);
+  if (!hit) return null;
+  if (Date.now() - hit.at > CACHE_TTL_MS) { cache.delete(key); return null; }
+  return hit.value;
+}
+function cacheSet(key, value) {
+  if (cache.size >= CACHE_MAX) cache.delete(cache.keys().next().value);
+  cache.set(key, { value, at: Date.now() });
+}
+
+/** Достать первый JSON-объект из ответа модели (на случай текста вокруг). */
 function extractJson(text) {
   if (!text) return null;
+  try { return JSON.parse(text); } catch { /* fallthrough */ }
   const m = text.match(/\{[\s\S]*\}/);
   if (!m) return null;
   try { return JSON.parse(m[0]); } catch { return null; }
 }
 
-async function callAI(question, catalog, config) {
+const SYSTEM_PROMPT =
+  'Ты — встроенный помощник мессенджера Blizkie (тёплый мессенджер для семьи и ' +
+  'близких; интерфейс на русском). Отвечай ТОЛЬКО на основе предоставленной базы ' +
+  'знаний (FAQ). Правила:\n' +
+  '1) Сформулируй краткий, понятный и доброжелательный ответ ИМЕННО на вопрос ' +
+  'пользователя (2–4 предложения), на русском, с практическим решением. Можно ' +
+  'короткий список шагов. Используй факты ТОЛЬКО из базы — ничего не выдумывай.\n' +
+  '2) Если в базе есть подходящие темы, укажи их id в relatedIds (0–2 самых ' +
+  'релевантных) — по ним пользователю покажут кнопки-навигации. Бери id ТОЛЬКО ' +
+  'из базы.\n' +
+  '3) Если вопрос НЕ покрыт базой или относится к отсутствующей функции — поставь ' +
+  'covered=false, честно и кратко объясни это и не выдумывай несуществующих ' +
+  'возможностей. relatedIds в этом случае пустой.\n' +
+  'Верни СТРОГО JSON: {"reply": string, "covered": boolean, "relatedIds": string[]}. ' +
+  'Без какого-либо текста вне JSON.';
+
+async function callAI(question, kb, config) {
   const url = `${config.baseUrl}/chat/completions`;
-  const system =
-    'Ты — маршрутизатор справки в мессенджере Blizkie. Тебе дают вопрос ' +
-    'пользователя и список тем помощи в формате "id: вопрос". Выбери ОДНУ самую ' +
-    'подходящую тему. Верни СТРОГО JSON вида {"id":"<id>"} — id берётся ТОЛЬКО ' +
-    'из списка. Если ни одна тема не подходит, верни {"id":null}. Никакого ' +
-    'текста, кроме JSON. Не придумывай id и не отвечай на сам вопрос.';
-  const user = `Вопрос пользователя: "${question}"\n\nТемы помощи:\n${catalog}`;
+  const kbText = kb.map(i => {
+    const acts = (i.actions || []).map(a => a.label).filter(Boolean);
+    const actsLine = acts.length ? `\n  кнопки: ${acts.join(' / ')}` : '';
+    return `[id: ${i.id}]\n  вопрос: ${i.question}\n  ответ: ${i.answer}${actsLine}`;
+  }).join('\n\n');
+
+  const userMsg =
+    `Вопрос пользователя:\n"${question}"\n\n` +
+    `База знаний приложения (темы):\n${kbText}`;
 
   const resp = await fetch(url, {
     method: 'POST',
@@ -63,13 +102,14 @@ async function callAI(question, catalog, config) {
     body: JSON.stringify({
       model: config.model,
       messages: [
-        { role: 'system', content: system },
-        { role: 'user', content: user },
+        { role: 'system', content: SYSTEM_PROMPT },
+        { role: 'user', content: userMsg },
       ],
-      max_tokens: 30,
-      temperature: 0,
+      max_tokens: 500,
+      temperature: 0.3,
+      response_format: { type: 'json_object' },
     }),
-    signal: AbortSignal.timeout(12000),
+    signal: AbortSignal.timeout(15000),
   });
 
   if (!resp.ok) {
@@ -81,36 +121,54 @@ async function callAI(question, catalog, config) {
 }
 
 /**
- * Выбрать подходящий интент.
+ * Сгенерировать ответ помощника по базе знаний.
  * @param {string} question — свободный вопрос пользователя
- * @param {Array<{id:string,question:string}>} intents — каталог тем (от фронта)
- * @returns {Promise<{intentId: string|null}>}
+ * @param {Array<{id,question,answer,actions?:Array<{label}>}>} kb — база (от фронта)
+ * @returns {Promise<{reply:string, covered:boolean, relatedIds:string[]}>}
  */
-async function routeQuestion(question, intents) {
+async function answerQuestion(question, kb) {
   const config = cfg();
   if (!config.enabled || !config.apiKey) {
     throw Object.assign(new Error('AI-помощник не включён на сервере.'), { status: 503 });
   }
 
   const q = String(question || '').trim().slice(0, MAX_QUESTION);
-  if (!q) return { intentId: null };
+  if (!q) return { reply: '', covered: false, relatedIds: [] };
 
-  // Санитизация каталога: только id+вопрос, обрезка, лимит количества.
-  const list = (Array.isArray(intents) ? intents : [])
-    .slice(0, MAX_INTENTS)
-    .map(i => ({ id: String(i?.id ?? '').slice(0, 60), question: String(i?.question ?? '').slice(0, 200) }))
+  // Санитизация базы: только нужные поля, обрезка, лимит количества.
+  const list = (Array.isArray(kb) ? kb : [])
+    .slice(0, MAX_KB)
+    .map(i => ({
+      id: String(i?.id ?? '').slice(0, 60),
+      question: String(i?.question ?? '').slice(0, 200),
+      answer: String(i?.answer ?? '').slice(0, MAX_ANSWER),
+      actions: Array.isArray(i?.actions)
+        ? i.actions.slice(0, 3).map(a => ({ label: String(a?.label ?? '').slice(0, 60) })).filter(a => a.label)
+        : [],
+    }))
     .filter(i => i.id && i.question);
-  if (!list.length) return { intentId: null };
+  if (!list.length) return { reply: '', covered: false, relatedIds: [] };
 
   const validIds = new Set(list.map(i => i.id));
-  const catalog = list.map(i => `${i.id}: ${i.question}`).join('\n');
+  const cacheKey = `${config.model}::${q.toLowerCase()}`;
+  const cached = cacheGet(cacheKey);
+  if (cached) return cached;
 
-  const raw = await callAI(q, catalog, config);
-  const parsed = extractJson(raw);
-  const id = parsed && typeof parsed.id === 'string' ? parsed.id : null;
+  const raw = await callAI(q, list, config);
+  const parsed = extractJson(raw) || {};
 
-  // Жёсткая валидация: id должен быть из присланного каталога, иначе — null.
-  return { intentId: id && validIds.has(id) ? id : null };
+  const reply = typeof parsed.reply === 'string' ? parsed.reply.trim() : '';
+  const covered = parsed.covered === true && !!reply;
+  const relatedIds = Array.isArray(parsed.relatedIds)
+    ? parsed.relatedIds.filter(id => typeof id === 'string' && validIds.has(id)).slice(0, 2)
+    : [];
+
+  const result = covered
+    ? { reply, covered: true, relatedIds }
+    : { reply: reply || '', covered: false, relatedIds: [] };
+
+  cacheSet(cacheKey, result);
+  return result;
 }
 
-module.exports = { routeQuestion, isEnabled };
+module.exports = { answerQuestion, isEnabled };

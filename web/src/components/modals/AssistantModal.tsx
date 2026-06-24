@@ -15,9 +15,9 @@ import { useAppStore } from '../../store/useAppStore';
 import { renderMarkdown } from '../../utils/markdown';
 import { getAssistantStatus, askAssistant } from '../../api/assistant';
 import {
-  FAQ, TOP_INTENTS, CATEGORY_META, INTENT_CATALOG,
+  FAQ, TOP_INTENTS, CATEGORY_META, ASSISTANT_KB,
   searchFaqScored, getIntentById, FAQ_SCORE_STRONG,
-  type FaqIntent, type FaqCategory, type ScoredIntent,
+  type FaqIntent, type FaqAction, type FaqCategory, type ScoredIntent,
 } from '../../assistant/faq';
 
 interface Props {
@@ -30,6 +30,7 @@ type ThreadItem =
   | { role: 'user'; text: string }
   | { role: 'assistant'; intent: FaqIntent }
   | { role: 'thinking' }
+  | { role: 'assistant-generated'; reply: string; actions: FaqAction[]; showSupport: boolean }
   | { role: 'assistant-suggest'; query: string; suggestions: FaqIntent[] }
   | { role: 'assistant-empty'; query: string };
 
@@ -88,35 +89,59 @@ export function AssistantModal({ topic, onClose }: Props) {
     setThread(t => (t.length ? [...t.slice(0, -1), item] : [item]));
   }
 
+  /** Собрать кнопки-навигации из релевантных тем (deep-links резолвит фронт). */
+  function actionsFromIds(ids: string[]): FaqAction[] {
+    const seen = new Set<string>();
+    const out: FaqAction[] = [];
+    for (const id of ids) {
+      const intent = getIntentById(id);
+      for (const a of intent?.actions ?? []) {
+        if (seen.has(a.label)) continue;
+        seen.add(a.label);
+        out.push(a);
+      }
+    }
+    return out.slice(0, 3);
+  }
+
   async function runSearch(raw: string) {
     const q = raw.trim();
     if (!q || busy) return;
     setQuery('');
-    const scored = searchFaqScored(q);
 
-    // 1. Уверенное локальное совпадение — отвечаем мгновенно, без LLM.
-    if (scored[0] && scored[0].score >= FAQ_SCORE_STRONG) {
-      setThread(t => [...t, { role: 'user', text: q }, { role: 'assistant', intent: scored[0].intent }]);
-      return;
-    }
-
-    // 2. LLM-маршрутизатор (если включён): понимает свободные формулировки.
+    // LLM-генератор (если включён): формулирует ответ под конкретный вопрос по
+    // базе знаний + даёт кнопки-навигации. Это основной путь — он не подсовывает
+    // дефолтные ответы не по теме.
     if (aiEnabled) {
       setThread(t => [...t, { role: 'user', text: q }, { role: 'thinking' }]);
       setBusy(true);
       try {
-        const { intentId } = await askAssistant(q, INTENT_CATALOG);
-        const intent = intentId ? getIntentById(intentId) : undefined;
-        replaceLast(intent ? { role: 'assistant', intent } : buildNoMatch(q, scored));
+        const { reply, covered, relatedIds } = await askAssistant(q, ASSISTANT_KB);
+        if (reply) {
+          replaceLast({
+            role: 'assistant-generated',
+            reply,
+            actions: covered ? actionsFromIds(relatedIds) : [],
+            showSupport: !covered,
+          });
+        } else {
+          replaceLast(buildNoMatch(q, searchFaqScored(q)));
+        }
       } catch {
-        replaceLast(buildNoMatch(q, scored));
+        // Сбой LLM → мягкая деградация на локальный поиск.
+        replaceLast(buildNoMatch(q, searchFaqScored(q)));
       } finally {
         setBusy(false);
       }
       return;
     }
 
-    // 3. Без LLM — подсказки по близким темам либо фолбэк на поддержку.
+    // Без LLM — локальный поиск: уверенное совпадение → ответ, иначе подсказки.
+    const scored = searchFaqScored(q);
+    if (scored[0] && scored[0].score >= FAQ_SCORE_STRONG) {
+      setThread(t => [...t, { role: 'user', text: q }, { role: 'assistant', intent: scored[0].intent }]);
+      return;
+    }
     setThread(t => [...t, { role: 'user', text: q }, buildNoMatch(q, scored)]);
   }
 
@@ -214,6 +239,33 @@ export function AssistantModal({ topic, onClose }: Props) {
                 <div key={idx} className="asstMsg asstMsgBot">
                   <div className="asstBubble asstThinking">
                     <span className="asstDot" /><span className="asstDot" /><span className="asstDot" />
+                  </div>
+                </div>
+              );
+            }
+            if (item.role === 'assistant-generated') {
+              return (
+                <div key={idx} className="asstMsg asstMsgBot">
+                  <div className="asstBubble">
+                    <div className="asstAnswerBody">{renderMarkdown(item.reply)}</div>
+                    {(item.actions.length > 0 || item.showSupport) && (
+                      <div className="asstActions">
+                        {item.actions.map((a, i) => (
+                          <button
+                            key={i}
+                            className={`asstActionBtn${i === 0 ? ' asstActionPrimary' : ''}`}
+                            onClick={() => runAction(a)}
+                          >
+                            {a.label}
+                          </button>
+                        ))}
+                        {item.showSupport && (
+                          <button className="asstActionBtn" onClick={openSupport}>
+                            Написать в поддержку
+                          </button>
+                        )}
+                      </div>
+                    )}
                   </div>
                 </div>
               );

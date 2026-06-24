@@ -408,8 +408,26 @@ export function getIntentById(id: string): FaqIntent | undefined {
   return FAQ.find(i => i.id === id);
 }
 
-/** Компактный каталог для LLM-маршрутизатора (id + вопрос). */
+/** Компактный каталог (id + вопрос) — для лёгкой классификации/совместимости. */
 export const INTENT_CATALOG: { id: string; question: string }[] =
   FAQ.map(i => ({ id: i.id, question: i.question }));
+
+/**
+ * Полная база знаний для LLM-генератора ответа: вопрос + ответ + доступные
+ * кнопки (только labels — сами deep-links резолвит фронт по id, поэтому LLM не
+ * может выдумать действие). ЕДИНЫЙ источник — этот же FAQ.
+ */
+export interface AssistantKbItem {
+  id: string;
+  question: string;
+  answer: string;
+  actions: { label: string }[];
+}
+export const ASSISTANT_KB: AssistantKbItem[] = FAQ.map(i => ({
+  id: i.id,
+  question: i.question,
+  answer: i.answer,
+  actions: (i.actions ?? []).map(a => ({ label: a.label })),
+}));
 
 export const TOP_INTENTS = FAQ.filter(i => i.top);

@@ -1030,11 +1030,11 @@ describe('saved chat welcome seed', () => {
   });
 });
 
-// ── Ассистент-помощник: LLM-маршрутизатор (этап C, v2) ────────────────────────
-describe('assistant LLM router', () => {
-  const intents = [
-    { id: 'invite', question: 'Как пригласить близких?' },
-    { id: 'calls', question: 'Как позвонить?' },
+// ── Ассистент-помощник: LLM-генератор ответа по базе знаний (этап C) ──────────
+describe('assistant LLM answer', () => {
+  const kb = [
+    { id: 'invite', question: 'Как пригласить близких?', answer: 'Личная ссылка и QR.', actions: [{ label: 'Открыть приглашение' }] },
+    { id: 'calls', question: 'Как позвонить?', answer: 'Кнопка вызова в шапке чата.', actions: [] },
   ];
 
   function withEnv(env, fn) {
@@ -1052,44 +1052,62 @@ describe('assistant LLM router', () => {
     return require('../src/services/assistantService');
   }
 
+  function mockReply(obj) {
+    return async () => ({ ok: true, json: async () => ({ choices: [{ message: { content: JSON.stringify(obj) } }] }) });
+  }
+
   test('isEnabled() = false без env', () => {
     withEnv({ AI_ASSISTANT_ENABLED: '', AI_SUMMARY_ENABLED: '', AI_ASSISTANT_API_KEY: '', AI_SUMMARY_API_KEY: '' }, () => {
       assert.equal(fresh().isEnabled(), false);
     });
   });
 
-  test('routeQuestion бросает 503 когда выключено', async () => {
+  test('answerQuestion бросает 503 когда выключено', async () => {
     await withEnv({ AI_ASSISTANT_ENABLED: '', AI_SUMMARY_ENABLED: '', AI_ASSISTANT_API_KEY: '', AI_SUMMARY_API_KEY: '' }, async () => {
-      await assert.rejects(() => fresh().routeQuestion('как позвонить', intents), (e) => e.status === 503);
+      await assert.rejects(() => fresh().answerQuestion('как позвонить', kb), (e) => e.status === 503);
     });
   });
 
-  test('routeQuestion возвращает валидный id из каталога', async () => {
+  test('answerQuestion возвращает ответ + валидные relatedIds', async () => {
     await withEnv({ AI_ASSISTANT_ENABLED: 'true', AI_ASSISTANT_API_KEY: 'k' }, async () => {
       const origFetch = global.fetch;
-      global.fetch = async () => ({ ok: true, json: async () => ({ choices: [{ message: { content: '{"id":"calls"}' } }] }) });
+      global.fetch = mockReply({ reply: 'Создайте ссылку и поделитесь.', covered: true, relatedIds: ['invite'] });
       try {
-        const r = await fresh().routeQuestion('наберу маму', intents);
-        assert.equal(r.intentId, 'calls');
+        const r = await fresh().answerQuestion('как позвать сестру в приложение', kb);
+        assert.equal(r.covered, true);
+        assert.match(r.reply, /ссылку/);
+        assert.deepEqual(r.relatedIds, ['invite']);
       } finally { global.fetch = origFetch; }
     });
   });
 
-  test('routeQuestion отбрасывает id не из каталога → null', async () => {
+  test('answerQuestion отбрасывает relatedIds не из базы', async () => {
     await withEnv({ AI_ASSISTANT_ENABLED: 'true', AI_ASSISTANT_API_KEY: 'k' }, async () => {
       const origFetch = global.fetch;
-      global.fetch = async () => ({ ok: true, json: async () => ({ choices: [{ message: { content: '{"id":"nonexistent"}' } }] }) });
+      global.fetch = mockReply({ reply: 'Ответ.', covered: true, relatedIds: ['invite', 'nonexistent'] });
       try {
-        const r = await fresh().routeQuestion('бла бла', intents);
-        assert.equal(r.intentId, null);
+        const r = await fresh().answerQuestion('вопрос про приглашение и ещё что-то', kb);
+        assert.deepEqual(r.relatedIds, ['invite']);
       } finally { global.fetch = origFetch; }
     });
   });
 
-  test('routeQuestion с пустым каталогом → null (без вызова LLM)', async () => {
+  test('answerQuestion: covered=false → relatedIds пустой', async () => {
     await withEnv({ AI_ASSISTANT_ENABLED: 'true', AI_ASSISTANT_API_KEY: 'k' }, async () => {
-      const r = await fresh().routeQuestion('вопрос', []);
-      assert.equal(r.intentId, null);
+      const origFetch = global.fetch;
+      global.fetch = mockReply({ reply: 'В приложении этого нет.', covered: false, relatedIds: ['invite'] });
+      try {
+        const r = await fresh().answerQuestion('как майнить биткоин', kb);
+        assert.equal(r.covered, false);
+        assert.deepEqual(r.relatedIds, []);
+      } finally { global.fetch = origFetch; }
+    });
+  });
+
+  test('answerQuestion с пустой базой → covered=false (без вызова LLM)', async () => {
+    await withEnv({ AI_ASSISTANT_ENABLED: 'true', AI_ASSISTANT_API_KEY: 'k' }, async () => {
+      const r = await fresh().answerQuestion('вопрос', []);
+      assert.equal(r.covered, false);
     });
   });
 });

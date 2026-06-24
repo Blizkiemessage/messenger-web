@@ -1,17 +1,24 @@
 import client from './client';
+import { type AssistantKbItem } from '../assistant/faq';
 
 /** Доступен ли LLM-слой помощника на сервере. */
 export async function getAssistantStatus(): Promise<{ aiEnabled: boolean }> {
   return (await client.get<{ aiEnabled: boolean }>('/assistant/status')).data;
 }
 
+export interface AssistantAnswer {
+  reply: string;
+  covered: boolean;
+  relatedIds: string[];
+}
+
 /**
- * LLM-маршрутизатор: вернуть id подходящего интента из каталога (или null).
- * Каталог — компактный (id+вопрос) из assistant/faq.ts (единый источник).
+ * Сгенерировать ответ помощника по базе знаний (LLM). Кнопки-навигации фронт
+ * резолвит сам по relatedIds (deep-links всегда валидны).
  */
 export async function askAssistant(
   question: string,
-  intents: { id: string; question: string }[],
-): Promise<{ intentId: string | null }> {
-  return (await client.post<{ intentId: string | null }>('/assistant/ask', { question, intents })).data;
+  kb: AssistantKbItem[],
+): Promise<AssistantAnswer> {
+  return (await client.post<AssistantAnswer>('/assistant/ask', { question, kb })).data;
 }
