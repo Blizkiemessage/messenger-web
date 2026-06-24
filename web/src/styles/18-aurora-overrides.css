@@ -845,3 +845,135 @@
 .authInviteAvatar img { width: 100%; height: 100%; object-fit: cover; }
 .authInviteText { font-size: 14px; line-height: 1.35; color: var(--text); }
 .authInviteHint { display: block; font-size: 12px; color: var(--muted); margin-top: 2px; }
+
+/* ─── Онбординг: блок нижних ссылок ──────────────────────────────────────────── */
+.onbLinks { display: flex; flex-wrap: wrap; gap: 4px 14px; justify-content: center; }
+
+/* ─── Ассистент-помощник (Этап C) ────────────────────────────────────────────── */
+.asstCard {
+  width: min(460px, 100%); height: min(640px, 86vh);
+  display: flex; flex-direction: column; overflow: hidden;
+  border-radius: 22px; background: var(--card); border: 1px solid var(--border);
+  animation: auroraPop .2s cubic-bezier(.2,.8,.3,1.1);
+}
+.asstHeader {
+  flex-shrink: 0; display: flex; align-items: center; justify-content: space-between;
+  padding: 14px 16px; border-bottom: 1px solid var(--border);
+  background: linear-gradient(180deg, var(--accent-dim), transparent);
+}
+.asstHeaderTitle { display: flex; align-items: center; gap: 11px; min-width: 0; }
+.asstAvatar {
+  flex-shrink: 0; width: 38px; height: 38px; border-radius: 12px;
+  display: flex; align-items: center; justify-content: center; font-size: 19px;
+  background: var(--grad-accent); box-shadow: var(--glow);
+}
+.asstName { font-size: 15.5px; font-weight: 700; line-height: 1.1; }
+.asstStatus { font-size: 12px; color: var(--muted); margin-top: 2px; }
+.asstClose {
+  flex-shrink: 0; width: 32px; height: 32px; border-radius: 10px; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  color: var(--muted); background: var(--panel); border: 1px solid var(--border);
+  transition: color .15s ease, border-color .15s ease;
+}
+.asstClose:hover { color: var(--text); border-color: var(--accent-border); }
+
+.asstThread {
+  flex: 1; min-height: 0; overflow-y: auto;
+  display: flex; flex-direction: column; gap: 12px; padding: 16px;
+}
+.asstMsg { display: flex; }
+.asstMsgBot { justify-content: flex-start; }
+.asstMsgUser { justify-content: flex-end; }
+.asstBubble {
+  max-width: 86%; padding: 11px 14px; border-radius: 16px;
+  font-size: 14px; line-height: 1.5; color: var(--text);
+  background: var(--panel); border: 1px solid var(--border);
+  border-bottom-left-radius: 6px;
+}
+.asstBubble .msgList { margin: 6px 0 0; padding-left: 18px; }
+.asstBubbleUser {
+  color: #fff; background: var(--grad-accent); border: none; box-shadow: var(--glow);
+  border-radius: 16px; border-bottom-right-radius: 6px;
+}
+.asstAnswerTitle { font-size: 14px; font-weight: 700; margin-bottom: 5px; }
+.asstAnswerBody { color: var(--text); }
+.asstActions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 11px; }
+.asstActionBtn {
+  padding: 8px 13px; border-radius: 10px; cursor: pointer;
+  font-size: 13px; font-weight: 600; color: var(--text);
+  background: var(--card); border: 1px solid var(--border);
+  transition: border-color .15s ease, transform .12s ease;
+}
+.asstActionBtn:hover { border-color: var(--accent-border); transform: translateY(-1px); }
+.asstActionPrimary { color: #fff; background: var(--grad-accent); border: none; box-shadow: var(--glow); }
+
+/* Стартовый экран */
+.asstStart { display: flex; flex-direction: column; gap: 9px; }
+.asstSectionLabel {
+  font-size: 11.5px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: .04em; color: var(--muted); margin-top: 6px;
+}
+.asstChips { display: flex; flex-direction: column; gap: 7px; }
+.asstChip {
+  text-align: left; padding: 10px 13px; border-radius: 12px; cursor: pointer;
+  font-size: 13.5px; font-weight: 600; color: var(--text);
+  background: var(--panel); border: 1px solid var(--border);
+  transition: border-color .15s ease, transform .12s ease;
+}
+.asstChip:hover { border-color: var(--accent-border); transform: translateX(2px); }
+.asstCats { display: flex; flex-wrap: wrap; gap: 7px; }
+.asstCat {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 7px 11px; border-radius: 999px; cursor: pointer;
+  font-size: 12.5px; font-weight: 600; color: var(--text);
+  background: var(--panel); border: 1px solid var(--border);
+  transition: border-color .15s ease, background .15s ease;
+}
+.asstCat:hover { border-color: var(--accent-border); }
+.asstCatActive { color: #fff; background: var(--grad-accent); border: none; box-shadow: var(--glow); }
+.asstCatIcon { font-size: 14px; }
+.asstCatList { display: flex; flex-direction: column; gap: 6px; margin-top: 4px; }
+.asstCatItem {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  text-align: left; padding: 10px 13px; border-radius: 11px; cursor: pointer;
+  font-size: 13.5px; font-weight: 600; color: var(--text);
+  background: var(--card); border: 1px solid var(--border);
+  transition: border-color .15s ease;
+}
+.asstCatItem:hover { border-color: var(--accent-border); }
+.asstCatItem svg { flex-shrink: 0; color: var(--muted); }
+
+/* Footer */
+.asstFooter {
+  flex-shrink: 0; padding: 12px 16px 14px; border-top: 1px solid var(--border);
+  display: flex; flex-direction: column; gap: 8px;
+}
+.asstInputRow { display: flex; gap: 8px; align-items: center; }
+.asstInput {
+  flex: 1; min-width: 0; padding: 11px 14px; border-radius: 12px;
+  font-size: 14px; color: var(--text);
+  background: var(--panel); border: 1px solid var(--border); outline: none;
+  transition: border-color .15s ease;
+}
+.asstInput:focus { border-color: var(--accent); }
+.asstSend {
+  flex-shrink: 0; width: 42px; height: 42px; border-radius: 12px; cursor: pointer;
+  display: flex; align-items: center; justify-content: center; color: #fff;
+  background: var(--grad-accent); border: none; box-shadow: var(--glow);
+  transition: opacity .15s ease, transform .12s ease;
+}
+.asstSend:hover:not(:disabled) { transform: translateY(-1px); }
+.asstSend:disabled { opacity: .45; cursor: default; box-shadow: none; }
+.asstSupportLink {
+  background: none; border: none; cursor: pointer; align-self: center;
+  font-size: 12.5px; font-weight: 600; color: var(--accent); padding: 2px 6px;
+}
+.asstSupportLink:hover { text-decoration: underline; }
+
+@media (max-width: 560px) {
+  .asstCard { width: 100%; height: 100%; max-height: 100vh; border-radius: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .asstCard { animation: none; }
+  .asstChip, .asstCat, .asstActionBtn, .asstSend { transition: none; }
+}

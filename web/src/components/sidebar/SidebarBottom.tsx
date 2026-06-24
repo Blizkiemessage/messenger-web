@@ -15,13 +15,14 @@ interface Props {
   onToggleProfile: () => void;
   onOpenSettings: () => void;
   onOpenInvite: () => void;
+  onOpenAssistant: () => void;
   onOpenSupport: () => void;
   onLogout: () => void;
   onThemeToggle: () => void;
 }
 
 export function SidebarBottom({
-  me, theme, showProfile, onToggleProfile, onOpenSettings, onOpenInvite, onOpenSupport, onLogout, onThemeToggle,
+  me, theme, showProfile, onToggleProfile, onOpenSettings, onOpenInvite, onOpenAssistant, onOpenSupport, onLogout, onThemeToggle,
 }: Props) {
   return (
     <div className="sidebarBottom">
@@ -84,6 +85,20 @@ export function SidebarBottom({
               <span className="ppActionLabel">
                 {theme === 'dark' ? 'Светлая тема' : 'Тёмная тема'}
               </span>
+            </button>
+
+            <button className="ppAction" onClick={onOpenAssistant}>
+              <span className="ppActionIcon">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="12" cy="12" r="10"/>
+                  <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/>
+                  <line x1="12" y1="17" x2="12.01" y2="17"/>
+                </svg>
+              </span>
+              <span className="ppActionLabel">Помощник</span>
+              <svg className="ppActionChevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                <polyline points="9 18 15 12 9 6"/>
+              </svg>
             </button>
 
             <button className="ppAction" onClick={onOpenSupport}>

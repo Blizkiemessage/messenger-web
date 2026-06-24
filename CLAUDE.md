@@ -61,7 +61,12 @@ web/src/
                     #   useAppStore (UI/тема), useCallStore, useStickerStore, useGifStore,
                     #   useDraftStore, useNotesStore, useFolderStore, useDeepLinkStore (deep-links)
   deeplinks.ts      # модель «ссылок-действий» (blz:<type>?k=v): типы+parse+shareApp.
-                    #   Раннеры: глобальные — в App.tsx, чат-привязанные — в ChatArea
+                    #   Раннеры: глобальные — в App.tsx, чат-привязанные — в ChatArea.
+                    #   Среди действий: assistant?topic= и support (открыть помощника/поддержку)
+  assistant/faq.ts  # база знаний ассистента-помощника (Этап C): типизированный реестр
+                    #   интентов (вопрос/ключевые слова/ответ-markdown/кнопки-deep-links)
+                    #   + searchFaq/TOP_INTENTS/CATEGORY_META. ЕДИНЫЙ источник «как сделать X» —
+                    #   обновлять при изменении фич (иначе FAQ устареет)
   hooks/useSocket.ts    # ВСЕ подписки на socket-события сервера
   socket/socketClient.ts # подключение + все emit'ы на сервер
   components/
@@ -78,6 +83,10 @@ web/src/
                     #   Composer.tsx — крупный (запись голоса/видео-кружков, стейт-машина в нём же);
                     #     чистые куски вынесены в chat/composer/* (helpers, icons, PreviewPlayer)
     modals/         # все модалки (группы, пересылка, медиа, настройки профиля и т.д.).
+                    #   AssistantModal.tsx — ассистент-помощник (Этап C): диалоговый FAQ
+                    #     поверх assistant/faq.ts; флаг useAppStore.showAssistant.
+                    #   SupportModal.tsx — техподдержка; флаг useAppStore.showSupport (обе
+                    #     модалки монтируются в App.tsx, открываются из сайдбара/ассистента/deep-link).
                     #   ChatSettingsModal.tsx — хаб «Настройки чата» (меню шапки): секции
                     #     «Оформление» (ChatBackgroundSettings — вынесенный контент фон-модалки) +
                     #     «Вопрос дня» (modals/chatSettings/DailyPromptSection + helpers). Не для saved.
@@ -131,6 +140,8 @@ web/src/
 4. Журнал держать не длиннее ~40 строк: старые записи группировать в одну строку-сводку.
 
 ## Журнал изменений
+
+- 2026-06-24 | feature/web | Ассистент-помощник (Этап C, v1 — детерминированный FAQ). Диалоговая модалка `modals/AssistantModal` поверх типизированной базы знаний `assistant/faq.ts` (~20 интентов: вопрос/ключевые слова/ответ-markdown/кнопки-deep-links; `searchFaq` ранжирует по словам). UX: приветствие → категории + чипы частых вопросов → поиск; ответ = карточка (markdown + кнопки-действия); нет ответа → «написать в поддержку». Кнопка диспатчит deep-link и закрывает ассистента. Новые deep-links `assistant?topic=` + `support` (deeplinks.ts + раннер App.tsx). SupportModal поднят в глобальный стор (`useAppStore.showSupport/showAssistant`), монтируется в App.tsx; Sidebar/SidebarBottom — новый пункт «Помощник» (поддержка теперь через стор). Онбординг: CTA «Спросите помощника». Стили `asst*` в слой «Аврора». Без ИИ/backend (v2 LLM — задел). Сборка strict tsc+vite + 103 backend-теста зелёные; флоу (чип→ответ, поиск→ответ «кружок», действие→invite deep-link + закрытие) проверен в preview. Остаток — Этап D (ассистент по данным).
 
 - 2026-06-24 | feature/fullstack | Авто-посев «Избранного» (завершение этапа A). `services/chat/create.seedSavedWelcome` — при первом создании saved-чата (`getOrCreateSavedChat`) сеет 3 приветственных сообщения (обычные, не системные, от самого юзера) с кликабельными `blz:`-deep-links (Пригласить/Найти друзей/Создать группу/Оформление). Идемпотентно (только в ветке создания). Новый deep-link `open-saved` (deeplinks.ts + раннер App.tsx: создаёт/находит «Избранное» и открывает) — кнопка «Как пользоваться» в OnboardingWelcome ведёт туда. +1 тест (103). Проверено в preview: новый юзер → «Как пользоваться» → «Избранное» с приветствием, клик по ссылке открывает InviteModal. Этап A закрыт полностью.
 

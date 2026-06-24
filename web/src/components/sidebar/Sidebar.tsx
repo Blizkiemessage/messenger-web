@@ -10,7 +10,6 @@ import { FolderTabs } from './FolderTabs';
 import { FolderModal } from './FolderModal';
 import { ChatList } from './ChatList';
 import { SidebarBottom } from './SidebarBottom';
-import { SupportModal } from '../modals/SupportModal';
 import { updateMe } from '../../api/users';
 import { getSavedChat } from '../../api/chats';
 import { authLogout } from '../../api/auth';
@@ -70,9 +69,10 @@ export function Sidebar() {
   const setShowProfileSettings = useAppStore(s => s.setShowProfileSettings);
   const setShowCreateGroup = useAppStore(s => s.setShowCreateGroup);
   const setShowInvite = useAppStore(s => s.setShowInvite);
+  const setShowAssistant = useAppStore(s => s.setShowAssistant);
+  const setShowSupport = useAppStore(s => s.setShowSupport);
   const setChatCtxMenu = useAppStore(s => s.setChatCtxMenu);
 
-  const [showSupport, setShowSupport] = useState(false);
   const [folderModal, setFolderModal] = useState<{ folder?: ChatFolder } | null>(null);
 
   useEffect(() => {
@@ -143,6 +143,10 @@ export function Sidebar() {
           setShowInvite(true);
           useAppStore.getState().setShowProfile(false);
         }}
+        onOpenAssistant={() => {
+          setShowAssistant(true);
+          useAppStore.getState().setShowProfile(false);
+        }}
         onOpenSupport={() => {
           setShowSupport(true);
           useAppStore.getState().setShowProfile(false);
@@ -153,8 +157,6 @@ export function Sidebar() {
         }}
         onThemeToggle={toggleTheme}
       />
-      {showSupport && <SupportModal me={me} onClose={() => setShowSupport(false)} />}
-
       {folderModal !== null && (
         <FolderModal
           folder={folderModal.folder ?? null}

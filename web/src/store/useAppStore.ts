@@ -15,6 +15,8 @@ interface AppState {
   showGroupInfo: boolean;
   showDeleteConfirm: boolean;
   showInvite: boolean;
+  showAssistant: boolean;
+  showSupport: boolean;
   viewUserId: string | null;
   chatCtxMenu: { x: number; y: number; chat: Chat } | null;
   chatActionConfirm: Chat | null;
@@ -34,6 +36,8 @@ interface AppState {
   setShowGroupInfo: (v: boolean) => void;
   setShowDeleteConfirm: (v: boolean) => void;
   setShowInvite: (v: boolean) => void;
+  setShowAssistant: (v: boolean) => void;
+  setShowSupport: (v: boolean) => void;
   setViewUserId: (id: string | null) => void;
   setChatCtxMenu: (m: { x: number; y: number; chat: Chat } | null) => void;
   setChatActionConfirm: (chat: Chat | null) => void;
@@ -57,6 +61,8 @@ export const useAppStore = create<AppState>((set) => ({
   showGroupInfo: false,
   showDeleteConfirm: false,
   showInvite: false,
+  showAssistant: false,
+  showSupport: false,
   viewUserId: null,
   chatCtxMenu: null,
   chatActionConfirm: null,
@@ -79,6 +85,8 @@ export const useAppStore = create<AppState>((set) => ({
   setShowGroupInfo: (v) => set({ showGroupInfo: v }),
   setShowDeleteConfirm: (v) => set({ showDeleteConfirm: v }),
   setShowInvite: (v) => set({ showInvite: v }),
+  setShowAssistant: (v) => set({ showAssistant: v }),
+  setShowSupport: (v) => set({ showSupport: v }),
   setViewUserId: (viewUserId) => set({ viewUserId }),
   setChatCtxMenu: (chatCtxMenu) => set({ chatCtxMenu }),
   setChatActionConfirm: (chatActionConfirm) => set({ chatActionConfirm }),

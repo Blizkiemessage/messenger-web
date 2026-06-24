@@ -34,6 +34,8 @@ const GroupInfoModal       = lazy(() => import('./components/modals/GroupInfoMod
 const ProfileSettingsModal = lazy(() => import('./components/modals/ProfileSettingsModal').then(m => ({ default: m.ProfileSettingsModal })));
 const CreateGroupModal     = lazy(() => import('./components/modals/CreateGroupModal').then(m => ({ default: m.CreateGroupModal })));
 const InviteModal          = lazy(() => import('./components/modals/InviteModal').then(m => ({ default: m.InviteModal })));
+const AssistantModal       = lazy(() => import('./components/modals/AssistantModal').then(m => ({ default: m.AssistantModal })));
+const SupportModal         = lazy(() => import('./components/modals/SupportModal').then(m => ({ default: m.SupportModal })));
 
 import { deleteAccount as apiDeleteAccount } from './api/auth';
 import { getMe } from './api/users';
@@ -72,6 +74,10 @@ export default function App() {
   const setShowDeleteConfirm = useAppStore(s => s.setShowDeleteConfirm);
   const showInvite = useAppStore(s => s.showInvite);
   const setShowInvite = useAppStore(s => s.setShowInvite);
+  const showAssistant = useAppStore(s => s.showAssistant);
+  const setShowAssistant = useAppStore(s => s.setShowAssistant);
+  const showSupport = useAppStore(s => s.showSupport);
+  const setShowSupport = useAppStore(s => s.setShowSupport);
   const viewUserId = useAppStore(s => s.viewUserId);
   const setViewUserId = useAppStore(s => s.setViewUserId);
   const chatCtxMenu = useAppStore(s => s.chatCtxMenu);
@@ -106,6 +112,9 @@ export default function App() {
     if (me) useChatsStore.getState().loadChats();
   }, [me]); // eslint-disable-line
 
+  // Предвыбранный интент ассистента (из deep-link `assistant?topic=`)
+  const [assistantTopic, setAssistantTopic] = useState<string | undefined>(undefined);
+
   // ── Deep-links: глобальные действия (чат-привязанные исполняет ChatArea) ──
   const pendingDeepLink = useDeepLinkStore(s => s.pending);
   useEffect(() => {
@@ -134,6 +143,8 @@ export default function App() {
         break;
       }
       case 'invite':           useAppStore.getState().setShowInvite(true); break;
+      case 'assistant':        setAssistantTopic(a.topic); app.setShowAssistant(true); break;
+      case 'support':          app.setShowSupport(true); break;
     }
     useDeepLinkStore.getState().consume();
   }, [pendingDeepLink]);
@@ -240,6 +251,17 @@ export default function App() {
 
         {showInvite && (
           <InviteModal onClose={() => setShowInvite(false)} />
+        )}
+
+        {showAssistant && (
+          <AssistantModal
+            topic={assistantTopic}
+            onClose={() => { setShowAssistant(false); setAssistantTopic(undefined); }}
+          />
+        )}
+
+        {showSupport && (
+          <SupportModal me={me} onClose={() => setShowSupport(false)} />
         )}
 
         {showProfileSettings && (

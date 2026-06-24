@@ -22,6 +22,8 @@ export type DeepLinkAction =
   | { type: 'create-group' }
   | { type: 'find-friends' }          // фокус на поиске в сайдбаре
   | { type: 'invite' }                // поделиться приложением / ссылкой
+  | { type: 'assistant'; topic?: string } // открыть ассистента-помощника (опц. предвыбор интента)
+  | { type: 'support' }               // открыть форму техподдержки
   // ── привязанные к чату (нужен активный/целевой чат) ──
   | { type: 'chat-settings'; chatId?: string; section?: 'appearance' | 'daily' }
   | { type: 'daily-archive'; chatId?: string }
@@ -49,6 +51,8 @@ export function parseDeepLink(href: string): DeepLinkAction | null {
     case 'create-group':    return { type };
     case 'find-friends':    return { type };
     case 'invite':          return { type };
+    case 'assistant':       return { type, topic: p.get('topic') || undefined };
+    case 'support':         return { type };
     case 'chat-settings': {
       const section = p.get('section');
       return { type, chatId, section: section === 'daily' || section === 'appearance' ? section : undefined };
