@@ -14,6 +14,14 @@ import { ExpirationPlugin } from 'workbox-expiration';
 
 declare const self: ServiceWorkerGlobalScope;
 
+// ── Авто-обновление SW ─────────────────────────────────────────────────────
+// Без skipWaiting новая версия SW зависает в состоянии "waiting" и не
+// активируется, пока не закрыты ВСЕ вкладки приложения — пользователь видит
+// старый закэшированный бандл даже после деплоя. Активируем новую версию сразу,
+// а clients.claim() (ниже, в activate) сразу берёт управление вкладками →
+// следующий reload подхватывает свежую сборку, без ручной очистки кэша.
+self.skipWaiting();
+
 // ── Precache all Vite build output ─────────────────────────────────────────
 // self.__WB_MANIFEST is replaced at build time by vite-plugin-pwa with
 // the actual list of hashed assets (JS chunks, CSS, HTML, images, etc.).
