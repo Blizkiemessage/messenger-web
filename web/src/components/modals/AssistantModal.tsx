@@ -16,8 +16,7 @@ import { renderMarkdown } from '../../utils/markdown';
 import { getAssistantStatus, askAssistant } from '../../api/assistant';
 import {
   FAQ, TOP_INTENTS, CATEGORY_META, INTENT_CATALOG,
-  searchFaqScored, getIntentById,
-  FAQ_SCORE_STRONG, FAQ_SCORE_WEAK,
+  searchFaqScored, getIntentById, FAQ_SCORE_STRONG,
   type FaqIntent, type FaqCategory, type ScoredIntent,
 } from '../../assistant/faq';
 
@@ -78,10 +77,7 @@ export function AssistantModal({ topic, onClose }: Props) {
 
   /** Построить ответ при отсутствии уверенного совпадения: подсказки или фолбэк. */
   function buildNoMatch(q: string, scored: ScoredIntent[]): ThreadItem {
-    const suggestions = scored
-      .filter(s => s.score >= FAQ_SCORE_WEAK)
-      .slice(0, 3)
-      .map(s => s.intent);
+    const suggestions = scored.slice(0, 3).map(s => s.intent);
     return suggestions.length
       ? { role: 'assistant-suggest', query: q, suggestions }
       : { role: 'assistant-empty', query: q };

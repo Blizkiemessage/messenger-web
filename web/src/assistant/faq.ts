@@ -252,7 +252,7 @@ export const FAQ: FaqIntent[] = [
     id: 'security',
     category: 'privacy',
     question: 'Как защитить аккаунт (2FA, passkeys)?',
-    keywords: ['пароль', '2fa', 'двухфакторная', 'totp', 'passkey', 'безопасность', 'вход', 'сессии', 'защита'],
+    keywords: ['пароль', 'сменить пароль', '2fa', 'двухфакторная', 'totp', 'passkey', 'пасскей', 'безопасность', 'защитить', 'защита аккаунта', 'сессии'],
     answer:
       'В настройках профиля можно сменить пароль, включить **двухфакторную ' +
       'аутентификацию (2FA)**, добавить **passkey** и посмотреть активные сессии.\n' +
@@ -263,10 +263,50 @@ export const FAQ: FaqIntent[] = [
     id: 'privacy',
     category: 'privacy',
     question: 'Как настроить приватность?',
-    keywords: ['приватность', 'кто может', 'добавить в группу', 'блокировка', 'видимость', 'настройки приватности'],
+    keywords: ['приватность', 'кто может', 'добавить в группу', 'блокировка', 'заблокировать', 'видимость', 'скрыть почту'],
     answer:
       'В настройках профиля есть раздел приватности: кто может добавлять вас в группы, ' +
       'видимость данных и блокировки пользователей.',
+    actions: [{ label: 'Настройки профиля', action: { type: 'profile-settings' } }],
+  },
+  {
+    id: 'change-name',
+    category: 'privacy',
+    question: 'Как сменить имя или @username?',
+    keywords: ['имя', 'никнейм', 'ник', 'username', 'юзернейм', 'логин', 'псевдоним', 'переименовать', 'отображаемое имя', 'сменить имя'],
+    answer:
+      'В настройках профиля можно изменить **отображаемое имя** и **@username** — ' +
+      'откройте профиль и отредактируйте поля.',
+    actions: [{ label: 'Настройки профиля', action: { type: 'profile-settings' } }],
+  },
+  {
+    id: 'change-email',
+    category: 'privacy',
+    question: 'Как сменить или привязать почту?',
+    keywords: ['почта', 'почту', 'email', 'емейл', 'мейл', 'адрес почты', 'привязать почту', 'сменить почту'],
+    answer:
+      'В настройках профиля можно **привязать или сменить почту**. На новый адрес ' +
+      'придёт код подтверждения — введите его, и почта обновится.',
+    actions: [{ label: 'Настройки профиля', action: { type: 'profile-settings' } }],
+  },
+  {
+    id: 'delete-account',
+    category: 'privacy',
+    question: 'Как удалить аккаунт?',
+    keywords: ['удалить', 'удаление', 'удалить профиль', 'стереть', 'деактивировать', 'закрыть профиль'],
+    answer:
+      'В настройках профиля, в самом низу, есть **удаление аккаунта**. ' +
+      'Это действие **необратимо** — все ваши данные и переписки будут удалены.',
+    actions: [{ label: 'Настройки профиля', action: { type: 'profile-settings' } }],
+  },
+  {
+    id: 'phone',
+    category: 'privacy',
+    question: 'Можно ли войти по номеру телефона?',
+    keywords: ['номер', 'телефон', 'телефона', 'sms', 'смс', 'симка', 'мобильный'],
+    answer:
+      'Blizkie **не использует номер телефона** — вход выполняется по **почте и паролю**. ' +
+      'Привязать или сменить почту можно в настройках профиля.',
     actions: [{ label: 'Настройки профиля', action: { type: 'profile-settings' } }],
   },
 ];
@@ -276,40 +316,86 @@ function norm(s: string): string {
   return s.toLowerCase().replace(/ё/g, 'е').replace(/[^a-zа-я0-9\s@]/gi, ' ');
 }
 
+// Стоп-слова — не несут смысла, не должны влиять на матчинг.
+const STOPWORDS = new Set([
+  'как', 'что', 'чем', 'где', 'когда', 'почему', 'зачем', 'чтобы', 'который',
+  'мне', 'меня', 'мой', 'моя', 'мои', 'мою', 'моего', 'я', 'ты', 'вы', 'он', 'она',
+  'в', 'во', 'на', 'с', 'со', 'по', 'из', 'за', 'к', 'ко', 'до', 'от', 'для', 'про',
+  'это', 'эту', 'этот', 'эта', 'эти', 'можно', 'ли', 'же', 'бы', 'не', 'нет', 'да',
+  'и', 'или', 'а', 'но', 'у', 'о', 'об', 'при', 'так', 'тут', 'там', 'если', 'есть',
+  'быть', 'хочу', 'надо', 'нужно', 'свой', 'свою', 'свои', 'тебя', 'нам', 'вас',
+]);
+
+// Окончания для лёгкого стемминга (длинные — первыми).
+const ENDINGS = [
+  'иться', 'аться', 'яться', 'ться', 'ение', 'ения', 'ниях', 'ами', 'ями',
+  'ого', 'его', 'ому', 'ему', 'ыми', 'ими', 'ить', 'еть', 'ать', 'ять', 'уть',
+  'ыть', 'тся', 'ишь', 'ах', 'ях', 'ов', 'ев', 'ей', 'ам', 'ям', 'ую', 'юю',
+  'ие', 'ые', 'ть', 'ла', 'ло', 'ли', 'на', 'ны', 'ет', 'ит',
+  'а', 'я', 'о', 'е', 'у', 'ю', 'ы', 'и', 'й', 'ь',
+].sort((a, b) => b.length - a.length);
+
+/** Лёгкий стеммер: отрезает одно длиннейшее окончание, оставляя корень (≥3 симв.). */
+function stem(w: string): string {
+  for (const e of ENDINGS) {
+    if (w.length - e.length >= 3 && w.endsWith(e)) return w.slice(0, -e.length);
+  }
+  return w;
+}
+
+/** Разбить строку на значимые стеммированные токены (без стоп-слов). */
+function tokensOf(s: string): string[] {
+  return norm(s)
+    .split(/\s+/)
+    .filter(w => w.length >= 2 && !STOPWORDS.has(w))
+    .map(stem);
+}
+
+/** Совпадение токенов: равны или один — префикс другого (короткий ≥4 симв.). */
+function tokenMatch(a: string, b: string): boolean {
+  if (a === b) return true;
+  const [short, long] = a.length <= b.length ? [a, b] : [b, a];
+  return short.length >= 4 && long.startsWith(short);
+}
+
 /**
- * Пороги релевантности локального поиска (без ИИ):
- * - score >= STRONG → уверенное совпадение, отвечаем сразу.
- * - WEAK <= score < STRONG → показываем «возможно, вы имели в виду…».
- * - score < WEAK → нет совпадения (фолбэк / LLM-маршрутизатор).
+ * Порог релевантности локального поиска (без ИИ):
+ * - score (по КЛЮЧЕВЫМ словам) >= STRONG → уверенный ответ сразу.
+ * - иначе, если есть хоть какой-то сигнал → «возможно, вы имели в виду…».
+ * - сигнала нет → честный фолбэк на поддержку.
+ *
+ * Ключевой принцип: уверенный ответ даётся ТОЛЬКО при совпадении по ключевым
+ * словам интента, а не по общим словам вопроса («аккаунт», «сменить») — иначе
+ * «удалить аккаунт» ошибочно матчилось на «защитить аккаунт».
  */
-export const FAQ_SCORE_STRONG = 5;
-export const FAQ_SCORE_WEAK = 2;
+export const FAQ_SCORE_STRONG = 4;
 
-export interface ScoredIntent { intent: FaqIntent; score: number }
+export interface ScoredIntent { intent: FaqIntent; score: number; total: number }
 
-/** Поиск с оценками — ранжирование по совпадению ключевых слов и вопроса. */
+/** Поиск с оценками — ранжирование по совпадению ключевых слов (с приоритетом). */
 export function searchFaqScored(query: string): ScoredIntent[] {
-  const q = norm(query).trim();
-  if (!q) return [];
-  const words = q.split(/\s+/).filter(w => w.length >= 2);
-  if (!words.length) return [];
+  const qTokens = tokensOf(query);
+  if (!qTokens.length) return [];
 
   return FAQ
     .map(intent => {
-      const hayQ = norm(intent.question);
-      const hayK = intent.keywords.map(norm);
-      let score = 0;
-      for (const w of words) {
-        if (hayQ.includes(w)) score += 3;
-        for (const k of hayK) {
-          if (k === w) score += 4;
-          else if (k.includes(w) || w.includes(k)) score += 2;
-        }
+      const kwTokens = new Set<string>();
+      for (const k of intent.keywords) for (const t of tokensOf(k)) kwTokens.add(t);
+      const qIntentTokens = new Set(tokensOf(intent.question));
+
+      let keywordScore = 0;  // совпадения по ключевым словам (даёт уверенный ответ)
+      let weakScore = 0;     // совпадения только по словам вопроса (только подсказки)
+      for (const w of qTokens) {
+        if (kwTokens.has(w)) { keywordScore += 4; continue; }
+        let partial = false;
+        for (const kt of kwTokens) { if (tokenMatch(w, kt)) { partial = true; break; } }
+        if (partial) { keywordScore += 3; continue; }
+        if (qIntentTokens.has(w)) weakScore += 1;
       }
-      return { intent, score };
+      return { intent, score: keywordScore, total: keywordScore + weakScore };
     })
-    .filter(s => s.score > 0)
-    .sort((a, b) => b.score - a.score);
+    .filter(s => s.total > 0)
+    .sort((a, b) => b.score - a.score || b.total - a.total);
 }
 
 /** Поиск без оценок (совместимость): интенты по убыванию релевантности. */
