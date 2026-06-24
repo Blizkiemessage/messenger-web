@@ -26,9 +26,12 @@ backend/src/
   crypto/aes.js     # AES-256-GCM шифрование текста сообщений (ключ MESSAGE_ENCRYPTION_KEY)
   db/versions/      # миграции 001–013 (вся схема БД здесь; новая таблица = новый файл миграции)
   middleware/       # auth.js (JWT), errorHandler.js, rateLimits.js, csrfOrigin.js (Origin-проверка мутаций)
-  routes/           # 22 файла — REST API, имя файла = префикс (auth, users, chats, messages, upload,
+  routes/           # 23 файла — REST API, имя файла = префикс (auth, users, chats, messages, upload,
                     #   admin, friends, support, polls, push, search, sessions, linkPreview,
-                    #   sticker-packs, gif, totp, calls, notes, dailyPrompts, folders, health, export, webauthn).
+                    #   sticker-packs, gif, totp, calls, notes, dailyPrompts, folders, health, export,
+                    #   webauthn, assistant).
+                    #   assistant.js — ассистент-помощник v2: GET /assistant/status (вкл/выкл),
+                    #     POST /assistant/ask {question,intents}→{intentId} (LLM-маршрутизатор).
                     #   dailyPrompts.js — «Вопрос дня» (под /chats/:id/daily-prompt): конфиг, свои
                     #     вопросы, архив инстансов, ответы (текст/гс/кружок/медиа), ask-now.
                     #   invites.js — invite-token (постоянная личная ссылка): /invites/me (+QR),
@@ -42,6 +45,9 @@ backend/src/
                     #    members — участники/роли/группа; teardown — удаление; backgrounds)
                     #   dailyPromptService.js — логика «Вопроса дня» (конфиг, выбор вопроса
                     #     «мешком», доставка по поясу чата, стрик, ответы); dailyPromptBank.js — банки.
+                    #   assistantService.js — LLM-маршрутизатор помощника (этап C v2): по вопросу
+                    #     + каталогу интентов выбирает один id (ноль галлюцинаций); провайдер
+                    #     переиспользован от AI-сводки, env AI_ASSISTANT_* (фолбэк AI_SUMMARY_*).
   socket/socketServer.js  # весь realtime: new-message, typing, presence, call:* (сигналинг WebRTC);
                     #   intervals: отложенные сообщения + «Вопрос дня» (рассылка по расписанию)
   utils/            # jwt, s3 (подпись ссылок), otp, logger
@@ -65,8 +71,9 @@ web/src/
                     #   Среди действий: assistant?topic= и support (открыть помощника/поддержку)
   assistant/faq.ts  # база знаний ассистента-помощника (Этап C): типизированный реестр
                     #   интентов (вопрос/ключевые слова/ответ-markdown/кнопки-deep-links)
-                    #   + searchFaq/TOP_INTENTS/CATEGORY_META. ЕДИНЫЙ источник «как сделать X» —
-                    #   обновлять при изменении фич (иначе FAQ устареет)
+                    #   + searchFaqScored (с порогами FAQ_SCORE_STRONG/WEAK), getIntentById,
+                    #   INTENT_CATALOG (для LLM-маршрутизатора), TOP_INTENTS/CATEGORY_META.
+                    #   ЕДИНЫЙ источник «как сделать X» — обновлять при изменении фич (иначе FAQ устареет)
   hooks/useSocket.ts    # ВСЕ подписки на socket-события сервера
   socket/socketClient.ts # подключение + все emit'ы на сервер
   components/
@@ -140,6 +147,8 @@ web/src/
 4. Журнал держать не длиннее ~40 строк: старые записи группировать в одну строку-сводку.
 
 ## Журнал изменений
+
+- 2026-06-24 | feature/fullstack | Ассистент-помощник v2 (порог релевантности + LLM-маршрутизатор). Фикс «спонтанных ответов не по теме»: `faq.ts` теперь `searchFaqScored` с порогами `FAQ_SCORE_STRONG/WEAK` — уверенное совпадение отвечает сразу, слабое → «возможно, вы имели в виду…» (топ-3 чипа-подсказки), пусто → честный фолбэк на поддержку (раньше всегда `results[0]`). LLM как МАРШРУТИЗАТОР (не генератор): backend `services/assistantService.js` + `routes/assistant.js` (`GET /assistant/status`, `POST /assistant/ask {question,intents}`, rate-limit 20/мин), провайдер переиспользован от AI-сводки (env `AI_ASSISTANT_*` с фолбэком `AI_SUMMARY_*`). LLM выбирает один id из присланного каталога `INTENT_CATALOG`, id жёстко валидируется по каталогу (ноль галлюцинаций, кнопки всегда валидны), фронт показывает выверенный ответ + «печатает…». Деградирует мягко: нет ключа → порог без ИИ. Фронт: `api/assistant.ts`, флоу в AssistantModal. +5 backend-тестов (108), сборка strict tsc+vite зелёная; все пути (strong→ответ, off-topic→фолбэк, weak→подсказки→ответ) проверены в preview. Этап C закрыт (v1+v2). Остаток — Этап D.
 
 - 2026-06-24 | feature/web | Ассистент-помощник (Этап C, v1 — детерминированный FAQ). Диалоговая модалка `modals/AssistantModal` поверх типизированной базы знаний `assistant/faq.ts` (~20 интентов: вопрос/ключевые слова/ответ-markdown/кнопки-deep-links; `searchFaq` ранжирует по словам). UX: приветствие → категории + чипы частых вопросов → поиск; ответ = карточка (markdown + кнопки-действия); нет ответа → «написать в поддержку». Кнопка диспатчит deep-link и закрывает ассистента. Новые deep-links `assistant?topic=` + `support` (deeplinks.ts + раннер App.tsx). SupportModal поднят в глобальный стор (`useAppStore.showSupport/showAssistant`), монтируется в App.tsx; Sidebar/SidebarBottom — новый пункт «Помощник» (поддержка теперь через стор). Онбординг: CTA «Спросите помощника». Стили `asst*` в слой «Аврора». Без ИИ/backend (v2 LLM — задел). Сборка strict tsc+vite + 103 backend-теста зелёные; флоу (чип→ответ, поиск→ответ «кружок», действие→invite deep-link + закрытие) проверен в preview. Остаток — Этап D (ассистент по данным).
 

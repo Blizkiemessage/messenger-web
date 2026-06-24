@@ -97,7 +97,17 @@ const refreshLimiter = rateLimit({
   legacyHeaders: false,
 });
 
+// Assistant LLM routing — 20 req / min per IP (each call hits an external LLM).
+const assistantLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 20,
+  message: { error: 'Слишком много запросов к помощнику. Подождите немного.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
 module.exports = {
+  assistantLimiter,
   loginLimiter,
   emailSendLimiter,
   registrationLimiter,

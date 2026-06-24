@@ -79,6 +79,7 @@ const foldersRoutes     = require('./routes/folders');
 const healthRoutes      = require('./routes/health');
 const exportRoutes      = require('./routes/export');
 const webauthnRoutes    = require('./routes/webauthn');
+const assistantRoutes   = require('./routes/assistant');
 console.log('[STARTUP] All modules loaded.');
 const path = require('path');
 
@@ -168,6 +169,7 @@ app.use('/invites',       invitesRoutes);
 app.use('/folders',       foldersRoutes);
 app.use('/export',        exportRoutes);
 app.use('/webauthn',      webauthnRoutes);
+app.use('/assistant',     assistantRoutes);
 
 // User-uploaded files served from our own origin must never be sniffed or
 // rendered inline as active content (e.g. an uploaded .html/.svg used for XSS

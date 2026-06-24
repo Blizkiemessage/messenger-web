@@ -1029,3 +1029,67 @@ describe('saved chat welcome seed', () => {
     assert.ok(texts.some(t => t.includes('blz:invite')));
   });
 });
+
+// ── Ассистент-помощник: LLM-маршрутизатор (этап C, v2) ────────────────────────
+describe('assistant LLM router', () => {
+  const intents = [
+    { id: 'invite', question: 'Как пригласить близких?' },
+    { id: 'calls', question: 'Как позвонить?' },
+  ];
+
+  function withEnv(env, fn) {
+    const saved = {};
+    for (const k of Object.keys(env)) { saved[k] = process.env[k]; process.env[k] = env[k]; }
+    try { return fn(); } finally {
+      for (const k of Object.keys(env)) {
+        if (saved[k] === undefined) delete process.env[k]; else process.env[k] = saved[k];
+      }
+    }
+  }
+
+  function fresh() {
+    delete require.cache[require.resolve('../src/services/assistantService')];
+    return require('../src/services/assistantService');
+  }
+
+  test('isEnabled() = false без env', () => {
+    withEnv({ AI_ASSISTANT_ENABLED: '', AI_SUMMARY_ENABLED: '', AI_ASSISTANT_API_KEY: '', AI_SUMMARY_API_KEY: '' }, () => {
+      assert.equal(fresh().isEnabled(), false);
+    });
+  });
+
+  test('routeQuestion бросает 503 когда выключено', async () => {
+    await withEnv({ AI_ASSISTANT_ENABLED: '', AI_SUMMARY_ENABLED: '', AI_ASSISTANT_API_KEY: '', AI_SUMMARY_API_KEY: '' }, async () => {
+      await assert.rejects(() => fresh().routeQuestion('как позвонить', intents), (e) => e.status === 503);
+    });
+  });
+
+  test('routeQuestion возвращает валидный id из каталога', async () => {
+    await withEnv({ AI_ASSISTANT_ENABLED: 'true', AI_ASSISTANT_API_KEY: 'k' }, async () => {
+      const origFetch = global.fetch;
+      global.fetch = async () => ({ ok: true, json: async () => ({ choices: [{ message: { content: '{"id":"calls"}' } }] }) });
+      try {
+        const r = await fresh().routeQuestion('наберу маму', intents);
+        assert.equal(r.intentId, 'calls');
+      } finally { global.fetch = origFetch; }
+    });
+  });
+
+  test('routeQuestion отбрасывает id не из каталога → null', async () => {
+    await withEnv({ AI_ASSISTANT_ENABLED: 'true', AI_ASSISTANT_API_KEY: 'k' }, async () => {
+      const origFetch = global.fetch;
+      global.fetch = async () => ({ ok: true, json: async () => ({ choices: [{ message: { content: '{"id":"nonexistent"}' } }] }) });
+      try {
+        const r = await fresh().routeQuestion('бла бла', intents);
+        assert.equal(r.intentId, null);
+      } finally { global.fetch = origFetch; }
+    });
+  });
+
+  test('routeQuestion с пустым каталогом → null (без вызова LLM)', async () => {
+    await withEnv({ AI_ASSISTANT_ENABLED: 'true', AI_ASSISTANT_API_KEY: 'k' }, async () => {
+      const r = await fresh().routeQuestion('вопрос', []);
+      assert.equal(r.intentId, null);
+    });
+  });
+});

@@ -277,33 +277,53 @@ function norm(s: string): string {
 }
 
 /**
- * Поиск по базе: ранжирование по совпадению ключевых слов и вопроса.
- * Возвращает интенты по убыванию релевантности (только с ненулевым счётом).
+ * Пороги релевантности локального поиска (без ИИ):
+ * - score >= STRONG → уверенное совпадение, отвечаем сразу.
+ * - WEAK <= score < STRONG → показываем «возможно, вы имели в виду…».
+ * - score < WEAK → нет совпадения (фолбэк / LLM-маршрутизатор).
  */
-export function searchFaq(query: string): FaqIntent[] {
+export const FAQ_SCORE_STRONG = 5;
+export const FAQ_SCORE_WEAK = 2;
+
+export interface ScoredIntent { intent: FaqIntent; score: number }
+
+/** Поиск с оценками — ранжирование по совпадению ключевых слов и вопроса. */
+export function searchFaqScored(query: string): ScoredIntent[] {
   const q = norm(query).trim();
   if (!q) return [];
   const words = q.split(/\s+/).filter(w => w.length >= 2);
   if (!words.length) return [];
 
-  const scored = FAQ.map(intent => {
-    const hayQ = norm(intent.question);
-    const hayK = intent.keywords.map(norm);
-    let score = 0;
-    for (const w of words) {
-      if (hayQ.includes(w)) score += 3;
-      for (const k of hayK) {
-        if (k === w) score += 4;
-        else if (k.includes(w) || w.includes(k)) score += 2;
+  return FAQ
+    .map(intent => {
+      const hayQ = norm(intent.question);
+      const hayK = intent.keywords.map(norm);
+      let score = 0;
+      for (const w of words) {
+        if (hayQ.includes(w)) score += 3;
+        for (const k of hayK) {
+          if (k === w) score += 4;
+          else if (k.includes(w) || w.includes(k)) score += 2;
+        }
       }
-    }
-    return { intent, score };
-  });
-
-  return scored
+      return { intent, score };
+    })
     .filter(s => s.score > 0)
-    .sort((a, b) => b.score - a.score)
-    .map(s => s.intent);
+    .sort((a, b) => b.score - a.score);
 }
+
+/** Поиск без оценок (совместимость): интенты по убыванию релевантности. */
+export function searchFaq(query: string): FaqIntent[] {
+  return searchFaqScored(query).map(s => s.intent);
+}
+
+/** Найти интент по id (для применения результата LLM-маршрутизатора). */
+export function getIntentById(id: string): FaqIntent | undefined {
+  return FAQ.find(i => i.id === id);
+}
+
+/** Компактный каталог для LLM-маршрутизатора (id + вопрос). */
+export const INTENT_CATALOG: { id: string; question: string }[] =
+  FAQ.map(i => ({ id: i.id, question: i.question }));
 
 export const TOP_INTENTS = FAQ.filter(i => i.top);

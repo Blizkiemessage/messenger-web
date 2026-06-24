@@ -13,9 +13,12 @@ import { useEffect, useRef, useState } from 'react';
 import { useDeepLinkStore } from '../../store/useDeepLinkStore';
 import { useAppStore } from '../../store/useAppStore';
 import { renderMarkdown } from '../../utils/markdown';
+import { getAssistantStatus, askAssistant } from '../../api/assistant';
 import {
-  FAQ, TOP_INTENTS, CATEGORY_META, searchFaq,
-  type FaqIntent, type FaqCategory,
+  FAQ, TOP_INTENTS, CATEGORY_META, INTENT_CATALOG,
+  searchFaqScored, getIntentById,
+  FAQ_SCORE_STRONG, FAQ_SCORE_WEAK,
+  type FaqIntent, type FaqCategory, type ScoredIntent,
 } from '../../assistant/faq';
 
 interface Props {
@@ -27,6 +30,8 @@ interface Props {
 type ThreadItem =
   | { role: 'user'; text: string }
   | { role: 'assistant'; intent: FaqIntent }
+  | { role: 'thinking' }
+  | { role: 'assistant-suggest'; query: string; suggestions: FaqIntent[] }
   | { role: 'assistant-empty'; query: string };
 
 const GREETING =
@@ -39,8 +44,17 @@ export function AssistantModal({ topic, onClose }: Props) {
   const [query, setQuery] = useState('');
   const [thread, setThread] = useState<ThreadItem[]>([]);
   const [activeCat, setActiveCat] = useState<FaqCategory | null>(null);
+  const [aiEnabled, setAiEnabled] = useState(false);
+  const [busy, setBusy] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  // Узнаём один раз, доступен ли LLM-слой (чтобы не дёргать /ask впустую)
+  useEffect(() => {
+    let alive = true;
+    getAssistantStatus().then(s => { if (alive) setAiEnabled(s.aiEnabled); }).catch(() => {});
+    return () => { alive = false; };
+  }, []);
 
   // Автоскролл вниз при новом сообщении
   useEffect(() => {
@@ -62,16 +76,52 @@ export function AssistantModal({ topic, onClose }: Props) {
     setThread(t => [...t, { role: 'user', text: intent.question }, { role: 'assistant', intent }]);
   }
 
-  function runSearch(raw: string) {
+  /** Построить ответ при отсутствии уверенного совпадения: подсказки или фолбэк. */
+  function buildNoMatch(q: string, scored: ScoredIntent[]): ThreadItem {
+    const suggestions = scored
+      .filter(s => s.score >= FAQ_SCORE_WEAK)
+      .slice(0, 3)
+      .map(s => s.intent);
+    return suggestions.length
+      ? { role: 'assistant-suggest', query: q, suggestions }
+      : { role: 'assistant-empty', query: q };
+  }
+
+  /** Заменить последний элемент треда (плейсхолдер «печатает…») на результат. */
+  function replaceLast(item: ThreadItem) {
+    setThread(t => (t.length ? [...t.slice(0, -1), item] : [item]));
+  }
+
+  async function runSearch(raw: string) {
     const q = raw.trim();
-    if (!q) return;
-    const results = searchFaq(q);
+    if (!q || busy) return;
     setQuery('');
-    if (results.length) {
-      setThread(t => [...t, { role: 'user', text: q }, { role: 'assistant', intent: results[0] }]);
-    } else {
-      setThread(t => [...t, { role: 'user', text: q }, { role: 'assistant-empty', query: q }]);
+    const scored = searchFaqScored(q);
+
+    // 1. Уверенное локальное совпадение — отвечаем мгновенно, без LLM.
+    if (scored[0] && scored[0].score >= FAQ_SCORE_STRONG) {
+      setThread(t => [...t, { role: 'user', text: q }, { role: 'assistant', intent: scored[0].intent }]);
+      return;
     }
+
+    // 2. LLM-маршрутизатор (если включён): понимает свободные формулировки.
+    if (aiEnabled) {
+      setThread(t => [...t, { role: 'user', text: q }, { role: 'thinking' }]);
+      setBusy(true);
+      try {
+        const { intentId } = await askAssistant(q, INTENT_CATALOG);
+        const intent = intentId ? getIntentById(intentId) : undefined;
+        replaceLast(intent ? { role: 'assistant', intent } : buildNoMatch(q, scored));
+      } catch {
+        replaceLast(buildNoMatch(q, scored));
+      } finally {
+        setBusy(false);
+      }
+      return;
+    }
+
+    // 3. Без LLM — подсказки по близким темам либо фолбэк на поддержку.
+    setThread(t => [...t, { role: 'user', text: q }, buildNoMatch(q, scored)]);
   }
 
   function runAction(item: { action: import('../../deeplinks').DeepLinkAction }) {
@@ -163,6 +213,36 @@ export function AssistantModal({ topic, onClose }: Props) {
                 </div>
               );
             }
+            if (item.role === 'thinking') {
+              return (
+                <div key={idx} className="asstMsg asstMsgBot">
+                  <div className="asstBubble asstThinking">
+                    <span className="asstDot" /><span className="asstDot" /><span className="asstDot" />
+                  </div>
+                </div>
+              );
+            }
+            if (item.role === 'assistant-suggest') {
+              return (
+                <div key={idx} className="asstMsg asstMsgBot">
+                  <div className="asstBubble">
+                    <p>Не нашёл точного ответа на «{item.query}». Возможно, вы имели в виду:</p>
+                    <div className="asstChips asstSuggest">
+                      {item.suggestions.map(s => (
+                        <button key={s.id} className="asstChip" onClick={() => answerIntent(s)}>
+                          {s.question}
+                        </button>
+                      ))}
+                    </div>
+                    <div className="asstActions">
+                      <button className="asstActionBtn" onClick={openSupport}>
+                        Ничего из этого — в поддержку
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              );
+            }
             if (item.role === 'assistant-empty') {
               return (
                 <div key={idx} className="asstMsg asstMsgBot">
@@ -216,7 +296,7 @@ export function AssistantModal({ topic, onClose }: Props) {
               value={query}
               onChange={e => setQuery(e.target.value)}
             />
-            <button className="asstSend" type="submit" disabled={!query.trim()} title="Спросить">
+            <button className="asstSend" type="submit" disabled={!query.trim() || busy} title="Спросить">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
                 <line x1="22" y1="2" x2="11" y2="13" /><polygon points="22 2 15 22 11 13 2 9 22 2" />
               </svg>
