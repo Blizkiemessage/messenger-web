@@ -31,6 +31,7 @@ db.exec(`
     email TEXT UNIQUE,
     password_hash TEXT,
     display_name TEXT NOT NULL DEFAULT '',
+    avatar_url TEXT,
     created_at INTEGER NOT NULL,
     last_seen_at INTEGER NOT NULL
   );
@@ -180,6 +181,21 @@ db.exec(`
   );
 `);
 
+db.exec(`
+  CREATE TABLE friends (
+    user_a_id TEXT NOT NULL, user_b_id TEXT NOT NULL, created_at INTEGER NOT NULL DEFAULT 0,
+    PRIMARY KEY (user_a_id, user_b_id)
+  );
+  CREATE TABLE friend_requests (
+    from_user_id TEXT NOT NULL, to_user_id TEXT NOT NULL, created_at INTEGER NOT NULL DEFAULT 0,
+    PRIMARY KEY (from_user_id, to_user_id)
+  );
+  CREATE TABLE invite_tokens (
+    token TEXT PRIMARY KEY, inviter_id TEXT NOT NULL, revoked INTEGER NOT NULL DEFAULT 0,
+    used_count INTEGER NOT NULL DEFAULT 0, created_at INTEGER NOT NULL, last_used_at INTEGER
+  );
+`);
+
 // ── Inject mocks into module cache before services are required ───────────────
 function mockModule(relPath, exports) {
   const resolved = require.resolve(relPath);
@@ -204,9 +220,9 @@ const { setChatBackground }                 = require('../src/services/chatServi
 const NOW = Date.now();
 const ALICE_HASH = bcrypt.hashSync('SecurePass1!', 10);
 
-db.prepare('INSERT INTO users VALUES (?,?,?,?,?,?,?)').run(['alice','alice',null,ALICE_HASH,'Alice',NOW,NOW]);
-db.prepare('INSERT INTO users VALUES (?,?,?,?,?,?,?)').run(['bob',  'bob',  null,null,      'Bob',  NOW,NOW]);
-db.prepare('INSERT INTO users VALUES (?,?,?,?,?,?,?)').run(['carol','carol',null,null,      'Carol',NOW,NOW]);
+db.prepare('INSERT INTO users (id,username,email,password_hash,display_name,created_at,last_seen_at) VALUES (?,?,?,?,?,?,?)').run(['alice','alice',null,ALICE_HASH,'Alice',NOW,NOW]);
+db.prepare('INSERT INTO users (id,username,email,password_hash,display_name,created_at,last_seen_at) VALUES (?,?,?,?,?,?,?)').run(['bob',  'bob',  null,null,      'Bob',  NOW,NOW]);
+db.prepare('INSERT INTO users (id,username,email,password_hash,display_name,created_at,last_seen_at) VALUES (?,?,?,?,?,?,?)').run(['carol','carol',null,null,      'Carol',NOW,NOW]);
 
 db.prepare('INSERT INTO chats (id,type,name,created_at) VALUES (?,?,?,?)').run(['chat-direct','direct',null,    NOW]);
 db.prepare('INSERT INTO chats (id,type,name,created_at) VALUES (?,?,?,?)').run(['chat-group', 'group', 'Test',  NOW]);
@@ -951,5 +967,50 @@ describe('daily prompt — config, delivery, answers, streak', () => {
       seen.add(r.picked.key); bag = r.newBag;
     }
     assert.equal(seen.size, 3);
+  });
+});
+
+// ── Invite tokens (этап B) ────────────────────────────────────────────────────
+describe('invite tokens (этап B)', () => {
+  const inv = require('../src/services/inviteService');
+
+  test('getOrCreateMyToken стабилен; regenerate отзывает старую', () => {
+    const t1 = inv.getOrCreateMyToken('alice');
+    const t2 = inv.getOrCreateMyToken('alice');
+    assert.equal(t1.token, t2.token);
+    const t3 = inv.regenerateMyToken('alice');
+    assert.notEqual(t3.token, t1.token);
+    assert.equal(inv.getOrCreateMyToken('alice').token, t3.token);
+  });
+
+  test('resolveToken возвращает пригласившего; невалидный → 404', () => {
+    const { token } = inv.getOrCreateMyToken('bob');
+    assert.equal(inv.resolveToken(token).inviter.id, 'bob');
+    assert.throws(() => inv.resolveToken('nope'), (e) => e.status === 404);
+  });
+
+  test('acceptToken: self → {self}; иначе друзья + чат + used_count++', () => {
+    const { token } = inv.getOrCreateMyToken('carol');
+    assert.deepEqual(inv.acceptToken(token, 'carol'), { self: true });
+
+    const res = inv.acceptToken(token, 'alice');
+    assert.ok(res.chatId);
+    assert.equal(res.inviterId, 'carol');
+
+    const fr = db.prepare(
+      'SELECT 1 FROM friends WHERE (user_a_id=? AND user_b_id=?) OR (user_a_id=? AND user_b_id=?)'
+    ).get(['alice', 'carol', 'carol', 'alice']);
+    assert.ok(fr);
+
+    assert.equal(db.prepare('SELECT used_count FROM invite_tokens WHERE token=?').get(token).used_count, 1);
+
+    const res2 = inv.acceptToken(token, 'alice');
+    assert.equal(res2.chatId, res.chatId); // тот же ЛС
+  });
+
+  test('acceptToken: заблокирован → 403', () => {
+    db.prepare('INSERT OR IGNORE INTO blocked_users (blocker_id, blocked_id) VALUES (?, ?)').run(['bob', 'alice']);
+    const { token } = inv.getOrCreateMyToken('bob');
+    assert.throws(() => inv.acceptToken(token, 'alice'), (e) => e.status === 403);
   });
 });

@@ -4,9 +4,8 @@
  * приветствие, визуальное представление возможностей и призывы к действию
  * (пригласить близких / найти друзей / создать группу) через deep-links.
  */
-import { useState } from 'react';
 import { useDeepLinkStore } from '../../store/useDeepLinkStore';
-import { shareApp, type DeepLinkAction } from '../../deeplinks';
+import { type DeepLinkAction } from '../../deeplinks';
 
 const FEATURES: { icon: string; title: string; desc: string }[] = [
   { icon: '💬', title: 'Личные и групповые чаты', desc: 'Общайтесь один-на-один и всей семьёй' },
@@ -19,16 +18,7 @@ const FEATURES: { icon: string; title: string; desc: string }[] = [
 
 export function OnboardingWelcome() {
   const open = useDeepLinkStore(s => s.open);
-  const [toast, setToast] = useState<string | null>(null);
   const go = (action: DeepLinkAction) => open(action);
-
-  async function invite() {
-    const r = await shareApp();
-    if (r === 'copied') {
-      setToast('Ссылка скопирована');
-      setTimeout(() => setToast(null), 2500);
-    }
-  }
 
   return (
     <div className="onbWrap">
@@ -39,11 +29,10 @@ export function OnboardingWelcome() {
           Тёплое место для общения с самыми близкими. Пригласите семью и друзей — и начните.
         </p>
         <div className="onbCtas">
-          <button className="onbCta onbCtaPrimary" onClick={invite}>Пригласить близких</button>
+          <button className="onbCta onbCtaPrimary" onClick={() => go({ type: 'invite' })}>Пригласить близких</button>
           <button className="onbCta" onClick={() => go({ type: 'find-friends' })}>Найти друзей</button>
           <button className="onbCta" onClick={() => go({ type: 'create-group' })}>Создать группу</button>
         </div>
-        {toast && <div className="onbToast">{toast}</div>}
       </div>
 
       <div className="onbGrid">

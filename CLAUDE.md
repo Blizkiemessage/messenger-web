@@ -24,13 +24,15 @@ backend/src/
   index.js          # точка входа: регистрация всех роутов, intervals (доставка отложенных сообщений и т.п.)
   config/           # env, БД, почта
   crypto/aes.js     # AES-256-GCM шифрование текста сообщений (ключ MESSAGE_ENCRYPTION_KEY)
-  db/versions/      # миграции 001–012 (вся схема БД здесь; новая таблица = новый файл миграции)
+  db/versions/      # миграции 001–013 (вся схема БД здесь; новая таблица = новый файл миграции)
   middleware/       # auth.js (JWT), errorHandler.js, rateLimits.js, csrfOrigin.js (Origin-проверка мутаций)
   routes/           # 22 файла — REST API, имя файла = префикс (auth, users, chats, messages, upload,
                     #   admin, friends, support, polls, push, search, sessions, linkPreview,
                     #   sticker-packs, gif, totp, calls, notes, dailyPrompts, folders, health, export, webauthn).
                     #   dailyPrompts.js — «Вопрос дня» (под /chats/:id/daily-prompt): конфиг, свои
                     #     вопросы, архив инстансов, ответы (текст/гс/кружок/медиа), ask-now.
+                    #   invites.js — invite-token (постоянная личная ссылка): /invites/me (+QR),
+                    #     /:token/resolve (публ.), /:token/accept (друзья+ЛС); сервис inviteService.
                     #   admin.js — оркестратор: login + auth+isAdmin + монтирует под-роутеры
                     #     admin/* (stats, users, chats, moderation, stickerRepair, diagnostics);
                     #     публичные URL не менялись.
@@ -129,6 +131,8 @@ web/src/
 4. Журнал держать не длиннее ~40 строк: старые записи группировать в одну строку-сводку.
 
 ## Журнал изменений
+
+- 2026-06-24 | feature/fullstack | Invite-token (этап B) — двигатель роста. Постоянная личная многоразовая ссылка + QR. Backend: миграция 013 `invite_tokens`, `services/inviteService.js` (getOrCreateMyToken/regenerate/resolve/accept; accept = мгновенно друзья + создать/найти ЛС, namеренно без getChatById для тестируемости), `routes/invites.js` (resolve публичный; me/regenerate/accept под auth; QR через `qrcode`; обогащение чата + socket `chat-created` пригласившему в роуте), монтаж `/invites` в index.js. Фронт: `api/invites.ts`, `modals/InviteModal` (ссылка/QR/копировать/поделиться/счётчик/обновить), вход из меню профиля (SidebarBottom «Пригласить друзей») и онбординга (CTA → deep-link `invite`), флаг `useAppStore.showInvite`. Приём `?invite=` в App.tsx (залогинен→accept+ЛС; гость→баннер на AuthScreen + accept после входа). +4 backend-теста (102 зелёных), сборка strict tsc+vite зелёная; полный флоу (создать/resolve/accept) проверен на реальной БД + InviteModal в preview. v1 = постоянная личная / сразу друзья / только ЛС (детали и остаток — ROADMAP).
 
 - 2026-06-24 | feature/web | Deep-links (фундамент) + онбординг (этап A). Deep-links: `deeplinks.ts` (тип `DeepLinkAction`, `parseDeepLink('blz:<type>?k=v')`, `isChatScoped`, `shareApp`) + `store/useDeepLinkStore` (pending/open/consume). Глобальные действия — раннер-эффект в `App.tsx` (open-chat/profile-settings/appearance/create-group/find-friends→фокус `#blzSearch`/invite→Web Share); чат-привязанные — раннер в `ChatArea` (chat-settings+section/daily-archive/notes/media: переключает чат и открывает панель). `blz:`-ссылки кликабельны в `markdown.tsx`. `ChatSettingsModal` теперь принимает initialSection из deep-link. Онбординг: `chat/OnboardingWelcome` (приветствие + 6 карточек-фич + CTA через deep-links/share) рендерится из `EmptyState`, когда нет реальных чатов (кроме saved). Стили `onb*`/`bubbleActionLink` в слое «Аврора». Сборка strict tsc+vite зелёная; онбординг проверен в preview (рендер + CTA). Подробности и остаток (опц. авто-посев «Избранного») — в ROADMAP. Бэкенд не затронут.
 

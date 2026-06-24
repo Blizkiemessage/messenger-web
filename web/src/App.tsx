@@ -3,7 +3,7 @@
  * ✅ Updated: closeGroup, transferAdmin wired to GroupInfoModal
  * ✅ Updated: admin leaving a group → closes group instead of removing chat
  */
-import { useEffect, lazy, Suspense, type CSSProperties } from 'react';
+import { useEffect, useState, lazy, Suspense, type CSSProperties } from 'react';
 import { resolveChatBgCss } from './utils/appBackground';
 import './app.css';
 
@@ -12,7 +12,8 @@ import { useChatsStore, selectActiveChat } from './store/useChatsStore';
 import { useAppStore } from './store/useAppStore';
 import { useFolderStore } from './store/useFolderStore';
 import { useDeepLinkStore } from './store/useDeepLinkStore';
-import { isChatScoped, shareApp } from './deeplinks';
+import { isChatScoped } from './deeplinks';
+import { acceptInvite, resolveInvite, type InviteInviter } from './api/invites';
 import { useSocket } from './hooks/useSocket';
 import { useMessages } from './hooks/useMessages';
 
@@ -32,6 +33,7 @@ const UserProfileModal     = lazy(() => import('./components/modals/UserProfileM
 const GroupInfoModal       = lazy(() => import('./components/modals/GroupInfoModal').then(m => ({ default: m.GroupInfoModal })));
 const ProfileSettingsModal = lazy(() => import('./components/modals/ProfileSettingsModal').then(m => ({ default: m.ProfileSettingsModal })));
 const CreateGroupModal     = lazy(() => import('./components/modals/CreateGroupModal').then(m => ({ default: m.CreateGroupModal })));
+const InviteModal          = lazy(() => import('./components/modals/InviteModal').then(m => ({ default: m.InviteModal })));
 
 import { deleteAccount as apiDeleteAccount } from './api/auth';
 import { getMe } from './api/users';
@@ -67,6 +69,8 @@ export default function App() {
   const setShowGroupInfo = useAppStore(s => s.setShowGroupInfo);
   const showDeleteConfirm = useAppStore(s => s.showDeleteConfirm);
   const setShowDeleteConfirm = useAppStore(s => s.setShowDeleteConfirm);
+  const showInvite = useAppStore(s => s.showInvite);
+  const setShowInvite = useAppStore(s => s.setShowInvite);
   const viewUserId = useAppStore(s => s.viewUserId);
   const setViewUserId = useAppStore(s => s.setViewUserId);
   const chatCtxMenu = useAppStore(s => s.chatCtxMenu);
@@ -117,10 +121,37 @@ export default function App() {
         el?.focus(); el?.scrollIntoView({ block: 'nearest' });
         break;
       }
-      case 'invite':           shareApp(); break;
+      case 'invite':           useAppStore.getState().setShowInvite(true); break;
     }
     useDeepLinkStore.getState().consume();
   }, [pendingDeepLink]);
+
+  // ── Invite-token: приём ссылки `?invite=<token>` ─────────────────────────────
+  const [invitedBy, setInvitedBy] = useState<InviteInviter | null>(null);
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    let token = params.get('invite');
+    if (token) sessionStorage.setItem('blz.invite', token);
+    else token = sessionStorage.getItem('blz.invite');
+    if (!token) return;
+
+    const clearUrl = () => window.history.replaceState({}, '', window.location.pathname);
+
+    if (me) {
+      acceptInvite(token)
+        .then(res => {
+          if (res?.chat) {
+            useChatsStore.getState().upsertChat(res.chat);
+            useChatsStore.getState().setActiveChatId(res.chat.id);
+          }
+        })
+        .catch(() => { /* недействительна/истекла — тихо */ })
+        .finally(() => { sessionStorage.removeItem('blz.invite'); clearUrl(); });
+    } else {
+      // Не вошли — показать приветственный баннер на экране входа
+      resolveInvite(token).then(r => setInvitedBy(r.inviter)).catch(() => {});
+    }
+  }, [me]);
 
   // Refresh user profile on mount — syncs settings changed on other devices
   // Also validates that the session cookie is still valid; clears local state on 401
@@ -138,6 +169,7 @@ export default function App() {
         theme={theme}
         onThemeToggle={toggleTheme}
         onAuthenticated={(u, sid) => setSession(u, sid)}
+        invitedBy={invitedBy}
       />
     );
   }
@@ -178,6 +210,10 @@ export default function App() {
       <Suspense fallback={null}>
         {showCreateGroup && (
           <CreateGroupModal onClose={() => setShowCreateGroup(false)} />
+        )}
+
+        {showInvite && (
+          <InviteModal onClose={() => setShowInvite(false)} />
         )}
 
         {showProfileSettings && (

@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { type User } from '../../types';
+import { type InviteInviter } from '../../api/invites';
 import { type Theme } from '../../utils/theme';
 import { ThemeIcon } from '../ui/icons/ThemeIcon';
 import { LogoIcon } from '../ui/icons/LogoIcon';
@@ -30,6 +31,7 @@ interface Props {
   theme: Theme;
   onThemeToggle: () => void;
   onAuthenticated: (user: User, sessionId: string | null) => void;
+  invitedBy?: InviteInviter | null;
 }
 
 const viewTitles: Record<AuthView, string> = {
@@ -38,10 +40,13 @@ const viewTitles: Record<AuthView, string> = {
   reset:  'Новый пароль',
 };
 
-export function AuthScreen({ theme, onThemeToggle, onAuthenticated }: Props) {
+export function AuthScreen({ theme, onThemeToggle, onAuthenticated, invitedBy }: Props) {
   const [tab,         setTab]         = useState<AuthTab>('login');
   const [view,        setView]        = useState<AuthView>('tabs');
   const [resetParams, setResetParams] = useState<ResetParams | null>(null);
+
+  // Пришли по приглашению → подсказываем регистрацию
+  useEffect(() => { if (invitedBy) setTab('register'); }, [invitedBy]);
 
   // Detect ?rid=...&tok=... on mount (user clicked email link)
   useEffect(() => {
@@ -64,6 +69,19 @@ export function AuthScreen({ theme, onThemeToggle, onAuthenticated }: Props) {
       <button className="authThemeBtn" onClick={onThemeToggle}>
         <ThemeIcon theme={theme} />
       </button>
+      {invitedBy && (
+        <div className="authInviteBanner">
+          <div className="authInviteAvatar">
+            {invitedBy.avatar_url
+              ? <img src={invitedBy.avatar_url} alt="" />
+              : <span>{(invitedBy.display_name || invitedBy.username || '?').charAt(0).toUpperCase()}</span>}
+          </div>
+          <div className="authInviteText">
+            <b>{invitedBy.display_name || invitedBy.username}</b> приглашает вас в Blizkie
+            <span className="authInviteHint">Зарегистрируйтесь — и вы сразу станете контактами</span>
+          </div>
+        </div>
+      )}
       <div className="authCard">
         <div className="authLogo"><LogoIcon /></div>
         <div className="authTitle">{viewTitles[view]}</div>

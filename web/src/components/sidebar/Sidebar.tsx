@@ -69,6 +69,7 @@ export function Sidebar() {
   };
   const setShowProfileSettings = useAppStore(s => s.setShowProfileSettings);
   const setShowCreateGroup = useAppStore(s => s.setShowCreateGroup);
+  const setShowInvite = useAppStore(s => s.setShowInvite);
   const setChatCtxMenu = useAppStore(s => s.setChatCtxMenu);
 
   const [showSupport, setShowSupport] = useState(false);
@@ -136,6 +137,10 @@ export function Sidebar() {
         onToggleProfile={toggleProfile}
         onOpenSettings={() => {
           setShowProfileSettings(true);
+          useAppStore.getState().setShowProfile(false);
+        }}
+        onOpenInvite={() => {
+          setShowInvite(true);
           useAppStore.getState().setShowProfile(false);
         }}
         onOpenSupport={() => {

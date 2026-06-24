@@ -786,3 +786,62 @@
   .onbCta, .onbCard { transition: none; }
   .onbToast { animation: none; }
 }
+
+/* ─── Модалка приглашения (invite-token) ─────────────────────────────────────── */
+.inviteCard { width: min(420px, 100%); padding: 18px 18px 16px; display: flex; flex-direction: column; gap: 0; }
+.inviteHeader { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+.inviteTitle { font-size: 17px; font-weight: 700; }
+.inviteSub { font-size: 13px; line-height: 1.45; color: var(--muted); margin: 0 0 14px; }
+.inviteError { color: var(--danger); font-size: 13px; margin-bottom: 10px; }
+.inviteLoading { color: var(--muted); font-size: 14px; padding: 20px 0; text-align: center; }
+.inviteQrWrap {
+  display: flex; justify-content: center; margin-bottom: 14px;
+  padding: 12px; border-radius: 16px; background: #fff; align-self: center;
+}
+.inviteQr { display: block; border-radius: 6px; }
+.inviteLinkRow { display: flex; gap: 8px; margin-bottom: 12px; }
+.inviteLinkInput {
+  flex: 1; min-width: 0; padding: 10px 12px; border-radius: 10px;
+  background: var(--bg); border: 1.5px solid var(--border); color: var(--text);
+  font-size: 13px; font-family: inherit;
+}
+.inviteLinkInput:focus { border-color: var(--accent); outline: none; }
+.inviteCopyBtn {
+  flex-shrink: 0; padding: 10px 14px; border-radius: 10px;
+  background: var(--panel); border: 1px solid var(--border); color: var(--text);
+  font-weight: 600; font-size: 13px; cursor: pointer;
+}
+.inviteCopyBtn:hover { border-color: var(--accent-border); }
+.inviteCount {
+  font-size: 13px; color: var(--accent); font-weight: 600; text-align: center; margin-bottom: 12px;
+}
+.inviteShareBtn {
+  width: 100%; padding: 12px; border-radius: 12px;
+  background: var(--grad-accent); color: #fff; font-weight: 700; border: none; cursor: pointer;
+  box-shadow: var(--glow);
+}
+.inviteRegen { display: flex; flex-direction: column; align-items: center; gap: 8px; margin-top: 14px; }
+.inviteRegenLink { background: none; border: none; cursor: pointer; font-size: 12.5px; color: var(--muted); }
+.inviteRegenLink:hover { color: var(--danger); }
+.inviteRegenWarn { font-size: 12.5px; color: var(--muted); text-align: center; }
+.inviteRegenActions { display: flex; gap: 8px; }
+.inviteRegenCancel { padding: 7px 14px; border-radius: 9px; background: var(--panel); border: 1px solid var(--border); color: var(--text); font-weight: 600; cursor: pointer; font-size: 13px; }
+.inviteRegenConfirm { padding: 7px 14px; border-radius: 9px; background: var(--danger); color: #fff; border: none; font-weight: 600; cursor: pointer; font-size: 13px; }
+.inviteRegenConfirm:disabled, .inviteRegenCancel:disabled { opacity: .5; cursor: not-allowed; }
+
+/* ─── Баннер приглашения на экране входа ──────────────────────────────────────── */
+.authInviteBanner {
+  display: flex; align-items: center; gap: 12px;
+  width: min(380px, 100%); margin: 0 auto 14px; padding: 12px 14px;
+  border-radius: 14px;
+  background: linear-gradient(150deg, color-mix(in srgb, var(--accent) 20%, var(--card)) 0%, var(--card) 80%);
+  border: 1px solid var(--accent-border); box-shadow: var(--glow);
+}
+.authInviteAvatar {
+  flex-shrink: 0; width: 44px; height: 44px; border-radius: 50%; overflow: hidden;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--grad-accent); color: #fff; font-weight: 700; font-size: 18px;
+}
+.authInviteAvatar img { width: 100%; height: 100%; object-fit: cover; }
+.authInviteText { font-size: 14px; line-height: 1.35; color: var(--text); }
+.authInviteHint { display: block; font-size: 12px; color: var(--muted); margin-top: 2px; }
