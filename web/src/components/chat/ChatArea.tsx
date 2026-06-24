@@ -515,6 +515,8 @@ export function ChatArea() {
         break;
       case 'notes':  setShowNotes(true); break;
       case 'media':  setShowMediaModal(true); break;
+      case 'ai-summary': setShowSummary(true); break;
+      case 'scheduled':  setShowScheduledList(true); break;
     }
     useDeepLinkStore.getState().consume();
   }, [pendingDeepLink]); // eslint-disable-line

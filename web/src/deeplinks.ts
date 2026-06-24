@@ -28,9 +28,11 @@ export type DeepLinkAction =
   | { type: 'chat-settings'; chatId?: string; section?: 'appearance' | 'daily' }
   | { type: 'daily-archive'; chatId?: string }
   | { type: 'notes'; chatId?: string }
-  | { type: 'media'; chatId?: string };
+  | { type: 'media'; chatId?: string }
+  | { type: 'ai-summary'; chatId?: string }   // открыть AI-сводку активного чата
+  | { type: 'scheduled'; chatId?: string };   // открыть отложенные сообщения чата
 
-const CHAT_SCOPED = new Set(['chat-settings', 'daily-archive', 'notes', 'media']);
+const CHAT_SCOPED = new Set(['chat-settings', 'daily-archive', 'notes', 'media', 'ai-summary', 'scheduled']);
 
 /** true → действие исполняет ChatArea (требует чат); false → App (глобальное). */
 export function isChatScoped(a: DeepLinkAction): boolean {
@@ -60,6 +62,8 @@ export function parseDeepLink(href: string): DeepLinkAction | null {
     case 'daily-archive':   return { type, chatId };
     case 'notes':           return { type, chatId };
     case 'media':           return { type, chatId };
+    case 'ai-summary':      return { type, chatId };
+    case 'scheduled':       return { type, chatId };
     default:                return null;
   }
 }
