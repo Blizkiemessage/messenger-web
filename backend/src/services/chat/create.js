@@ -4,7 +4,32 @@
  */
 const { v4: uuidv4 } = require('uuid');
 const { getDb } = require('../../config/database');
+const { encrypt } = require('../../crypto/aes');
 const { getChatById } = require('./queries');
+
+// Приветственные сообщения «Избранного» — обычные (не системные) сообщения от
+// самого пользователя, с кликабельными deep-link'ами (`blz:` рендерится в markdown).
+const SAVED_WELCOME = [
+  '👋 Это ваше «Избранное» — личное пространство только для вас: сохраняйте заметки, ссылки, файлы и идеи.',
+  'С чего начать в Blizkie:\n- [Пригласить близких](blz:invite)\n- [Найти друзей](blz:find-friends)\n- [Создать группу](blz:create-group)\n- [Настроить внешний вид](blz:appearance)',
+  '🌙 В любом чате можно включить «Вопрос дня», поменять фон, отправлять голосовые, видео-кружки и отложенные сообщения. Приятного общения! 💜',
+];
+
+/**
+ * Засеять приветственные сообщения в только что созданный saved-чат.
+ * Вызывается один раз — из ветки создания getOrCreateSavedChat (идемпотентно).
+ * Экспортируется отдельно для тестируемости.
+ */
+function seedSavedWelcome(db, chatId, userId, baseTime = Date.now()) {
+  const stmt = db.prepare(
+    `INSERT INTO messages (id, chat_id, sender_id, ciphertext, iv, auth_tag, created_at, is_system, is_delivered)
+     VALUES (?, ?, ?, ?, ?, ?, ?, 0, 1)`
+  );
+  SAVED_WELCOME.forEach((text, i) => {
+    const { ciphertext, iv, authTag } = encrypt(text);
+    stmt.run([uuidv4(), chatId, userId, ciphertext, iv, authTag, baseTime + i]);
+  });
+}
 
 function createGroupChat(name, creatorId, memberIds, description) {
   const db = getDb();
@@ -99,6 +124,7 @@ function getOrCreateSavedChat(userId) {
     db.prepare(
       'INSERT INTO chat_members (chat_id, user_id, joined_at) VALUES (?, ?, ?)'
     ).run([chatId, userId, now]);
+    seedSavedWelcome(db, chatId, userId, now);
     db.exec('COMMIT');
   } catch (e) {
     db.exec('ROLLBACK');
@@ -108,4 +134,4 @@ function getOrCreateSavedChat(userId) {
   return getChatById(chatId, userId);
 }
 
-module.exports = { createGroupChat, getOrCreateDirectChat, getOrCreateSavedChat };
+module.exports = { createGroupChat, getOrCreateDirectChat, getOrCreateSavedChat, seedSavedWelcome };

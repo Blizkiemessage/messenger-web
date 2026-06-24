@@ -39,6 +39,7 @@ import { deleteAccount as apiDeleteAccount } from './api/auth';
 import { getMe } from './api/users';
 import {
   createDirectChat,
+  getSavedChat,
   leaveGroup as apiLeaveGroup,
   deleteDirectChat as apiDeleteDirectChat,
   removeGroupMember as apiRemoveGroupMember,
@@ -113,6 +114,17 @@ export default function App() {
     const app = useAppStore.getState();
     switch (a.type) {
       case 'open-chat':        useChatsStore.getState().setActiveChatId(a.chatId); break;
+      case 'open-saved': {
+        const existing = useChatsStore.getState().chats.find(c => c.type === 'saved');
+        if (existing) { useChatsStore.getState().setActiveChatId(existing.id); }
+        else {
+          getSavedChat().then(chat => {
+            useChatsStore.getState().upsertChat(chat);
+            useChatsStore.getState().setActiveChatId(chat.id);
+          }).catch(() => {});
+        }
+        break;
+      }
       case 'profile-settings':
       case 'appearance':       app.setShowProfileSettings(true); break;
       case 'create-group':     app.setShowCreateGroup(true); break;

@@ -1014,3 +1014,18 @@ describe('invite tokens (этап B)', () => {
     assert.throws(() => inv.acceptToken(token, 'alice'), (e) => e.status === 403);
   });
 });
+
+// ── Auto-seed «Избранного» (этап A) ───────────────────────────────────────────
+describe('saved chat welcome seed', () => {
+  const { seedSavedWelcome } = require('../src/services/chat/create');
+
+  test('seedSavedWelcome вставляет приветственные сообщения (не системные, расшифровываются, с deep-link)', () => {
+    seedSavedWelcome(db, 'chat-saved-seed', 'alice', NOW);
+    const rows = db.prepare('SELECT * FROM messages WHERE chat_id = ? ORDER BY created_at ASC').all('chat-saved-seed');
+    assert.ok(rows.length >= 3);
+    assert.ok(rows.every(r => r.is_system === 0 && r.sender_id === 'alice' && r.is_delivered === 1));
+    const texts = rows.map(r => decrypt({ ciphertext: r.ciphertext, iv: r.iv, authTag: r.auth_tag }));
+    assert.ok(texts.some(t => t.includes('Избранное')));
+    assert.ok(texts.some(t => t.includes('blz:invite')));
+  });
+});

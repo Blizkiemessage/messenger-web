@@ -47,8 +47,8 @@ export function OnboardingWelcome() {
         ))}
       </div>
 
-      <button className="onbLink" onClick={() => go({ type: 'appearance' })}>
-        Настроить внешний вид →
+      <button className="onbLink" onClick={() => go({ type: 'open-saved' })}>
+        Как пользоваться приложением →
       </button>
     </div>
   );
