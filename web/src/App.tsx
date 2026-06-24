@@ -3,7 +3,7 @@
  * ✅ Updated: closeGroup, transferAdmin wired to GroupInfoModal
  * ✅ Updated: admin leaving a group → closes group instead of removing chat
  */
-import { useEffect, useState, lazy, Suspense, type CSSProperties } from 'react';
+import { useEffect, useState, useRef, lazy, Suspense, type CSSProperties } from 'react';
 import { resolveChatBgCss } from './utils/appBackground';
 import './app.css';
 
@@ -128,29 +128,43 @@ export default function App() {
 
   // ── Invite-token: приём ссылки `?invite=<token>` ─────────────────────────────
   const [invitedBy, setInvitedBy] = useState<InviteInviter | null>(null);
+  const inviteDoneRef = useRef(false);
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    let token = params.get('invite');
-    if (token) sessionStorage.setItem('blz.invite', token);
-    else token = sessionStorage.getItem('blz.invite');
+    const urlToken = params.get('invite');
+    const token = urlToken || sessionStorage.getItem('blz.invite');
     if (!token) return;
 
-    const clearUrl = () => window.history.replaceState({}, '', window.location.pathname);
-
-    if (me) {
-      acceptInvite(token)
-        .then(res => {
-          if (res?.chat) {
-            useChatsStore.getState().upsertChat(res.chat);
-            useChatsStore.getState().setActiveChatId(res.chat.id);
-          }
-        })
-        .catch(() => { /* недействительна/истекла — тихо */ })
-        .finally(() => { sessionStorage.removeItem('blz.invite'); clearUrl(); });
-    } else {
-      // Не вошли — показать приветственный баннер на экране входа
-      resolveInvite(token).then(r => setInvitedBy(r.inviter)).catch(() => {});
+    // Токен из URL сохраняем и сразу чистим адрес (на случай перезагрузки/SW).
+    if (urlToken) {
+      sessionStorage.setItem('blz.invite', token);
+      window.history.replaceState({}, '', window.location.pathname);
     }
+
+    if (!me) {
+      // Гость — показываем баннер «X приглашает вас» на экране входа.
+      resolveInvite(token).then(r => setInvitedBy(r.inviter)).catch(() => {});
+      return;
+    }
+
+    if (inviteDoneRef.current) return;
+    inviteDoneRef.current = true;
+    acceptInvite(token)
+      .then(res => {
+        sessionStorage.removeItem('blz.invite');
+        setInvitedBy(null);
+        if (res?.chat) {
+          useChatsStore.getState().upsertChat(res.chat);
+          // Явно открываем ЛС с пригласившим (после восстановления последнего чата).
+          useChatsStore.getState().setActiveChatId(res.chat.id);
+        }
+      })
+      .catch(err => {
+        // 404 — ссылка отозвана/невалидна: не повторяем. Иначе оставляем токен,
+        // чтобы попробовать ещё раз при следующем заходе.
+        inviteDoneRef.current = false;
+        if (err?.status === 404) sessionStorage.removeItem('blz.invite');
+      });
   }, [me]);
 
   // Refresh user profile on mount — syncs settings changed on other devices

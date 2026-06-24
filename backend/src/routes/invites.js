@@ -24,7 +24,9 @@ const limiter = rateLimit({
 });
 
 function buildLink(req, token) {
-  const base = (process.env.APP_URL || req.headers.origin || `${req.protocol}://${req.get('host')}`).replace(/\/+$/, '');
+  // Origin вызывающего фронта приоритетнее APP_URL: ссылка должна вести на
+  // приложение (Vercel), даже если APP_URL указывает на backend.
+  const base = (req.headers.origin || process.env.APP_URL || `${req.protocol}://${req.get('host')}`).replace(/\/+$/, '');
   return `${base}/?invite=${encodeURIComponent(token)}`;
 }
 

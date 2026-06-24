@@ -20,6 +20,21 @@ import { getChats } from '../api/chats';
 // 'all' | 'groups' | 'direct' | 'folder:<id>'
 export type ChatFilter = string;
 
+// Запоминание последнего открытого чата между перезаходами.
+const LAST_CHAT_KEY = 'blz.lastChat';
+const LAST_CHAT_TTL_MS = 15 * 60 * 1000; // 15 минут
+
+/** Вернуть id последнего чата, если метка свежее 15 минут; иначе null. */
+function readLastChatId(): string | null {
+  try {
+    const raw = localStorage.getItem(LAST_CHAT_KEY);
+    if (!raw) return null;
+    const { id, ts } = JSON.parse(raw);
+    if (id && typeof ts === 'number' && Date.now() - ts < LAST_CHAT_TTL_MS) return id;
+  } catch { /* ignore */ }
+  return null;
+}
+
 interface ChatsState {
   chats: Chat[];
   activeChatId: string | null;
@@ -162,7 +177,12 @@ export const useChatsStore = create<ChatsState>((set) => ({
     messages: state.activeChatId === chatId ? [] : state.messages,
   })),
 
-  setActiveChatId: (id) => set({ activeChatId: id, selectedIds: new Set() }),
+  setActiveChatId: (id) => {
+    // Запоминаем последний открытый чат (или его отсутствие) с меткой времени —
+    // при перезаходе в течение 15 минут восстановим, позже — откроем общий список.
+    try { localStorage.setItem(LAST_CHAT_KEY, JSON.stringify({ id, ts: Date.now() })); } catch { /* ignore */ }
+    set({ activeChatId: id, selectedIds: new Set() });
+  },
 
   // ── Messages ───────────────────────────────────────────────────────────────
 
@@ -391,12 +411,17 @@ export const useChatsStore = create<ChatsState>((set) => ({
     set({ loadingChats: true, dataError: null });
     try {
       const list = await getChats();
-      set(state => ({
-        chats: list,
-        loadingChats: false,
-        // Auto-select first chat only if nothing is active
-        activeChatId: state.activeChatId ?? (list.length ? list[0].id : null),
-      }));
+      set(state => {
+        // Восстанавливаем последний открытый чат (если свежее 15 минут и он ещё
+        // существует). НЕ открываем первый чат по умолчанию — иначе приложение
+        // всегда «залипает» на одном диалоге. Иначе — общий список (нет чата).
+        let activeChatId = state.activeChatId;
+        if (!activeChatId) {
+          const last = readLastChatId();
+          if (last && list.some(c => c.id === last)) activeChatId = last;
+        }
+        return { chats: list, loadingChats: false, activeChatId: activeChatId ?? null };
+      });
     } catch (e: any) {
       // Auth errors are transient (race on startup) — don't surface them to the user
       if (e?.status === 401 || e?.status === 403) {
