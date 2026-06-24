@@ -11,6 +11,8 @@ import { useSessionStore } from './store/useSessionStore';
 import { useChatsStore, selectActiveChat } from './store/useChatsStore';
 import { useAppStore } from './store/useAppStore';
 import { useFolderStore } from './store/useFolderStore';
+import { useDeepLinkStore } from './store/useDeepLinkStore';
+import { isChatScoped, shareApp } from './deeplinks';
 import { useSocket } from './hooks/useSocket';
 import { useMessages } from './hooks/useMessages';
 
@@ -98,6 +100,27 @@ export default function App() {
   useEffect(() => {
     if (me) useChatsStore.getState().loadChats();
   }, [me]); // eslint-disable-line
+
+  // ── Deep-links: глобальные действия (чат-привязанные исполняет ChatArea) ──
+  const pendingDeepLink = useDeepLinkStore(s => s.pending);
+  useEffect(() => {
+    if (!pendingDeepLink || isChatScoped(pendingDeepLink)) return;
+    const a = pendingDeepLink;
+    const app = useAppStore.getState();
+    switch (a.type) {
+      case 'open-chat':        useChatsStore.getState().setActiveChatId(a.chatId); break;
+      case 'profile-settings':
+      case 'appearance':       app.setShowProfileSettings(true); break;
+      case 'create-group':     app.setShowCreateGroup(true); break;
+      case 'find-friends': {
+        const el = document.getElementById('blzSearch') as HTMLInputElement | null;
+        el?.focus(); el?.scrollIntoView({ block: 'nearest' });
+        break;
+      }
+      case 'invite':           shareApp(); break;
+    }
+    useDeepLinkStore.getState().consume();
+  }, [pendingDeepLink]);
 
   // Refresh user profile on mount — syncs settings changed on other devices
   // Also validates that the session cookie is still valid; clears local state on 401

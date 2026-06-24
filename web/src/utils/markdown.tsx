@@ -8,6 +8,8 @@
  */
 import { type ReactNode, Fragment } from 'react';
 import type { User } from '../types';
+import { useDeepLinkStore } from '../store/useDeepLinkStore';
+import { parseDeepLink } from '../deeplinks';
 
 export interface MdOptions {
   term?:           string;
@@ -21,7 +23,7 @@ export interface MdOptions {
 // Inline token regex — order matters (most specific first)
 // Groups: 1=bold 2=italic 3=spoiler 4=linkText 5=linkUrl 6=bareUrl 7=mention 8=customEmojiPack 9=customEmojiItem
 const INLINE_RE =
-  /\*\*(.+?)\*\*|_(.+?)_|\|\|(.+?)\|\||\[([^\]\n]+)\]\((https?:\/\/[^\)\n\s]+)\)|(https?:\/\/[^\s<>"'\n]+)|(@\w+)|:([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}):([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}):/gs;
+  /\*\*(.+?)\*\*|_(.+?)_|\|\|(.+?)\|\||\[([^\]\n]+)\]\(((?:https?:\/\/|blz:)[^\)\n\s]+)\)|(https?:\/\/[^\s<>"'\n]+)|(@\w+)|:([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}):([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}):/gs;
 
 interface Token {
   type: 'bold' | 'italic' | 'spoiler' | 'link' | 'url' | 'mention' | 'customEmoji' | 'text';
@@ -91,6 +93,20 @@ function renderTokens(tokens: Token[], opts: MdOptions, keyBase: string): ReactN
         );
       case 'link': {
         const href = tok.url!;
+        // Внутренняя ссылка-действие `blz:...` — диспатчим, не открываем вкладку
+        if (href.startsWith('blz:')) {
+          return (
+            <a key={k} href={href} className="bubbleLink bubbleActionLink"
+              onClick={e => {
+                e.preventDefault();
+                e.stopPropagation();
+                const action = parseDeepLink(href);
+                if (action) useDeepLinkStore.getState().open(action);
+              }}>
+              {tok.text}
+            </a>
+          );
+        }
         return (
           <a key={k} href={href} target="_blank" rel="noopener noreferrer"
             className="bubbleLink" onClick={e => e.stopPropagation()}>

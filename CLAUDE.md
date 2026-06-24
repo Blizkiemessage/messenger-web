@@ -55,9 +55,11 @@ web/src/
   config.ts         # VITE_API_BASE_URL / VITE_SOCKET_URL (дефолт http://localhost:3000)
   types.ts          # общие TS-интерфейсы
   api/              # axios-обёртки, 1 файл = 1 группа эндпоинтов (client.ts — базовый инстанс)
-  store/            # 9 Zustand-сторов: useSessionStore (auth), useChatsStore (чаты+сообщения),
+  store/            # 10 Zustand-сторов: useSessionStore (auth), useChatsStore (чаты+сообщения),
                     #   useAppStore (UI/тема), useCallStore, useStickerStore, useGifStore,
-                    #   useDraftStore, useNotesStore, useFolderStore
+                    #   useDraftStore, useNotesStore, useFolderStore, useDeepLinkStore (deep-links)
+  deeplinks.ts      # модель «ссылок-действий» (blz:<type>?k=v): типы+parse+shareApp.
+                    #   Раннеры: глобальные — в App.tsx, чат-привязанные — в ChatArea
   hooks/useSocket.ts    # ВСЕ подписки на socket-события сервера
   socket/socketClient.ts # подключение + все emit'ы на сервер
   components/
@@ -127,6 +129,8 @@ web/src/
 4. Журнал держать не длиннее ~40 строк: старые записи группировать в одну строку-сводку.
 
 ## Журнал изменений
+
+- 2026-06-24 | feature/web | Deep-links (фундамент) + онбординг (этап A). Deep-links: `deeplinks.ts` (тип `DeepLinkAction`, `parseDeepLink('blz:<type>?k=v')`, `isChatScoped`, `shareApp`) + `store/useDeepLinkStore` (pending/open/consume). Глобальные действия — раннер-эффект в `App.tsx` (open-chat/profile-settings/appearance/create-group/find-friends→фокус `#blzSearch`/invite→Web Share); чат-привязанные — раннер в `ChatArea` (chat-settings+section/daily-archive/notes/media: переключает чат и открывает панель). `blz:`-ссылки кликабельны в `markdown.tsx`. `ChatSettingsModal` теперь принимает initialSection из deep-link. Онбординг: `chat/OnboardingWelcome` (приветствие + 6 карточек-фич + CTA через deep-links/share) рендерится из `EmptyState`, когда нет реальных чатов (кроме saved). Стили `onb*`/`bubbleActionLink` в слое «Аврора». Сборка strict tsc+vite зелёная; онбординг проверен в preview (рендер + CTA). Подробности и остаток (опц. авто-посев «Избранного») — в ROADMAP. Бэкенд не затронут.
 
 - 2026-06-22 | feature/web | «Вопрос дня» (этап 3/3 — лента + тред). Карточка-вопрос в ленте: `chat/DailyPromptCard` (рендерится отдельной веткой в `MessageList` для `is_system && attachment_type==='daily_prompt'`, НЕ через MessageBubble). Тред/архив: `chat/DailyPromptThreadModal` (один компонент, 2 режима: instanceId→тред, null→архив); ответы рендерятся плеерами из `messageBubble/*`, ввод ответа (текст/гс/кружок/медиа) — переиспользованный `Composer` (только value/onChange/onSend/onSendAttachment → чат-фичи скрыты). Backend: `getChatMessages` обогащает daily_prompt-сообщения полем `daily_prompt{instance_id,answer_count}` (как опросы). Realtime: `useSocket` слушает `daily-prompt-answer`/`-deleted` → обновляет счётчик карточки в сторе + шлёт window-событие в открытый тред. Превью в списке чатов — «🌙 Вопрос дня» (ChatItem). Тип `Message.daily_prompt` добавлен. Архив открывается и с карточки, и из секции настроек (onOpenArchive). Проверено локально (стенд на отдельной БD): карточка из сокета и из истории, открытие треда, live-ответ от второго юзера, live-счётчик «1 ответ», стрик. Сборка strict tsc+vite + 98 backend-тестов зелёные. Фича завершена (этапы 1-3).
 

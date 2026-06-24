@@ -186,6 +186,7 @@ export function UserSearch() {
           <path d="M13.5 13.5L17 17" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"/>
         </svg>
         <input
+          id="blzSearch"
           className="searchInput"
           value={query}
           onChange={e => setQuery(e.target.value)}

@@ -18,6 +18,8 @@ const ChatMediaModal     = lazy(() => import('../modals/ChatMediaModal').then(m 
 const ChatSettingsModal = lazy(() => import('../modals/ChatSettingsModal').then(m => ({ default: m.ChatSettingsModal })));
 const DailyPromptThreadModal = lazy(() => import('./DailyPromptThreadModal').then(m => ({ default: m.DailyPromptThreadModal })));
 import { sendChatMessage, reactToMessage, editMessage as apiEditMessage, scheduleMessage } from '../../api/chats';
+import { useDeepLinkStore } from '../../store/useDeepLinkStore';
+import { isChatScoped } from '../../deeplinks';
 import { createPoll, votePoll, retractVote } from '../../api/polls';
 import { emitTypingStart, emitTypingStop, emitCallInvite } from '../../socket/socketClient';
 import { useCallStore } from '../../store/useCallStore';
@@ -489,9 +491,33 @@ export function ChatArea() {
   const [showSummary,    setShowSummary]    = useState(false);
   // ── Chat settings hub (оформление + вопрос дня) ───────────────────────────
   const [showChatSettings, setShowChatSettings] = useState(false);
+  const [chatSettingsSection, setChatSettingsSection] = useState<'appearance' | 'daily'>('appearance');
   // ── «Вопрос дня»: тред ответов / архив ────────────────────────────────────
   const [dpThreadOpen, setDpThreadOpen] = useState(false);
   const [dpThreadInstance, setDpThreadInstance] = useState<string | null>(null);
+
+  // ── Deep-links: чат-привязанные действия (переключает чат + открывает панель) ──
+  const pendingDeepLink = useDeepLinkStore(s => s.pending);
+  useEffect(() => {
+    if (!pendingDeepLink || !isChatScoped(pendingDeepLink)) return;
+    const a = pendingDeepLink;
+    const store = useChatsStore.getState();
+    const targetChatId = ('chatId' in a && a.chatId) ? a.chatId : store.activeChatId;
+    if (targetChatId && targetChatId !== store.activeChatId) store.setActiveChatId(targetChatId);
+    switch (a.type) {
+      case 'chat-settings':
+        setChatSettingsSection(a.section ?? 'appearance');
+        setShowChatSettings(true);
+        break;
+      case 'daily-archive':
+        setDpThreadInstance(null);
+        setDpThreadOpen(true);
+        break;
+      case 'notes':  setShowNotes(true); break;
+      case 'media':  setShowMediaModal(true); break;
+    }
+    useDeepLinkStore.getState().consume();
+  }, [pendingDeepLink]); // eslint-disable-line
 
 
   // ── Drag & drop ───────────────────────────────────────────────────────────
@@ -843,6 +869,7 @@ export function ChatArea() {
           <ChatSettingsModal
             chat={activeChat}
             meId={me.id}
+            initialSection={chatSettingsSection}
             onClose={() => setShowChatSettings(false)}
             onOpenArchive={() => { setShowChatSettings(false); setDpThreadInstance(null); setDpThreadOpen(true); }}
           />
