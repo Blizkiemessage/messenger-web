@@ -95,6 +95,29 @@ export function MessageList({
   // keep loadingMore in a ref so auto-scroll effect reads current value without re-running
   const loadingMoreRef = useRef(loadingMore);
   loadingMoreRef.current = loadingMore;
+  const hasMoreRef = useRef(hasMoreMessages);
+  hasMoreRef.current = hasMoreMessages;
+
+  // ── Центрирование + затухающая подсветка целевого сообщения ──────────────────
+  // Используется для: источников ассистента, перехода из глобального поиска,
+  // поиска по чату (лупа), клика по цитате-ответу. Сообщение центрируется в
+  // экране и на ~2с подсвечивается контурным свечением в цвет темы.
+  const flashTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const focusMessage = useCallback((msgId: string): boolean => {
+    const row = document.querySelector(`[data-msg-id="${msgId}"]`) as HTMLElement | null;
+    if (!row) return false;
+    requestAnimationFrame(() => row.scrollIntoView({ behavior: 'smooth', block: 'center' }));
+    // Перезапуск анимации, если сообщение «фокусируют» повторно.
+    row.classList.remove('msgFlashRow');
+    void row.offsetWidth; // форс-reflow → CSS-анимация стартует заново
+    row.classList.add('msgFlashRow');
+    if (flashTimerRef.current) clearTimeout(flashTimerRef.current);
+    flashTimerRef.current = setTimeout(() => row.classList.remove('msgFlashRow'), 2400);
+    return true;
+  }, []);
+
+  // Очистка таймера подсветки при размонтировании
+  useEffect(() => () => { if (flashTimerRef.current) clearTimeout(flashTimerRef.current); }, []);
 
   // Reset per-chat state when chat switches
   useEffect(() => {
@@ -173,14 +196,27 @@ export function MessageList({
     if (!hasSelection) setCtxMenu(null);
   }, [hasSelection]);
 
-  // Scroll to a specific message (e.g. clicking on a reply quote)
+  // Прыжок к конкретному сообщению (источник ассистента / глобальный поиск /
+  // клик по цитате). Сообщение может быть ещё не загружено в DOM (грузится
+  // асинхронно) или лежать в старой истории — поэтому ретраим и при
+  // необходимости подгружаем более старые страницы, пока не найдём.
+  const focusAttemptRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {
     if (!scrollTargetId) return;
-    const el = document.querySelector(`[data-msg-id="${scrollTargetId}"]`) as HTMLElement | null;
-    if (el) {
-      requestAnimationFrame(() => el.scrollIntoView({ behavior: 'smooth', block: 'center' }));
-    }
-    onScrollTargetHandled();
+    const targetId = scrollTargetId;
+    let tries = 0;
+    // Чистим стор ТОЛЬКО по завершении (нашли/сдались) — иначе обнуление
+    // scrollTargetId перезапустит эффект и его cleanup убьёт цикл ретраев.
+    const finish = () => onScrollTargetHandled();
+    const tick = () => {
+      if (focusMessage(targetId)) { finish(); return; } // центрируем + подсветка
+      if (++tries > 50) { finish(); return; }            // ~6с предел — сдаёмся
+      // Не загружено: если есть более старая история — подгружаем её и ждём.
+      if (hasMoreRef.current && !loadingMoreRef.current && tries % 3 === 0) onLoadMore();
+      focusAttemptRef.current = setTimeout(tick, 120);
+    };
+    tick();
+    return () => { if (focusAttemptRef.current) clearTimeout(focusAttemptRef.current); };
   }, [scrollTargetId]); // eslint-disable-line
 
   // Restore scroll position after older messages are prepended
@@ -285,15 +321,15 @@ export function MessageList({
     }
   }, [hasMoreMessages, loadingMore, onLoadMore, onMarkRead, updateReadPosition, updateFloatingDate]);
 
+  // Поиск по чату (лупа): центрируем найденное + затухающая подсветка.
   useEffect(() => {
-    if (currentMatchId && matchRef.current)
-      matchRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
-  }, [currentMatchId]);
+    if (currentMatchId) focusMessage(currentMatchId);
+  }, [currentMatchId, focusMessage]);
 
+  // Переход к закреплённому сообщению — тот же эффект для единообразия.
   useEffect(() => {
-    if (pinnedFocusId && pinnedRef.current)
-      pinnedRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
-  }, [pinnedFocusId]);
+    if (pinnedFocusId) focusMessage(pinnedFocusId);
+  }, [pinnedFocusId, focusMessage]);
 
   const handleContextMenu = useCallback((e: React.MouseEvent, msg: Message) => {
     if (msg.is_system) return;
@@ -389,10 +425,7 @@ export function MessageList({
               onViewUser={onViewUser}
               onForwardedSenderClick={onViewUser}
               onReact={(emoji) => onReact(m.id, emoji)}
-              onScrollToMessage={(msgId) => {
-                const el = document.querySelector(`[data-msg-id="${msgId}"]`) as HTMLElement | null;
-                if (el) requestAnimationFrame(() => el.scrollIntoView({ behavior: 'smooth', block: 'center' }));
-              }}
+              onScrollToMessage={(msgId) => focusMessage(msgId)}
               onVote={onVote}
               onRetract={onRetract}
               onViewVoters={onViewVoters}

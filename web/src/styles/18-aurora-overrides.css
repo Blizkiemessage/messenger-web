@@ -1111,3 +1111,20 @@
   .asstDot { animation: none; }
   .asstTab, .asstDataSource, .asstDataChatItem { transition: none; }
 }
+
+/* ── Подсветка-«вспышка» при переходе к сообщению ─────────────────────────────
+   Источник ассистента / глобальный поиск / поиск по чату / клик по цитате:
+   сообщение центрируется и ~2с подсвечивается контурным свечением в цвет темы,
+   затем плавно затухает. */
+@keyframes msgFlashGlow {
+  0%   { box-shadow: 0 0 0 2.5px var(--accent), 0 0 22px 4px var(--accent-border); }
+  55%  { box-shadow: 0 0 0 2.5px var(--accent), 0 0 22px 4px var(--accent-border); }
+  100% { box-shadow: 0 0 0 0 transparent, 0 0 0 0 transparent; }
+}
+.msgFlashRow .bubble {
+  animation: msgFlashGlow 2.4s ease-out forwards;
+  border-radius: 14px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .msgFlashRow .bubble { animation: none; box-shadow: 0 0 0 2px var(--accent); }
+}
