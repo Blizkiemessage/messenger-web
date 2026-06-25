@@ -123,6 +123,12 @@ export default function App() {
     const app = useAppStore.getState();
     switch (a.type) {
       case 'open-chat':        useChatsStore.getState().setActiveChatId(a.chatId); break;
+      case 'open-message': {
+        // Прыжок к сообщению-источнику (как из глобального поиска).
+        useChatsStore.getState().setActiveChatId(a.chatId);
+        useChatsStore.getState().setScrollToMessageId(a.messageId);
+        break;
+      }
       case 'open-saved': {
         const existing = useChatsStore.getState().chats.find(c => c.type === 'saved');
         if (existing) { useChatsStore.getState().setActiveChatId(existing.id); }

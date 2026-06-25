@@ -106,8 +106,18 @@ const assistantLimiter = rateLimit({
   legacyHeaders: false,
 });
 
+// Ассистент по данным (Этап D): LLM-вызовы дороже → строже лимит.
+const dataAssistantLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 10,
+  message: { error: 'Слишком много запросов к ассистенту. Подождите немного.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
 module.exports = {
   assistantLimiter,
+  dataAssistantLimiter,
   loginLimiter,
   emailSendLimiter,
   registrationLimiter,

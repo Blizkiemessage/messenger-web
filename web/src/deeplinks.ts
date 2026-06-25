@@ -16,6 +16,7 @@
 export type DeepLinkAction =
   // ── глобальные ──
   | { type: 'open-chat'; chatId: string }
+  | { type: 'open-message'; chatId: string; messageId: string } // прыжок к сообщению-источнику
   | { type: 'open-saved' }
   | { type: 'profile-settings' }
   | { type: 'appearance' }            // вкладка «Внешний вид» в настройках профиля
@@ -47,6 +48,10 @@ export function parseDeepLink(href: string): DeepLinkAction | null {
   const chatId = p.get('chatId') || undefined;
   switch (type) {
     case 'open-chat':       return chatId ? { type, chatId } : null;
+    case 'open-message': {
+      const messageId = p.get('messageId') || undefined;
+      return chatId && messageId ? { type, chatId, messageId } : null;
+    }
     case 'open-saved':      return { type };
     case 'profile-settings':return { type };
     case 'appearance':      return { type };

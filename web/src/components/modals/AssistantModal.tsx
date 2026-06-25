@@ -14,6 +14,7 @@ import { useDeepLinkStore } from '../../store/useDeepLinkStore';
 import { useAppStore } from '../../store/useAppStore';
 import { renderMarkdown } from '../../utils/markdown';
 import { getAssistantStatus, askAssistant } from '../../api/assistant';
+import { AssistantDataMode } from './assistant/AssistantDataMode';
 import {
   FAQ, TOP_INTENTS, CATEGORY_META, ASSISTANT_KB,
   searchFaqScored, getIntentById, FAQ_SCORE_STRONG,
@@ -23,8 +24,12 @@ import {
 interface Props {
   /** Опц. предвыбранный интент (из deep-link `assistant?topic=`). */
   topic?: string;
+  /** Начальный режим: помощь по приложению или ассистент по данным. */
+  initialMode?: AssistantMode;
   onClose: () => void;
 }
+
+type AssistantMode = 'help' | 'data';
 
 type ThreadItem =
   | { role: 'user'; text: string }
@@ -37,10 +42,11 @@ type ThreadItem =
 const GREETING =
   'Привет! Я помощник Blizkie 🪄\nСпросите, как что-то сделать, или выберите тему ниже.';
 
-export function AssistantModal({ topic, onClose }: Props) {
+export function AssistantModal({ topic, initialMode = 'help', onClose }: Props) {
   const open = useDeepLinkStore(s => s.open);
   const setShowSupport = useAppStore(s => s.setShowSupport);
 
+  const [mode, setMode] = useState<AssistantMode>(topic ? 'help' : initialMode);
   const [query, setQuery] = useState('');
   const [thread, setThread] = useState<ThreadItem[]>([]);
   const [activeCat, setActiveCat] = useState<FaqCategory | null>(null);
@@ -164,10 +170,12 @@ export function AssistantModal({ topic, onClose }: Props) {
         {/* ── Header ── */}
         <div className="asstHeader">
           <div className="asstHeaderTitle">
-            <span className="asstAvatar" aria-hidden>🪄</span>
+            <span className="asstAvatar" aria-hidden>{mode === 'data' ? '🧠' : '🪄'}</span>
             <div>
               <div className="asstName">Помощник</div>
-              <div className="asstStatus">Подскажу, как пользоваться Blizkie</div>
+              <div className="asstStatus">
+                {mode === 'data' ? 'Найду ответы в ваших чатах' : 'Подскажу, как пользоваться Blizkie'}
+              </div>
             </div>
           </div>
           <button className="asstClose" onClick={onClose} title="Закрыть">
@@ -177,6 +185,30 @@ export function AssistantModal({ topic, onClose }: Props) {
           </button>
         </div>
 
+        {/* ── Переключатель режимов ── */}
+        <div className="asstTabs" role="tablist">
+          <button
+            className={`asstTab${mode === 'help' ? ' asstTabActive' : ''}`}
+            role="tab"
+            aria-selected={mode === 'help'}
+            onClick={() => setMode('help')}
+          >
+            Помощь по приложению
+          </button>
+          <button
+            className={`asstTab${mode === 'data' ? ' asstTabActive' : ''}`}
+            role="tab"
+            aria-selected={mode === 'data'}
+            onClick={() => setMode('data')}
+          >
+            Мои чаты
+          </button>
+        </div>
+
+        {mode === 'data' ? (
+          <AssistantDataMode onClose={onClose} />
+        ) : (
+        <>
         {/* ── Thread ── */}
         <div className="asstThread" ref={scrollRef}>
           {/* Приветствие */}
@@ -354,6 +386,8 @@ export function AssistantModal({ topic, onClose }: Props) {
             Не нашли ответ? Написать в поддержку →
           </button>
         </div>
+        </>
+        )}
       </div>
     </div>
   );

@@ -24,15 +24,18 @@ backend/src/
   index.js          # точка входа: регистрация всех роутов, intervals (доставка отложенных сообщений и т.п.)
   config/           # env, БД, почта
   crypto/aes.js     # AES-256-GCM шифрование текста сообщений (ключ MESSAGE_ENCRYPTION_KEY)
-  db/versions/      # миграции 001–013 (вся схема БД здесь; новая таблица = новый файл миграции)
+  db/versions/      # миграции 001–014 (вся схема БД здесь; новая таблица = новый файл миграции)
   middleware/       # auth.js (JWT), errorHandler.js, rateLimits.js, csrfOrigin.js (Origin-проверка мутаций)
   routes/           # 23 файла — REST API, имя файла = префикс (auth, users, chats, messages, upload,
                     #   admin, friends, support, polls, push, search, sessions, linkPreview,
                     #   sticker-packs, gif, totp, calls, notes, dailyPrompts, folders, health, export,
                     #   webauthn, assistant).
-                    #   assistant.js — ассистент-помощник: GET /assistant/status (вкл/выкл),
-                    #     POST /assistant/ask {question,kb}→{reply,covered,relatedIds}
-                    #     (LLM генерирует ответ по присланной базе знаний).
+                    #   assistant.js — ассистенты. Этап C (помощь по приложению):
+                    #     GET /assistant/status, POST /assistant/ask {question,kb}→
+                    #     {reply,covered,relatedIds} (LLM по присланной базе знаний).
+                    #     Этап D (ассистент по ДАННЫМ чатов, opt-in+платно):
+                    #     GET /assistant/data/status, PUT /assistant/data/settings,
+                    #     POST /assistant/data/ask {question}→{reply,covered,sources,mode}.
                     #   dailyPrompts.js — «Вопрос дня» (под /chats/:id/daily-prompt): конфиг, свои
                     #     вопросы, архив инстансов, ответы (текст/гс/кружок/медиа), ask-now.
                     #   invites.js — invite-token (постоянная личная ссылка): /invites/me (+QR),
@@ -50,6 +53,13 @@ backend/src/
                     #     + присланной базе знаний формулирует ответ строго по ней (covered/
                     #     relatedIds, кнопки резолвит фронт → deep-links валидны); in-memory кэш;
                     #     провайдер от AI-сводки, env AI_ASSISTANT_* (фолбэк AI_SUMMARY_*, Groq).
+                    #   dataAssistantService.js — ассистент по ДАННЫМ чатов (этап D, opt-in+платно):
+                    #     настройки приватности (ai_data_settings: entitled/optin/read_messages/
+                    #     scope_all/allow_chats); структурные ответы про ДР БЕЗ LLM (users.birth_date,
+                    #     с учётом hide_birth_date); семантика — отбор кандидатов по разрешённым чатам
+                    #     (дешифровка В ПАМЯТИ + скоринг/стеммер) → LLM извлекает ответ + номера
+                    #     сообщений-ИСТОЧНИКОВ; covered только при валидном источнике (ноль галлюцинаций);
+                    #     кэш ТОЛЬКО in-memory (TTL 5мин, расшифровку в БД не пишем); env AI_DATA_*.
   socket/socketServer.js  # весь realtime: new-message, typing, presence, call:* (сигналинг WebRTC);
                     #   intervals: отложенные сообщения + «Вопрос дня» (рассылка по расписанию)
   utils/            # jwt, s3 (подпись ссылок), otp, logger
@@ -70,7 +80,8 @@ web/src/
                     #   useDraftStore, useNotesStore, useFolderStore, useDeepLinkStore (deep-links)
   deeplinks.ts      # модель «ссылок-действий» (blz:<type>?k=v): типы+parse+shareApp.
                     #   Раннеры: глобальные — в App.tsx, чат-привязанные — в ChatArea.
-                    #   Среди действий: assistant?topic= и support (открыть помощника/поддержку)
+                    #   Среди действий: assistant?topic=, support, open-message?chatId=&messageId=
+                    #     (прыжок к сообщению-источнику — раннер в App.tsx, как глобальный поиск)
   assistant/faq.ts  # база знаний ассистента-помощника (Этап C): типизированный реестр
                     #   интентов (вопрос/ключевые слова/ответ-markdown/кнопки-deep-links)
                     #   + searchFaqScored (порог FAQ_SCORE_STRONG, локальный фолбэк без ИИ),
@@ -92,8 +103,11 @@ web/src/
                     #   Composer.tsx — крупный (запись голоса/видео-кружков, стейт-машина в нём же);
                     #     чистые куски вынесены в chat/composer/* (helpers, icons, PreviewPlayer)
     modals/         # все модалки (группы, пересылка, медиа, настройки профиля и т.д.).
-                    #   AssistantModal.tsx — ассистент-помощник (Этап C): диалоговый FAQ
-                    #     поверх assistant/faq.ts; флаг useAppStore.showAssistant.
+                    #   AssistantModal.tsx — ассистент: таб-переключатель двух режимов.
+                    #     «Помощь по приложению» (Этап C): диалоговый FAQ поверх assistant/faq.ts.
+                    #     «Мои чаты» (Этап D): modals/assistant/AssistantDataMode.tsx — ассистент
+                    #     по данным (экраны недоступно/пейволл/согласие+настройка областей/диалог;
+                    #     источники-пруфы → deep-link open-message). Флаг useAppStore.showAssistant.
                     #   SupportModal.tsx — техподдержка; флаг useAppStore.showSupport (обе
                     #     модалки монтируются в App.tsx, открываются из сайдбара/ассистента/deep-link).
                     #   ChatSettingsModal.tsx — хаб «Настройки чата» (меню шапки): секции
@@ -149,6 +163,8 @@ web/src/
 4. Журнал держать не длиннее ~40 строк: старые записи группировать в одну строку-сводку.
 
 ## Журнал изменений
+
+- 2026-06-25 | feature/fullstack | Этап D — ассистент по ДАННЫМ чатов («второй мозг»). Приватный помощник, отвечающий на вопросы по своим чатам/близким с ОБЯЗАТЕЛЬНОЙ ссылкой-источником (ноль галлюцинаций). Backend: миграция 014 `ai_data_settings` (отдельная таблица настроек доступа); `services/dataAssistantService.js` — приватность (entitled/optin/read_messages/scope_all/allow_chats, allowlist фильтруется по членству), структурные ответы про ДР БЕЗ LLM (users.birth_date + hide_birth_date), семантика по сообщениям (дешифровка В ПАМЯТИ + скоринг/рус.стеммер → LLM извлекает ответ + НОМЕРА сообщений-источников; covered только при валидном источнике); кэш ТОЛЬКО in-memory (TTL 5мин, расшифровку/ответы в БД не пишем); env AI_DATA_* (фолбэк AI_ASSISTANT_*/AI_SUMMARY_*). Роуты `/assistant/data/*` (status/settings/ask, rate-limit 10/мин) + admin `PUT /admin/api/users/:id/ai-data-entitlement`. Гейты: фича OFF без `AI_DATA_ASSISTANT_ENABLED=true`+ключа LLM; per-user `entitled` (или `AI_DATA_ENTITLE_ALL=true`). Фронт: `api/dataAssistant.ts`, режим в `AssistantModal` (таб «Помощь по приложению / Мои чаты») → `modals/assistant/AssistantDataMode.tsx` (недоступно/пейволл/согласие+выбор чатов/диалог); источники-кнопки → новый deep-link `open-message?chatId=&messageId=` (раннер в App.tsx). Стили `asstData*`/`asstTab*` в слой «Аврора». +8 backend-тестов (117), сборка strict tsc+vite зелёная. Этап D закрыт (v1). НЕ верифицировано в живом preview (нужен backend с AI_DATA_* + entitled-аккаунт).
 
 - 2026-06-24 | feature/fullstack | Ассистент: расширена база знаний + усилен скоуп. По аудиту приложения добавлены недостающие темы в `faq.ts` (export-data, sessions, permissions, notifications, block-user, ai-summary, media-gallery, formatting, sticker-studio, folders, pin-mute-chat, status, group-roles) + детализированы reactions/privacy/scheduled. Убрана несуществующая «система друзей» (find-friends переформулирован: просто поиск+ЛС; invite — «появится личный чат», без «друзей»). Новые chat-scoped deep-links `ai-summary`/`scheduled` (+ ветки в раннере ChatArea) дают кнопки-навигации к AI-сводке и отложенным. SYSTEM_PROMPT (assistantService) ужесточён: отвечать и на «что/зачем», понимать разные формулировки, НЕ выдумывать функции, не соглашаться с ложными утверждениями, СТРОГО игнорировать всё вне мессенджера (в т.ч. джейлбрейки). Проверено на реальном Groq: «что такое экспорт», «скачать историю», «выйти на чужом телефоне», «пересказ за неделю» → верно с кнопкой; «напиши код»/«2+2» → отказ. Сборка + 109 тестов зелёные.
 

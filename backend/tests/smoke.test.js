@@ -1111,3 +1111,136 @@ describe('assistant LLM answer', () => {
     });
   });
 });
+
+// ── Этап D: ассистент по данным чатов ────────────────────────────────────────
+describe('Data assistant (Этап D)', () => {
+  const da = require('../src/services/dataAssistantService');
+
+  // Дополняем тестовую схему недостающими для фичи столбцами/таблицей.
+  try { db.exec("ALTER TABLE users ADD COLUMN birth_date TEXT"); } catch { /* exists */ }
+  try { db.exec("ALTER TABLE users ADD COLUMN hide_birth_date INTEGER NOT NULL DEFAULT 0"); } catch { /* exists */ }
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS ai_data_settings (
+      user_id TEXT PRIMARY KEY, entitled INTEGER NOT NULL DEFAULT 0,
+      optin INTEGER NOT NULL DEFAULT 0, read_messages INTEGER NOT NULL DEFAULT 0,
+      scope_all INTEGER NOT NULL DEFAULT 0, allow_chats TEXT NOT NULL DEFAULT '[]',
+      updated_at INTEGER NOT NULL DEFAULT 0
+    )
+  `);
+
+  const ME = 'd-me', MOM = 'd-mom', CHAT = 'd-chat', OTHER_CHAT = 'd-chat2';
+  const now = Date.now();
+  db.prepare('INSERT OR IGNORE INTO users (id, username, email, display_name, created_at, last_seen_at) VALUES (?,?,?,?,?,?)')
+    .run([ME, 'dme', 'dme@x.io', 'Я', now, now]);
+  db.prepare('INSERT OR IGNORE INTO users (id, username, email, display_name, created_at, last_seen_at, birth_date) VALUES (?,?,?,?,?,?,?)')
+    .run([MOM, 'dmom', 'dmom@x.io', 'Мама', now, now, '1970-04-15']);
+  db.prepare("INSERT OR IGNORE INTO chats (id, type, created_at) VALUES (?,?,?)").run([CHAT, 'direct', now]);
+  db.prepare("INSERT OR IGNORE INTO chats (id, type, created_at) VALUES (?,?,?)").run([OTHER_CHAT, 'direct', now]);
+  db.prepare('INSERT OR IGNORE INTO chat_members (chat_id, user_id, joined_at) VALUES (?,?,?)').run([CHAT, ME, now]);
+  db.prepare('INSERT OR IGNORE INTO chat_members (chat_id, user_id, joined_at) VALUES (?,?,?)').run([CHAT, MOM, now]);
+
+  function addMsg(id, text) {
+    const e = encrypt(text);
+    db.prepare(`INSERT OR IGNORE INTO messages (id, chat_id, sender_id, ciphertext, iv, auth_tag, created_at, is_system, is_delivered)
+                VALUES (?,?,?,?,?,?,?,0,1)`).run([id, CHAT, MOM, e.ciphertext, e.iv, e.authTag, now]);
+  }
+  addMsg('d-msg1', 'Встреча с маркетинговым отделом в четверг в 15:00 в офисе');
+  addMsg('d-msg2', 'Не забудь купить молоко и хлеб');
+
+  function withEnv(env, fn) {
+    const saved = {};
+    for (const k of Object.keys(env)) { saved[k] = process.env[k]; process.env[k] = env[k]; }
+    try { return fn(); } finally {
+      for (const k of Object.keys(env)) {
+        if (saved[k] === undefined) delete process.env[k]; else process.env[k] = saved[k];
+      }
+    }
+  }
+  function mockFetch(obj) {
+    return async () => ({ ok: true, json: async () => ({ choices: [{ message: { content: JSON.stringify(obj) } }] }) });
+  }
+
+  test('updateSettings фильтрует allowChats по членству', () => {
+    const st = da.updateSettings(ME, { allowChats: [CHAT, OTHER_CHAT, 'foreign-chat'] });
+    assert.deepEqual([...st.allowChats].sort(), [CHAT].sort());
+  });
+
+  test('answerDataQuestion → 503 когда фича выключена', async () => {
+    await withEnv({ AI_DATA_ASSISTANT_ENABLED: '', AI_DATA_API_KEY: '', AI_ASSISTANT_API_KEY: '', AI_SUMMARY_API_KEY: '' }, async () => {
+      await assert.rejects(() => da.answerDataQuestion(ME, 'когда встреча'), e => e.status === 503);
+    });
+  });
+
+  test('answerDataQuestion → 403 без opt-in', async () => {
+    da.updateSettings(ME, { optin: false });
+    await withEnv({ AI_DATA_ASSISTANT_ENABLED: 'true', AI_DATA_API_KEY: 'k', AI_DATA_ENTITLE_ALL: 'true' }, async () => {
+      await assert.rejects(() => da.answerDataQuestion(ME, 'когда встреча'), e => e.status === 403 && e.code === 'not_optin');
+    });
+  });
+
+  test('структурный ответ про ДР — без вызова LLM', async () => {
+    da.updateSettings(ME, { optin: true, readMessages: false });
+    await withEnv({ AI_DATA_ASSISTANT_ENABLED: 'true', AI_DATA_API_KEY: 'k', AI_DATA_ENTITLE_ALL: 'true' }, async () => {
+      const origFetch = global.fetch;
+      global.fetch = async () => { throw new Error('LLM не должен вызываться'); };
+      try {
+        const r = await da.answerDataQuestion(ME, 'когда день рождения у мамы?');
+        assert.equal(r.mode, 'structural');
+        assert.equal(r.covered, true);
+        assert.equal(r.sources.length, 1);
+        assert.equal(r.sources[0].kind, 'profile');
+        assert.match(r.reply, /апреля/);
+      } finally { global.fetch = origFetch; }
+    });
+  });
+
+  test('чтение выключено → семантика недоступна (covered=false)', async () => {
+    da.updateSettings(ME, { optin: true, readMessages: false });
+    await withEnv({ AI_DATA_ASSISTANT_ENABLED: 'true', AI_DATA_API_KEY: 'k', AI_DATA_ENTITLE_ALL: 'true' }, async () => {
+      const r = await da.answerDataQuestion(ME, 'когда встреча с маркетингом?');
+      assert.equal(r.covered, false);
+      assert.equal(r.mode, 'none');
+    });
+  });
+
+  test('семантика: ответ с валидным источником-сообщением', async () => {
+    da.updateSettings(ME, { optin: true, readMessages: true, scopeAll: false, allowChats: [CHAT] });
+    await withEnv({ AI_DATA_ASSISTANT_ENABLED: 'true', AI_DATA_API_KEY: 'k', AI_DATA_ENTITLE_ALL: 'true' }, async () => {
+      const origFetch = global.fetch;
+      global.fetch = mockFetch({ reply: 'В четверг в 15:00.', covered: true, sources: [1] });
+      try {
+        const r = await da.answerDataQuestion(ME, 'когда встреча с маркетинговым отделом?');
+        assert.equal(r.covered, true);
+        assert.equal(r.mode, 'semantic');
+        assert.equal(r.sources[0].kind, 'message');
+        assert.equal(r.sources[0].messageId, 'd-msg1');
+        assert.equal(r.sources[0].chatId, CHAT);
+      } finally { global.fetch = origFetch; }
+    });
+  });
+
+  test('covered понижается до false без валидного источника', async () => {
+    da.updateSettings(ME, { optin: true, readMessages: true, scopeAll: false, allowChats: [CHAT] });
+    await withEnv({ AI_DATA_ASSISTANT_ENABLED: 'true', AI_DATA_API_KEY: 'k', AI_DATA_ENTITLE_ALL: 'true' }, async () => {
+      const origFetch = global.fetch;
+      global.fetch = mockFetch({ reply: 'Где-то в четверг.', covered: true, sources: [] });
+      try {
+        const r = await da.answerDataQuestion(ME, 'во сколько была встреча отдела маркетинга?');
+        assert.equal(r.covered, false);
+        assert.deepEqual(r.sources, []);
+      } finally { global.fetch = origFetch; }
+    });
+  });
+
+  test('нет совпадений-кандидатов → covered=false без вызова LLM', async () => {
+    da.updateSettings(ME, { optin: true, readMessages: true, scopeAll: false, allowChats: [CHAT] });
+    await withEnv({ AI_DATA_ASSISTANT_ENABLED: 'true', AI_DATA_API_KEY: 'k', AI_DATA_ENTITLE_ALL: 'true' }, async () => {
+      const origFetch = global.fetch;
+      global.fetch = async () => { throw new Error('LLM не должен вызываться без кандидатов'); };
+      try {
+        const r = await da.answerDataQuestion(ME, 'квантовая суперпозиция запутанность');
+        assert.equal(r.covered, false);
+      } finally { global.fetch = origFetch; }
+    });
+  });
+});

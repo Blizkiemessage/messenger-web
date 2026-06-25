@@ -12,9 +12,28 @@ const express = require('express');
 const { getDb } = require('../../config/database');
 const { deleteManyFromS3 } = require('../../utils/s3Delete');
 const { logAdminAction } = require('../../services/adminAuditService');
+const { setEntitlement } = require('../../services/dataAssistantService');
 const { clientIp } = require('./_shared');
 
 const router = express.Router();
+
+// PUT /users/:id/ai-data-entitlement — выдать/забрать доступ к платному
+// ассистенту по данным (Этап D). { entitled: boolean }
+router.put('/users/:id/ai-data-entitlement', (req, res, next) => {
+  try {
+    const entitled = !!(req.body && req.body.entitled);
+    const status = setEntitlement(req.params.id, entitled);
+    logAdminAction({
+      adminUserId: req.userId,
+      action: entitled ? 'grant_ai_data' : 'revoke_ai_data',
+      targetType: 'user',
+      targetId: req.params.id,
+      ipAddress: clientIp(req),
+      userAgent: req.headers['user-agent'] || null,
+    });
+    res.json(status);
+  } catch (err) { next(err); }
+});
 
 // GET /users/:id — full user profile
 router.get('/users/:id', (req, res, next) => {

@@ -981,6 +981,127 @@
 }
 .asstSupportLink:hover { text-decoration: underline; }
 
+/* ── Этап D: переключатель режимов + ассистент по данным ─────────────────── */
+.asstTabs {
+  flex-shrink: 0; display: flex; gap: 4px; padding: 8px 12px;
+  border-bottom: 1px solid var(--border); background: var(--card);
+}
+.asstTab {
+  flex: 1; padding: 8px 10px; border-radius: 10px; cursor: pointer;
+  font-size: 13px; font-weight: 600; color: var(--muted);
+  background: transparent; border: 1px solid transparent;
+  transition: color .15s ease, background .15s ease, border-color .15s ease;
+}
+.asstTab:hover { color: var(--text); }
+.asstTabActive {
+  color: var(--text); background: var(--panel); border-color: var(--border);
+}
+
+/* Центрированные состояния (загрузка / недоступно / пейволл) */
+.asstDataState {
+  flex: 1; min-height: 0; overflow-y: auto;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  text-align: center; gap: 12px; padding: 28px 26px;
+}
+.asstDataState h3 { font-size: 17px; font-weight: 700; margin: 0; }
+.asstDataIcon {
+  width: 56px; height: 56px; border-radius: 18px; font-size: 28px;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--grad-accent); box-shadow: var(--glow);
+}
+.asstDataMuted { font-size: 13.5px; line-height: 1.55; color: var(--muted); margin: 0; max-width: 340px; }
+.asstDataLockBadge {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 6px 13px; border-radius: 999px; font-size: 12.5px; font-weight: 700;
+  color: var(--accent); background: var(--accent-dim); border: 1px solid var(--accent-border);
+}
+
+/* Экран согласия / редактор настроек доступа */
+.asstDataSettings { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.asstDataScroll { flex: 1; min-height: 0; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 12px; }
+.asstDataConsentHead { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 9px; padding-bottom: 4px; }
+.asstDataConsentHead h3 { font-size: 16.5px; font-weight: 700; margin: 0; }
+.asstDataRow {
+  display: flex; align-items: center; justify-content: space-between; gap: 14px;
+  padding: 13px 14px; border-radius: 13px;
+  background: var(--panel); border: 1px solid var(--border);
+}
+.asstDataRowStatic { background: var(--card); }
+.asstDataRowTitle { font-size: 14px; font-weight: 600; }
+.asstDataRowSub { font-size: 12.5px; line-height: 1.45; color: var(--muted); margin-top: 3px; }
+.asstDataAlways { flex-shrink: 0; font-size: 12px; font-weight: 700; color: var(--accent); }
+.asstDataScope { display: flex; flex-direction: column; gap: 10px; }
+.asstDataChatList {
+  display: flex; flex-direction: column; gap: 2px;
+  padding: 8px; border-radius: 13px; background: var(--panel); border: 1px solid var(--border);
+  max-height: 240px; overflow-y: auto;
+}
+.asstDataChatListHead {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 4px 6px 8px; font-size: 12px; font-weight: 700; color: var(--muted);
+}
+.asstDataChatItem {
+  display: flex; align-items: center; gap: 10px; cursor: pointer;
+  padding: 9px 8px; border-radius: 9px; font-size: 13.5px;
+  transition: background .12s ease;
+}
+.asstDataChatItem:hover { background: var(--card); }
+.asstDataChatItem input { width: 16px; height: 16px; accent-color: var(--accent); cursor: pointer; }
+.asstDataLinkBtn {
+  background: none; border: none; cursor: pointer; padding: 2px 4px;
+  font-size: 12.5px; font-weight: 700; color: var(--accent);
+}
+.asstDataLinkBtn:hover { text-decoration: underline; }
+.asstDataPrivacy {
+  display: flex; gap: 9px; align-items: flex-start;
+  padding: 12px 13px; border-radius: 12px; font-size: 12px; line-height: 1.5;
+  color: var(--muted); background: var(--accent-dim); border: 1px solid var(--accent-border);
+}
+.asstDataPrivacy svg { flex-shrink: 0; margin-top: 1px; color: var(--accent); }
+.asstDataSettingsFooter {
+  flex-shrink: 0; display: flex; gap: 8px; padding: 12px 16px 14px;
+  border-top: 1px solid var(--border);
+}
+.asstDataSettingsFooter .asstActionBtn { flex: 1; text-align: center; justify-content: center; padding: 11px; }
+.asstDataWide { flex: 1; }
+.asstDataDanger { color: var(--danger); border-color: var(--border); }
+.asstDataDanger:hover { border-color: var(--danger); }
+
+/* Основной диалог по данным */
+.asstDataMain { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.asstDataScopeBar {
+  flex-shrink: 0; display: flex; align-items: center; justify-content: space-between;
+  padding: 9px 16px; border-bottom: 1px solid var(--border); background: var(--card);
+}
+.asstDataScopeInfo { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; color: var(--muted); }
+.asstDataScopeInfo svg { color: var(--accent); }
+.asstDataThread { flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; padding: 16px; }
+.asstDataEmpty {
+  margin: auto; display: flex; flex-direction: column; align-items: center; text-align: center;
+  gap: 13px; color: var(--muted); font-size: 13.5px; line-height: 1.5; max-width: 320px;
+}
+.asstDataEmpty p { margin: 0; }
+.asstDataEmpty .asstChips { width: 100%; }
+.asstDataMain > .asstInputRow { flex-shrink: 0; padding: 12px 16px 14px; border-top: 1px solid var(--border); }
+
+/* Источники-пруфы */
+.asstDataSources { display: flex; flex-direction: column; gap: 7px; margin-top: 11px; }
+.asstDataSourcesLabel {
+  font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--muted);
+}
+.asstDataSource {
+  display: flex; flex-direction: column; gap: 3px; text-align: left; cursor: pointer;
+  padding: 9px 11px; border-radius: 11px;
+  background: var(--card); border: 1px solid var(--border);
+  transition: border-color .15s ease, transform .12s ease;
+}
+.asstDataSource:hover { border-color: var(--accent-border); transform: translateY(-1px); }
+.asstDataSourceLabel { font-size: 12.5px; font-weight: 700; color: var(--accent); }
+.asstDataSourceSnippet {
+  font-size: 12.5px; line-height: 1.4; color: var(--muted);
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+}
+
 @media (max-width: 560px) {
   .asstCard { width: 100%; height: 100%; max-height: 100vh; border-radius: 0; }
 }
@@ -988,4 +1109,5 @@
   .asstCard { animation: none; }
   .asstChip, .asstCat, .asstActionBtn, .asstSend { transition: none; }
   .asstDot { animation: none; }
+  .asstTab, .asstDataSource, .asstDataChatItem { transition: none; }
 }
