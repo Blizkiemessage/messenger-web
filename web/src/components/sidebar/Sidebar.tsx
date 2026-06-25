@@ -10,6 +10,7 @@ import { FolderTabs } from './FolderTabs';
 import { FolderModal } from './FolderModal';
 import { ChatList } from './ChatList';
 import { SidebarBottom } from './SidebarBottom';
+import { AssistantOrb } from '../ui/AssistantOrb';
 import { updateMe } from '../../api/users';
 import { getSavedChat } from '../../api/chats';
 import { authLogout } from '../../api/auth';
@@ -157,6 +158,8 @@ export function Sidebar() {
         }}
         onThemeToggle={toggleTheme}
       />
+      {/* Светящийся орб-вход в ассистента — всегда на виду (desktop + список чатов). */}
+      <AssistantOrb onClick={() => setShowAssistant(true)} variant="asstOrbSidebar" />
       {folderModal !== null && (
         <FolderModal
           folder={folderModal.folder ?? null}

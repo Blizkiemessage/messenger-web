@@ -7,7 +7,9 @@ import { createPortal } from 'react-dom';
 import { type Chat } from '../../types';
 import { chatTitle, chatSubtitle, avatarLetter, formatLastSeen } from '../../utils/format';
 import { Avatar, resolveUrl, PRESENCE_LABELS, PRESENCE_EMOJI } from '../ui/Avatar';
+import { AssistantOrb } from '../ui/AssistantOrb';
 import { useChatsStore } from '../../store/useChatsStore';
+import { useAppStore } from '../../store/useAppStore';
 
 interface Props {
   chat: Chat;
@@ -57,6 +59,7 @@ export function ChatHeader({
   typingText, onOpenMedia, onAudioCall, onVideoCall, onOpenNotes, onOpenSummary, onOpenSettings,
 }: Props) {
   const setActiveChatId = useChatsStore(s => s.setActiveChatId);
+  const setShowAssistant = useAppStore(s => s.setShowAssistant);
   const onlineUsers = useChatsStore(s => s.onlineUsers);
   const isGroup = chat.type === 'group';
   const isSaved = chat.type === 'saved';
@@ -217,6 +220,9 @@ export function ChatHeader({
             )}
           </div>
         </button>
+
+        {/* ── Орб-вход в ассистента (виден на мобильном — в чате сайдбар скрыт) ─ */}
+        <AssistantOrb onClick={() => setShowAssistant(true)} variant="asstOrbHeader" />
 
         {/* ── Call button (direct chats only) ──────────────────────────── */}
         {!isGroup && !isSaved && (onAudioCall || onVideoCall) && (

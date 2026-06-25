@@ -120,7 +120,9 @@ web/src/
     call/           # IncomingCallModal, CallOverlay
     notes/          # заметки чата: NotesPanel.tsx — оркестратор (список + переключение);
                     #   types, helpers, MediaBlocks, NoteSettings, NoteEditor — рядом
-    ui/             # переиспользуемые: Avatar, ContextMenu, Toggle, Portal, icons/
+    ui/             # переиспользуемые: Avatar, ContextMenu, Toggle, Portal, icons/,
+                    #   AssistantOrb (светящийся FAB-вход в ассистента: вариант
+                    #   asstOrbSidebar — в сайдбаре; asstOrbHeader — в шапке на мобильном)
   services/webrtcManager.ts  # WebRTC peer connection звонков
   utils/            # theme.ts (тема), accent.ts (акцент пользователя), appBackground.ts (фон
                     #   приложения: solid/gradient через --app-bg; модель AppBg переиспользовать
@@ -163,6 +165,8 @@ web/src/
 4. Журнал держать не длиннее ~40 строк: старые записи группировать в одну строку-сводку.
 
 ## Журнал изменений
+
+- 2026-06-25 | feature/web | Заметный вход в ассистента — светящийся орб (FAB). Раньше ассистенты прятались в попапе профиля и «сливались». Новый `components/ui/AssistantOrb.tsx` — плавающая градиентная кнопка-«орб» со свечением (пульсирующая аура, искра-иконка), открывает AssistantModal. Размещение без конфликта с композером: вариант `asstOrbSidebar` (absolute снизу-справа в `.sidebar` — виден на desktop везде + в списке чатов) + `asstOrbHeader` (компактный, в `ChatHeader`, виден ТОЛЬКО на мобильном ≤700px, где сайдбар скрыт при открытом чате). Оба → `useAppStore.setShowAssistant(true)`. Стили `asstOrb*` в слой «Аврора» (+ reduced-motion). Старый вход в попапе профиля оставлен как вторичный. Персональный выбор размещения с синком — отложен (fast-follow). Сборка зелёная.
 
 - 2026-06-25 | fix/web | Надёжный переход к сообщению + затухающая подсветка. Раньше переход к сообщению (источник ассистента/глобальный поиск/цитата) часто прыгал «в начало/мимо»: целевое сообщение ещё не в DOM (грузится асинхронно) или лежит в старой истории → `querySelector` возвращал null, прокрутки не было. Введён единый `MessageList.focusMessage(msgId)`: центрирование (block:center) + класс `msgFlashRow` (CSS `msgFlashGlow` в слой «Аврора»: ~2с контурное свечение в цвет темы, плавное затухание; + reduced-motion фолбэк). Эффект `scrollTargetId` переписан на ретраи с дозагрузкой старой истории (`onLoadMore`), пока сообщение не найдётся (предел ~6с); очистка стора перенесена в КОНЕЦ цикла, иначе cleanup эффекта убивал ретраи после первой попытки. Единый `focusMessage` теперь и для поиска по чату (лупа, `currentMatchId`), закреплённых (`pinnedFocusId`) и кликов по цитате-ответу. Сборка зелёная.
 
