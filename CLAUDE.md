@@ -24,7 +24,7 @@ backend/src/
   index.js          # точка входа: регистрация всех роутов, intervals (доставка отложенных сообщений и т.п.)
   config/           # env, БД, почта
   crypto/aes.js     # AES-256-GCM шифрование текста сообщений (ключ MESSAGE_ENCRYPTION_KEY)
-  db/versions/      # миграции 001–014 (вся схема БД здесь; новая таблица = новый файл миграции)
+  db/versions/      # миграции 001–015 (вся схема БД здесь; новая таблица = новый файл миграции)
   middleware/       # auth.js (JWT), errorHandler.js, rateLimits.js, csrfOrigin.js (Origin-проверка мутаций)
   routes/           # 23 файла — REST API, имя файла = префикс (auth, users, chats, messages, upload,
                     #   admin, friends, support, polls, push, search, sessions, linkPreview,
@@ -36,6 +36,11 @@ backend/src/
                     #     Этап D (ассистент по ДАННЫМ чатов, opt-in+платно):
                     #     GET /assistant/data/status, PUT /assistant/data/settings,
                     #     POST /assistant/data/ask {question}→{reply,covered,sources,mode}.
+                    #   collections.js — файловые коллекции чата (под /chats/:id/collections):
+                    #     общие на чат «папки файлов» (collection-only — файлы НЕ в ленте);
+                    #     CRUD папок + add/remove items (загрузка напрямую ИЛИ вложение
+                    #     сообщения). Права как фон чата (ЛС оба; группа edit_info). Сервис
+                    #     collectionService; миграция 015 (chat_collections + collection_items).
                     #   dailyPrompts.js — «Вопрос дня» (под /chats/:id/daily-prompt): конфиг, свои
                     #     вопросы, архив инстансов, ответы (текст/гс/кружок/медиа), ask-now.
                     #   invites.js — invite-token (постоянная личная ссылка): /invites/me (+QR),
@@ -165,6 +170,8 @@ web/src/
 4. Журнал держать не длиннее ~40 строк: старые записи группировать в одну строку-сводку.
 
 ## Журнал изменений
+
+- 2026-06-26 | feature/backend | Файловые коллекции чата (бэкенд, этап 1/2). Общие на чат именованные «папки файлов» («Конференция май 2026») для медиа/документов; файлы живут в коллекции и НЕ попадают в ленту (collection-only «файловый диск»). Миграция 015: `chat_collections` (имя/обложка/автор) + `collection_items` (attachment_* как у messages; `source_message_id`: NULL=загружен напрямую→коллекция владеет S3-объектом, не-NULL=ссылка на вложение сообщения→S3 за сообщением). `collectionService.js` — CRUD папок + add/remove items (загрузка напрямую `addUploadedItem` ИЛИ из сообщения `addItemFromMessage` со скоупом по чату); права как фон чата (чтение — любой участник; запись — ЛС оба, группа edit_info). `routes/collections.js` под `/chats/:id/collections` (подпись S3 через signMessageUrls/signUrl), смонтирован в index.js. Удаление чистит S3 только у direct-upload элементов. +8 тестов (134). UI (вкладка «Коллекции» в галерее + загрузка в папку) — этап 2. Realtime отложен (refetch при открытии).
 
 - 2026-06-25 | feature/web | Заметный вход в ассистента — светящийся орб (FAB). Раньше ассистенты прятались в попапе профиля и «сливались». Новый `components/ui/AssistantOrb.tsx` — плавающая градиентная кнопка-«орб» со свечением (пульсирующая аура, искра-иконка), открывает AssistantModal. Размещение без конфликта с композером: вариант `asstOrbSidebar` (absolute снизу-справа в `.sidebar` — виден на desktop везде + в списке чатов) + `asstOrbHeader` (компактный, в `ChatHeader`, виден ТОЛЬКО на мобильном ≤700px, где сайдбар скрыт при открытом чате). Оба → `useAppStore.setShowAssistant(true)`. Стили `asstOrb*` в слой «Аврора» (+ reduced-motion). Старый вход в попапе профиля оставлен как вторичный. Персональный выбор размещения с синком — отложен (fast-follow). Сборка зелёная.
 

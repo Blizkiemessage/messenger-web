@@ -194,6 +194,16 @@ db.exec(`
     token TEXT PRIMARY KEY, inviter_id TEXT NOT NULL, revoked INTEGER NOT NULL DEFAULT 0,
     used_count INTEGER NOT NULL DEFAULT 0, created_at INTEGER NOT NULL, last_used_at INTEGER
   );
+  CREATE TABLE chat_collections (
+    id TEXT PRIMARY KEY, chat_id TEXT NOT NULL, name TEXT NOT NULL, cover_url TEXT,
+    created_by TEXT NOT NULL, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL
+  );
+  CREATE TABLE collection_items (
+    id TEXT PRIMARY KEY, collection_id TEXT NOT NULL, chat_id TEXT NOT NULL,
+    attachment_url TEXT NOT NULL, attachment_type TEXT, attachment_name TEXT,
+    attachment_size INTEGER, attachment_meta TEXT, source_message_id TEXT,
+    added_by TEXT NOT NULL, added_at INTEGER NOT NULL
+  );
 `);
 
 // ── Inject mocks into module cache before services are required ───────────────
@@ -1315,5 +1325,84 @@ describe('Data assistant (Этап D)', () => {
         assert.equal(r.covered, false);
       } finally { global.fetch = origFetch; }
     });
+  });
+});
+
+// ── Файловые коллекции чата ─────────────────────────────────────────────────
+describe('chat collections', () => {
+  const col = require('../src/services/collectionService');
+
+  test('ЛС: оба собеседника могут создавать коллекции', () => {
+    const a = col.createCollection('chat-direct', 'alice', 'Отпуск');
+    assert.equal(a.name, 'Отпуск');
+    const b = col.createCollection('chat-direct', 'bob', 'Документы');
+    assert.equal(b.name, 'Документы');
+  });
+
+  test('группа: участник без edit_info НЕ может создавать (403)', () => {
+    // carol — обычный member группы → нет edit_info
+    assert.throws(
+      () => col.createCollection('chat-group', 'carol', 'Запрещено'),
+      (err) => { assert.equal(err.status, 403); return true; },
+    );
+  });
+
+  test('группа: админ может создавать', () => {
+    const c = col.createCollection('chat-group', 'alice', 'Конференция май 2026');
+    assert.equal(c.name, 'Конференция май 2026');
+  });
+
+  test('не участник чата не видит коллекции (403)', () => {
+    // carol не состоит в chat-direct
+    assert.throws(
+      () => col.listCollections('chat-direct', 'carol'),
+      (err) => { assert.equal(err.status, 403); return true; },
+    );
+  });
+
+  test('загрузка файла в папку + чтение + счётчик', () => {
+    const c = col.createCollection('chat-direct', 'alice', 'Фото');
+    const item = col.addUploadedItem('chat-direct', c.id, 'alice', {
+      attachment_url: 'https://s3/x/photo1.webp', attachment_type: 'image', attachment_name: 'photo1.webp', attachment_size: 1234,
+    });
+    assert.equal(item.source_message_id, null); // direct upload → коллекция владеет файлом
+    const { items } = col.getCollectionItems('chat-direct', c.id, 'bob');
+    assert.equal(items.length, 1);
+    assert.equal(items[0].attachment_url, 'https://s3/x/photo1.webp');
+    const list = col.listCollections('chat-direct', 'alice');
+    const found = list.find(x => x.id === c.id);
+    assert.equal(found.item_count, 1);
+    assert.equal(found.cover_url, 'https://s3/x/photo1.webp'); // обложка-превью из медиа
+  });
+
+  test('добавление вложения существующего сообщения (S3 не за коллекцией)', () => {
+    db.prepare(
+      'INSERT INTO messages (id,chat_id,sender_id,created_at,attachment_url,attachment_type,attachment_name) VALUES (?,?,?,?,?,?,?)'
+    ).run(['cm-msg-1', 'chat-direct', 'alice', NOW, 'https://s3/x/doc.pdf', 'file', 'doc.pdf']);
+    const c = col.createCollection('chat-direct', 'alice', 'Из чата');
+    const item = col.addItemFromMessage('chat-direct', c.id, 'alice', 'cm-msg-1');
+    assert.equal(item.source_message_id, 'cm-msg-1'); // ссылка на сообщение → S3 принадлежит сообщению
+    assert.equal(item.attachment_url, 'https://s3/x/doc.pdf');
+  });
+
+  test('нельзя добавить вложение сообщения из ЧУЖОГО чата', () => {
+    // сообщение в chat-group; пытаемся добавить в коллекцию chat-direct
+    db.prepare(
+      'INSERT INTO messages (id,chat_id,sender_id,created_at,attachment_url,attachment_type) VALUES (?,?,?,?,?,?)'
+    ).run(['cm-msg-2', 'chat-group', 'alice', NOW, 'https://s3/x/secret.pdf', 'file']);
+    const c = col.createCollection('chat-direct', 'alice', 'Попытка');
+    assert.throws(
+      () => col.addItemFromMessage('chat-direct', c.id, 'alice', 'cm-msg-2'),
+      (err) => { assert.equal(err.status, 404); return true; },
+    );
+  });
+
+  test('удаление файла и папки', () => {
+    const c = col.createCollection('chat-direct', 'alice', 'Удаляемая');
+    const item = col.addUploadedItem('chat-direct', c.id, 'alice', { attachment_url: 'https://s3/x/y.webp', attachment_type: 'image' });
+    assert.deepEqual(col.removeItem('chat-direct', c.id, 'alice', item.id), { ok: true, id: item.id });
+    assert.equal(col.getCollectionItems('chat-direct', c.id, 'alice').items.length, 0);
+    col.deleteCollection('chat-direct', c.id, 'alice');
+    assert.ok(!col.listCollections('chat-direct', 'alice').some(x => x.id === c.id));
   });
 });
