@@ -134,6 +134,10 @@ function initSocket(httpServer) {
     if (!session || session.revoked) return next(new Error('Session revoked'));
 
     socket.data.userId = payload.sub;
+    // Track the session id so a revoked session's live sockets can be force-closed
+    // (logout / "kill device" / password reset) instead of lingering until the
+    // socket happens to reconnect. The access token's jti IS the session id.
+    socket.data.sessionId = payload.jti;
     next();
   });
 
@@ -155,6 +159,9 @@ function initSocket(httpServer) {
 
     // Join personal room (for events targeted to this user specifically)
     socket.join(`user:${userId}`);
+    // Join a per-session room so this socket can be force-disconnected the moment
+    // its session is revoked (see io.kickSession + the periodic sweep below).
+    if (socket.data.sessionId) socket.join(`session:${socket.data.sessionId}`);
 
     // Join all chat rooms; broadcast user-online only on the first socket connection
     // to avoid duplicate presence events when the same user opens a second tab.
@@ -455,6 +462,46 @@ function initSocket(httpServer) {
 
   // Expose onlineUsers on the io instance so REST routes can check presence
   io.onlineUsers = onlineUsers;
+
+  // ── Session revocation: force-disconnect live sockets ────────────────────────
+  // REST routes call this immediately after revoking a session (logout, "kill
+  // device", password reset) so the affected sockets stop receiving events at
+  // once instead of lingering until they happen to reconnect.
+  io.kickSession = (sessionId) => {
+    if (!sessionId) return;
+    try { io.in(`session:${sessionId}`).disconnectSockets(true); }
+    catch (err) { console.error('[Socket] kickSession error:', err.message); }
+  };
+
+  // Backstop sweep — catches every revocation path (incl. admin actions and
+  // account deletion that don't call kickSession). Every 60 s: collect the
+  // distinct session ids of all connected sockets, find which are revoked or
+  // gone in the DB, and disconnect them. Bounds revocation latency to ≤60 s.
+  setInterval(() => {
+    try {
+      const sockets = io.of('/').sockets; // Map<socketId, socket>
+      if (!sockets || sockets.size === 0) return;
+      const sessionIds = new Set();
+      for (const s of sockets.values()) {
+        if (s.data?.sessionId) sessionIds.add(s.data.sessionId);
+      }
+      if (sessionIds.size === 0) return;
+
+      const db = getDb();
+      const ids = [...sessionIds];
+      const placeholders = ids.map(() => '?').join(',');
+      // Sessions that are still valid (exist AND not revoked)
+      const valid = new Set(
+        db.prepare(`SELECT id FROM sessions WHERE id IN (${placeholders}) AND revoked = 0`)
+          .all(ids).map(r => r.id)
+      );
+      for (const id of ids) {
+        if (!valid.has(id)) io.kickSession(id);
+      }
+    } catch (err) {
+      console.error('[Socket] session sweep error:', err.message);
+    }
+  }, 60 * 1000);
 
   // ── Periodic presence expiry check (F3) ──────────────────────────────────────
   // Every 60 seconds: find users whose status has expired, clear it in DB,

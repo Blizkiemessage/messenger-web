@@ -77,7 +77,10 @@ router.delete('/:id', (req, res, next) => {
     db.prepare('UPDATE sessions SET revoked = 1 WHERE id = ?').run(id);
 
     const io = req.app.get('io');
-    if (io) io.to(`user:${req.userId}`).emit('session-revoked', { sessionId: id });
+    if (io) {
+      io.to(`user:${req.userId}`).emit('session-revoked', { sessionId: id });
+      io.kickSession?.(id); // force-disconnect that device's live sockets now
+    }
 
     res.json({ ok: true });
   } catch (err) { next(err); }
@@ -99,6 +102,7 @@ router.delete('/', (req, res, next) => {
     if (io) {
       for (const s of others) {
         io.to(`user:${req.userId}`).emit('session-revoked', { sessionId: s.id });
+        io.kickSession?.(s.id); // force-disconnect each revoked device now
       }
     }
 

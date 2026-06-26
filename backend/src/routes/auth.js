@@ -318,6 +318,8 @@ router.post('/logout', authMiddleware, (req, res, next) => {
     db.prepare('UPDATE refresh_tokens SET revoked = 1 WHERE session_id = ?').run(req.sessionId);
     clearSessionCookie(res);
     clearRefreshCookie(res);
+    // Force-disconnect any live sockets bound to this session immediately.
+    req.app.get('io')?.kickSession?.(req.sessionId);
     res.json({ ok: true });
   } catch (err) {
     next(err);

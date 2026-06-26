@@ -672,6 +672,79 @@ describe('access control — chat membership', () => {
     const res = forwardMessages('chat-group', 'bob', ['ac-msg-1']);
     assert.equal(res.length, 1);
   });
+
+  test('cannot forward a message FROM a chat you are not in (cross-chat IDOR)', () => {
+    // carol состоит в chat-group, но НЕ в chat-direct. Она угадывает id секретного
+    // сообщения ac-msg-1 (из chat-direct) и пытается переслать его в chat-group,
+    // где состоит сама. Источник должен быть молча пропущен → ничего не утекает.
+    const res = forwardMessages('chat-group', 'carol', ['ac-msg-1']);
+    assert.equal(res.length, 0);
+  });
+});
+
+// ── S3 safe-serve overrides (stored-content XSS defence) ────────────────────
+describe('s3Sign — safe serving metadata', () => {
+  const { safeServeOverrides } = require('../src/utils/s3Sign');
+
+  test('non-media key is forced to attachment (cannot render inline)', () => {
+    // Even if attacker stored HTML bytes under a .html/.svg/unknown key, GET serves
+    // it as a download → no inline execution on the storage origin.
+    for (const key of ['x.html', 'x.svg', 'x.bin', 'noext']) {
+      const o = safeServeOverrides(key);
+      assert.equal(o.ResponseContentDisposition, 'attachment');
+      assert.equal(o.ResponseContentType, 'application/octet-stream');
+    }
+  });
+
+  test('image key serves inline with a safe image content-type', () => {
+    const o = safeServeOverrides('abc.webp');
+    assert.equal(o.ResponseContentDisposition, 'inline');
+    assert.equal(o.ResponseContentType, 'image/webp');
+  });
+
+  test('document key (.pdf) is forced to attachment', () => {
+    const o = safeServeOverrides('report.pdf');
+    assert.equal(o.ResponseContentDisposition, 'attachment');
+  });
+
+  test('caller opts override the ext-derived defaults', () => {
+    const o = safeServeOverrides('voice.webm', { contentType: 'audio/webm', disposition: 'inline' });
+    assert.equal(o.ResponseContentType, 'audio/webm');
+    assert.equal(o.ResponseContentDisposition, 'inline');
+  });
+});
+
+// ── SSRF / DNS-rebinding pin (link preview) ─────────────────────────────────
+describe('linkPreview — SSRF guard + DNS pinning', () => {
+  const { resolveSafeTarget, isSafeIp } = require('../src/routes/linkPreview');
+
+  test('isSafeIp rejects loopback / private / link-local / mapped', () => {
+    assert.equal(isSafeIp('127.0.0.1'), false);
+    assert.equal(isSafeIp('10.0.0.5'), false);
+    assert.equal(isSafeIp('192.168.1.1'), false);
+    assert.equal(isSafeIp('169.254.169.254'), false); // cloud metadata
+    assert.equal(isSafeIp('::1'), false);
+    assert.equal(isSafeIp('::ffff:127.0.0.1'), false); // IPv4-mapped bypass
+    assert.equal(isSafeIp('8.8.8.8'), true);
+  });
+
+  test('literal private/metadata IP URLs resolve to null (blocked)', async () => {
+    assert.equal(await resolveSafeTarget('http://127.0.0.1/'), null);
+    assert.equal(await resolveSafeTarget('http://169.254.169.254/latest/meta-data/'), null);
+    assert.equal(await resolveSafeTarget('http://[::1]/'), null);
+  });
+
+  test('non-http protocol and non-web ports are blocked', async () => {
+    assert.equal(await resolveSafeTarget('file:///etc/passwd'), null);
+    assert.equal(await resolveSafeTarget('http://example.com:6379/'), null); // Redis port
+  });
+
+  test('public literal IP returns a target pinned to that exact IP', async () => {
+    const t = await resolveSafeTarget('https://8.8.8.8/');
+    assert.ok(t);
+    assert.equal(t.pinIp, '8.8.8.8'); // connection will be pinned here, no re-resolution
+    assert.equal(t.pinFamily, 4);
+  });
 });
 
 // ── 8. Гранулярные права модератора ────────────────────────────────────────

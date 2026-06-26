@@ -18,9 +18,55 @@
  *   - The URL doesn't start with S3_PUBLIC_URL
  *   - Signing fails for any reason
  */
-const { S3Client, GetObjectCommand } = require('@aws-sdk/client-s3');
+const path                           = require('path');
+const { S3Client, GetObjectCommand, HeadObjectCommand } = require('@aws-sdk/client-s3');
 const { getSignedUrl }               = require('@aws-sdk/s3-request-presigner');
 const logger                         = require('./logger');
+
+// ── Safe serving metadata (defence against stored-content XSS) ────────────────
+// Objects are uploaded directly to S3 with a client-supplied Content-Type and
+// Content-Disposition. A malicious authenticated client could presign an allowed
+// extension (e.g. .webp) but PUT actual HTML/SVG bytes with
+// `Content-Type: text/html; Content-Disposition: inline`, then open the raw
+// object URL → stored XSS / phishing on the storage origin.
+//
+// We neutralise this at *serve* time, which the server fully controls: every
+// presigned GET overrides response-content-type and response-content-disposition
+// based on the TRUSTED object key extension (and, for messages, the DB row), so
+// whatever bytes/metadata were stored, the browser is told a safe type and forced
+// to download anything that isn't a known inline-media format. Requires no change
+// to the upload path (zero regression risk for live uploads).
+const EXT_MIME = {
+  '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.png': 'image/png', '.gif': 'image/gif',
+  '.webp': 'image/webp', '.heic': 'image/heic', '.heif': 'image/heif', '.bmp': 'image/bmp', '.tiff': 'image/tiff',
+  '.mp4': 'video/mp4', '.mov': 'video/quicktime', '.avi': 'video/x-msvideo',
+  '.mpeg': 'video/mpeg', '.mkv': 'video/x-matroska', '.webm': 'video/webm',
+  '.mp3': 'audio/mpeg', '.m4a': 'audio/mp4', '.wav': 'audio/wav',
+  '.aac': 'audio/aac', '.flac': 'audio/flac', '.ogg': 'audio/ogg',
+};
+// Extensions safe to serve inline (rendered media — never executes script).
+const INLINE_EXTS = new Set([
+  '.jpg', '.jpeg', '.png', '.gif', '.webp', '.heic', '.heif', '.bmp', '.tiff',
+  '.mp4', '.mov', '.avi', '.mpeg', '.mkv', '.webm',
+  '.mp3', '.m4a', '.wav', '.aac', '.flac', '.ogg',
+]);
+
+/**
+ * Derives safe { ResponseContentType, ResponseContentDisposition } for a key.
+ * Caller may override either via `opts` (used for messages: accurate content-type
+ * by attachment_type + original filename in the disposition). Anything whose
+ * extension isn't a known inline-media type is forced to `attachment`, so HTML/SVG
+ * can never render inline on the storage origin.
+ */
+function safeServeOverrides(key, opts = {}) {
+  const ext = path.extname(key || '').toLowerCase();
+  const isInline = INLINE_EXTS.has(ext);
+  const ResponseContentType =
+    opts.contentType || (isInline ? (EXT_MIME[ext] || 'application/octet-stream') : 'application/octet-stream');
+  const ResponseContentDisposition =
+    opts.disposition || (isInline ? 'inline' : 'attachment');
+  return { ResponseContentType, ResponseContentDisposition };
+}
 
 const useS3 = !!(
   process.env.S3_ACCESS_KEY_ID &&
@@ -55,20 +101,60 @@ function urlToKey(url) {
 
 /**
  * Returns a presigned GET URL valid for `expiresIn` seconds (default 1 hour).
+ * Forces a safe response Content-Type + Content-Disposition (see safeServeOverrides).
+ * `opts` (optional): { contentType, disposition } to override the ext-derived defaults.
  * Falls back to the original URL if S3 is not configured or URL is not an S3 URL.
  */
-async function signUrl(url, expiresIn = 3600) {
+async function signUrl(url, expiresIn = 3600, opts = {}) {
   if (!url || !useS3 || !isS3Url(url)) return url;
   try {
+    const key = urlToKey(url);
+    const { ResponseContentType, ResponseContentDisposition } = safeServeOverrides(key, opts);
     const command = new GetObjectCommand({
       Bucket: process.env.S3_BUCKET,
-      Key:    urlToKey(url),
+      Key:    key,
+      ResponseContentType,
+      ResponseContentDisposition,
     });
     return await getSignedUrl(s3, command, { expiresIn });
   } catch (err) {
     logger.warn('[S3Sign]', 'Failed to sign URL', { url, error: err.message });
     return url; // safe fallback — object still loads if bucket is still public
   }
+}
+
+/**
+ * Returns the actual stored byte size of an S3 object, or null if unknown / not
+ * an S3 URL / not configured. Used to enforce the upload size limit server-side
+ * at message-accept time (presigned PUT cannot range-limit, and images/videos are
+ * compressed client-side AFTER presign, so the declared size can't be signed).
+ */
+async function headObjectSize(url) {
+  if (!url || !useS3 || !isS3Url(url)) return null;
+  try {
+    const r = await s3.send(new HeadObjectCommand({
+      Bucket: process.env.S3_BUCKET,
+      Key:    urlToKey(url),
+    }));
+    return typeof r.ContentLength === 'number' ? r.ContentLength : null;
+  } catch (err) {
+    // HEAD failed (object not yet visible, transient error) → fail open: callers
+    // treat null as "size unknown, allow" to avoid blocking legitimate sends.
+    logger.warn('[S3Sign]', 'HeadObject failed', { url, error: err.message });
+    return null;
+  }
+}
+
+// Maps a message's attachment_type → accurate inline content-type given the key
+// extension, disambiguating extensions shared by audio & video (e.g. .webm).
+function messageContentType(attachmentType, ext) {
+  const e = (ext || '').toLowerCase();
+  if (attachmentType === 'audio') {
+    return ({ '.webm': 'audio/webm', '.ogg': 'audio/ogg', '.m4a': 'audio/mp4',
+      '.mp3': 'audio/mpeg', '.wav': 'audio/wav', '.aac': 'audio/aac', '.flac': 'audio/flac' })[e]
+      || 'audio/mpeg';
+  }
+  return EXT_MIME[e] || null; // image/video/gif → ext map; null → let signUrl default
 }
 
 /**
@@ -80,12 +166,30 @@ async function signMessageUrls(messages) {
   await Promise.all(
     messages.map(async (msg) => {
       if (msg?.attachment_url) {
-        msg.attachment_url = await signUrl(msg.attachment_url);
+        msg.attachment_url = await signUrl(msg.attachment_url, 3600, messageServeOpts(msg));
       }
       // Also sign inside reply snippets if they carry attachment_url in future
     })
   );
   return messages;
+}
+
+// Inline-media attachment types (rendered, never executes script). Everything
+// else (documents, archives, unknown) is forced to download with its filename.
+const INLINE_ATTACHMENT_TYPES = new Set([
+  'image', 'video', 'video_note', 'audio', 'gif_tenor', 'gif_custom', 'sticker',
+]);
+
+/** Build per-message safe serve overrides from the trusted DB row. */
+function messageServeOpts(msg) {
+  const key = isS3Url(msg.attachment_url) ? urlToKey(msg.attachment_url) : (msg.attachment_url || '');
+  const ext = path.extname(key).toLowerCase();
+  if (INLINE_ATTACHMENT_TYPES.has(msg.attachment_type)) {
+    return { contentType: messageContentType(msg.attachment_type, ext) || undefined, disposition: 'inline' };
+  }
+  // Document / file → force download, preserving the original filename.
+  const name = (msg.attachment_name || path.basename(key) || 'file').slice(0, 200);
+  return { disposition: `attachment; filename*=UTF-8''${encodeURIComponent(name)}` };
 }
 
 /**
@@ -238,6 +342,8 @@ async function signStickerPacks(packs) {
 
 module.exports = {
   signUrl,
+  headObjectSize,
+  safeServeOverrides, // exported for unit tests
   signMessageUrls,
   signChatAttachments,
   signSingleChatAttachment,

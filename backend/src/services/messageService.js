@@ -392,7 +392,17 @@ function forwardMessages(targetChatId, senderId, messageIds) {
 
   const results = [];
   for (const msgId of messageIds) {
-    const orig = db.prepare('SELECT * FROM messages WHERE id = ? AND deleted_at IS NULL').get(msgId);
+    // Scope the source lookup by membership: the forwarder MUST belong to the
+    // chat the original message lives in. Without this join a user could forward
+    // (and thereby read the decrypted text + signed attachment URL of) any
+    // message in the system by guessing its UUID — a cross-chat IDOR. Mirrors
+    // the same guard applied to reactions. Not a member of the source chat →
+    // the row simply isn't returned and is silently skipped.
+    const orig = db.prepare(`
+      SELECT m.* FROM messages m
+      JOIN chat_members cm ON cm.chat_id = m.chat_id AND cm.user_id = ?
+      WHERE m.id = ? AND m.deleted_at IS NULL
+    `).get([senderId, msgId]);
     if (!orig) continue;
 
     // Get original sender info for attribution

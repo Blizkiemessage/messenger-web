@@ -17,7 +17,9 @@ const { authMiddleware } = require('../middleware/auth');
 const { getChatMessages, saveMessage, toggleReaction, toggleEmojiReaction, deleteMessages, hideMessages, pinMessage, unpinMessage, getPinnedMessages, forwardMessages, editMessage, saveScheduledMessage, getScheduledMessages, cancelScheduledMessage, updateScheduledMessage } = require('../services/messageService');
 const { isBlocked } = require('../services/userService');
 const { getDb } = require('../config/database');
-const { signUrl, signMessageUrls, signAvatarUrl } = require('../utils/s3Sign');
+const { signUrl, signMessageUrls, signAvatarUrl, headObjectSize } = require('../utils/s3Sign');
+const { deleteFromS3 } = require('../utils/s3Delete');
+const { MAX_PRESIGN_SIZE } = require('../utils/allowedMimeTypes');
 const { parsePagination } = require('../utils/pagination');
 
 const router = express.Router();
@@ -30,6 +32,21 @@ const msgLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
 });
+
+// Enforce the upload size limit on the ACTUAL stored object. A presigned PUT URL
+// can't range-limit the body (and images/videos are compressed client-side after
+// presign, so the declared size can't be signed either), so the only reliable
+// gate is to check the object's real size when the message that references it is
+// posted. Oversized → delete the orphan object and reject. HEAD failure → fail
+// open (returns false) so a transient S3 hiccup never blocks a legitimate send.
+async function attachmentExceedsLimit(attachmentUrl) {
+  const size = await headObjectSize(attachmentUrl);
+  if (size != null && size > MAX_PRESIGN_SIZE) {
+    deleteFromS3(attachmentUrl); // fire-and-forget cleanup of the oversized orphan
+    return true;
+  }
+  return false;
+}
 
 // GET /chats/:chatId/messages
 router.get('/:chatId/messages', async (req, res, next) => {
@@ -85,6 +102,11 @@ router.post('/:chatId/messages', msgLimiter, async (req, res, next) => {
       if (recipient && isBlocked(recipient.user_id, req.userId)) {
         return res.status(403).json({ error: 'blocked' });
       }
+    }
+
+    // Enforce the actual stored size of any attachment (presign can't bind it).
+    if (hasAttachment && await attachmentExceedsLimit(attachment_url)) {
+      return res.status(413).json({ error: `File too large (max ${MAX_PRESIGN_SIZE / 1024 / 1024}MB)` });
     }
 
     const msg = saveMessage(req.params.chatId, req.userId, hasText ? text.trim() : '', attachment, false, replyData);
@@ -152,6 +174,10 @@ router.post('/:chatId/messages/scheduled', msgLimiter, async (req, res, next) =>
       if (recipient && isBlocked(recipient.user_id, req.userId)) {
         return res.status(403).json({ error: 'blocked' });
       }
+    }
+
+    if (hasAttachment && await attachmentExceedsLimit(attachment_url)) {
+      return res.status(413).json({ error: `File too large (max ${MAX_PRESIGN_SIZE / 1024 / 1024}MB)` });
     }
 
     const replyData = (reply && typeof reply.id === 'string') ? reply : null;
