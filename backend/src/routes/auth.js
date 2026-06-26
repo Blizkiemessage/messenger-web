@@ -230,8 +230,10 @@ router.post('/register', registrationLimiter, async (req, res, next) => {
     if (!email || typeof email !== 'string') {
       return res.status(400).json({ error: 'Email обязателен' });
     }
-    if (!password || typeof password !== 'string' || password.length < 6) {
-      return res.status(400).json({ error: 'Пароль: минимум 6 символов' });
+    // Presence/type only — the full policy (min 8 + digit/special) is enforced
+    // once, by validatePassword inside the service, so the rules never drift.
+    if (!password || typeof password !== 'string') {
+      return res.status(400).json({ error: 'Введите пароль' });
     }
     const result = await initiateRegistration(username.trim(), email.trim(), password);
     res.json(result); // { email }
@@ -263,8 +265,9 @@ router.post('/verify-email', otpVerifyLimiter, async (req, res, next) => {
 router.patch('/password', authMiddleware, async (req, res, next) => {
   try {
     const { newPassword, currentPassword } = req.body;
-    if (!newPassword || typeof newPassword !== 'string' || newPassword.length < 6) {
-      return res.status(400).json({ error: 'Пароль: минимум 6 символов' });
+    // Policy (min 8 + digit/special) enforced by validatePassword in the service.
+    if (!newPassword || typeof newPassword !== 'string') {
+      return res.status(400).json({ error: 'Введите новый пароль' });
     }
     await setUserPassword(req.userId, newPassword, currentPassword || null);
     res.json({ ok: true });
@@ -297,8 +300,9 @@ router.post('/reset-password', otpVerifyLimiter, async (req, res, next) => {
     if (!token || typeof token !== 'string') {
       return res.status(400).json({ error: 'Недействительная ссылка' });
     }
-    if (!newPassword || typeof newPassword !== 'string' || newPassword.length < 6) {
-      return res.status(400).json({ error: 'Пароль: минимум 6 символов' });
+    // Policy (min 8 + digit/special) enforced by validatePassword in the service.
+    if (!newPassword || typeof newPassword !== 'string') {
+      return res.status(400).json({ error: 'Введите новый пароль' });
     }
     const result = await resetPassword(id, token, newPassword);
     res.json(result);

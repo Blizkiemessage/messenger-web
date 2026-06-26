@@ -109,6 +109,11 @@ router.post('/:id/chats', foldersLimiter, (req, res, next) => {
     const { chatId } = req.body;
     if (!chatId || typeof chatId !== 'string') return res.status(400).json({ error: 'chatId is required' });
 
+    // Only allow filing a chat the user actually belongs to (prevents storing
+    // arbitrary/guessed chat ids in a personal folder).
+    const member = db.prepare('SELECT 1 FROM chat_members WHERE chat_id = ? AND user_id = ?').get(chatId, req.userId);
+    if (!member) return res.status(403).json({ error: 'Not a member of this chat' });
+
     db.prepare('INSERT OR IGNORE INTO folder_chats (folder_id, chat_id) VALUES (?, ?)').run(folderId, chatId);
     res.json(getFolderWithChats(folderId));
   } catch (err) { next(err); }

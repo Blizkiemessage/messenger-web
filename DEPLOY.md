@@ -1,95 +1,92 @@
 # Деплой Blizkie — инструкция
 
-## Проблемы, которые были исправлены
+Архитектура продакшена:
 
-### 1. 404 при логине / регистрации
-**Причина:** Фронтенд не знал URL бэкенда — переменная `VITE_API_BASE_URL` не была установлена в Vercel,
-поэтому все запросы уходили на `http://localhost:3000`, что на проде не работает.
+- **Backend** — [Amvera](https://amvera.ru) (Docker, постоянный том `/data` под SQLite). Конфиг — `amvera.yaml` + `Dockerfile`.
+- **Frontend** — [Vercel](https://vercel.com) (сборка из исходников `web/`, SPA-rewrite в `web/vercel.json`).
+- **Хранилище медиа** — S3-совместимое (Yandex Object Storage).
+- **CI** — `.github/workflows/deploy-amvera.yml`: на push в `devDK` сначала прогоняются тесты (`backend npm test` + `web build`), затем деплой. На PR — только тесты.
 
-**Решение:** Установить переменную окружения в Vercel (см. ниже).
-
----
-
-### 2. Вкладки "Личные" / "Группы" — пустой белый экран
-**Причина:** При смене вкладки `activeChatId` не сбрасывался. Если активный чат был
-личным, а пользователь переходил на вкладку "Группы" — чат оставался "активным" в store,
-но не попадал в отфильтрованный список, что приводило к пустому рендеру без EmptyState.
-
-**Решение:** `setChatFilter` теперь проверяет, виден ли текущий активный чат в новом
-фильтре, и сбрасывает `activeChatId` если нет.
+> Рабочая ветка — `devDK`, основная — `main`.
 
 ---
 
-### 3. Создание группы — ничего не происходило
-**Причина:** Порядок вызовов в store был неправильным — `setChatFilter('all')` вызывался
-до `upsertChat(chat)`, из-за чего новый чат ещё не был в списке когда фильтр проверял
-видимость активного чата.
+## 1. Frontend (Vercel)
 
-**Решение:** Порядок исправлен: `upsertChat` → `setChatFilter('all')` → `setActiveChatId`.
+**Root Directory:** `web` · **Build Command:** `npm run build` · **Output Directory:** `dist`
 
----
+Переменные окружения (**Settings → Environment Variables**):
 
-### 4. Перезагрузка страницы выбрасывает на главную
-**Причина:** Vercel не знает о SPA-роутинге — при обращении к любому пути кроме `/`
-он возвращал 404.
+| Переменная           | Значение                                  |
+|----------------------|-------------------------------------------|
+| `VITE_API_BASE_URL`  | URL бэкенда на Amvera, напр. `https://blizkie-backend.amvera.io` |
+| `VITE_SOCKET_URL`    | то же, что `VITE_API_BASE_URL`            |
 
-**Решение:** Добавлен файл `web/vercel.json` с rewrite-правилом, которое направляет
-все запросы на `index.html`.
+> ⚠️ `VITE_*` попадают в публичный бандл — **никаких секретов**. После изменения переменных — **Redeploy** (старая сборка иначе продолжит использовать прежние значения).
 
 ---
 
-## Настройка переменных окружения
+## 2. Backend (Amvera)
 
-### Vercel (фронтенд)
+Деплой по `amvera.yaml` (Docker, `containerPort: 3000`, `persistenceMount: /data`). Переменные задаются в панели Amvera.
 
-В настройках проекта на Vercel → **Settings → Environment Variables** добавить:
+### Обязательно всегда
+| Переменная                 | Значение |
+|----------------------------|----------|
+| `JWT_SECRET`               | длинная случайная строка (≥32 симв.) |
+| `MESSAGE_ENCRYPTION_KEY`   | 64 hex-символа (32 байта) — ключ AES шифрования сообщений. **Потеря = потеря всей переписки** |
 
-| Переменная           | Значение                                      |
-|----------------------|-----------------------------------------------|
-| `VITE_API_BASE_URL`  | `https://ВАШ_ПРОЕКТ.up.railway.app`           |
-| `VITE_SOCKET_URL`    | `https://ВАШ_ПРОЕКТ.up.railway.app` (то же)  |
+### Обязательно в production (`NODE_ENV=production`)
+| Переменная             | Значение |
+|------------------------|----------|
+| `SMTP_HOST`            | хост SMTP (OTP, сброс пароля) |
+| `ADMIN_PASSWORD_HASH`  | bcrypt-хэш пароля админа (`npm run create-admin` помогает) |
+| `APP_URL`              | публичный URL фронтенда (для ссылок в письмах / invite) |
 
-> ⚠️ После добавления переменных нужно сделать **Redeploy** в Vercel.
-> Без этого старая сборка продолжит использовать `localhost:3000`.
+### Рекомендуется
+| Переменная        | Назначение |
+|-------------------|------------|
+| `NODE_ENV`        | `production` |
+| `DB_PATH`         | `/data/blizkie.db` (том Amvera) |
+| `ALLOWED_ORIGIN`  | origin фронтенда (CORS), можно список через запятую |
+| `SMTP_PORT` / `SMTP_USER` / `SMTP_PASS` / `SMTP_FROM` | параметры почты |
+| `ADMIN_USERNAME`  | логин админ-панели |
 
-### Railway (бэкенд)
+### Опциональные группы (по фичам)
+- **Медиа (S3):** `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`, `S3_BUCKET`, `S3_PUBLIC_URL` (+ опц. `S3_REGION`, `S3_ENDPOINT`). Без них — загрузка падает на локальный диск. Загрузка с привязкой размера: `UPLOAD_PRESIGN_POST=true` (требует `POST` в CORS-политике бакета).
+- **Push:** `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_EMAIL`.
+- **Звонки (WebRTC):** `STUN_URLS`, и TURN — либо `METERED_API_KEY`/`METERED_TURN_SECRET`, либо `TURN_URL(S)`/`TURN_USERNAME`/`TURN_CREDENTIAL`.
+- **WebAuthn / passkeys:** `WEBAUTHN_RP_ID`, `WEBAUTHN_ORIGIN`.
+- **ИИ-ассистенты / сводки:** `AI_SUMMARY_*`, `AI_ASSISTANT_*`, `AI_DATA_*` (см. CLAUDE.md).
+- **GIF:** `GIPHY_API_KEY`.
+- **Бэкапы БД в S3:** включены всегда (ключ — `DB_BACKUP_ENCRYPTION_KEY` либо HKDF от `MESSAGE_ENCRYPTION_KEY`); опц. изоляция `DB_BACKUP_S3_BUCKET`/`_ACCESS_KEY_ID`/`_SECRET_ACCESS_KEY`, расписание `DB_BACKUP_HOUR_UTC`, хранение `DB_BACKUP_KEEP_DAYS`. Восстановление — `npm run restore-backup -- <файл|--s3 ключ> [out.db]`.
 
-В настройках сервиса на Railway → **Variables** должны быть:
-
-| Переменная        | Значение                                        |
-|-------------------|-------------------------------------------------|
-| `JWT_SECRET`      | Длинная случайная строка (минимум 32 символа)   |
-| `ALLOWED_ORIGIN`  | `https://ВАШ_ПРОЕКТ.vercel.app`                 |
-| `NODE_ENV`        | `production`                                    |
-| `PORT`            | Railway подставляет автоматически               |
+> Подробнее по группам и фичам — `CLAUDE.md` (карта проекта) и `ROADMAP.md`.
 
 ---
 
-## Структура проекта
+## 3. Структура проекта
 
 ```
-blz-dev/
-├── backend/          → Node.js / Express / Socket.io (деплой на Railway)
+messenger-web/
+├── backend/          → Node.js / Express / Socket.io / better-sqlite3
 │   ├── src/
-│   ├── package.json
-│   └── railway.json  → конфиг Railway (startCommand, healthcheck)
-└── web/              → React / Vite / TypeScript (деплой на Vercel)
-    ├── src/
-    ├── vercel.json   → SPA rewrite (fixes reload → 404)
-    └── package.json
+│   ├── Dockerfile    → образ для Amvera
+│   └── package.json
+├── web/              → React / Vite / TypeScript
+│   ├── src/
+│   ├── vercel.json   → SPA-rewrite (фикс reload → 404)
+│   └── package.json
+├── amvera.yaml       → конфиг деплоя бэкенда (Docker, том /data, порт 3000)
+└── .github/workflows/deploy-amvera.yml → CI: тесты → деплой на push в devDK
 ```
 
-## Как деплоить
+---
 
-### Backend (Railway)
-1. Подключить GitHub репозиторий к Railway
-2. Указать **Root Directory**: `backend`
-3. Добавить переменные окружения (см. выше)
-4. Railway автоматически запустит `node src/index.js`
+## 4. Чек-лист первого деплоя
 
-### Frontend (Vercel)
-1. Подключить GitHub репозиторий к Vercel
-2. Указать **Root Directory**: `web`
-3. Добавить переменные окружения (см. выше)
-4. **Build Command**: `npm run build` (или `vite build`)
-5. **Output Directory**: `dist`
+1. Завести S3-бакет (приватный) + CORS (`GET, PUT, HEAD, POST`, нужные origin'ы).
+2. Сгенерировать `MESSAGE_ENCRYPTION_KEY` (64 hex) и `JWT_SECRET` — **сохранить надёжно**.
+3. Внести env на Amvera (раздел 2) и на Vercel (раздел 1).
+4. Запушить в `devDK` → CI прогонит тесты и задеплоит бэкенд; Vercel соберёт фронт.
+5. Проверить `/health`, вход/регистрацию (придёт ли OTP), отправку медиа.
