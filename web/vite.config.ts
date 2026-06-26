@@ -45,25 +45,11 @@ export default defineConfig({
 
   build: {
     chunkSizeWarningLimit: 1600,
-    rollupOptions: {
-      output: {
-        manualChunks(id) {
-          if (id.includes('node_modules/@emoji-mart') || id.includes('node_modules/emoji-mart')) {
-            return 'emoji';
-          }
-          if (
-            id.includes('StickerStudioModal') ||
-            id.includes('EmojiStickerPanel') ||
-            id.includes('EmojiPackSection') ||
-            id.includes('StickersTab')
-          ) {
-            return 'stickers';
-          }
-          if (id.includes('VideoTrimmerModal')) {
-            return 'media';
-          }
-        },
-      },
-    },
+    // No manualChunks: the lazy() boundaries (EmojiStickerPanel, StickerStudioModal,
+    // VideoTrimmerModal, modals, …) already define natural async split points. Forcing
+    // named manual chunks made the bundler hoist them into the entry's modulepreload
+    // graph, so the heavy emoji-mart dataset (~500 KB) downloaded on first paint even
+    // though no one had opened the picker. Letting the splitter follow the dynamic
+    // imports keeps that weight off the initial load.
   },
 })
