@@ -6,6 +6,11 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { getChatMedia, type MediaTab } from '../../api/chats';
 import type { Message } from '../../types';
 import client from '../../api/client';
+import { CollectionsPanel } from './CollectionsPanel';
+
+// Gallery tabs = the media-query tabs plus the «Коллекции» (folders) view, which
+// is NOT a getChatMedia query — it has its own data source (CollectionsPanel).
+type Tab = MediaTab | 'collections';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -338,13 +343,14 @@ interface Props {
 }
 
 export function ChatMediaModal({ chatId, onClose }: Props) {
-  const [tab,       setTab]       = useState<MediaTab>('media');
+  const [tab,       setTab]       = useState<Tab>('media');
   const [items,     setItems]     = useState<Message[]>([]);
   const [hasMore,   setHasMore]   = useState(false);
   const [loading,   setLoading]   = useState(false);
   const [lightbox,  setLightbox]  = useState<string | null>(null);
 
   const load = useCallback(async (before?: number) => {
+    if (tab === 'collections') return; // own data source — handled by CollectionsPanel
     setLoading(true);
     try {
       const result = await getChatMedia(chatId, tab, before);
@@ -393,20 +399,22 @@ export function ChatMediaModal({ chatId, onClose }: Props) {
 
           {/* Tabs */}
           <div className="cmTabs">
-            {(Object.keys(TAB_LABELS) as MediaTab[]).map(t => (
+            {([...(Object.keys(TAB_LABELS) as MediaTab[]), 'collections'] as Tab[]).map(t => (
               <button
                 key={t}
                 className={`cmTab${tab === t ? ' active' : ''}`}
                 onClick={() => setTab(t)}
               >
-                {TAB_LABELS[t]}
+                {t === 'collections' ? 'Коллекции' : TAB_LABELS[t]}
               </button>
             ))}
           </div>
 
           {/* Content */}
           <div className="cmContent">
-            {isEmpty ? (
+            {tab === 'collections' ? (
+              <CollectionsPanel chatId={chatId} onImageClick={setLightbox} />
+            ) : isEmpty ? (
               <div className="cmEmpty">
                 <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ opacity: 0.3 }}>
                   {tab === 'media'    && <><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></>}
