@@ -165,8 +165,16 @@ export function uploadFile(
     const normalizedMime = rawMime.startsWith('audio/') ? rawMime.split(';')[0] : rawMime;
     const uploadMime = compressibleImage ? 'image/webp' : isVideo ? 'video/webm' : normalizedMime;
 
-    // 1. Ask backend for a presigned URL
-    const presignRes = await client.post<{ fallback: true } | { uploadUrl: string; fileUrl: string }>(
+    // 1. Ask backend for a presigned URL. The server returns one of:
+    //    - { fallback: true }                      → local-disk mode (multipart to our API)
+    //    - { method: 'PUT',  uploadUrl, ... }      → presigned PUT (default)
+    //    - { method: 'POST', uploadUrl, fields, … } → presigned POST policy (size-bound)
+    //    The client adapts automatically to whichever shape arrives.
+    const presignRes = await client.post<
+      | { fallback: true }
+      | { method?: 'PUT'; uploadUrl: string; fileUrl: string; contentType: string; contentDisposition: string }
+      | { method: 'POST'; uploadUrl: string; fields: Record<string, string>; fileUrl: string; contentType: string; contentDisposition: string }
+    >(
       '/upload/presign',
       { mime: uploadMime, size: workingFile.size, filename: workingFile.name },
     );
@@ -184,8 +192,9 @@ export function uploadFile(
       return { ...r.data, size: r.data.size ?? workingFile.size };
     }
 
-    // 2b. Presigned: compress image client-side, then PUT directly to S3
-    const { uploadUrl, fileUrl, contentDisposition } = presignRes.data as { uploadUrl: string; fileUrl: string; contentType: string; contentDisposition: string };
+    // 2b. Presigned: compress image/video client-side, then upload directly to S3.
+    const presign = presignRes.data;
+    const { uploadUrl, fileUrl, contentDisposition } = presign;
     let blob: Blob = workingFile;
     let mime = normalizedMime; // already stripped of codec suffix for audio
 
@@ -205,7 +214,9 @@ export function uploadFile(
 
     if (controller.signal.aborted) throw new Error('Загрузка отменена');
 
-    // PUT to S3 via XHR (fetch API doesn't support upload progress)
+    // Upload to S3 via XHR (fetch API doesn't support upload progress).
+    // Presigned POST (size-bound policy) when the server provides form fields,
+    // otherwise presigned PUT. Both report progress identically.
     await new Promise<void>((resolve, reject) => {
       const xhr = new XMLHttpRequest();
       controller.signal.addEventListener('abort', () => {
@@ -218,10 +229,24 @@ export function uploadFile(
         else reject(new Error(`Ошибка загрузки (${xhr.status})`));
       };
       xhr.onerror = () => reject(new Error('Ошибка сети при загрузке файла. Проверьте CORS в настройках бакета.'));
-      xhr.open('PUT', uploadUrl);
-      xhr.setRequestHeader('Content-Type', mime);
-      if (contentDisposition) xhr.setRequestHeader('Content-Disposition', contentDisposition);
-      xhr.send(blob);
+
+      if (presign.method === 'POST') {
+        // Multipart POST: all policy fields first, object Content-Type/Disposition
+        // (overriding the server defaults with the actual post-compression mime),
+        // then `file` LAST — S3 requires the file part to come last.
+        const fd = new FormData();
+        for (const [k, v] of Object.entries(presign.fields)) fd.append(k, v);
+        fd.set('Content-Type', mime);
+        if (contentDisposition) fd.set('Content-Disposition', contentDisposition);
+        fd.append('file', blob);
+        xhr.open('POST', uploadUrl);
+        xhr.send(fd); // browser sets multipart Content-Type + boundary
+      } else {
+        xhr.open('PUT', uploadUrl);
+        xhr.setRequestHeader('Content-Type', mime);
+        if (contentDisposition) xhr.setRequestHeader('Content-Disposition', contentDisposition);
+        xhr.send(blob);
+      }
     });
 
     const type: UploadResult['type'] = mime.startsWith('image/') ? 'image'

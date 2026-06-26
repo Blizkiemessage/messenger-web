@@ -5,9 +5,20 @@ const fs      = require('fs');
 const { v4: uuidv4 } = require('uuid');
 const { S3Client, PutObjectCommand } = require('@aws-sdk/client-s3');
 const { getSignedUrl } = require('@aws-sdk/s3-request-presigner');
+const { createPresignedPost } = require('@aws-sdk/s3-presigned-post');
 const { authMiddleware } = require('../middleware/auth');
 const logger = require('../utils/logger');
 const sharp = require('sharp');
+
+// Opt-in: when true, /upload/presign returns a presigned POST policy instead of
+// a presigned PUT URL. POST is the only browser-upload mechanism that can bind
+// the maximum object size at the storage level (content-length-range) — a PUT
+// presign cannot, and images/videos are compressed client-side AFTER presign so
+// an exact Content-Length can't be signed either. Gated behind an env flag so it
+// stays INERT until the operator (a) adds POST to the bucket CORS policy and
+// (b) flips this flag — flipping it off is an instant rollback to PUT with no
+// redeploy. See DEPLOY notes / the upload-security section.
+const USE_PRESIGN_POST = process.env.UPLOAD_PRESIGN_POST === 'true';
 
 const router = express.Router();
 router.use(authMiddleware);
@@ -145,13 +156,39 @@ router.post('/presign', async (req, res, next) => {
 
     const ext = MIME_TO_EXT[mime] || '';
     const key = `${uuidv4()}${ext}`;
+    const publicUrl = process.env.S3_PUBLIC_URL.replace(/\/+$/, '');
+    const fileUrl = `${publicUrl}/${key}`;
 
-    // Inline only for image and video — audio and documents always get attachment
+    // Inline only for image and video — audio and documents always get attachment.
+    // (Serving safety is also enforced at GET time via s3Sign overrides, so this
+    // stored disposition is belt-and-suspenders.)
     const isInline = mime.startsWith('image/') || mime.startsWith('video/');
     const contentDisposition = isInline
       ? 'inline'
       : `attachment; filename*=UTF-8''${encodeURIComponent(origName || key)}`;
 
+    // ── Presigned POST (opt-in) ──────────────────────────────────────────────
+    // Binds the maximum object size at the storage layer via content-length-range
+    // — something a presigned PUT URL cannot do. Content-Type/Disposition use
+    // permissive starts-with conditions (the client still sets them, and GET-time
+    // overrides guarantee safe serving), avoiding eq-mismatch upload failures when
+    // client-side compression slightly changes the type.
+    if (USE_PRESIGN_POST) {
+      const { url, fields } = await createPresignedPost(s3, {
+        Bucket: process.env.S3_BUCKET,
+        Key: key,
+        Conditions: [
+          ['content-length-range', 1, MAX_PRESIGN_SIZE],
+          ['starts-with', '$Content-Type', ''],
+          ['starts-with', '$Content-Disposition', ''],
+        ],
+        Fields: { 'Content-Type': mime, 'Content-Disposition': contentDisposition },
+        Expires: 300,
+      });
+      return res.json({ method: 'POST', uploadUrl: url, fields, fileUrl, contentType: mime, contentDisposition });
+    }
+
+    // ── Presigned PUT (default) ──────────────────────────────────────────────
     // Note: ContentType and ContentDisposition are not included in the signed command
     // because Yandex Cloud rejects signed Content-Type headers during CORS preflight.
     // The allowlist check above is the server-side gate; the client sends the headers
@@ -162,8 +199,7 @@ router.post('/presign', async (req, res, next) => {
     });
 
     const uploadUrl = await getSignedUrl(s3, command, { expiresIn: 300 });
-    const publicUrl = process.env.S3_PUBLIC_URL.replace(/\/+$/, '');
-    res.json({ uploadUrl, fileUrl: `${publicUrl}/${key}`, contentType: mime, contentDisposition });
+    res.json({ method: 'PUT', uploadUrl, fileUrl, contentType: mime, contentDisposition });
   } catch (err) { next(err); }
 });
 
