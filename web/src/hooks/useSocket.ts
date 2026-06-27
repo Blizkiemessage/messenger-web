@@ -4,7 +4,7 @@
  */
 import { useEffect } from 'react';
 import { type Chat, type Message, type User, type SharedNote } from '../types';
-import { connectSocket, disconnectSocket, getSocket } from '../socket/socketClient';
+import { connectSocket, disconnectSocket, getSocket, ensureSocketHealthy } from '../socket/socketClient';
 import { emitCallReject } from '../socket/socketClient';
 import { markChatRead as apiMarkChatRead } from '../api/chats';
 import { useSessionStore } from '../store/useSessionStore';
@@ -47,6 +47,18 @@ export function useSocket() {
     connectSocket();
     const socket = getSocket();
     if (!socket) return;
+
+    // ── Keep the socket alive across mobile-PWA suspend/resume & network changes ──
+    // When the app returns to the foreground (or the network comes back), verify
+    // the connection is really alive and reconnect if it died while backgrounded.
+    // Without this a resumed PWA can sit on a dead "connected" socket — no
+    // presence/typing and, critically, missed incoming calls — until a reload.
+    const ensureAlive = () => { if (document.visibilityState === 'visible') ensureSocketHealthy(); };
+    const onOnline = () => ensureSocketHealthy();
+    document.addEventListener('visibilitychange', ensureAlive);
+    window.addEventListener('focus', ensureAlive);
+    window.addEventListener('pageshow', ensureAlive);
+    window.addEventListener('online', onOnline);
 
     // Register for Web Push notifications after a short delay so the app
     // fully renders first and the permission dialog appears in context.
@@ -343,6 +355,10 @@ export function useSocket() {
       socket.off('note:deleted', onNoteDeleted);
       socket.off('daily-prompt-answer',         onDailyPromptAnswer);
       socket.off('daily-prompt-answer-deleted', onDailyPromptAnswerDeleted);
+      document.removeEventListener('visibilitychange', ensureAlive);
+      window.removeEventListener('focus', ensureAlive);
+      window.removeEventListener('pageshow', ensureAlive);
+      window.removeEventListener('online', onOnline);
       clearTimeout(pushTimer);
       if (_markReadTimer) clearTimeout(_markReadTimer);
       disconnectSocket();

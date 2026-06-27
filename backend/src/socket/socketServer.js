@@ -194,6 +194,13 @@ function initSocket(httpServer) {
 
     // ── Events ───────────────────────────────────────────────────────────────
 
+    // Liveness probe: the client (esp. a resumed mobile PWA) emits this with an
+    // ack callback to verify the connection is actually alive. We just ack back;
+    // if the ack never arrives the client treats the socket as dead and reconnects.
+    socket.on('client-ping', (ack) => {
+      if (typeof ack === 'function') ack();
+    });
+
     // Join a specific chat room (called after creating a new chat on the client).
     // Membership is verified to prevent unauthorised users from receiving
     // typing and presence events for chats they don't belong to.

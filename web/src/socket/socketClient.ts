@@ -47,7 +47,10 @@ export function connectSocket(): Socket {
       const token = getToken();
       cb(token ? { token } : {});
     },
-    transports: ['websocket'],
+    // websocket first (fast), polling as fallback — a websocket-only client can
+    // fail to (re)connect on flaky mobile networks / after a PWA resume, leaving
+    // the user silently offline (no presence/typing/calls) until a manual reload.
+    transports: ['websocket', 'polling'],
     reconnection: true,
     // Не сдаёмся: холодный старт бэкенда (Amvera) может длиться дольше,
     // чем 10 попыток. Авторизационные ошибки обрабатываются отдельно ниже.
@@ -89,6 +92,43 @@ export function connectSocket(): Socket {
   });
 
   return socket;
+}
+
+/** Полный пересоздать сокет (когда после resume обнаружен мёртвый/зомби-сокет). */
+function hardReconnect(): void {
+  if (socket) { socket.disconnect(); socket = null; }
+  connectSocket();
+}
+
+let healthCheckInFlight = false;
+
+/**
+ * Гарантировать живой сокет. Вызывается при возвращении приложения на передний
+ * план / восстановлении сети (visibilitychange, pageshow, online, focus).
+ *
+ * Проблема, которую решает: мобильный PWA при сворачивании «замораживается»,
+ * TCP-соединение тихо умирает, но socket.io ещё ДУМАЕТ, что подключён
+ * (connected === true). До следующего ping-таймаута (десятки секунд) presence/
+ * «печатает»/звонки не работают — раньше помогал только reload.
+ *
+ * Логика:
+ *   - нет сокета            → создать;
+ *   - есть, но не connected → возобновить переподключение (socket.connect());
+ *   - connected === true    → проверить «живость» ack-пингом с коротким таймаутом;
+ *                             нет ответа за 3 с → это зомби → пересоздать.
+ */
+export function ensureSocketHealthy(): void {
+  const s = socket;
+  if (!s) { connectSocket(); return; }
+  if (!s.connected) { s.connect(); return; }
+
+  if (healthCheckInFlight) return;
+  healthCheckInFlight = true;
+  // socket.io v4: .timeout(ms).emit(ev, ack) → ack получает Error при таймауте.
+  s.timeout(3000).emit('client-ping', (err: unknown) => {
+    healthCheckInFlight = false;
+    if (err) hardReconnect(); // пинг не дошёл → соединение мёртвое
+  });
 }
 
 export function disconnectSocket(): void {
