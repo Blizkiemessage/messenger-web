@@ -541,108 +541,102 @@
    ─────────────────────────────────────────────────────────────────────────── */
 
 /* ── Incoming call overlay ──────────────────────────────────────────────── */
-.incomingCallOverlay {
+/* ── Incoming call screen (redesigned) ───────────────────────────────────────
+   Полноэкранный; пульсы строго ПОД контентом (pointer-events:none); кнопки —
+   сплошные, крупные, надёжно нажимаются на мобильном. */
+.incCallOverlay {
   position: fixed;
   inset: 0;
   z-index: 3000;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(0, 0, 0, 0.72);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-  animation: fadeInCall 0.25s ease;
+  padding: 24px;
+  background: rgba(8, 6, 20, 0.82);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  animation: fadeInCall 0.2s ease;
 }
 
-.incomingCallCard {
+.incCallCard {
+  position: relative;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 12px;
+  gap: 6px;
+  width: 100%;
+  max-width: 340px;
+  padding: 40px 28px 32px;
+  border-radius: 28px;
   background: var(--panel);
   border: 1px solid var(--border);
-  border-radius: 24px;
-  padding: 36px 48px 32px;
-  box-shadow: 0 24px 64px rgba(0,0,0,0.6);
-  min-width: 260px;
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.65);
+}
+
+/* Avatar + pulses */
+.incCallAvatarWrap {
   position: relative;
+  width: 112px;
+  height: 112px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 14px;
 }
-
-/* Pulsing ring behind avatar */
-.incomingCallRing {
+.incCallAvatar { position: relative; z-index: 1; }
+.incCallPulse {
   position: absolute;
-  top: 24px;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 100px;
-  height: 100px;
+  inset: 0;
   border-radius: 50%;
-  border: 2px solid var(--accent);
-  animation: callRingPulse 1.6s ease-out infinite;
+  background: var(--accent);
+  opacity: 0.35;
+  pointer-events: none;              /* критично: не перехватывать тап по контенту */
+  animation: incCallPulse 1.8s ease-out infinite;
 }
-.incomingCallRingInner {
-  position: absolute;
-  inset: 8px;
-  border-radius: 50%;
-  border: 2px solid var(--accent);
-  opacity: 0.5;
-  animation: callRingPulse 1.6s 0.4s ease-out infinite;
+.incCallPulse2 { animation-delay: 0.9s; }
+
+@keyframes incCallPulse {
+  0%   { transform: scale(1);   opacity: 0.35; }
+  70%  { opacity: 0; }
+  100% { transform: scale(1.9); opacity: 0; }
 }
 
-@keyframes callRingPulse {
-  0%   { transform: scale(1); opacity: 0.6; }
-  100% { transform: scale(1.6); opacity: 0; }
-}
-
-.incomingCallAvatar {
-  position: relative;
-  z-index: 1;
-  width: 80px;
-  height: 80px;
-}
-
-.incomingCallLabel {
-  font-size: 12px;
-  color: var(--muted);
-  letter-spacing: 0.02em;
-  margin-top: 4px;
-}
-
-.incomingCallName {
-  font-size: 20px;
-  font-weight: 600;
+.incCallName {
+  font-size: 22px;
+  font-weight: 700;
   color: var(--text);
   text-align: center;
-  max-width: 220px;
+  max-width: 100%;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-
-.incomingCallActions {
-  display: flex;
-  gap: 36px;
-  margin-top: 12px;
+.incCallLabel {
+  font-size: 13px;
+  color: var(--muted);
+  letter-spacing: 0.02em;
+  margin-bottom: 26px;
 }
 
-/* Each button + its label stacked vertically */
-.incomingCallBtnWrap {
+.incCallActions {
+  display: flex;
+  justify-content: center;
+  gap: 56px;
+}
+.incCallBtnCol {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
 }
-
-.incomingCallBtnLabel {
-  font-size: 12px;
+.incCallBtnLabel {
+  font-size: 13px;
   font-weight: 500;
   color: var(--muted);
-  letter-spacing: 0.01em;
 }
 
-/* Icon-only buttons — no filled background */
-.callBtnReject,
-.callBtnAccept {
+/* Сплошные круглые кнопки — однозначные и крупные (тач-таргет 72px) */
+.incCallBtn {
   width: 72px;
   height: 72px;
   border-radius: 50%;
@@ -651,19 +645,40 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: transparent;
-  transition: transform 0.13s, background 0.15s;
+  color: #fff;
+  -webkit-tap-highlight-color: transparent;
+  transition: transform 0.12s ease, box-shadow 0.2s ease, filter 0.15s ease;
 }
-.callBtnReject {
-  color: var(--danger, #f85149);
+.incCallBtn:active { transform: scale(0.92); }
+
+.incCallReject {
+  background: #f04438;
+  box-shadow: 0 8px 22px rgba(240, 68, 56, 0.45);
 }
-.callBtnAccept {
-  color: var(--success, #3fb950);
+.incCallReject:hover { filter: brightness(1.08); }
+
+.incCallAccept {
+  background: #1fb155;
+  box-shadow: 0 8px 22px rgba(31, 177, 85, 0.45);
+  animation: incCallAcceptPulse 1.6s ease-in-out infinite;
 }
-.callBtnReject:hover  { transform: scale(1.1); background: rgba(248, 81, 73, 0.12); }
-.callBtnAccept:hover  { transform: scale(1.1); background: rgba(63, 185, 80, 0.12); }
-.callBtnReject:active,
-.callBtnAccept:active { transform: scale(0.92); }
+.incCallAccept:hover { filter: brightness(1.08); }
+
+@keyframes incCallAcceptPulse {
+  0%, 100% { box-shadow: 0 8px 22px rgba(31, 177, 85, 0.45); }
+  50%      { box-shadow: 0 8px 30px rgba(31, 177, 85, 0.75); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .incCallPulse, .incCallAccept { animation: none; }
+}
+
+/* На узких экранах — больше «как звонок»: карточка пошире, кнопки крупнее */
+@media (max-width: 480px) {
+  .incCallCard { max-width: 100%; padding: 48px 24px 36px; border-radius: 32px; }
+  .incCallActions { gap: 72px; }
+  .incCallBtn { width: 80px; height: 80px; }
+}
 
 /* ── Active call overlay ──────────────────────────────────────────────────── */
 .callOverlay {
