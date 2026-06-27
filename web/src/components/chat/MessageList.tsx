@@ -30,6 +30,8 @@ interface Props {
   onUnpinMessage: (msgId: string) => void;
   onDeleteSingle: (msgId: string) => void;
   onForwardSingle: (msgId: string) => void;
+  /** Открыть выбор коллекции для вложения сообщения (если есть права + файл). */
+  onAddToCollection?: (msg: Message) => void;
   onReply: (msg: Message, selectedText: string) => void;
   onReact: (msgId: string, emoji: string) => void;
   scrollTargetId: string | null;
@@ -61,10 +63,20 @@ interface Props {
 const CTX_WIDTH  = 200;
 const CTX_HEIGHT = 280;  // taller to fit Reply + Copy + Edit + React buttons
 
+/** Может ли пользователь управлять коллекциями чата (как общий фон): ЛС оба; группа admin/мод-edit_info. */
+function canManageCollections(chat: Chat, meId: string): boolean {
+  if (chat.type === 'direct') return true;
+  const me = chat.members.find(m => m.id === meId);
+  if (!me) return false;
+  if (me.role === 'admin') return true;
+  if (me.role === 'moderator') return !!me.permissions?.edit_info;
+  return false;
+}
+
 export function MessageList({
   messages, chat, meId, partnerReadAt, selectedIds, hasSelection,
   loadingMessages, onToggleSelect, onClearSelection, onViewUser,
-  onPinMessage, onUnpinMessage, onDeleteSingle, onForwardSingle,
+  onPinMessage, onUnpinMessage, onDeleteSingle, onForwardSingle, onAddToCollection,
   onReply, onReact, scrollTargetId, onScrollTargetHandled,
   searchQuery, matchedIds, currentMatchId, pinnedFocusId,
   hasMoreMessages, loadingMore, onLoadMore,
@@ -563,6 +575,20 @@ export function MessageList({
                   <path d="M4 18v-2a4 4 0 0 1 4-4h12"/>
                 </svg>
                 Переслать
+              </button>
+            )}
+
+            {/* Add attachment to a chat collection — only with a file + manage rights */}
+            {onAddToCollection && !ctxMenu.msg.is_system && ctxMenu.msg.attachment_url && canManageCollections(chat, meId) && (
+              <button
+                className="msgCtxItem"
+                onClick={() => { onAddToCollection(ctxMenu.msg); setCtxMenu(null); }}
+              >
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M4 20h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.93a2 2 0 0 1-1.66-.9l-.82-1.2A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13c0 1.1.9 2 2 2Z"/>
+                  <line x1="12" y1="11" x2="12" y2="17"/><line x1="9" y1="14" x2="15" y2="14"/>
+                </svg>
+                В коллекцию
               </button>
             )}
 

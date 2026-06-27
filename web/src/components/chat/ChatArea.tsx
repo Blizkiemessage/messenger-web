@@ -28,6 +28,7 @@ import type { CreatePollData } from '../../api/polls';
 import type { UploadResult } from '../../api/upload';
 import type { Message } from '../../types';
 import { ForwardModal } from '../modals/ForwardModal';
+import { AddToCollectionModal } from '../modals/AddToCollectionModal';
 import { PollCreatorModal } from './PollCreatorModal';
 import { PollVotersModal } from './PollVotersModal';
 import { MediaPlayerProvider } from '../../contexts/MediaPlayerContext';
@@ -485,6 +486,7 @@ export function ChatArea() {
   // ── Studio modal ──────────────────────────────────────────────────────────
   const [showStudio,     setShowStudio]     = useState(false);
   const [showMediaModal, setShowMediaModal] = useState(false);
+  const [addToColMsg,    setAddToColMsg]    = useState<Message | null>(null);
   // ── F4: Notes panel ───────────────────────────────────────────────────────
   const [showNotes,      setShowNotes]      = useState(false);
   // ── F2: AI summary modal ──────────────────────────────────────────────────
@@ -732,6 +734,7 @@ export function ChatArea() {
         onUnpinMessage={handleUnpinMessage}
         onDeleteSingle={handleDeleteSingle}
         onForwardSingle={handleForwardSingle}
+        onAddToCollection={setAddToColMsg}
         onReply={handleReply}
         onReact={handleReact}
         scrollTargetId={scrollTargetId}
@@ -847,6 +850,15 @@ export function ChatArea() {
         <Suspense fallback={null}>
           <ChatMediaModal chatId={activeChat.id} onClose={() => setShowMediaModal(false)} />
         </Suspense>
+      )}
+
+      {/* Добавить вложение сообщения в коллекцию */}
+      {addToColMsg && activeChat && (
+        <AddToCollectionModal
+          chatId={activeChat.id}
+          messageId={addToColMsg.id}
+          onClose={() => setAddToColMsg(null)}
+        />
       )}
 
       {/* F1: Scheduled messages list */}

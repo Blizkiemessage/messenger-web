@@ -79,6 +79,31 @@ export function CollectionsPanel({ chatId, onImageClick }: Props) {
   useEffect(() => { if (!open) loadList(); }, [open, loadList]);
   useEffect(() => { if (open) loadItems(open); }, [open, loadItems]);
 
+  // Realtime: применяем изменения от других участников (и свои — идемпотентно,
+  // т.к. сервер шлёт событие всем в чате, включая автора). Источник — window-
+  // событие 'blz:collection' из useSocket.
+  useEffect(() => {
+    const onEvent = (e: Event) => {
+      const d = (e as CustomEvent).detail as {
+        type: string; chatId: string; collectionId?: string; name?: string;
+        item?: CollectionItem; itemId?: string;
+      };
+      if (!d || d.chatId !== chatId) return;
+      if (open) {
+        if (d.type === 'deleted' && d.collectionId === open.id) { setOpen(null); return; }
+        if (d.type === 'updated' && d.collectionId === open.id) { setOpen(o => o ? { ...o, name: d.name! } : o); return; }
+        if (d.collectionId === open.id) {
+          if (d.type === 'item-added' && d.item) setItems(prev => prev.some(i => i.id === d.item!.id) ? prev : [d.item!, ...prev]);
+          if (d.type === 'item-removed' && d.itemId) setItems(prev => prev.filter(i => i.id !== d.itemId));
+        }
+      } else {
+        loadList(); // в списке — перечитать (счётчики/обложки)
+      }
+    };
+    window.addEventListener('blz:collection', onEvent);
+    return () => window.removeEventListener('blz:collection', onEvent);
+  }, [chatId, open, loadList]);
+
   async function handleCreate() {
     const name = newName.trim();
     if (!name) return;

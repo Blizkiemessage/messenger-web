@@ -1239,3 +1239,29 @@
   opacity: 0; transition: opacity .15s;
 }
 .colItem:hover .colItemRemove { opacity: 1; }
+
+/* ── Модалка «Добавить в коллекцию» (из меню сообщения) ──────────────────────── */
+.atcOverlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,.5); z-index: 2000;
+  display: flex; align-items: center; justify-content: center; padding: 16px;
+}
+.atcModal {
+  background: var(--panel); border: 1px solid var(--border); border-radius: 16px;
+  width: min(420px, 100%); max-height: 80vh; display: flex; flex-direction: column; gap: 12px;
+  padding: 18px; box-shadow: var(--shadow);
+}
+.atcHead { display: flex; align-items: center; justify-content: space-between; }
+.atcTitle { font-weight: 700; font-size: 16px; color: var(--text); }
+.atcClose { background: none; border: none; color: var(--muted); cursor: pointer; font-size: 16px; padding: 4px 8px; border-radius: 8px; }
+.atcClose:hover { background: var(--hover); color: var(--text); }
+.atcList { display: flex; flex-direction: column; gap: 6px; overflow-y: auto; max-height: 46vh; }
+.atcItem {
+  display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 10px;
+  border: 1px solid var(--border); background: var(--card); color: var(--text); cursor: pointer; text-align: left;
+}
+.atcItem:hover:not(:disabled) { border-color: var(--accent-border); background: var(--hover); }
+.atcItem:disabled { opacity: .6; cursor: default; }
+.atcItemIcon { font-size: 18px; }
+.atcItemName { flex: 1; font-weight: 600; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.atcItemCount { font-size: 12px; color: var(--muted); }
+.atcCreateBtn { width: 100%; }

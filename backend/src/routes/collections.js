@@ -25,6 +25,12 @@ const { signUrl, signMessageUrls } = require('../utils/s3Sign');
 const router = express.Router();
 router.use(authMiddleware);
 
+// Broadcast a collection change to all members of the chat (room chat:<id>,
+// joined by every member's sockets on connect). Payload always carries chatId.
+function emitCol(req, event, payload) {
+  req.app.get('io')?.to(`chat:${req.params.chatId}`).emit(event, { chatId: req.params.chatId, ...payload });
+}
+
 const collectionsLimiter = rateLimit({
   windowMs: 60 * 1000,
   max: 120,
@@ -49,6 +55,7 @@ router.get('/:chatId/collections', async (req, res, next) => {
 router.post('/:chatId/collections', (req, res, next) => {
   try {
     const col = createCollection(req.params.chatId, req.userId, req.body?.name);
+    emitCol(req, 'collection:created', { collection: col });
     res.status(201).json(col);
   } catch (err) { next(err); }
 });
@@ -57,6 +64,7 @@ router.post('/:chatId/collections', (req, res, next) => {
 router.patch('/:chatId/collections/:collectionId', (req, res, next) => {
   try {
     const out = renameCollection(req.params.chatId, req.params.collectionId, req.userId, req.body?.name);
+    emitCol(req, 'collection:updated', { collectionId: out.id, name: out.name });
     res.json(out);
   } catch (err) { next(err); }
 });
@@ -64,7 +72,9 @@ router.patch('/:chatId/collections/:collectionId', (req, res, next) => {
 // DELETE /:chatId/collections/:collectionId — удалить папку
 router.delete('/:chatId/collections/:collectionId', (req, res, next) => {
   try {
-    res.json(deleteCollection(req.params.chatId, req.params.collectionId, req.userId));
+    const out = deleteCollection(req.params.chatId, req.params.collectionId, req.userId);
+    emitCol(req, 'collection:deleted', { collectionId: req.params.collectionId });
+    res.json(out);
   } catch (err) { next(err); }
 });
 
@@ -85,6 +95,7 @@ router.post('/:chatId/collections/:collectionId/items', async (req, res, next) =
       attachment_url, attachment_type, attachment_name, attachment_size, attachment_meta,
     });
     await signMessageUrls([item]);
+    emitCol(req, 'collection:item-added', { collectionId: req.params.collectionId, item });
     res.status(201).json(item);
   } catch (err) { next(err); }
 });
@@ -94,6 +105,7 @@ router.post('/:chatId/collections/:collectionId/items/from-message', async (req,
   try {
     const item = addItemFromMessage(req.params.chatId, req.params.collectionId, req.userId, req.body?.messageId);
     await signMessageUrls([item]);
+    emitCol(req, 'collection:item-added', { collectionId: req.params.collectionId, item });
     res.status(201).json(item);
   } catch (err) { next(err); }
 });
@@ -101,7 +113,9 @@ router.post('/:chatId/collections/:collectionId/items/from-message', async (req,
 // DELETE /:chatId/collections/:collectionId/items/:itemId — убрать файл
 router.delete('/:chatId/collections/:collectionId/items/:itemId', (req, res, next) => {
   try {
-    res.json(removeItem(req.params.chatId, req.params.collectionId, req.userId, req.params.itemId));
+    const out = removeItem(req.params.chatId, req.params.collectionId, req.userId, req.params.itemId);
+    emitCol(req, 'collection:item-removed', { collectionId: req.params.collectionId, itemId: req.params.itemId });
+    res.json(out);
   } catch (err) { next(err); }
 });
 

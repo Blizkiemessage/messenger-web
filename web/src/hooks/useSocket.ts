@@ -243,6 +243,22 @@ export function useSocket() {
     socket.on('daily-prompt-answer',         onDailyPromptAnswer);
     socket.on('daily-prompt-answer-deleted', onDailyPromptAnswerDeleted);
 
+    // ── Файловые коллекции: ретрансляция в window-событие для открытой панели ──
+    // CollectionsPanel — транзиентный компонент (вкладка галереи), поэтому
+    // обновления доходят через window-событие 'blz:collection' (как у «Вопроса дня»).
+    const fwdCollection = (type: string) => (p: Record<string, unknown>) =>
+      window.dispatchEvent(new CustomEvent('blz:collection', { detail: { type, ...p } }));
+    const onColCreated     = fwdCollection('created');
+    const onColUpdated     = fwdCollection('updated');
+    const onColDeleted     = fwdCollection('deleted');
+    const onColItemAdded   = fwdCollection('item-added');
+    const onColItemRemoved = fwdCollection('item-removed');
+    socket.on('collection:created',      onColCreated);
+    socket.on('collection:updated',      onColUpdated);
+    socket.on('collection:deleted',      onColDeleted);
+    socket.on('collection:item-added',   onColItemAdded);
+    socket.on('collection:item-removed', onColItemRemoved);
+
     // ── E3: Call signaling ───────────────────────────────────────────────────────
 
     const onCallIncoming = ({
@@ -355,6 +371,11 @@ export function useSocket() {
       socket.off('note:deleted', onNoteDeleted);
       socket.off('daily-prompt-answer',         onDailyPromptAnswer);
       socket.off('daily-prompt-answer-deleted', onDailyPromptAnswerDeleted);
+      socket.off('collection:created',      onColCreated);
+      socket.off('collection:updated',      onColUpdated);
+      socket.off('collection:deleted',      onColDeleted);
+      socket.off('collection:item-added',   onColItemAdded);
+      socket.off('collection:item-removed', onColItemRemoved);
       document.removeEventListener('visibilitychange', ensureAlive);
       window.removeEventListener('focus', ensureAlive);
       window.removeEventListener('pageshow', ensureAlive);
