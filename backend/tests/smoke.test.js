@@ -204,6 +204,11 @@ db.exec(`
     attachment_size INTEGER, attachment_meta TEXT, source_message_id TEXT,
     added_by TEXT NOT NULL, added_at INTEGER NOT NULL
   );
+  CREATE TABLE message_search_tokens (
+    message_id TEXT NOT NULL, chat_id TEXT NOT NULL, token TEXT NOT NULL
+  );
+  CREATE INDEX idx_mst_token ON message_search_tokens(token, chat_id, message_id);
+  CREATE INDEX idx_mst_msg   ON message_search_tokens(message_id);
 `);
 
 // ── Inject mocks into module cache before services are required ───────────────
@@ -402,13 +407,33 @@ describe('editMessage — re-encrypt', () => {
 describe('searchable encryption (no plaintext at rest)', () => {
   test('saveMessage stores no readable copy of the text in any column', () => {
     const secret = 'pineapple-on-pizza-7531';
-    saveMessage('chat-direct', 'alice', secret);
+    const msg = saveMessage('chat-direct', 'alice', secret);
     // Scan every column of every row — the phrase must appear nowhere as cleartext.
     const rows = db.prepare('SELECT * FROM messages').all();
     const leaked = rows.some(r =>
       Object.values(r).some(v => typeof v === 'string' && v.includes(secret))
     );
     assert.equal(leaked, false, 'plaintext must never be persisted');
+
+    // The blind index must store only opaque HMAC hashes — no readable words.
+    const tokens = db.prepare('SELECT token FROM message_search_tokens WHERE message_id = ?').all(msg.id);
+    assert.ok(tokens.length > 0, 'message should be indexed');
+    assert.ok(tokens.every(t => /^[0-9a-f]{16}$/.test(t.token)),
+      'index tokens must be opaque 16-hex HMAC prefixes, never plaintext');
+  });
+
+  test('searchMessages finds by PREFIX (search-as-you-type)', () => {
+    saveMessage('chat-direct', 'alice', 'летняя конференция была прекрасной');
+    const hits = searchMessages('alice', 'конфер'); // префикс слова
+    assert.ok(hits.some(h => h.text === 'летняя конференция была прекрасной'),
+      'prefix search must locate the message via blind index');
+  });
+
+  test('searchMessages re-indexes on edit (old word gone, new word found)', () => {
+    const m = saveMessage('chat-direct', 'alice', 'старослово уникум');
+    editMessage('chat-direct', m.id, 'alice', 'новослово уникум');
+    assert.equal(searchMessages('alice', 'старослово').some(h => h.id === m.id), false);
+    assert.equal(searchMessages('alice', 'новослово').some(h => h.id === m.id), true);
   });
 
   test('searchMessages finds a message by substring via in-memory decryption', () => {

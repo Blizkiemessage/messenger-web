@@ -7,15 +7,29 @@ const { getDb } = require('../config/database');
 const { encrypt, decrypt } = require('../crypto/aes');
 const { deleteFromS3 } = require('../utils/s3Delete');
 const { getMemberPermissions } = require('./chatPermissions');
+const { indexTokens, queryTokens } = require('../utils/searchIndex');
+
+/**
+ * (Re)build the blind-index tokens for a message (utils/searchIndex). Clears any
+ * existing tokens first so edits don't leave stale ones. No-op for empty text.
+ * No plaintext is stored — only keyed-HMAC prefix hashes.
+ */
+function indexMessageTokens(db, messageId, chatId, text) {
+  db.prepare('DELETE FROM message_search_tokens WHERE message_id = ?').run(messageId);
+  const tokens = indexTokens(text || '');
+  if (tokens.length === 0) return;
+  const ins = db.prepare('INSERT INTO message_search_tokens (message_id, chat_id, token) VALUES (?, ?, ?)');
+  for (const t of tokens) ins.run(messageId, chatId, t);
+}
 
 // ── Searchable encryption ───────────────────────────────────────────────────
 // Message text is stored ONLY as AES-256-GCM ciphertext — no plaintext column.
-// Search decrypts candidate rows in memory (see searchMessages). This keeps the
-// DB and its backups free of readable message content. Volume is tiny, so the
-// scan cap below bounds worst-case work; results are newest-first.
+// Search uses a blind index (message_search_tokens, see utils/searchIndex) to
+// find candidates, then decrypts ONLY those in memory and substring-verifies.
+// This keeps the DB and its backups free of readable message content.
 const URL_RE = /https?:\/\//i;            // used only to set the has_link metadata flag
-const SEARCH_SCAN_CAP     = 5000;         // max newest messages decrypted per query
-const SEARCH_RESULT_LIMIT = 20;           // max matches returned
+const SEARCH_CANDIDATE_LIMIT = 200;       // max index-matched rows decrypted per query
+const SEARCH_RESULT_LIMIT    = 20;        // max matches returned
 
 /** True if the (plaintext) message text contains a URL — drives the "links" media tab. */
 function textHasLink(text, isSystem) {
@@ -161,6 +175,9 @@ function _insertMessage(db, chatId, senderId, text, attachment, isSystem, reply,
     isScheduled ? deliverAt : null,
     isScheduled ? 0 : 1,
   ]);
+
+  // Index for search (skip system messages — they're excluded from results).
+  if (!isSystem) indexMessageTokens(db, msgId, chatId, text || '');
 
   return msgId;
 }
@@ -435,6 +452,8 @@ function forwardMessages(targetChatId, senderId, messageIds) {
       textHasLink(origDecrypted.text, false),
     ]);
 
+    indexMessageTokens(db, newId, targetChatId, origDecrypted.text || ''); // index forwarded text
+
     // Increment unread_count for all members except the forwarder
     db.prepare(`
       UPDATE chat_members SET unread_count = unread_count + 1
@@ -488,6 +507,7 @@ function editMessage(chatId, msgId, senderId, newText) {
   // Recompute has_link from the new text; no plaintext is ever persisted.
   db.prepare('UPDATE messages SET ciphertext = ?, iv = ?, auth_tag = ?, edited_at = ?, has_link = ? WHERE id = ?')
     .run([ciphertext, iv, authTag, now, textHasLink(trimmed, false), msgId]);
+  indexMessageTokens(db, msgId, msg.chat_id, trimmed); // re-index search tokens
   return decryptMessage(db.prepare('SELECT * FROM messages WHERE id = ?').get(msgId));
 }
 
@@ -537,22 +557,29 @@ function getChatMedia(chatId, userId, { tab = 'media', limit = 30, before = null
 }
 
 /**
- * searchMessages — full-text search over the requester's chats WITHOUT any
- * plaintext at rest. Scans the newest SEARCH_SCAN_CAP non-deleted messages from
- * chats the user belongs to, decrypts each in memory, and substring-matches the
- * (case-insensitive) query. Returns up to SEARCH_RESULT_LIMIT newest matches,
- * enriched with chat/sender/partner labels so the route can format results.
+ * searchMessages — поиск по чатам пользователя через «слепой индекс» (blind
+ * index), БЕЗ открытого текста at-rest. Слово(а) запроса хешируются тем же
+ * keyed-HMAC, что и при индексации; по message_search_tokens находятся кандидаты
+ * (AND по всем словам запроса), затем ТОЛЬКО они дешифруются в памяти и
+ * проверяются по подстроке — финальная сверка сохраняет прежнюю семантику.
+ * Результат — до SEARCH_RESULT_LIMIT, обогащён метками чата/отправителя/партнёра.
  *
- * Substring match is a superset of the previous FTS prefix search (it also finds
- * matches mid-word), so search quality is preserved or improved. At the project's
- * scale the scan is sub-50 ms; the cap bounds worst case until volume warrants a
- * proper searchable-encryption index (blind index / keyed tokens).
+ * Поиск по НАЧАЛУ слова (префиксу); подстрока в середине слова индексом не
+ * покрывается (компромисс searchable-encryption, см. utils/searchIndex). Раньше
+ * был линейный дешифр-скан до SEARCH_SCAN_CAP=5000 (старое не находилось).
  */
 function searchMessages(userId, query) {
   const db = getDb();
   const q = (query || '').trim().toLowerCase();
   if (!q) return [];
 
+  const tokens = queryTokens(q);
+  if (!tokens || tokens.length === 0) return []; // нет пригодных слов (короче 2 симв.)
+  const tokenPh = tokens.map(() => '?').join(',');
+
+  // Кандидаты — сообщения, содержащие ВСЕ отпечатки слов запроса (HAVING COUNT).
+  // Членство в чате накладывает внешний JOIN chat_members; дешифруем только то,
+  // что прошло индекс (cap SEARCH_CANDIDATE_LIMIT), а не всю историю.
   const rows = db.prepare(`
     SELECT m.id, m.chat_id, m.ciphertext, m.iv, m.auth_tag, m.created_at,
            c.name AS chat_name, c.type AS chat_type,
@@ -564,10 +591,16 @@ function searchMessages(userId, query) {
     JOIN users u ON u.id = m.sender_id
     LEFT JOIN chat_members cm2 ON cm2.chat_id = m.chat_id AND cm2.user_id != ? AND c.type = 'direct'
     LEFT JOIN users partner ON partner.id = cm2.user_id
-    WHERE m.deleted_at IS NULL AND m.is_system = 0 AND m.is_delivered = 1
+    WHERE m.id IN (
+      SELECT mt.message_id FROM message_search_tokens mt
+      WHERE mt.token IN (${tokenPh})
+      GROUP BY mt.message_id
+      HAVING COUNT(DISTINCT mt.token) = ?
+    )
+    AND m.deleted_at IS NULL AND m.is_system = 0 AND m.is_delivered = 1
     ORDER BY m.created_at DESC
     LIMIT ?
-  `).all([userId, userId, SEARCH_SCAN_CAP]);
+  `).all([userId, userId, ...tokens, tokens.length, SEARCH_CANDIDATE_LIMIT]);
 
   const results = [];
   for (const m of rows) {
