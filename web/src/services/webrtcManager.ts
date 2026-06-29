@@ -33,6 +33,13 @@ import type { CallType } from '../types';
 // задержка/больше риск «бульканья», больше = устойчивее/выше задержка.
 const AUDIO_JITTER_BUFFER_TARGET_MS = 100;
 
+// Потолок битрейта исходящего видео. Главная причина РАСТУЩЕЙ задержки на мобильной
+// сети — видео забивает узкий аплинк → пакеты копятся в буфере модема (bufferbloat)
+// → растёт задержка ВСЕГО, включая аудио. Жёсткий потолок не даёт видео переполнять
+// канал; WebRTC сам снизит разрешение под битрейт (qualityLimitationReason=bandwidth).
+const MAX_VIDEO_BITRATE = 700_000;   // ~0.7 Мбит/с — безопасно для моб. аплинка
+const MAX_VIDEO_FRAMERATE = 30;
+
 class WebRTCManager {
   private pc: RTCPeerConnection | null = null;
   private iceCandidateQueue: RTCIceCandidateInit[] = [];
@@ -40,6 +47,8 @@ class WebRTCManager {
   private disconnectedTimer: ReturnType<typeof setTimeout> | null = null;
   /** Fires if ICE never reaches 'connected' within 30 s — prevents silent hangs */
   private iceConnectTimer: ReturnType<typeof setTimeout> | null = null;
+  /** Periodic getStats() diagnostics while connected (RTT/loss/jitter/bitrate) */
+  private statsTimer: ReturnType<typeof setInterval> | null = null;
 
   // ── ICE server config from backend ────────────────────────────────────────
   private async getIceServers(): Promise<RTCConfiguration> {
@@ -95,6 +104,83 @@ class WebRTCManager {
       clearTimeout(this.iceConnectTimer);
       this.iceConnectTimer = null;
     }
+  }
+
+  // ── Cap outgoing video bitrate/framerate (anti-bufferbloat) ────────────────
+  // Without a cap the encoder can flood a narrow mobile uplink, queueing packets
+  // in the modem buffer → latency grows for audio AND video. With a cap, WebRTC
+  // scales resolution to fit the bitrate instead of overrunning the link.
+  private async applySenderLimits(): Promise<void> {
+    if (!this.pc) return;
+    const sender = this.pc.getSenders().find(s => s.track?.kind === 'video');
+    if (!sender) return;
+    try {
+      const params = sender.getParameters();
+      if (!params.encodings || params.encodings.length === 0) params.encodings = [{}];
+      params.encodings[0].maxBitrate   = MAX_VIDEO_BITRATE;
+      params.encodings[0].maxFramerate = MAX_VIDEO_FRAMERATE;
+      // Под нехватку канала жертвуем разрешением, а не плавностью/задержкой.
+      (params as RTCRtpSendParameters & { degradationPreference?: string }).degradationPreference = 'balanced';
+      await sender.setParameters(params);
+      console.log(`[WebRTC] video sender capped: ${MAX_VIDEO_BITRATE / 1000} kbps / ${MAX_VIDEO_FRAMERATE} fps`);
+    } catch (err) {
+      console.warn('[WebRTC] applySenderLimits failed:', err);
+    }
+  }
+
+  // ── Periodic stats diagnostics (RTT / loss / jitter / bitrate) ─────────────
+  // Prints a compact line every 3 s while connected so the real bottleneck is
+  // visible (network RTT vs packet loss vs jitter-buffer vs video bitrate).
+  private startStatsMonitor(): void {
+    this.stopStatsMonitor();
+    let lastVideoBytes = 0;
+    let lastTs = 0;
+    this.statsTimer = setInterval(async () => {
+      if (!this.pc) return;
+      try {
+        const stats = await this.pc.getStats();
+        let rttMs = 0, outBitrate = 0, inBitrate = 0;
+        let audioJitterMs = 0, audioLossPct = 0;
+        let vidW = 0, vidH = 0, vidFps = 0, vidLimit = '';
+        let outVideoBytes = 0, nowTs = 0;
+
+        stats.forEach(r => {
+          if (r.type === 'candidate-pair' && r.nominated && r.state === 'succeeded') {
+            if (typeof r.currentRoundTripTime === 'number') rttMs = Math.round(r.currentRoundTripTime * 1000);
+            if (typeof r.availableOutgoingBitrate === 'number') outBitrate = Math.round(r.availableOutgoingBitrate / 1000);
+            if (typeof r.availableIncomingBitrate === 'number') inBitrate = Math.round(r.availableIncomingBitrate / 1000);
+          }
+          if (r.type === 'inbound-rtp' && r.kind === 'audio') {
+            if (r.jitterBufferDelay && r.jitterBufferEmittedCount) {
+              audioJitterMs = Math.round((r.jitterBufferDelay / r.jitterBufferEmittedCount) * 1000);
+            }
+            const recv = (r.packetsReceived || 0) + (r.packetsLost || 0);
+            if (recv > 0) audioLossPct = Math.round(((r.packetsLost || 0) / recv) * 100);
+          }
+          if (r.type === 'inbound-rtp' && r.kind === 'video') {
+            vidW = r.frameWidth || 0; vidH = r.frameHeight || 0; vidFps = Math.round(r.framesPerSecond || 0);
+          }
+          if (r.type === 'outbound-rtp' && r.kind === 'video') {
+            outVideoBytes = r.bytesSent || 0; nowTs = r.timestamp || 0;
+            vidLimit = r.qualityLimitationReason || '';
+          }
+        });
+
+        let outVidKbps = 0;
+        if (lastTs && nowTs > lastTs) outVidKbps = Math.round(((outVideoBytes - lastVideoBytes) * 8) / (nowTs - lastTs));
+        lastVideoBytes = outVideoBytes; lastTs = nowTs;
+
+        console.log(
+          `[WebRTC][stats] RTT=${rttMs}ms | audioBuf=${audioJitterMs}ms loss=${audioLossPct}% | ` +
+          `BWE out/in=${outBitrate}/${inBitrate}kbps | video↑=${outVidKbps}kbps in=${vidW}x${vidH}@${vidFps}` +
+          (vidLimit && vidLimit !== 'none' ? ` limit=${vidLimit}` : ''),
+        );
+      } catch { /* stats not critical */ }
+    }, 3000);
+  }
+
+  private stopStatsMonitor(): void {
+    if (this.statsTimer !== null) { clearInterval(this.statsTimer); this.statsTimer = null; }
   }
 
   // ── Create and configure RTCPeerConnection ────────────────────────────────
@@ -165,6 +251,10 @@ class WebRTCManager {
         useCallStore.getState().setStartedAt(Date.now());
         // Notify server that WebRTC is truly connected (so startedAt is set server-side)
         getSocket()?.emit('call:connected', { callId });
+        // Cap video bitrate (canonical place — encodings populated after negotiation)
+        // and start periodic stats diagnostics.
+        this.applySenderLimits();
+        this.startStatsMonitor();
         // Log selected ICE candidate pair for diagnostics
         pc.getStats().then(stats => {
           stats.forEach(report => {
@@ -345,6 +435,7 @@ class WebRTCManager {
       const pc = await this.createPC(callId);
       const stream = await this.getOrAcquireLocalStream(callType);
       stream.getTracks().forEach(track => pc.addTrack(track, stream));
+      await this.applySenderLimits(); // cap before the first frames go out
 
       const offer = await pc.createOffer({
         offerToReceiveAudio: true,
@@ -371,6 +462,7 @@ class WebRTCManager {
       const pc = await this.createPC(callId);
       const stream = await this.getOrAcquireLocalStream(callType);
       stream.getTracks().forEach(track => pc.addTrack(track, stream));
+      await this.applySenderLimits(); // cap before the first frames go out
 
       await pc.setRemoteDescription(new RTCSessionDescription(offerSdp));
       this.remoteDescSet = true;
@@ -459,6 +551,7 @@ class WebRTCManager {
 
   // ── Internal: close peer connection ───────────────────────────────────────
   private teardownPC(): void {
+    this.stopStatsMonitor();
     this.clearIceConnectTimer();
     if (this.disconnectedTimer !== null) {
       clearTimeout(this.disconnectedTimer);
