@@ -53,47 +53,55 @@ function AssistantSpark() {
 }
 
 export function MobileNav({ me, activeTab, onTab, onAssistant, onProfile, profileActive }: Props) {
+  const tabActive = (t: MobileTab) => activeTab === t && !profileActive;
   return (
     <nav className="mNav" aria-label="Главное меню">
-      <button
-        className={`mNavBtn${activeTab === 'chats' && !profileActive ? ' active' : ''}`}
-        onClick={() => onTab('chats')}
-      >
-        <span className="mNavIcon"><ChatsIcon /></span>
-        <span className="mNavLabel">Чаты</span>
-      </button>
+      {/* Фоновая «подложка» с вырезом-колыбелью под орб (mask в CSS). */}
+      <span className="mNavBg" aria-hidden />
 
-      <button
-        className={`mNavBtn${activeTab === 'calls' && !profileActive ? ' active' : ''}`}
-        onClick={() => onTab('calls')}
-      >
-        <span className="mNavIcon"><CallsIcon /></span>
-        <span className="mNavLabel">Звонки</span>
-      </button>
+      {/* Левая группа */}
+      <div className="mNavSide">
+        <button
+          className={`mNavBtn${tabActive('chats') ? ' active' : ''}`}
+          onClick={() => onTab('chats')}
+        >
+          <span className="mNavIcon"><ChatsIcon /></span>
+          <span className="mNavLabel">Чаты</span>
+        </button>
+        <button
+          className={`mNavBtn${tabActive('calls') ? ' active' : ''}`}
+          onClick={() => onTab('calls')}
+        >
+          <span className="mNavIcon"><CallsIcon /></span>
+          <span className="mNavLabel">Звонки</span>
+        </button>
+      </div>
 
-      {/* Центральная «фишка» — ассистент */}
+      {/* Центральная «фишка» — ассистент (увеличенный орб над вырезом) */}
       <button className="mNavOrb" onClick={onAssistant} aria-label="Открыть помощника" title="Помощник">
         <span className="mNavOrbAura" aria-hidden />
         <span className="mNavOrbIcon"><AssistantSpark /></span>
       </button>
 
-      <button
-        className={`mNavBtn${activeTab === 'search' && !profileActive ? ' active' : ''}`}
-        onClick={() => onTab('search')}
-      >
-        <span className="mNavIcon"><SearchIcon /></span>
-        <span className="mNavLabel">Поиск</span>
-      </button>
-
-      <button
-        className={`mNavBtn mNavBtnProfile${profileActive ? ' active' : ''}`}
-        onClick={onProfile}
-      >
-        <span className="mNavIcon mNavAvatar">
-          <Avatar user={me} size={24} radius={8} presenceStatus={me.presence_status ?? null} />
-        </span>
-        <span className="mNavLabel">Профиль</span>
-      </button>
+      {/* Правая группа */}
+      <div className="mNavSide">
+        <button
+          className={`mNavBtn${tabActive('search') ? ' active' : ''}`}
+          onClick={() => onTab('search')}
+        >
+          <span className="mNavIcon"><SearchIcon /></span>
+          <span className="mNavLabel">Поиск</span>
+        </button>
+        <button
+          className={`mNavBtn mNavBtnProfile${profileActive ? ' active' : ''}`}
+          onClick={onProfile}
+        >
+          <span className="mNavIcon mNavAvatar">
+            <Avatar user={me} size={24} radius={8} presenceStatus={me.presence_status ?? null} />
+          </span>
+          <span className="mNavLabel">Профиль</span>
+        </button>
+      </div>
     </nav>
   );
 }

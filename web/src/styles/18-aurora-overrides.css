@@ -1297,7 +1297,6 @@
     color: #fff;
     margin: 0;
   }
-  .mTopSpacer { width: 40px; flex-shrink: 0; }
   .mTopAction {
     width: 40px; height: 40px;
     flex-shrink: 0;
@@ -1309,6 +1308,47 @@
   }
   .mTopAction svg { width: 20px; height: 20px; }
   .mTopAction:active { transform: scale(.92); background: rgba(255,255,255,.28); }
+  .mTopAction.active { background: rgba(255,255,255,.30); }
+  /* Иконка выхода смотрит к краю экрана (зеркально), а не внутрь. */
+  .mTopLogout svg { transform: scaleX(-1); }
+
+  /* Меню «Создать» (карандаш) в шапке */
+  .mComposeWrap { position: relative; flex-shrink: 0; }
+  .mComposeMenu {
+    position: absolute;
+    top: calc(100% + 8px);
+    right: 0;
+    z-index: 60;
+    min-width: 200px;
+    display: flex;
+    flex-direction: column;
+    padding: 6px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    box-shadow: var(--shadow);
+    animation: auroraPop .16s cubic-bezier(.2,.8,.3,1.1);
+  }
+  .mComposeItem {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 11px 12px;
+    border-radius: 10px;
+    background: none;
+    border: none;
+    color: var(--text);
+    font-size: 14px;
+    font-weight: 600;
+    text-align: left;
+    cursor: pointer;
+    transition: background .15s;
+  }
+  .mComposeItem svg { width: 18px; height: 18px; color: var(--accent); flex-shrink: 0; }
+  .mComposeItem:active { background: var(--accent-dim); }
+
+  /* На мобильном создаём только из шапки → дублирующую кнопку в карточке прячем. */
+  .mCard .folderTabsAside { display: none; }
 
   /* ── Закруглённая карточка с контентом ────────────────────────────── */
   .mCard {
@@ -1355,21 +1395,176 @@
   .mCallsEmptyTitle { font-size: 16px; font-weight: 700; color: var(--text); }
   .mCallsEmptySub { font-size: 13px; color: var(--muted); max-width: 220px; line-height: 1.5; }
 
-  /* ── Нижнее меню ──────────────────────────────────────────────────── */
-  .mNav {
-    flex-shrink: 0;
+  /* ── Стеклянное меню профиля (bottom sheet) ───────────────────────── */
+  .mpOverlay {
+    position: fixed;
+    inset: 0;
+    z-index: 1000;
     display: flex;
     align-items: flex-end;
-    justify-content: space-around;
-    gap: 2px;
-    padding: 8px 8px calc(env(safe-area-inset-bottom, 0px) + 8px);
-    background: var(--sidebar);
-    border-top: 1px solid var(--border);
-    position: relative;
-    z-index: 2;
+    background: rgba(8,4,20,.45);
+    backdrop-filter: blur(2px);
+    -webkit-backdrop-filter: blur(2px);
+    animation: mpFade .18s ease both;
   }
+  @keyframes mpFade { from { opacity: 0; } to { opacity: 1; } }
+  .mpSheet {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 8px 14px calc(env(safe-area-inset-bottom, 0px) + 18px);
+    /* стеклянная карточка с акцентным подтоном, читаемая в обеих темах */
+    background:
+      linear-gradient(180deg, color-mix(in srgb, var(--accent) 16%, var(--card)) 0%, var(--card) 60%);
+    border-top: 1px solid color-mix(in srgb, var(--accent) 24%, var(--border));
+    border-radius: 26px 26px 0 0;
+    box-shadow: 0 -16px 44px rgba(8,4,20,.4);
+    backdrop-filter: blur(22px);
+    -webkit-backdrop-filter: blur(22px);
+    animation: mpSlide .26s cubic-bezier(.2,.8,.3,1.05) both;
+  }
+  @keyframes mpSlide { from { transform: translateY(100%); } to { transform: none; } }
+  .mpGrab {
+    width: 38px; height: 4px;
+    border-radius: 4px;
+    background: color-mix(in srgb, var(--text) 22%, transparent);
+    align-self: center;
+    margin: 2px 0 10px;
+  }
+  .mpHead {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 4px 8px 14px;
+  }
+  .mpHeadInfo { min-width: 0; }
+  .mpHeadName {
+    font-size: 17px; font-weight: 800; color: var(--text);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .mpHeadSub {
+    font-size: 13px; color: var(--muted); margin-top: 1px;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .mpDivider {
+    height: 1px;
+    background: color-mix(in srgb, var(--text) 10%, transparent);
+    margin: 4px 8px;
+  }
+  .mpItem {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    width: 100%;
+    padding: 14px 10px;
+    border: none;
+    background: none;
+    color: var(--text);
+    font-size: 15.5px;
+    font-weight: 600;
+    text-align: left;
+    border-radius: 14px;
+    cursor: pointer;
+    transition: background .15s;
+  }
+  .mpItem:active { background: color-mix(in srgb, var(--accent) 12%, transparent); }
+  .mpItemIcon {
+    width: 26px; height: 26px;
+    flex-shrink: 0;
+    display: grid; place-items: center;
+    color: var(--text);
+  }
+  .mpItemIcon svg { width: 24px; height: 24px; }
+  .mpItemLabel { flex: 1; min-width: 0; }
+  .mpItemChevron { width: 18px; height: 18px; color: var(--muted); flex-shrink: 0; }
+  .mpItemDisabled { opacity: .55; cursor: default; }
+  .mpItemDisabled:active { background: none; }
+  .mpSoon {
+    flex-shrink: 0;
+    font-size: 11px; font-weight: 700;
+    color: var(--accent);
+    background: var(--accent-dim);
+    padding: 3px 9px;
+    border-radius: 999px;
+    letter-spacing: .02em;
+  }
+  .mpItemSignout { color: var(--danger); }
+  .mpItemSignout .mpItemIcon { color: var(--danger); }
+  /* Иконка выхода — к краю (зеркально), как в шапке. */
+  .mpSignoutIcon svg { transform: scaleX(-1); }
+
+  /* Слайдер темы солнце/луна */
+  .mpThemeSwitch {
+    flex-shrink: 0;
+    width: 58px; height: 30px;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--accent) 28%, var(--panel));
+    position: relative;
+    transition: background .2s;
+  }
+  .mpThemeSwitch.dark { background: color-mix(in srgb, var(--text) 14%, var(--panel)); }
+  .mpThemeKnob {
+    position: absolute;
+    top: 3px; left: 3px;
+    width: 24px; height: 24px;
+    border-radius: 50%;
+    background: var(--card);
+    color: var(--accent);
+    display: grid; place-items: center;
+    box-shadow: 0 2px 6px rgba(0,0,0,.25);
+    transition: transform .22s cubic-bezier(.2,.8,.3,1.2);
+  }
+  .mpThemeKnob svg { width: 15px; height: 15px; }
+  .mpThemeSwitch.dark .mpThemeKnob { transform: translateX(28px); color: var(--text); }
+
+  /* ── Нижнее меню с вырезом-колыбелью под центральный орб ───────────── */
+  .mNav {
+    flex-shrink: 0;
+    position: relative;
+    z-index: 3;
+    display: flex;
+    align-items: center;
+    /* верхний padding оставляет место под выступающий орб */
+    padding: 8px 6px calc(env(safe-area-inset-bottom, 0px) + 8px);
+    background: transparent;
+  }
+  /* Подложка панели: несёт фон/границу/тень и вырезает полукруг сверху-центра.
+     Вынесена отдельным слоем, чтобы mask не обрезал кнопки и орб. */
+  .mNavBg {
+    position: absolute;
+    /* слой выходит выше панели на 24px — место под «бугор» вокруг орба */
+    left: 0; right: 0; bottom: 0; top: -24px;
+    background: var(--sidebar);
+    pointer-events: none;
+    /* Силуэт = объединение (mask по умолчанию складывается):
+       1) прямая полоса (ниже линии y=24);
+       2) диск-бугор вокруг орба (центр на линии панели) — поднимается над
+          полосой и обтекает орб сверху. */
+    -webkit-mask-image:
+      linear-gradient(to bottom, transparent 24px, #000 24px),
+      radial-gradient(circle 38px at 50% 24px, #000 37px, transparent 38px);
+            mask-image:
+      linear-gradient(to bottom, transparent 24px, #000 24px),
+      radial-gradient(circle 38px at 50% 24px, #000 37px, transparent 38px);
+    -webkit-mask-repeat: no-repeat;
+            mask-repeat: no-repeat;
+    /* мягкий контур силуэта (повторяет бугор), вместо box-shadow при mask */
+    filter: drop-shadow(0 -3px 7px rgba(0,0,0,.16));
+  }
+  .mNavSide {
+    flex: 1;
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+    min-width: 0;
+  }
+  /* Внутренние края групп отступают от центра, освобождая место под орб. */
+  .mNavSide:first-of-type { padding-right: 30px; }
+  .mNavSide:last-of-type  { padding-left: 30px; }
   .mNavBtn {
     flex: 1;
+    position: relative;
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -1379,7 +1574,7 @@
     background: none;
     border: none;
     cursor: pointer;
-    transition: color .15s;
+    transition: color .15s, transform .1s;
     min-width: 0;
   }
   .mNavBtn.active { color: var(--accent); }
@@ -1402,12 +1597,14 @@
     box-shadow: 0 0 0 2px var(--accent);
   }
 
-  /* ── Центральный орб-ассистент ────────────────────────────────────── */
+  /* ── Центральный орб-ассистент (увеличенный, в вырезе панели) ──────── */
   .mNavOrb {
-    position: relative;
-    flex-shrink: 0;
-    width: 60px; height: 60px;
-    margin: -22px 6px 0;
+    position: absolute;
+    left: 50%;
+    top: 0;
+    transform: translate(-50%, -50%);
+    z-index: 4;
+    width: 64px; height: 64px;
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -1415,29 +1612,15 @@
     border-radius: 50%;
     color: #fff;
     background: var(--grad-accent);
-    box-shadow: var(--glow), 0 8px 22px rgba(0,0,0,.30);
+    box-shadow: var(--glow), 0 8px 22px rgba(0,0,0,.32);
     cursor: pointer;
     transition: transform .18s cubic-bezier(.2,.8,.3,1.2);
   }
-  .mNavOrb::after {
-    /* кольцо-обводка под цвет панели, чтобы орб «вырезался» из меню */
-    content: '';
-    position: absolute;
-    inset: -5px;
-    border-radius: 50%;
-    border: 4px solid var(--sidebar);
-    z-index: -1;
-  }
-  .mNavOrb:active { transform: scale(.93); }
-  .mNavOrbIcon { position: relative; z-index: 1; width: 30px; height: 30px; }
-  .mNavOrbIcon svg { width: 30px; height: 30px; filter: drop-shadow(0 1px 2px rgba(0,0,0,.28)); }
-  .mNavOrbAura {
-    position: absolute; inset: 0; z-index: 0;
-    border-radius: 50%;
-    background: var(--grad-accent);
-    filter: blur(8px);
-    animation: asstOrbPulse 2.8s ease-in-out infinite;
-  }
+  .mNavOrb:active { transform: translate(-50%, -50%) scale(.93); }
+  .mNavOrbIcon { position: relative; z-index: 1; width: 32px; height: 32px; }
+  .mNavOrbIcon svg { width: 32px; height: 32px; filter: drop-shadow(0 1px 2px rgba(0,0,0,.28)); }
+  /* Пульсацию убрали (отвлекала) — орбу хватает статичного свечения --glow. */
+  .mNavOrbAura { display: none; }
 }
 
 @media (max-width: 700px) and (prefers-reduced-motion: reduce) {

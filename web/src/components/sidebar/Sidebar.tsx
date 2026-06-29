@@ -142,8 +142,15 @@ export function Sidebar() {
           onCreateFolder={() => setFolderModal({})}
           onEditFolder={folder => setFolderModal({ folder })}
           onOpenAssistant={() => setShowAssistant(true)}
-          onOpenProfile={() => setShowProfileSettings(true)}
-          profileActive={showProfileSettings}
+          onOpenSettings={() => setShowProfileSettings(true)}
+          onOpenSupport={() => setShowSupport(true)}
+          theme={theme}
+          onToggleTheme={toggleTheme}
+          onLogout={async () => {
+            try { await authLogout(); } catch { /* cookie might already be gone */ }
+            clearSession();
+          }}
+          settingsActive={showProfileSettings}
         />
         {folderModalEl}
       </>

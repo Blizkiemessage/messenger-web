@@ -11,12 +11,15 @@
  * Бизнес-логику (фильтрация чатов, папки) НЕ дублирует — получает готовые
  * данные пропсами из Sidebar.
  */
+import { useState, useEffect, useRef } from 'react';
 import { type User, type Chat, type ChatFolder } from '../../types';
+import { type Theme } from '../../utils/theme';
 import { useAppStore } from '../../store/useAppStore';
 import { FolderTabs } from './FolderTabs';
 import { ChatList } from './ChatList';
 import { UserSearch } from './UserSearch';
 import { MobileNav } from './MobileNav';
+import { MobileProfileMenu } from './MobileProfileMenu';
 
 interface Props {
   me: User;
@@ -34,8 +37,12 @@ interface Props {
   onCreateFolder: () => void;
   onEditFolder: (folder: ChatFolder) => void;
   onOpenAssistant: () => void;
-  onOpenProfile: () => void;
-  profileActive: boolean;
+  onOpenSettings: () => void;
+  onOpenSupport: () => void;
+  theme: Theme;
+  onToggleTheme: () => void;
+  onLogout: () => void;
+  settingsActive: boolean;
 }
 
 const TITLES: Record<string, string> = {
@@ -47,29 +54,86 @@ const TITLES: Record<string, string> = {
 export function MobileSidebar({
   me, filteredChats, activeChatId, chatFilter, loadingChats, dataError, folders,
   onFilterChange, onSelectChat, onContextMenu, onNewGroup, onSavedMessages,
-  onCreateFolder, onEditFolder, onOpenAssistant, onOpenProfile, profileActive,
+  onCreateFolder, onEditFolder, onOpenAssistant, onOpenSettings, onOpenSupport,
+  theme, onToggleTheme, onLogout, settingsActive,
 }: Props) {
   const mobileTab = useAppStore(s => s.mobileTab);
   const setMobileTab = useAppStore(s => s.setMobileTab);
+
+  const [showCompose, setShowCompose] = useState(false);
+  const [showProfileMenu, setShowProfileMenu] = useState(false);
+  const composeRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!showCompose) return;
+    function onOutside(e: MouseEvent) {
+      if (composeRef.current && !composeRef.current.contains(e.target as Node)) {
+        setShowCompose(false);
+      }
+    }
+    document.addEventListener('mousedown', onOutside);
+    return () => document.removeEventListener('mousedown', onOutside);
+  }, [showCompose]);
 
   return (
     <aside className="sidebar mobileShell">
       {/* ── Цветная шапка (акцент) ─────────────────────────────────────── */}
       <header className="mTopBar">
-        <div className="mTopSpacer" />
-        <h1 className="mTopTitle">{TITLES[mobileTab] ?? 'Чаты'}</h1>
+        {/* Выход из аккаунта (дверь + стрелка) → экран входа */}
         <button
-          className="mTopAction"
-          onClick={onNewGroup}
-          aria-label="Новая группа"
-          title="Новая группа"
+          className="mTopAction mTopLogout"
+          onClick={onLogout}
+          aria-label="Выйти из аккаунта"
+          title="Выйти"
         >
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
-            <circle cx="9" cy="7" r="4" />
-            <line x1="19" y1="8" x2="19" y2="14" /><line x1="22" y1="11" x2="16" y2="11" />
+            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+            <polyline points="16 17 21 12 16 7" />
+            <line x1="21" y1="12" x2="9" y2="12" />
           </svg>
         </button>
+
+        <h1 className="mTopTitle">{TITLES[mobileTab] ?? 'Чаты'}</h1>
+
+        {/* Создать (карандаш) → меню: Новая группа / Сохранённые */}
+        <div className="mComposeWrap" ref={composeRef}>
+          <button
+            className={`mTopAction${showCompose ? ' active' : ''}`}
+            onClick={() => setShowCompose(v => !v)}
+            aria-label="Создать"
+            title="Создать"
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M12 20h9" />
+              <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z" />
+            </svg>
+          </button>
+
+          {showCompose && (
+            <div className="mComposeMenu">
+              <button
+                className="mComposeItem"
+                onClick={() => { setShowCompose(false); onNewGroup(); }}
+              >
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                  <circle cx="9" cy="7" r="4" />
+                  <path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" />
+                </svg>
+                Новая группа
+              </button>
+              <button
+                className="mComposeItem"
+                onClick={() => { setShowCompose(false); onSavedMessages(); }}
+              >
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
+                </svg>
+                Сохранённые
+              </button>
+            </div>
+          )}
+        </div>
       </header>
 
       {/* ── Закруглённая карточка с контентом ──────────────────────────── */}
@@ -119,9 +183,22 @@ export function MobileSidebar({
         activeTab={mobileTab}
         onTab={setMobileTab}
         onAssistant={onOpenAssistant}
-        onProfile={onOpenProfile}
-        profileActive={profileActive}
+        onProfile={() => setShowProfileMenu(true)}
+        profileActive={showProfileMenu || settingsActive}
       />
+
+      {/* Стеклянное меню профиля (по тапу «Профиль») */}
+      {showProfileMenu && (
+        <MobileProfileMenu
+          me={me}
+          theme={theme}
+          onClose={() => setShowProfileMenu(false)}
+          onOpenSettings={onOpenSettings}
+          onOpenSupport={onOpenSupport}
+          onToggleTheme={onToggleTheme}
+          onLogout={onLogout}
+        />
+      )}
     </aside>
   );
 }
