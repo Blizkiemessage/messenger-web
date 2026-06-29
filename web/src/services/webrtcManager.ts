@@ -25,6 +25,14 @@ import { API_BASE_URL } from '../config';
 import { getToken } from '../storage/session';
 import type { CallType } from '../types';
 
+// Целевой размер аудио-буфера приёмника (мс). По умолчанию NetEq адаптивно
+// раздувает буфер на дребезжащих сетях (мобильный аплинк) до 1–2 секунд → «огромная
+// задержка». Низкий целевой ориентир прижимает раздувание, при этом НЕ добавляет
+// задержку на чистой сети (там буфер и так мал). Компромисс: на очень плохой сети
+// возможны лёгкие артефакты вместо растущего лага. Тюнить тут: меньше = меньше
+// задержка/больше риск «бульканья», больше = устойчивее/выше задержка.
+const AUDIO_JITTER_BUFFER_TARGET_MS = 100;
+
 class WebRTCManager {
   private pc: RTCPeerConnection | null = null;
   private iceCandidateQueue: RTCIceCandidateInit[] = [];
@@ -129,6 +137,17 @@ class WebRTCManager {
     pc.ontrack = (event) => {
       const [stream] = event.streams;
       if (stream) useCallStore.getState().setRemoteStream(stream);
+
+      // Прижать аудио-буфер приёмника, чтобы задержка не раздувалась на дребезжащей
+      // мобильной сети (см. AUDIO_JITTER_BUFFER_TARGET_MS). Поддерживается в Chrome
+      // 111+; на других браузерах свойство отсутствует — тихо пропускаем.
+      try {
+        const receiver = event.receiver as RTCRtpReceiver & { jitterBufferTarget?: number };
+        if (event.track.kind === 'audio' && 'jitterBufferTarget' in receiver) {
+          receiver.jitterBufferTarget = AUDIO_JITTER_BUFFER_TARGET_MS;
+          console.log(`[WebRTC] audio jitterBufferTarget = ${AUDIO_JITTER_BUFFER_TARGET_MS}ms`);
+        }
+      } catch { /* not supported — keep default */ }
     };
 
     // ── Connection state (DTLS + ICE combined) ───────────────────────────────
