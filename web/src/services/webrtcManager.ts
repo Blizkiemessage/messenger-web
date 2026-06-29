@@ -175,6 +175,22 @@ class WebRTCManager {
           `BWE out/in=${outBitrate}/${inBitrate}kbps | video↑=${outVidKbps}kbps in=${vidW}x${vidH}@${vidFps}` +
           (vidLimit && vidLimit !== 'none' ? ` limit=${vidLimit}` : ''),
         );
+
+        // ── Adaptive buffer drain ──────────────────────────────────────────
+        // Транзиентные всплески задержки (нестабильный relay / мобильная сота)
+        // раздувают аудио-буфер NetEq до ~1.5с, и он сливается крайне лениво —
+        // отсюда «огромная задержка», которая держится минутами после того, как
+        // сеть пришла в норму. Когда буфер раздут — форсим цель в 0 (агрессивный
+        // слив); в норме держим небольшой baseline. Хуже сделать не может: 0
+        // ставится только когда задержка уже большая.
+        try {
+          const ar = this.pc.getReceivers().find(r => r.track?.kind === 'audio') as
+            (RTCRtpReceiver & { jitterBufferTarget?: number }) | undefined;
+          if (ar && 'jitterBufferTarget' in ar) {
+            const target = audioJitterMs > 400 ? 0 : AUDIO_JITTER_BUFFER_TARGET_MS;
+            if (ar.jitterBufferTarget !== target) ar.jitterBufferTarget = target;
+          }
+        } catch { /* ignore */ }
       } catch { /* stats not critical */ }
     }, 3000);
   }
