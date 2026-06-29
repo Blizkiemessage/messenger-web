@@ -29,17 +29,13 @@ export function connectSocket(): Socket {
     socket = null;
   }
 
-  // Access-токен живёт 15 минут. Если приложение открыли с протухшим токеном —
-  // обновляем его ДО handshake, иначе сервер ответит «Invalid token».
-  // refresh дедуплицирован с REST-интерсептором (общий promise в api/client).
-  const stored = getToken();
-  if (stored && isTokenExpired(stored) && getRefreshToken()) {
-    refreshAccessToken().catch(() => {});
-    // не ждём: auth ниже — функция, реконнект сам возьмёт свежий токен
-  }
-
   socket = io(SOCKET_URL, {
     withCredentials: true, // still send cookie for same-origin / Safari
+    // НЕ подключаемся сразу: на холодном старте/после reload access-токен в памяти
+    // ещё null, и сокет ушёл бы на handshake без токена → сервер «No token» →
+    // соединение цеплялось только через несколько реконнект-циклов («перезагрузи
+    // страницу»). Сначала refresh, потом connect (см. блок перед return).
+    autoConnect: false,
     // ВАЖНО: auth как функция — вызывается на КАЖДОЙ попытке подключения
     // (включая авто-реконнекты), поэтому всегда отдаёт свежий токен из
     // localStorage, даже если REST-интерсептор обновил его после создания сокета.
@@ -90,6 +86,19 @@ export function connectSocket(): Socket {
       window.location.href = '/';
     }
   });
+
+  // ── Подключение с валидным токеном ──────────────────────────────────────────
+  // На холодном старте/после reload access-токен в памяти ещё null. Тихо обновляем
+  // его через refresh-токен и ТОЛЬКО потом connect() — первый же handshake уходит
+  // с токеном, без «No token» и ручных перезагрузок. refresh дедуплицирован
+  // (общий promise) с REST-интерсептором. Нет refresh-токена → connect сразу
+  // (получит «No token» → connect_error выше уведёт на логин).
+  const token = getToken();
+  if ((!token || isTokenExpired(token)) && getRefreshToken()) {
+    refreshAccessToken().catch(() => {}).finally(() => { socket?.connect(); });
+  } else {
+    socket.connect();
+  }
 
   return socket;
 }
