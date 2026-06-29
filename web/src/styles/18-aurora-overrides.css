@@ -1265,3 +1265,182 @@
 .atcItemName { flex: 1; font-weight: 600; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .atcItemCount { font-size: 12px; color: var(--muted); }
 .atcCreateBtn { width: 100%; }
+
+/* ════════════════════════════════════════════════════════════════════
+   Мобильная оболочка списка (телефоны): цветная шапка-акцент + закруглённая
+   карточка с контентом + нижнее меню (Чаты·Звонки·Ассистент·Поиск·Профиль).
+   Активна только ≤700px; десктоп использует обычный сайдбар.
+   ════════════════════════════════════════════════════════════════════ */
+@media (max-width: 700px) {
+  /* Шапка-акцент — задний план всей оболочки; карточка ложится поверх. */
+  .mobileShell {
+    background: var(--accent);
+    overflow: hidden;
+  }
+
+  /* ── Цветная шапка ────────────────────────────────────────────────── */
+  .mTopBar {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: calc(env(safe-area-inset-top, 0px) + 14px) 16px 26px;
+    background: var(--accent);
+    color: #fff;
+  }
+  .mTopTitle {
+    flex: 1;
+    text-align: center;
+    font-size: 19px;
+    font-weight: 800;
+    letter-spacing: .01em;
+    color: #fff;
+    margin: 0;
+  }
+  .mTopSpacer { width: 40px; flex-shrink: 0; }
+  .mTopAction {
+    width: 40px; height: 40px;
+    flex-shrink: 0;
+    display: grid; place-items: center;
+    border-radius: 12px;
+    color: #fff;
+    background: rgba(255,255,255,.16);
+    transition: background .15s, transform .1s;
+  }
+  .mTopAction svg { width: 20px; height: 20px; }
+  .mTopAction:active { transform: scale(.92); background: rgba(255,255,255,.28); }
+
+  /* ── Закруглённая карточка с контентом ────────────────────────────── */
+  .mCard {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    background: var(--bg);
+    border-radius: 24px 24px 0 0;
+    margin-top: -18px;
+    overflow: hidden;
+    box-shadow: 0 -6px 24px rgba(0,0,0,.18);
+    position: relative;
+    z-index: 1;
+  }
+  /* Контент карточки прокручивается внутри; список занимает остаток. */
+  .mCard .folderTabsWrap { flex-shrink: 0; padding-top: 6px; }
+  .mCard .chatList { flex: 1; min-height: 0; }
+  .mCard .sidebarSearch { border-bottom: 1px solid var(--border); }
+
+  /* В мобильной карточке нижний блок профиля/плавающий орб не нужны. */
+  .mobileShell .sidebarBottom,
+  .mobileShell .asstOrbSidebar { display: none; }
+
+  /* ── Заглушка «Звонки» ────────────────────────────────────────────── */
+  .mCallsEmpty {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    padding: 40px 28px;
+    text-align: center;
+  }
+  .mCallsEmptyIcon {
+    width: 72px; height: 72px;
+    display: grid; place-items: center;
+    border-radius: 50%;
+    color: var(--accent);
+    background: var(--accent-dim);
+  }
+  .mCallsEmptyIcon svg { width: 32px; height: 32px; }
+  .mCallsEmptyTitle { font-size: 16px; font-weight: 700; color: var(--text); }
+  .mCallsEmptySub { font-size: 13px; color: var(--muted); max-width: 220px; line-height: 1.5; }
+
+  /* ── Нижнее меню ──────────────────────────────────────────────────── */
+  .mNav {
+    flex-shrink: 0;
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-around;
+    gap: 2px;
+    padding: 8px 8px calc(env(safe-area-inset-bottom, 0px) + 8px);
+    background: var(--sidebar);
+    border-top: 1px solid var(--border);
+    position: relative;
+    z-index: 2;
+  }
+  .mNavBtn {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 3px;
+    padding: 4px 2px;
+    color: var(--muted);
+    background: none;
+    border: none;
+    cursor: pointer;
+    transition: color .15s;
+    min-width: 0;
+  }
+  .mNavBtn.active { color: var(--accent); }
+  .mNavBtn:active { transform: scale(.94); }
+  .mNavIcon { width: 24px; height: 24px; display: grid; place-items: center; }
+  .mNavIcon svg { width: 24px; height: 24px; }
+  .mNavLabel {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: .01em;
+    white-space: nowrap;
+  }
+  /* Профиль-аватар: кольцо акцента при активности. */
+  .mNavAvatar {
+    border-radius: 50%;
+    box-shadow: 0 0 0 2px transparent;
+    transition: box-shadow .15s;
+  }
+  .mNavBtnProfile.active .mNavAvatar {
+    box-shadow: 0 0 0 2px var(--accent);
+  }
+
+  /* ── Центральный орб-ассистент ────────────────────────────────────── */
+  .mNavOrb {
+    position: relative;
+    flex-shrink: 0;
+    width: 60px; height: 60px;
+    margin: -22px 6px 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: none;
+    border-radius: 50%;
+    color: #fff;
+    background: var(--grad-accent);
+    box-shadow: var(--glow), 0 8px 22px rgba(0,0,0,.30);
+    cursor: pointer;
+    transition: transform .18s cubic-bezier(.2,.8,.3,1.2);
+  }
+  .mNavOrb::after {
+    /* кольцо-обводка под цвет панели, чтобы орб «вырезался» из меню */
+    content: '';
+    position: absolute;
+    inset: -5px;
+    border-radius: 50%;
+    border: 4px solid var(--sidebar);
+    z-index: -1;
+  }
+  .mNavOrb:active { transform: scale(.93); }
+  .mNavOrbIcon { position: relative; z-index: 1; width: 30px; height: 30px; }
+  .mNavOrbIcon svg { width: 30px; height: 30px; filter: drop-shadow(0 1px 2px rgba(0,0,0,.28)); }
+  .mNavOrbAura {
+    position: absolute; inset: 0; z-index: 0;
+    border-radius: 50%;
+    background: var(--grad-accent);
+    filter: blur(8px);
+    animation: asstOrbPulse 2.8s ease-in-out infinite;
+  }
+}
+
+@media (max-width: 700px) and (prefers-reduced-motion: reduce) {
+  .mNavOrbAura { animation: none; opacity: 0; }
+  .mNavOrb { transition: none; }
+}

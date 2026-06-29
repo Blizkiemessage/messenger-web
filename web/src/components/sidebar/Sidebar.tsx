@@ -5,11 +5,13 @@ import { useChatsStore } from '../../store/useChatsStore';
 import { useAppStore } from '../../store/useAppStore';
 import { useFolderStore } from '../../store/useFolderStore';
 import { type ChatFolder } from '../../types';
+import { useIsMobile } from '../../hooks/useIsMobile';
 import { UserSearch } from './UserSearch';
 import { FolderTabs } from './FolderTabs';
 import { FolderModal } from './FolderModal';
 import { ChatList } from './ChatList';
 import { SidebarBottom } from './SidebarBottom';
+import { MobileSidebar } from './MobileSidebar';
 import { AssistantOrb } from '../ui/AssistantOrb';
 import { updateMe } from '../../api/users';
 import { getSavedChat } from '../../api/chats';
@@ -57,6 +59,8 @@ export function Sidebar() {
     });
   }));
 
+  const isMobile = useIsMobile();
+  const showProfileSettings = useAppStore(s => s.showProfileSettings);
   const theme = useAppStore(s => s.theme);
   const showProfile = useAppStore(s => s.showProfile);
   const toggleProfile = useAppStore(s => s.toggleProfile);
@@ -109,6 +113,44 @@ export function Sidebar() {
     if (chatFilter === `folder:${folder.id}`) setChatFilter('all');
   };
 
+  const folderModalEl = folderModal !== null && (
+    <FolderModal
+      folder={folderModal.folder ?? null}
+      onSave={folderModal.folder ? handleUpdateFolder : handleCreateFolder}
+      onDelete={folderModal.folder ? handleDeleteFolder : undefined}
+      onClose={() => setFolderModal(null)}
+    />
+  );
+
+  // ── Мобильная оболочка (телефоны): шапка + карточка + нижнее меню ──────
+  if (isMobile) {
+    return (
+      <>
+        <MobileSidebar
+          me={me}
+          filteredChats={filteredChats}
+          activeChatId={activeChatId}
+          chatFilter={chatFilter}
+          loadingChats={loadingChats}
+          dataError={dataError}
+          folders={folders}
+          onFilterChange={setChatFilter}
+          onSelectChat={setActiveChatId}
+          onContextMenu={(e, chat) => setChatCtxMenu({ x: e.clientX, y: e.clientY, chat })}
+          onNewGroup={() => setShowCreateGroup(true)}
+          onSavedMessages={handleSavedMessages}
+          onCreateFolder={() => setFolderModal({})}
+          onEditFolder={folder => setFolderModal({ folder })}
+          onOpenAssistant={() => setShowAssistant(true)}
+          onOpenProfile={() => setShowProfileSettings(true)}
+          profileActive={showProfileSettings}
+        />
+        {folderModalEl}
+      </>
+    );
+  }
+
+  // ── Десктоп: классический сайдбар ─────────────────────────────────────
   return (
     <aside className="sidebar">
       <UserSearch />
@@ -160,14 +202,7 @@ export function Sidebar() {
       />
       {/* Светящийся орб-вход в ассистента — всегда на виду (desktop + список чатов). */}
       <AssistantOrb onClick={() => setShowAssistant(true)} variant="asstOrbSidebar" />
-      {folderModal !== null && (
-        <FolderModal
-          folder={folderModal.folder ?? null}
-          onSave={folderModal.folder ? handleUpdateFolder : handleCreateFolder}
-          onDelete={folderModal.folder ? handleDeleteFolder : undefined}
-          onClose={() => setFolderModal(null)}
-        />
-      )}
+      {folderModalEl}
     </aside>
   );
 }

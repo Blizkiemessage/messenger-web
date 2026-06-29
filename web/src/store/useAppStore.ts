@@ -7,8 +7,13 @@ import { type Chat } from '../types';
 import { type Theme, getStoredTheme, applyTheme } from '../utils/theme';
 import { getSession } from '../storage/session';
 
+/** Активная вкладка нижнего меню на мобильном (десктоп его не использует). */
+export type MobileTab = 'chats' | 'calls' | 'search';
+
 interface AppState {
   theme: Theme;
+  /** Какая вкладка нижнего меню открыта на мобильном. */
+  mobileTab: MobileTab;
   showProfile: boolean;
   showProfileSettings: boolean;
   showCreateGroup: boolean;
@@ -29,6 +34,7 @@ interface AppState {
   showForwardModal: boolean;
 
   toggleTheme: () => void;
+  setMobileTab: (t: MobileTab) => void;
   toggleProfile: () => void;
   setShowProfile: (v: boolean) => void;
   setShowProfileSettings: (v: boolean) => void;
@@ -55,6 +61,7 @@ applyTheme(initialTheme);
 
 export const useAppStore = create<AppState>((set) => ({
   theme: initialTheme,
+  mobileTab: 'chats',
   showProfile: false,
   showProfileSettings: false,
   showCreateGroup: false,
@@ -78,6 +85,7 @@ export const useAppStore = create<AppState>((set) => ({
     return { theme: next };
   }),
 
+  setMobileTab: (mobileTab) => set({ mobileTab }),
   toggleProfile: () => set(state => ({ showProfile: !state.showProfile })),
   setShowProfile: (showProfile) => set({ showProfile }),
   setShowProfileSettings: (v) => set({ showProfileSettings: v }),
