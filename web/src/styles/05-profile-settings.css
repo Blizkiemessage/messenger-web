@@ -79,9 +79,79 @@
   flex-direction: column;
   overflow-y: auto;
   flex: 1;
+  padding: 14px 16px 22px;
 }
 .psHub::-webkit-scrollbar { width: 4px; }
 .psHub::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+
+/* ── Чистый секционный вид (монохромные иконки, без радуги) ───────────── */
+/* Аккаунт — крупная кнопка-карточка сверху */
+.psAccountCard {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  padding: 16px 16px;
+  border-radius: 18px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  text-align: left;
+  transition: background .15s, border-color .15s;
+  flex-shrink: 0;
+}
+.psAccountCard:hover { border-color: var(--accent-border); }
+.psAccountCard:active { background: color-mix(in srgb, var(--accent) 8%, var(--panel)); }
+
+/* Секция: заголовок + карточка со строками */
+.psSection { margin-top: 18px; flex-shrink: 0; }
+.psSectionTitle {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--muted);
+  letter-spacing: .03em;
+  padding: 0 6px 8px;
+}
+.psSectionCard {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  overflow: hidden;
+}
+.psRow {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  padding: 14px 16px;
+  text-align: left;
+  background: none;
+  border: none;
+  transition: background .12s;
+}
+.psRow:not(:last-child) { box-shadow: inset 0 -1px 0 var(--border); }
+.psRow:hover { background: color-mix(in srgb, var(--accent) 7%, transparent); }
+.psRow:active { background: color-mix(in srgb, var(--accent) 12%, transparent); }
+/* Монохромная иконка — в цвет текста, без рамки и фона */
+.psRowIcon {
+  width: 26px; height: 26px;
+  flex-shrink: 0;
+  display: grid; place-items: center;
+  color: var(--text);
+}
+.psRowIcon svg { width: 23px; height: 23px; }
+.psRowLabel {
+  flex: 1;
+  min-width: 0;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text);
+}
+/* Удаление аккаунта — красный текст+иконка */
+.psRowDanger .psRowIcon,
+.psRowDanger .psRowLabel { color: var(--danger); }
+.psRowDanger .psHubChevron { color: color-mix(in srgb, var(--danger) 60%, transparent); }
+.psRowDanger:hover { background: color-mix(in srgb, var(--danger) 9%, transparent); }
+.psRowDanger:active { background: color-mix(in srgb, var(--danger) 15%, transparent); }
 
 /* Mini profile card at top of hub */
 .psHubProfile {

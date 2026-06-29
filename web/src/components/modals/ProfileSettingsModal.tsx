@@ -22,99 +22,90 @@ type Tab = 'profile' | 'password' | 'privacy' | 'appearance' | 'sessions' | 'per
 interface MenuItem {
   id: Tab;
   label: string;
-  description: string;
-  color: string;
   icon: ReactNode;
 }
 
-const MENU_ITEMS: MenuItem[] = [
+interface MenuSection {
+  title: string;
+  items: MenuItem[];
+}
+
+// Монохромные иконки (в цвет текста, без рамок/фона); сгруппированы по секциям.
+// Пункт «Профиль» убран из списка — его роль выполняет карточка аккаунта сверху.
+const MENU_SECTIONS: MenuSection[] = [
   {
-    id: 'profile',
-    label: 'Профиль',
-    description: 'Имя, фото, bio, контакты',
-    color: '#2f81f7',
-    icon: (
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
-        <circle cx="12" cy="7" r="4"/>
-      </svg>
-    ),
+    title: 'Аккаунт и безопасность',
+    items: [
+      {
+        id: 'privacy',
+        label: 'Конфиденциальность',
+        icon: (
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+          </svg>
+        ),
+      },
+      {
+        id: 'password',
+        label: 'Пароль и безопасность',
+        icon: (
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+            <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+          </svg>
+        ),
+      },
+      {
+        id: 'permissions',
+        label: 'Разрешения',
+        icon: (
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
+            <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+            <line x1="12" y1="19" x2="12" y2="23"/>
+            <line x1="8" y1="23" x2="16" y2="23"/>
+          </svg>
+        ),
+      },
+    ],
   },
   {
-    id: 'privacy',
-    label: 'Конфиденциальность',
-    description: 'Видимость данных, блокировки',
-    color: '#2ea043',
-    icon: (
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
-      </svg>
-    ),
-  },
-  {
-    id: 'password',
-    label: 'Пароль и безопасность',
-    description: 'Смена пароля, двухфакторная аутентификация',
-    color: '#e3872a',
-    icon: (
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
-        <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
-      </svg>
-    ),
-  },
-  {
-    id: 'appearance',
-    label: 'Внешний вид',
-    description: 'Тема, цвета, шрифты',
-    color: '#8b5cf6',
-    icon: (
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <circle cx="12" cy="12" r="10"/>
-        <path d="M12 2a10 10 0 0 1 0 20"/>
-        <path d="M12 2C6.48 2 2 6.48 2 12"/>
-        <circle cx="12" cy="12" r="3"/>
-      </svg>
-    ),
-  },
-  {
-    id: 'sessions',
-    label: 'Сессии',
-    description: 'Активные устройства и входы',
-    color: '#0891b2',
-    icon: (
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <rect x="2" y="3" width="20" height="14" rx="2" ry="2"/>
-        <path d="M8 21h8M12 17v4"/>
-      </svg>
-    ),
-  },
-  {
-    id: 'permissions',
-    label: 'Разрешения',
-    description: 'Камера, микрофон, уведомления',
-    color: '#d97706',
-    icon: (
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
-        <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
-        <line x1="12" y1="19" x2="12" y2="23"/>
-        <line x1="8" y1="23" x2="16" y2="23"/>
-      </svg>
-    ),
-  },
-  {
-    id: 'export',
-    label: 'Мои данные',
-    description: 'Скачать историю переписки (GDPR)',
-    color: '#059669',
-    icon: (
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-        <polyline points="7 10 12 15 17 10"/>
-        <line x1="12" y1="15" x2="12" y2="3"/>
-      </svg>
-    ),
+    title: 'Приложение',
+    items: [
+      {
+        id: 'appearance',
+        label: 'Внешний вид',
+        icon: (
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="12" cy="12" r="10"/>
+            <path d="M12 2a10 10 0 0 1 0 20"/>
+            <path d="M12 2C6.48 2 2 6.48 2 12"/>
+            <circle cx="12" cy="12" r="3"/>
+          </svg>
+        ),
+      },
+      {
+        id: 'sessions',
+        label: 'Сессии',
+        icon: (
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <rect x="2" y="3" width="20" height="14" rx="2" ry="2"/>
+            <path d="M8 21h8M12 17v4"/>
+          </svg>
+        ),
+      },
+      {
+        id: 'export',
+        label: 'Мои данные',
+        icon: (
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+            <polyline points="7 10 12 15 17 10"/>
+            <line x1="12" y1="15" x2="12" y2="3"/>
+          </svg>
+        ),
+      },
+    ],
   },
 ];
 
@@ -203,8 +194,8 @@ export function ProfileSettingsModal({ me, onClose, onUpdate, onDeleteAccount }:
         {/* ── Hub / Section body ────────────────────────────────────────────── */}
         {tab === null ? (
           <div className="psHub">
-            {/* Mini profile card */}
-            <button className="psHubProfile" onClick={() => setTab('profile')}>
+            {/* Аккаунт — отдельная крупная кнопка-карточка сверху */}
+            <button className="psAccountCard" onClick={() => setTab('profile')}>
               <div className="psHubAvatar">
                 {avatarUrl
                   ? <img src={avatarUrl} alt="" className="psHubAvatarImg" />
@@ -215,40 +206,47 @@ export function ProfileSettingsModal({ me, onClose, onUpdate, onDeleteAccount }:
                 <div className="psHubName">{me.display_name || me.username}</div>
                 {me.username && <div className="psHubUsername">@{me.username}</div>}
               </div>
-              <svg className="psHubChevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <svg className="psHubChevron" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                 <polyline points="9 18 15 12 9 6"/>
               </svg>
             </button>
 
-            {/* Settings menu */}
-            <div className="psHubMenu">
-              {MENU_ITEMS.map(item => (
-                <button key={item.id} className="psHubItem" onClick={() => setTab(item.id)}>
-                  <span className="psHubItemIcon" style={{ background: item.color + '22', color: item.color }}>
-                    {item.icon}
+            {/* Секции настроек — монохромные иконки, сгруппированы в карточки */}
+            {MENU_SECTIONS.map(section => (
+              <div className="psSection" key={section.title}>
+                <div className="psSectionTitle">{section.title}</div>
+                <div className="psSectionCard">
+                  {section.items.map(item => (
+                    <button key={item.id} className="psRow" onClick={() => setTab(item.id)}>
+                      <span className="psRowIcon">{item.icon}</span>
+                      <span className="psRowLabel">{item.label}</span>
+                      <svg className="psHubChevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                        <polyline points="9 18 15 12 9 6"/>
+                      </svg>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ))}
+
+            {/* Удаление аккаунта — просто красный текст+иконка, без рамки */}
+            <div className="psSection">
+              <div className="psSectionCard">
+                <button className="psRow psRowDanger" onClick={openDeleteConfirm}>
+                  <span className="psRowIcon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <polyline points="3 6 5 6 21 6"/>
+                      <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+                      <path d="M10 11v6M14 11v6"/>
+                      <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
+                    </svg>
                   </span>
-                  <span className="psHubItemText">
-                    <span className="psHubItemLabel">{item.label}</span>
-                    <span className="psHubItemDesc">{item.description}</span>
-                  </span>
-                  <svg className="psHubChevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <span className="psRowLabel">Удалить аккаунт</span>
+                  <svg className="psHubChevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                     <polyline points="9 18 15 12 9 6"/>
                   </svg>
                 </button>
-              ))}
-            </div>
-
-            {/* Delete account */}
-            <div className="psHubFooter">
-              <button className="psDeleteBtn" onClick={openDeleteConfirm}>
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <polyline points="3 6 5 6 21 6"/>
-                  <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
-                  <path d="M10 11v6M14 11v6"/>
-                  <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
-                </svg>
-                Удалить аккаунт
-              </button>
+              </div>
             </div>
           </div>
         ) : (
