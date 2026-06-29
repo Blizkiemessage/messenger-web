@@ -121,4 +121,38 @@ function fireAndForgetPush(chatId, senderId, msgData, io) {
   });
 }
 
-module.exports = { fireAndForgetPush };
+/**
+ * Fire-and-forget: push the callee about an incoming call. Sent to ALL of the
+ * callee's subscriptions (to wake a backgrounded/closed PWA). The SW suppresses
+ * the notification if the app is already focused (in-app modal handles it).
+ * @param {string} calleeId
+ * @param {{ callId:string, callType:string, callerName:string, chatId:string }} info
+ */
+function sendCallPush(calleeId, { callId, callType, callerName, chatId }) {
+  setImmediate(async () => {
+    try {
+      const db = getDb();
+      const subs = db
+        .prepare('SELECT id, endpoint, p256dh, auth_key FROM push_subscriptions WHERE user_id = ?')
+        .all(calleeId);
+      if (subs.length === 0) return;
+
+      const payload = {
+        type: 'call',
+        title: callType === 'video' ? 'Входящий видеозвонок' : 'Входящий звонок',
+        body: `${callerName} звонит…`,
+        callId, chatId, callType,
+      };
+
+      for (const sub of subs) {
+        const subscription = { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth_key } };
+        const ok = await sendPush(subscription, payload);
+        if (!ok) db.prepare('DELETE FROM push_subscriptions WHERE id = ?').run(sub.id);
+      }
+    } catch (err) {
+      logger.error('[Push]', 'Call push failed', err, { calleeId });
+    }
+  });
+}
+
+module.exports = { fireAndForgetPush, sendCallPush };

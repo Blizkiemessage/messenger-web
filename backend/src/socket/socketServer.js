@@ -183,6 +183,23 @@ function initSocket(httpServer) {
       });
     });
 
+    // ── Re-deliver a pending incoming call ──────────────────────────────────────
+    // If this user is the callee of a still-ringing (not-yet-connected) call, send
+    // call:incoming to the freshly connected socket — e.g. they just opened the app
+    // from a call push notification, or reconnected mid-ring.
+    for (const [callId, call] of activeCalls) {
+      if (call.calleeId === userId && !call.startedAt) {
+        const callerInfo = getDb()
+          .prepare('SELECT id, username, display_name, avatar_url FROM users WHERE id = ?')
+          .get(call.callerId);
+        socket.emit('call:incoming', {
+          callId, callerId: call.callerId, chatId: call.chatId,
+          callType: call.callType, callerInfo,
+        });
+        break; // a user can be the callee of at most one active call
+      }
+    }
+
     // ── Flood guard ────────────────────────────────────────────────────────────
     // Runs before every inbound event handler; drops packets from a socket that
     // exceeds SOCKET_EVENT_MAX/sec. Silently stops propagation (no error emitted)
@@ -331,6 +348,17 @@ function initSocket(httpServer) {
           callType: callType || 'audio',
           callerInfo,
         });
+
+        // Push the callee too — wakes a backgrounded/closed PWA. The SW suppresses
+        // the notification when the app is focused (in-app modal handles it).
+        try {
+          const { sendCallPush } = require('../services/pushService');
+          sendCallPush(calleeId, {
+            callId, callType: callType || 'audio',
+            callerName: callerInfo?.display_name || callerInfo?.username || 'Звонок',
+            chatId,
+          });
+        } catch { /* push is best-effort */ }
 
         console.log(`[Call] ${userId} → ${calleeId} (${callType}) id=${callId}`);
       } catch (err) {

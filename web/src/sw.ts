@@ -71,17 +71,33 @@ registerRoute(
 // ── Push notifications ─────────────────────────────────────────────────────
 self.addEventListener('push', e => {
   if (!e.data) return;
-  let data: { title?: string; body?: string; chatId?: number };
+  let data: { title?: string; body?: string; chatId?: number; type?: string; callId?: string };
   try { data = e.data.json(); } catch { return; }
 
-  const options: NotificationOptions = {
-    body: data.body || '',
-    icon: '/pwa-192x192.png',
-    badge: '/favicon.svg',
-    data: { chatId: data.chatId },
-    vibrate: [200, 100, 200],
-  };
-  e.waitUntil(self.registration.showNotification(data.title || 'Blizkie', options));
+  e.waitUntil((async () => {
+    const isCall = data.type === 'call';
+
+    // Incoming call: if the app is already open AND focused, the in-app ringing
+    // modal handles it — don't double-notify.
+    if (isCall) {
+      const clients = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+      if (clients.some(c => (c as WindowClient).focused)) return;
+    }
+
+    const options = {
+      body: data.body || '',
+      icon: '/pwa-192x192.png',
+      badge: '/favicon.svg',
+      data: { chatId: data.chatId, type: data.type, callId: data.callId },
+      // Звонок: настойчивая вибрация + держим уведомление, пока не нажмут.
+      vibrate: isCall ? [400, 200, 400, 200, 400] : [200, 100, 200],
+      requireInteraction: isCall,
+      tag: isCall ? 'incoming-call' : undefined,
+      renotify: isCall || undefined,
+    } as NotificationOptions;
+
+    await self.registration.showNotification(data.title || 'Blizkie', options);
+  })());
 });
 
 // ── Notification click: focus or open the app ─────────────────────────────
