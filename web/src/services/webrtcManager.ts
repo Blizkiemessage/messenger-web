@@ -131,10 +131,18 @@ class WebRTCManager {
   // ── Periodic stats diagnostics (RTT / loss / jitter / bitrate) ─────────────
   // Prints a compact line every 3 s while connected so the real bottleneck is
   // visible (network RTT vs packet loss vs jitter-buffer vs video bitrate).
-  private startStatsMonitor(): void {
+  private startStatsMonitor(callId: string): void {
     this.stopStatsMonitor();
     let lastVideoBytes = 0;
     let lastTs = 0;
+    // Peer-gone detector: if inbound audio bytes stop growing for STALL_TICKS in a
+    // row, the other side is gone (hung up / crashed) even if the call:ended socket
+    // event was lost. Bounded above the worst observed network spike (~8 s) to avoid
+    // ending a healthy call during a transient stall.
+    let lastInboundBytes = 0;
+    let inboundEverFlowed = false;
+    let stalledTicks = 0;
+    const STALL_TICKS = 4; // 4 × 3 s = 12 s of zero inbound media → end
     this.statsTimer = setInterval(async () => {
       if (!this.pc) return;
       try {
@@ -143,6 +151,7 @@ class WebRTCManager {
         let audioJitterMs = 0, audioLossPct = 0;
         let vidW = 0, vidH = 0, vidFps = 0, vidLimit = '';
         let outVideoBytes = 0, nowTs = 0;
+        let inAudioBytes = 0;
 
         stats.forEach(r => {
           if (r.type === 'candidate-pair' && r.nominated && r.state === 'succeeded') {
@@ -156,6 +165,7 @@ class WebRTCManager {
             }
             const recv = (r.packetsReceived || 0) + (r.packetsLost || 0);
             if (recv > 0) audioLossPct = Math.round(((r.packetsLost || 0) / recv) * 100);
+            inAudioBytes = r.bytesReceived || 0;
           }
           if (r.type === 'inbound-rtp' && r.kind === 'video') {
             vidW = r.frameWidth || 0; vidH = r.frameHeight || 0; vidFps = Math.round(r.framesPerSecond || 0);
@@ -191,6 +201,21 @@ class WebRTCManager {
             if (ar.jitterBufferTarget !== target) ar.jitterBufferTarget = target;
           }
         } catch { /* ignore */ }
+
+        // ── Peer-gone detector (robust auto-hangup) ─────────────────────────
+        // Завершение по сокет-событию call:ended ненадёжно (событие теряется).
+        // Если входящее аудио перестало расти STALL_TICKS подряд — собеседник ушёл,
+        // завершаем сами (с emit, чтобы и сервер/второй узнали).
+        if (inAudioBytes > 0) inboundEverFlowed = true;
+        if (inboundEverFlowed) {
+          if (inAudioBytes > lastInboundBytes) stalledTicks = 0;
+          else stalledTicks++;
+          lastInboundBytes = inAudioBytes;
+          if (stalledTicks >= STALL_TICKS) {
+            console.warn('[WebRTC] no inbound audio for ~12 s — peer gone, hanging up');
+            this.hangup(callId, true, 'ended');
+          }
+        }
       } catch { /* stats not critical */ }
     }, 3000);
   }
@@ -270,7 +295,7 @@ class WebRTCManager {
         // Cap video bitrate (canonical place — encodings populated after negotiation)
         // and start periodic stats diagnostics.
         this.applySenderLimits();
-        this.startStatsMonitor();
+        this.startStatsMonitor(callId);
         // Log selected ICE candidate pair for diagnostics
         pc.getStats().then(stats => {
           stats.forEach(report => {
