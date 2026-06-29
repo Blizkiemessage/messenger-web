@@ -111,12 +111,12 @@ export function ChatActionConfirmModal({
                   <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
                 </>
               ) : (
-                // Leave icon for regular member
-                <>
+                // Leave icon for regular member — стрелка к краю (зеркально)
+                <g transform="translate(24 0) scale(-1 1)">
                   <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
                   <polyline points="16 17 21 12 16 7"/>
                   <line x1="21" y1="12" x2="9" y2="12"/>
-                </>
+                </g>
               )}
             </svg>
           ) : (
@@ -238,7 +238,7 @@ export function ChatContextMenu({
         </button>
       ) : (
         <button className="ctxItem ctxItemDanger" onClick={() => { onClose(); onLeave(); }}>
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" style={{ transform: 'scaleX(-1)' }}>
             <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
             <polyline points="16 17 21 12 16 7"/>
             <line x1="21" y1="12" x2="9" y2="12"/>

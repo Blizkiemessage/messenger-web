@@ -1440,7 +1440,7 @@
   }
   .mpHeadInfo { min-width: 0; }
   .mpHeadName {
-    font-size: 17px; font-weight: 800; color: var(--text);
+    font-size: 16px; font-weight: 800; color: var(--text);
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   }
   .mpHeadSub {
@@ -1461,7 +1461,7 @@
     border: none;
     background: none;
     color: var(--text);
-    font-size: 15.5px;
+    font-size: 14px;
     font-weight: 600;
     text-align: left;
     border-radius: 14px;

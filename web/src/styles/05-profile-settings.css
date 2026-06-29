@@ -142,7 +142,7 @@
 .psRowLabel {
   flex: 1;
   min-width: 0;
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 600;
   color: var(--text);
 }
