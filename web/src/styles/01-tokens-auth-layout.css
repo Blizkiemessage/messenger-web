@@ -26,14 +26,16 @@
   color-scheme: dark;
 }
 :root[data-theme="light"] {
-  /* Тёплая «бумажная» светлая тема; --accent-2/--grad-accent/--glow наследуются
-     из :root и пересчитываются от светлого --accent автоматически */
-  --bg: #f7f4ee;
-  --sidebar: #fffdf9;
-  --panel: #efeae2;
-  --border: rgba(82,62,120,0.11);
-  --text: #271f3a;
-  --muted: #6f6788;
+  /* Светлая тема: чистый светлый фон с лёгким акцентным подтоном (без серости).
+     Поверхности (sidebar/panel/card) лишь чуть светлее фона — мягкий контраст,
+     панели не «выпрыгивают» белыми. --accent-2/--grad-accent/--glow наследуются
+     из :root и пересчитываются от светлого --accent автоматически. */
+  --bg: #eef0f8;
+  --sidebar: #f7f8fd;
+  --panel: #f1f3fb;
+  --border: rgba(82,62,120,0.13);
+  --text: #211b34;
+  --muted: #6b6486;
   --accent: #6d4ce0;
   --accent-dim: rgba(109,76,224,0.10);
   --accent-border: rgba(109,76,224,0.32);
@@ -41,8 +43,8 @@
   --danger-dim: rgba(217,45,76,0.09);
   --success: #0e9f6e;
   --success-dim: rgba(14,159,110,0.10);
-  --shadow: 0 10px 36px rgba(80,60,130,0.13);
-  --card: #ffffff;
+  --shadow: 0 10px 34px rgba(80,60,130,0.12);
+  --card: #fbfcff;
   color-scheme: light;
 }
 

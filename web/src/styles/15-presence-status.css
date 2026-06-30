@@ -15,24 +15,15 @@
   overflow:hidden — making it work even inside .chAvatarWrap / .ciAvatar.
   outline respects border-radius in all modern browsers (Chrome 94+, FF 88+).
 */
-.presenceRingEl {
-  outline: 2.5px solid transparent;
-  outline-offset: 1.5px;
-}
-.presenceRingEl.presenceRing--free {
-  outline-color: #22c55e;
-  animation: presenceRingPulse 2.8s ease-in-out infinite;
-}
-.presenceRingEl.presenceRing--busy {
-  outline-color: #f59e0b;
-}
+/* Цветное кольцо-свечение статуса вокруг аватара УБРАНО (дешевило вид).
+   Статус теперь виден только в профиле/шапке. Классы оставлены no-op,
+   чтобы не трогать места, передающие presenceStatus в <Avatar>. */
+.presenceRingEl,
+.presenceRingEl.presenceRing--free,
+.presenceRingEl.presenceRing--busy,
 .presenceRingEl.presenceRing--dnd {
-  outline-color: #ef4444;
-}
-
-@keyframes presenceRingPulse {
-  0%, 100% { outline-color: #22c55e; }
-  50%       { outline-color: rgba(34,197,94,.3); }
+  outline: none;
+  animation: none;
 }
 
 /* ── Sidebar chat-item custom emoji thumbnail ─────────────────────── */

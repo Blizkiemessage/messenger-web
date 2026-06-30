@@ -8,6 +8,7 @@
  */
 import { Portal } from '../ui/Portal';
 import { Avatar } from '../ui/Avatar';
+import { StatusPicker } from '../ui/StatusPicker';
 import { type User } from '../../types';
 import { type Theme } from '../../utils/theme';
 
@@ -40,6 +41,17 @@ export function MobileProfileMenu({
               <div className="mpHeadName">{me.display_name || me.username || 'Пользователь'}</div>
               <div className="mpHeadSub">{me.email ? me.email : `@${me.username || ''}`}</div>
             </div>
+          </div>
+
+          <div className="mpDivider" />
+
+          {/* Выставить статус (свободен / занят / не беспокоить) */}
+          <div className="mpStatus">
+            <StatusPicker
+              currentStatus={me.presence_status ?? null}
+              currentNote={me.presence_note ?? null}
+              currentExpiresAt={me.presence_expires_at ?? null}
+            />
           </div>
 
           <div className="mpDivider" />

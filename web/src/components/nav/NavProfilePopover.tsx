@@ -8,6 +8,7 @@
  */
 import { useEffect, useRef } from 'react';
 import { Avatar } from '../ui/Avatar';
+import { StatusPicker } from '../ui/StatusPicker';
 import { type User } from '../../types';
 import { type Theme } from '../../utils/theme';
 
@@ -60,6 +61,15 @@ export function NavProfilePopover({
       </div>
 
       <div className="npDivider" />
+
+      {/* Выставить статус (свободен / занят / не беспокоить) */}
+      <div className="npStatus">
+        <StatusPicker
+          currentStatus={me.presence_status ?? null}
+          currentNote={me.presence_note ?? null}
+          currentExpiresAt={me.presence_expires_at ?? null}
+        />
+      </div>
 
       {/* Настройки */}
       <button className="npItem" onClick={() => { onClose(); onOpenSettings(); }}>

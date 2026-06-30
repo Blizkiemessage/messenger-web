@@ -16,9 +16,9 @@ export type DesktopTab = 'chats' | 'calls';
 /** Секция правой панели информации о чате, к которой нужно прокрутить/раскрыть. */
 export type InfoPanelSection = 'profile' | 'customize' | 'media' | null;
 
-/** Стартовое состояние правой панели: открыта по умолчанию на широких экранах. */
+/** Стартовое состояние правой панели: по умолчанию закрыта (запоминаем выбор). */
 const initialInfoPanelOpen = typeof window !== 'undefined'
-  ? (window.localStorage.getItem('blz.infoPanel') ?? (window.innerWidth >= 1180 ? '1' : '0')) === '1'
+  ? (window.localStorage.getItem('blz.infoPanel') ?? '0') === '1'
   : false;
 
 interface AppState {

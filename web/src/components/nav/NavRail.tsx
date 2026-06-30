@@ -7,7 +7,6 @@
  * Профиль открывает всплывающее меню (NavProfilePopover). На мобильном
  * (≤700px) панель скрыта — там работает прежняя мобильная оболочка.
  */
-import { useState } from 'react';
 import { type User } from '../../types';
 import { type Theme } from '../../utils/theme';
 import { type DesktopTab } from '../../store/useAppStore';
@@ -68,17 +67,13 @@ export function NavRail({
   onTab, onToggleProfile, onCloseProfile,
   onOpenAssistant, onOpenSupport, onOpenSettings, onOpenInvite, onToggleTheme, onLogout,
 }: Props) {
-  const [supportHover] = useState(false); // reserved for future tooltip polish
-  void supportHover;
-
   return (
     <nav className="navRail" aria-label="Главная навигация">
-      {/* Бренд-глиф */}
-      <div className="navBrand" aria-hidden>
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" />
-        </svg>
-      </div>
+      {/* Ассистент — яркая градиентная кнопка-звёзды вверху (без подписи) */}
+      <button className="navTopAssistant" onClick={onOpenAssistant} title="Помощник" aria-label="Открыть помощника">
+        <span className="navTopAssistantGlow" aria-hidden />
+        <span className="navTopAssistantIcon"><AssistantSpark /></span>
+      </button>
 
       {/* Навигация */}
       <div className="navItems">
@@ -98,13 +93,6 @@ export function NavRail({
         >
           <span className="navItemIcon"><CallsIcon /></span>
           <span className="navItemLabel">Звонки</span>
-        </button>
-
-        {/* Ассистент — яркая градиентная кнопка */}
-        <button className="navAssistant" onClick={onOpenAssistant} title="Помощник">
-          <span className="navAssistantGlow" aria-hidden />
-          <span className="navAssistantIcon"><AssistantSpark /></span>
-          <span className="navItemLabel navAssistantLabel">Помощник</span>
         </button>
 
         <button className="navItem" onClick={onOpenSupport} title="Тех. поддержка">

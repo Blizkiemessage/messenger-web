@@ -17,6 +17,13 @@
     radial-gradient(ellipse 70% 50% at 55% 112%, color-mix(in srgb, var(--accent) 6%, transparent), transparent 70%),
     var(--bg));
 }
+/* Светлая тема: мягче аврора-подсветка, чтобы фон оставался чисто-светлым, а не серым */
+:root[data-theme="light"] .layout {
+  background: var(--app-bg,
+    radial-gradient(ellipse 55% 45% at 6% 0%, color-mix(in srgb, var(--accent) 6%, transparent), transparent 62%),
+    radial-gradient(ellipse 50% 40% at 100% 14%, color-mix(in srgb, var(--accent-2) 5%, transparent), transparent 62%),
+    var(--bg));
+}
 .sidebar {
   background: color-mix(in srgb, var(--sidebar) 72%, transparent);
   backdrop-filter: blur(24px);
@@ -1652,12 +1659,26 @@
     border-right: 1px solid var(--border);
     position: relative; z-index: 50;
   }
-  .navBrand {
-    width: 44px; height: 44px; display: grid; place-items: center;
-    border-radius: 14px; color: #fff; background: var(--grad-accent);
-    box-shadow: var(--glow); margin-bottom: 8px; flex-shrink: 0;
+  /* Кнопка-ассистент вверху рейла — градиентные «звёзды», без подписи */
+  .navTopAssistant {
+    position: relative; flex-shrink: 0;
+    width: 48px; height: 48px; margin-bottom: 10px;
+    display: grid; place-items: center;
+    border: none; cursor: pointer; color: #fff;
+    border-radius: 16px; background: var(--grad-accent);
+    box-shadow: var(--glow), 0 8px 20px rgba(0,0,0,.22);
+    transition: transform .16s cubic-bezier(.2,.8,.3,1.2), box-shadow .16s;
   }
-  .navBrand svg { width: 23px; height: 23px; }
+  .navTopAssistant:hover { transform: translateY(-1px) scale(1.05); }
+  .navTopAssistant:active { transform: scale(.94); }
+  .navTopAssistantGlow {
+    position: absolute; inset: 0; border-radius: 16px; z-index: 0;
+    background: var(--grad-accent); filter: blur(11px); opacity: .5;
+    animation: navAsstPulse 3s ease-in-out infinite;
+  }
+  @keyframes navAsstPulse { 0%,100% { opacity: .3; } 50% { opacity: .62; } }
+  .navTopAssistantIcon { position: relative; z-index: 1; width: 26px; height: 26px; display: grid; place-items: center; }
+  .navTopAssistantIcon svg { width: 26px; height: 26px; filter: drop-shadow(0 1px 2px rgba(0,0,0,.3)); }
 
   .navItems { display: flex; flex-direction: column; align-items: center; gap: 4px; width: 100%; }
   .navItem {
@@ -1672,28 +1693,6 @@
   .navItemIcon { width: 24px; height: 24px; display: grid; place-items: center; }
   .navItemIcon svg { width: 23px; height: 23px; }
   .navItemLabel { font-size: 10.5px; font-weight: 600; letter-spacing: .01em; white-space: nowrap; }
-
-  /* Ассистент — яркая градиентная кнопка */
-  .navAssistant {
-    position: relative; width: 100%;
-    display: flex; flex-direction: column; align-items: center; gap: 4px;
-    padding: 11px 2px; margin: 6px 0;
-    border-radius: 16px; border: none; cursor: pointer; color: #fff;
-    background: var(--grad-accent);
-    box-shadow: var(--glow), 0 8px 20px rgba(0,0,0,.22);
-    transition: transform .16s cubic-bezier(.2,.8,.3,1.2), box-shadow .16s;
-  }
-  .navAssistant:hover { transform: translateY(-1px) scale(1.03); }
-  .navAssistant:active { transform: scale(.95); }
-  .navAssistantGlow {
-    position: absolute; inset: 0; border-radius: 16px; z-index: 0;
-    background: var(--grad-accent); filter: blur(11px); opacity: .45;
-    animation: navAsstPulse 3s ease-in-out infinite;
-  }
-  @keyframes navAsstPulse { 0%,100% { opacity: .3; } 50% { opacity: .6; } }
-  .navAssistantIcon { position: relative; z-index: 1; width: 26px; height: 26px; display: grid; place-items: center; }
-  .navAssistantIcon svg { width: 26px; height: 26px; filter: drop-shadow(0 1px 2px rgba(0,0,0,.3)); }
-  .navAssistantLabel { position: relative; z-index: 1; }
 
   /* Профиль внизу */
   .navProfileWrap { margin-top: auto; position: relative; padding-top: 6px; }
@@ -1787,6 +1786,8 @@
   .cipCollapse:hover { background: var(--panel); color: var(--text); }
   .cipCollapse svg { width: 17px; height: 17px; }
   .cipScroll { flex: 1; min-height: 0; overflow-y: auto; padding: 16px 16px 24px; display: flex; flex-direction: column; gap: 14px; }
+  /* Секции не должны сжиматься flex'ом — иначе контент клампится и панель не скроллится */
+  .cipScroll > * { flex-shrink: 0; }
 
   .cipHero { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 8px; padding: 14px 8px 2px; }
   .cipAvatar { border: none; background: none; cursor: pointer; padding: 0; border-radius: 28px; transition: transform .15s; }
@@ -1859,6 +1860,6 @@
 }
 
 @media (min-width: 701px) and (prefers-reduced-motion: reduce) {
-  .navAssistantGlow { animation: none; }
-  .navAssistant, .navItem, .navProfileBtn, .chatInfoPanel, .npPopover { animation: none; transition: none; }
+  .navTopAssistantGlow { animation: none; }
+  .navTopAssistant, .navItem, .navProfileBtn, .chatInfoPanel, .npPopover { animation: none; transition: none; }
 }
