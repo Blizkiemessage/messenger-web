@@ -10,9 +10,7 @@ import { UserSearch } from './UserSearch';
 import { FolderTabs } from './FolderTabs';
 import { FolderModal } from './FolderModal';
 import { ChatList } from './ChatList';
-import { SidebarBottom } from './SidebarBottom';
 import { MobileSidebar } from './MobileSidebar';
-import { AssistantOrb } from '../ui/AssistantOrb';
 import { updateMe } from '../../api/users';
 import { getSavedChat } from '../../api/chats';
 import { authLogout } from '../../api/auth';
@@ -62,8 +60,7 @@ export function Sidebar() {
   const isMobile = useIsMobile();
   const showProfileSettings = useAppStore(s => s.showProfileSettings);
   const theme = useAppStore(s => s.theme);
-  const showProfile = useAppStore(s => s.showProfile);
-  const toggleProfile = useAppStore(s => s.toggleProfile);
+  const desktopTab = useAppStore(s => s.desktopTab);
   const toggleThemeAction = useAppStore(s => s.toggleTheme);
   const sessionUpdateMe = useSessionStore(s => s.updateMe);
   const toggleTheme = () => {
@@ -73,7 +70,6 @@ export function Sidebar() {
   };
   const setShowProfileSettings = useAppStore(s => s.setShowProfileSettings);
   const setShowCreateGroup = useAppStore(s => s.setShowCreateGroup);
-  const setShowInvite = useAppStore(s => s.setShowInvite);
   const setShowAssistant = useAppStore(s => s.setShowAssistant);
   const setShowSupport = useAppStore(s => s.setShowSupport);
   const setChatCtxMenu = useAppStore(s => s.setChatCtxMenu);
@@ -157,58 +153,43 @@ export function Sidebar() {
     );
   }
 
-  // ── Десктоп: классический сайдбар ─────────────────────────────────────
+  // ── Десктоп: колонка списка (навигация вынесена в NavRail, профиль — там же) ──
   return (
     <aside className="sidebar">
-      <UserSearch />
-      <FolderTabs
-        activeFilter={chatFilter}
-        folders={folders}
-        onFilterChange={setChatFilter}
-        onNewGroup={() => setShowCreateGroup(true)}
-        onSavedMessages={handleSavedMessages}
-        onCreateFolder={() => setFolderModal({})}
-        onEditFolder={folder => setFolderModal({ folder })}
-      />
-      <ChatList
-        chats={filteredChats}
-        meId={me.id}
-        activeChatId={activeChatId}
-        filter={chatFilter}
-        loading={loadingChats}
-        error={dataError}
-        onSelect={setActiveChatId}
-        onContextMenu={(e, chat) => setChatCtxMenu({ x: e.clientX, y: e.clientY, chat })}
-      />
-      <SidebarBottom
-        me={me}
-        theme={theme}
-        showProfile={showProfile}
-        onToggleProfile={toggleProfile}
-        onOpenSettings={() => {
-          setShowProfileSettings(true);
-          useAppStore.getState().setShowProfile(false);
-        }}
-        onOpenInvite={() => {
-          setShowInvite(true);
-          useAppStore.getState().setShowProfile(false);
-        }}
-        onOpenAssistant={() => {
-          setShowAssistant(true);
-          useAppStore.getState().setShowProfile(false);
-        }}
-        onOpenSupport={() => {
-          setShowSupport(true);
-          useAppStore.getState().setShowProfile(false);
-        }}
-        onLogout={async () => {
-          try { await authLogout(); } catch { /* cookie might already be gone */ }
-          clearSession();
-        }}
-        onThemeToggle={toggleTheme}
-      />
-      {/* Светящийся орб-вход в ассистента — всегда на виду (desktop + список чатов). */}
-      <AssistantOrb onClick={() => setShowAssistant(true)} variant="asstOrbSidebar" />
+      {desktopTab === 'calls' ? (
+        <div className="railCallsEmpty">
+          <div className="railCallsEmptyIcon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.9.34 1.85.57 2.81.7A2 2 0 0 1 22 16.92z" />
+            </svg>
+          </div>
+          <div className="railCallsEmptyTitle">История звонков</div>
+          <div className="railCallsEmptySub">Здесь скоро появятся ваши звонки</div>
+        </div>
+      ) : (
+        <>
+          <UserSearch />
+          <FolderTabs
+            activeFilter={chatFilter}
+            folders={folders}
+            onFilterChange={setChatFilter}
+            onNewGroup={() => setShowCreateGroup(true)}
+            onSavedMessages={handleSavedMessages}
+            onCreateFolder={() => setFolderModal({})}
+            onEditFolder={folder => setFolderModal({ folder })}
+          />
+          <ChatList
+            chats={filteredChats}
+            meId={me.id}
+            activeChatId={activeChatId}
+            filter={chatFilter}
+            loading={loadingChats}
+            error={dataError}
+            onSelect={setActiveChatId}
+            onContextMenu={(e, chat) => setChatCtxMenu({ x: e.clientX, y: e.clientY, chat })}
+          />
+        </>
+      )}
       {folderModalEl}
     </aside>
   );

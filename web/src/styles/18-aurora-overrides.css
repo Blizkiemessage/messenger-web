@@ -1631,3 +1631,234 @@
   .mNavOrbAura { animation: none; opacity: 0; }
   .mNavOrb { transition: none; }
 }
+
+/* ════════════════════════════════════════════════════════════════════
+   ДЕСКТОП-ОБОЛОЧКА (>700px): компактная панель навигации NavRail слева +
+   правая панель информации о чате ChatInfoPanel. Мобильная оболочка
+   (≤700px) не затрагивается. Сетка включается классом .layout.hasRail.
+   ════════════════════════════════════════════════════════════════════ */
+@media (min-width: 701px) {
+  :root { --rail-w: 78px; --list-w: 320px; --cip-w: 340px; }
+
+  /* Колонки: [рейл] [список] [переписка] (панель инфо живёт внутри .chatArea) */
+  .layout.hasRail { grid-template-columns: var(--rail-w) var(--list-w) 1fr; }
+
+  /* ── NavRail ──────────────────────────────────────────────────────── */
+  .navRail {
+    display: flex; flex-direction: column; align-items: center; gap: 4px;
+    padding: 14px 8px 12px;
+    background: color-mix(in srgb, var(--sidebar) 68%, transparent);
+    backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px);
+    border-right: 1px solid var(--border);
+    position: relative; z-index: 50;
+  }
+  .navBrand {
+    width: 44px; height: 44px; display: grid; place-items: center;
+    border-radius: 14px; color: #fff; background: var(--grad-accent);
+    box-shadow: var(--glow); margin-bottom: 8px; flex-shrink: 0;
+  }
+  .navBrand svg { width: 23px; height: 23px; }
+
+  .navItems { display: flex; flex-direction: column; align-items: center; gap: 4px; width: 100%; }
+  .navItem {
+    width: 100%; display: flex; flex-direction: column; align-items: center; gap: 4px;
+    padding: 9px 2px; border-radius: 14px; color: var(--muted);
+    background: none; border: none; cursor: pointer;
+    transition: color .15s, background .15s, transform .1s;
+  }
+  .navItem:hover { color: var(--text); background: color-mix(in srgb, var(--accent) 8%, transparent); }
+  .navItem.active { color: var(--accent); background: var(--accent-dim); }
+  .navItem:active { transform: scale(.94); }
+  .navItemIcon { width: 24px; height: 24px; display: grid; place-items: center; }
+  .navItemIcon svg { width: 23px; height: 23px; }
+  .navItemLabel { font-size: 10.5px; font-weight: 600; letter-spacing: .01em; white-space: nowrap; }
+
+  /* Ассистент — яркая градиентная кнопка */
+  .navAssistant {
+    position: relative; width: 100%;
+    display: flex; flex-direction: column; align-items: center; gap: 4px;
+    padding: 11px 2px; margin: 6px 0;
+    border-radius: 16px; border: none; cursor: pointer; color: #fff;
+    background: var(--grad-accent);
+    box-shadow: var(--glow), 0 8px 20px rgba(0,0,0,.22);
+    transition: transform .16s cubic-bezier(.2,.8,.3,1.2), box-shadow .16s;
+  }
+  .navAssistant:hover { transform: translateY(-1px) scale(1.03); }
+  .navAssistant:active { transform: scale(.95); }
+  .navAssistantGlow {
+    position: absolute; inset: 0; border-radius: 16px; z-index: 0;
+    background: var(--grad-accent); filter: blur(11px); opacity: .45;
+    animation: navAsstPulse 3s ease-in-out infinite;
+  }
+  @keyframes navAsstPulse { 0%,100% { opacity: .3; } 50% { opacity: .6; } }
+  .navAssistantIcon { position: relative; z-index: 1; width: 26px; height: 26px; display: grid; place-items: center; }
+  .navAssistantIcon svg { width: 26px; height: 26px; filter: drop-shadow(0 1px 2px rgba(0,0,0,.3)); }
+  .navAssistantLabel { position: relative; z-index: 1; }
+
+  /* Профиль внизу */
+  .navProfileWrap { margin-top: auto; position: relative; padding-top: 6px; }
+  .navProfileBtn {
+    border: none; background: none; cursor: pointer; padding: 3px;
+    border-radius: 15px; box-shadow: 0 0 0 2px transparent;
+    transition: box-shadow .15s, transform .1s;
+  }
+  .navProfileBtn:hover { box-shadow: 0 0 0 2px var(--accent-border); }
+  .navProfileBtn.active { box-shadow: 0 0 0 2px var(--accent); }
+  .navProfileBtn:active { transform: scale(.95); }
+
+  /* ── Профиль-попап (всплывает справа от аватара) ───────────────────── */
+  .npPopover {
+    position: absolute; left: calc(100% + 10px); bottom: 0; width: 282px; z-index: 200;
+    display: flex; flex-direction: column; gap: 2px; padding: 10px;
+    background: linear-gradient(180deg, color-mix(in srgb, var(--accent) 12%, var(--card)) 0%, var(--card) 55%);
+    border: 1px solid color-mix(in srgb, var(--accent) 20%, var(--border));
+    border-radius: 18px; box-shadow: 0 18px 50px rgba(8,4,20,.4);
+    backdrop-filter: blur(22px); -webkit-backdrop-filter: blur(22px);
+    animation: npPop .16s cubic-bezier(.2,.8,.3,1.05) both;
+  }
+  @keyframes npPop { from { opacity: 0; transform: translateY(8px) scale(.98); } to { opacity: 1; transform: none; } }
+  .npHead { display: flex; align-items: center; gap: 12px; padding: 6px 6px 10px; }
+  .npHeadInfo { min-width: 0; flex: 1; }
+  .npHeadName { font-size: 15px; font-weight: 800; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .npHeadSub { font-size: 12.5px; color: var(--muted); margin-top: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .npLogout {
+    flex-shrink: 0; width: 34px; height: 34px; border-radius: 10px;
+    display: grid; place-items: center; border: none; cursor: pointer;
+    color: var(--danger); background: var(--danger-dim);
+    transition: background .15s, transform .1s;
+  }
+  .npLogout svg { width: 18px; height: 18px; transform: scaleX(-1); }
+  .npLogout:hover { background: color-mix(in srgb, var(--danger) 22%, transparent); }
+  .npLogout:active { transform: scale(.92); }
+  .npDivider { height: 1px; background: color-mix(in srgb, var(--text) 9%, transparent); margin: 2px 4px 4px; }
+  .npItem {
+    display: flex; align-items: center; gap: 13px; width: 100%; padding: 11px 8px;
+    border: none; background: none; color: var(--text); font-size: 14px; font-weight: 600;
+    text-align: left; border-radius: 12px; cursor: pointer; transition: background .15s;
+  }
+  .npItem:hover:not(:disabled) { background: color-mix(in srgb, var(--accent) 10%, transparent); }
+  .npItemIcon { width: 24px; height: 24px; flex-shrink: 0; display: grid; place-items: center; color: var(--text); }
+  .npItemIcon svg { width: 22px; height: 22px; }
+  .npItemLabel { flex: 1; min-width: 0; }
+  .npItemChevron { width: 17px; height: 17px; color: var(--muted); flex-shrink: 0; }
+  .npItemDisabled { opacity: .55; cursor: default; }
+  .npSoon { flex-shrink: 0; font-size: 11px; font-weight: 700; color: var(--accent); background: var(--accent-dim); padding: 3px 9px; border-radius: 999px; }
+  .npThemeSwitch { flex-shrink: 0; width: 52px; height: 28px; border-radius: 999px; background: color-mix(in srgb, var(--accent) 28%, var(--panel)); position: relative; transition: background .2s; }
+  .npThemeSwitch.dark { background: color-mix(in srgb, var(--text) 14%, var(--panel)); }
+  .npThemeKnob {
+    position: absolute; top: 3px; left: 3px; width: 22px; height: 22px; border-radius: 50%;
+    background: var(--card); color: var(--accent); display: grid; place-items: center;
+    box-shadow: 0 2px 6px rgba(0,0,0,.25); transition: transform .22s cubic-bezier(.2,.8,.3,1.2);
+  }
+  .npThemeKnob svg { width: 14px; height: 14px; }
+  .npThemeSwitch.dark .npThemeKnob { transform: translateX(24px); color: var(--text); }
+
+  /* ── Заглушка «Звонки» в колонке списка ────────────────────────────── */
+  .railCallsEmpty {
+    flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 10px; padding: 30px; text-align: center;
+  }
+  .railCallsEmptyIcon { width: 66px; height: 66px; border-radius: 50%; display: grid; place-items: center; color: var(--accent); background: var(--accent-dim); }
+  .railCallsEmptyIcon svg { width: 30px; height: 30px; }
+  .railCallsEmptyTitle { font-size: 16px; font-weight: 700; color: var(--text); }
+  .railCallsEmptySub { font-size: 13px; color: var(--muted); max-width: 220px; line-height: 1.5; }
+
+  /* ── Сцена чата: переписка + правая панель ─────────────────────────── */
+  .chatStage { display: flex; flex-direction: row; flex: 1; min-height: 0; overflow: hidden; position: relative; }
+  .chatStage > .chatAreaInner { flex: 1; min-width: 0; }
+
+  /* ── ChatInfoPanel ─────────────────────────────────────────────────── */
+  .chatInfoPanel {
+    position: relative; flex-shrink: 0; width: var(--cip-w);
+    display: flex; flex-direction: column;
+    background: color-mix(in srgb, var(--sidebar) 80%, transparent);
+    backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px);
+    border-left: 1px solid var(--border);
+    animation: cipIn .2s cubic-bezier(.2,.8,.3,1.05) both;
+  }
+  @keyframes cipIn { from { opacity: 0; transform: translateX(16px); } to { opacity: 1; transform: none; } }
+  .cipCollapse {
+    position: absolute; top: 12px; left: 12px; z-index: 5;
+    width: 32px; height: 32px; border-radius: 10px; border: none; cursor: pointer;
+    display: grid; place-items: center; color: var(--muted);
+    background: color-mix(in srgb, var(--panel) 70%, transparent);
+    transition: background .15s, color .15s;
+  }
+  .cipCollapse:hover { background: var(--panel); color: var(--text); }
+  .cipCollapse svg { width: 17px; height: 17px; }
+  .cipScroll { flex: 1; min-height: 0; overflow-y: auto; padding: 16px 16px 24px; display: flex; flex-direction: column; gap: 14px; }
+
+  .cipHero { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 8px; padding: 14px 8px 2px; }
+  .cipAvatar { border: none; background: none; cursor: pointer; padding: 0; border-radius: 28px; transition: transform .15s; }
+  .cipAvatar:hover { transform: scale(1.03); }
+  .cipAvatarLetter {
+    width: 92px; height: 92px; border-radius: 28px; display: grid; place-items: center;
+    font-size: 38px; font-weight: 800; color: #fff; background: var(--grad-accent); box-shadow: var(--glow);
+  }
+  .cipName { font-size: 19px; font-weight: 800; color: var(--text); line-height: 1.2; }
+  .cipStatus { font-size: 13px; color: var(--muted); }
+  .cipStatus.online { color: var(--success); font-weight: 600; }
+
+  .cipActions { display: flex; gap: 8px; }
+  .cipAction {
+    flex: 1; display: flex; flex-direction: column; align-items: center; gap: 6px;
+    padding: 11px 4px; border-radius: 14px; border: 1px solid var(--border); cursor: pointer;
+    background: color-mix(in srgb, var(--panel) 70%, transparent); color: var(--text);
+    transition: background .15s, border-color .15s, transform .1s;
+  }
+  .cipAction:hover { border-color: var(--accent-border); background: color-mix(in srgb, var(--accent) 9%, var(--panel)); }
+  .cipAction:active { transform: scale(.96); }
+  .cipAction.active { color: var(--accent); border-color: var(--accent-border); background: var(--accent-dim); }
+  .cipAction:disabled { opacity: .6; cursor: default; }
+  .cipActionIcon { width: 22px; height: 22px; display: grid; place-items: center; }
+  .cipActionIcon svg { width: 21px; height: 21px; }
+  .cipActionLabel { font-size: 11.5px; font-weight: 600; }
+
+  .cipSection { border: 1px solid var(--border); border-radius: 16px; overflow: hidden; background: color-mix(in srgb, var(--panel) 55%, transparent); }
+  .cipSectionHead { width: 100%; display: flex; align-items: center; justify-content: space-between; padding: 14px 16px; border: none; background: none; cursor: pointer; color: var(--text); }
+  .cipSectionTitle { font-size: 14px; font-weight: 700; }
+  .cipSectionChevron { width: 18px; height: 18px; color: var(--muted); transition: transform .2s; }
+  .cipSectionChevron.open { transform: rotate(180deg); }
+  .cipSectionBody { padding: 2px 14px 16px; }
+
+  /* Контент галереи/фона внутри панели — компактнее (без модальных рамок) */
+  .cipMediaBody { padding-left: 0; padding-right: 0; }
+  .cipMediaBody .cmTabs { padding: 0 14px 8px; flex-wrap: wrap; gap: 4px; border-bottom: 1px solid var(--border); }
+  .cipMediaBody .cmTab { padding: 6px 10px 8px; font-size: 13px; }
+  .cipMediaBody .cmContent { padding: 12px 14px; max-height: 430px; }
+  .cipMediaBody .cmMediaGrid { grid-template-columns: repeat(3, 1fr); }
+
+  .cipLinks { display: flex; flex-direction: column; gap: 2px; }
+  .cipLinkRow {
+    display: flex; align-items: center; gap: 13px; width: 100%; padding: 12px 14px;
+    border: none; background: none; color: var(--text); font-size: 14px; font-weight: 600;
+    text-align: left; border-radius: 12px; cursor: pointer; transition: background .15s;
+  }
+  .cipLinkRow:hover { background: color-mix(in srgb, var(--accent) 9%, transparent); }
+  .cipLinkIcon { width: 22px; height: 22px; flex-shrink: 0; display: grid; place-items: center; color: var(--muted); }
+  .cipLinkIcon svg { width: 20px; height: 20px; }
+  .cipLinkLabel { flex: 1; min-width: 0; }
+  .cipLinkChevron { width: 16px; height: 16px; color: var(--muted); flex-shrink: 0; }
+
+  /* Кнопка-переключатель панели в шапке чата */
+  .chInfoToggle.active { color: var(--accent); background: var(--accent-dim); }
+}
+
+/* Узкие десктопы (701–900px): уже список, чтобы переписке хватало места */
+@media (min-width: 701px) and (max-width: 900px) {
+  :root { --list-w: 286px; }
+}
+
+/* Средние экраны (701–1180px): панель информации выезжает поверх переписки */
+@media (min-width: 701px) and (max-width: 1180px) {
+  .chatStage.infoOpen .chatInfoPanel {
+    position: absolute; top: 0; right: 0; bottom: 0; z-index: 60;
+    width: min(360px, 86%);
+    box-shadow: -16px 0 44px rgba(8,4,20,.34);
+  }
+}
+
+@media (min-width: 701px) and (prefers-reduced-motion: reduce) {
+  .navAssistantGlow { animation: none; }
+  .navAssistant, .navItem, .navProfileBtn, .chatInfoPanel, .npPopover { animation: none; transition: none; }
+}

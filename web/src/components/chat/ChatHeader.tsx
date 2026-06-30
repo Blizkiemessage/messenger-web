@@ -47,6 +47,9 @@ interface Props {
   onOpenNotes?: () => void;
   onOpenSummary?: () => void;
   onOpenSettings?: () => void;
+  /** Десктоп: переключить правую панель информации о чате. */
+  onToggleInfo?: () => void;
+  infoActive?: boolean;
 }
 
 export function ChatHeader({
@@ -57,6 +60,7 @@ export function ChatHeader({
   onToggleSearch, onSearchChange, onSearchNext, onSearchPrev, onSearchClose,
   pinnedCount, pinnedOpen, pinnedIndex, onTogglePinned, onPinnedNext, onPinnedPrev,
   typingText, onOpenMedia, onAudioCall, onVideoCall, onOpenNotes, onOpenSummary, onOpenSettings,
+  onToggleInfo, infoActive,
 }: Props) {
   const setActiveChatId = useChatsStore(s => s.setActiveChatId);
   const setShowAssistant = useAppStore(s => s.setShowAssistant);
@@ -234,6 +238,20 @@ export function ChatHeader({
           >
             <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12 19.79 19.79 0 0 1 1.61 3.4 2 2 0 0 1 3.6 1.24h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L7.91 8.77a16 16 0 0 0 6.29 6.29l.95-.95a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/>
+            </svg>
+          </button>
+        )}
+
+        {/* ── Правая панель информации (десктоп) ───────────────────────── */}
+        {onToggleInfo && (
+          <button
+            className={`chSearchToggle chInfoToggle${infoActive ? ' active' : ''}`}
+            onClick={onToggleInfo}
+            title="Информация о чате"
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="3" y="3" width="18" height="18" rx="2" />
+              <line x1="15" y1="3" x2="15" y2="21" />
             </svg>
           </button>
         )}

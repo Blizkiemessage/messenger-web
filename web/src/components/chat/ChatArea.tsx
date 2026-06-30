@@ -13,6 +13,8 @@ import { MessageList } from './MessageList';
 import { Composer } from './Composer';
 import { EmptyState } from './EmptyState';
 import { ReplyPreviewBar } from './ReplyPreviewBar';
+const ChatInfoPanel = lazy(() => import('./ChatInfoPanel').then(m => ({ default: m.ChatInfoPanel })));
+import { useIsMobile } from '../../hooks/useIsMobile';
 const StickerStudioModal = lazy(() => import('../modals/StickerStudioModal').then(m => ({ default: m.StickerStudioModal })));
 const ChatMediaModal     = lazy(() => import('../modals/ChatMediaModal').then(m => ({ default: m.ChatMediaModal })));
 const ChatSettingsModal = lazy(() => import('../modals/ChatSettingsModal').then(m => ({ default: m.ChatSettingsModal })));
@@ -78,6 +80,18 @@ export function ChatArea() {
   const showForwardModal  = useAppStore(s => s.showForwardModal);
   const setForwardingIds  = useAppStore(s => s.setForwardingIds);
   const setShowForwardModal = useAppStore(s => s.setShowForwardModal);
+
+  // ── Правая панель информации (десктоп) ───────────────────────────────────────
+  const isMobile          = useIsMobile();
+  const showInfoPanel     = useAppStore(s => s.showInfoPanel);
+  const setShowInfoPanel  = useAppStore(s => s.setShowInfoPanel);
+  const toggleInfoPanel   = useAppStore(s => s.toggleInfoPanel);
+  const infoPanelSection  = useAppStore(s => s.infoPanelSection);
+  const setInfoPanelSection = useAppStore(s => s.setInfoPanelSection);
+  const openInfoSection = useCallback((sec: 'profile' | 'customize' | 'media') => {
+    setInfoPanelSection(sec);
+    setShowInfoPanel(true);
+  }, [setInfoPanelSection, setShowInfoPanel]);
 
   const [messageText, setMessageText] = useState('');
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -590,8 +604,12 @@ export function ChatArea() {
   // If user hit "Add more" — show a sticky banner at the top of chat
   const isAddingMore = forwardingIds !== null && !showForwardModal;
 
+  // Правая панель: только десктоп/планшет и не для «Избранного».
+  const infoPanelVisible = !isMobile && showInfoPanel && activeChat.type !== 'saved';
+
   return (
     <MediaPlayerProvider clearKey={activeChatId ?? ''}>
+    <div className={`chatStage${infoPanelVisible ? ' infoOpen' : ''}`}>
     <div
       ref={chatAreaInnerRef}
       className="chatAreaInner"
@@ -687,8 +705,10 @@ export function ChatArea() {
         onPinSelected={handlePinSelected}
         onUnpinSelected={handleUnpinSelected}
         allSelectedPinned={allSelectedPinned}
-        onOpenInfo={() => setShowGroupInfo(true)}
-        onViewUser={setViewUserId}
+        onOpenInfo={isMobile ? () => setShowGroupInfo(true) : () => setShowInfoPanel(true)}
+        onViewUser={isMobile ? setViewUserId : () => setShowInfoPanel(true)}
+        onToggleInfo={!isMobile && activeChat?.type !== 'saved' ? toggleInfoPanel : undefined}
+        infoActive={showInfoPanel}
         searchOpen={searchOpen}
         searchQuery={searchQuery}
         searchTotal={matchedIds.length}
@@ -705,12 +725,14 @@ export function ChatArea() {
         onPinnedNext={handlePinnedNext}
         onPinnedPrev={handlePinnedPrev}
         typingText={typingText}
-        onOpenMedia={() => setShowMediaModal(true)}
+        onOpenMedia={isMobile ? () => setShowMediaModal(true) : () => openInfoSection('media')}
         onAudioCall={activeChat?.type === 'direct' ? () => startCall('audio') : undefined}
         onVideoCall={activeChat?.type === 'direct' ? () => startCall('video') : undefined}
         onOpenNotes={() => setShowNotes(true)}
         onOpenSummary={() => setShowSummary(true)}
-        onOpenSettings={activeChat?.type !== 'saved' ? () => setShowChatSettings(true) : undefined}
+        onOpenSettings={activeChat?.type !== 'saved'
+          ? (isMobile ? () => setShowChatSettings(true) : () => openInfoSection('customize'))
+          : undefined}
       />
 
       {/* Mini player — appears below header while audio/video is playing */}
@@ -910,6 +932,26 @@ export function ChatArea() {
           onClose={() => setShowSummary(false)}
         />
       )}
+    </div>
+
+    {/* Правая панель информации о чате (десктоп) */}
+    {infoPanelVisible && (
+      <Suspense fallback={null}>
+        <ChatInfoPanel
+          chat={activeChat}
+          meId={me.id}
+          section={infoPanelSection}
+          onSectionConsumed={() => setInfoPanelSection(null)}
+          onClose={() => setShowInfoPanel(false)}
+          onViewUser={setViewUserId}
+          onOpenGroupInfo={() => setShowGroupInfo(true)}
+          onToggleSearch={handleToggleSearch}
+          onOpenNotes={() => setShowNotes(true)}
+          onOpenSummary={() => setShowSummary(true)}
+          onOpenDaily={() => { setChatSettingsSection('daily'); setShowChatSettings(true); }}
+        />
+      </Suspense>
+    )}
     </div>
     </MediaPlayerProvider>
   );

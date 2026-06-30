@@ -19,7 +19,9 @@ import { useMessages } from './hooks/useMessages';
 
 import { AuthScreen } from './components/auth/AuthScreen';
 import { Sidebar } from './components/sidebar/Sidebar';
+import { NavRail } from './components/nav/NavRail';
 import { ChatArea } from './components/chat/ChatArea';
+import { useIsMobile } from './hooks/useIsMobile';
 import { CallOverlay } from './components/call/CallOverlay';
 import { IncomingCallModal } from './components/call/IncomingCallModal';
 import {
@@ -37,8 +39,8 @@ const InviteModal          = lazy(() => import('./components/modals/InviteModal'
 const AssistantModal       = lazy(() => import('./components/modals/AssistantModal').then(m => ({ default: m.AssistantModal })));
 const SupportModal         = lazy(() => import('./components/modals/SupportModal').then(m => ({ default: m.SupportModal })));
 
-import { deleteAccount as apiDeleteAccount } from './api/auth';
-import { getMe } from './api/users';
+import { deleteAccount as apiDeleteAccount, authLogout } from './api/auth';
+import { getMe, updateMe as apiUpdateMe } from './api/users';
 import {
   createDirectChat,
   getSavedChat,
@@ -78,6 +80,13 @@ export default function App() {
   const setShowAssistant = useAppStore(s => s.setShowAssistant);
   const showSupport = useAppStore(s => s.showSupport);
   const setShowSupport = useAppStore(s => s.setShowSupport);
+  // NavRail (десктоп): вкладка навигации + всплывающее меню профиля
+  const desktopTab = useAppStore(s => s.desktopTab);
+  const setDesktopTab = useAppStore(s => s.setDesktopTab);
+  const showProfile = useAppStore(s => s.showProfile);
+  const toggleProfile = useAppStore(s => s.toggleProfile);
+  const setShowProfile = useAppStore(s => s.setShowProfile);
+  const isMobile = useIsMobile();
   const viewUserId = useAppStore(s => s.viewUserId);
   const setViewUserId = useAppStore(s => s.setViewUserId);
   const chatCtxMenu = useAppStore(s => s.chatCtxMenu);
@@ -248,6 +257,17 @@ export default function App() {
     finally { setChatActionBusy(false); }
   }
 
+  // NavRail: смена темы с синком на бэкенд + выход из аккаунта
+  const handleRailThemeToggle = () => {
+    toggleTheme();
+    const next = useAppStore.getState().theme;
+    apiUpdateMe({ theme: next }).then(u => updateMe(u)).catch(() => {});
+  };
+  const handleLogout = async () => {
+    try { await authLogout(); } catch { /* cookie might already be gone */ }
+    clearSession();
+  };
+
   return (
     <>
       <Suspense fallback={null}>
@@ -384,7 +404,24 @@ export default function App() {
       <IncomingCallModal />
       <CallOverlay />
 
-      <div className={`layout${hasSelection ? ' selecting' : ''}${activeChat ? ' chatOpen' : ''}`}>
+      <div className={`layout${hasSelection ? ' selecting' : ''}${activeChat ? ' chatOpen' : ''}${!isMobile ? ' hasRail' : ''}`}>
+        {!isMobile && (
+          <NavRail
+            me={me}
+            theme={theme}
+            activeTab={desktopTab}
+            profileOpen={showProfile}
+            onTab={setDesktopTab}
+            onToggleProfile={toggleProfile}
+            onCloseProfile={() => setShowProfile(false)}
+            onOpenAssistant={() => { setShowProfile(false); setShowAssistant(true); }}
+            onOpenSupport={() => { setShowProfile(false); setShowSupport(true); }}
+            onOpenSettings={() => { setShowProfile(false); setShowProfileSettings(true); }}
+            onOpenInvite={() => { setShowProfile(false); setShowInvite(true); }}
+            onToggleTheme={handleRailThemeToggle}
+            onLogout={handleLogout}
+          />
+        )}
         <Sidebar />
         <main
           className="chatArea"

@@ -10,10 +10,27 @@ import { getSession } from '../storage/session';
 /** Активная вкладка нижнего меню на мобильном (десктоп его не использует). */
 export type MobileTab = 'chats' | 'calls' | 'search';
 
+/** Активная вкладка боковой панели навигации на десктопе (поиск живёт в списке). */
+export type DesktopTab = 'chats' | 'calls';
+
+/** Секция правой панели информации о чате, к которой нужно прокрутить/раскрыть. */
+export type InfoPanelSection = 'profile' | 'customize' | 'media' | null;
+
+/** Стартовое состояние правой панели: открыта по умолчанию на широких экранах. */
+const initialInfoPanelOpen = typeof window !== 'undefined'
+  ? (window.localStorage.getItem('blz.infoPanel') ?? (window.innerWidth >= 1180 ? '1' : '0')) === '1'
+  : false;
+
 interface AppState {
   theme: Theme;
   /** Какая вкладка нижнего меню открыта на мобильном. */
   mobileTab: MobileTab;
+  /** Какая вкладка боковой панели навигации открыта на десктопе. */
+  desktopTab: DesktopTab;
+  /** Открыта ли правая панель информации о чате (десктоп). */
+  showInfoPanel: boolean;
+  /** Какую секцию правой панели раскрыть при открытии (из шапки чата). */
+  infoPanelSection: InfoPanelSection;
   showProfile: boolean;
   showProfileSettings: boolean;
   showCreateGroup: boolean;
@@ -35,6 +52,10 @@ interface AppState {
 
   toggleTheme: () => void;
   setMobileTab: (t: MobileTab) => void;
+  setDesktopTab: (t: DesktopTab) => void;
+  setShowInfoPanel: (v: boolean) => void;
+  toggleInfoPanel: () => void;
+  setInfoPanelSection: (s: InfoPanelSection) => void;
   toggleProfile: () => void;
   setShowProfile: (v: boolean) => void;
   setShowProfileSettings: (v: boolean) => void;
@@ -62,6 +83,9 @@ applyTheme(initialTheme);
 export const useAppStore = create<AppState>((set) => ({
   theme: initialTheme,
   mobileTab: 'chats',
+  desktopTab: 'chats',
+  showInfoPanel: initialInfoPanelOpen,
+  infoPanelSection: null,
   showProfile: false,
   showProfileSettings: false,
   showCreateGroup: false,
@@ -86,6 +110,17 @@ export const useAppStore = create<AppState>((set) => ({
   }),
 
   setMobileTab: (mobileTab) => set({ mobileTab }),
+  setDesktopTab: (desktopTab) => set({ desktopTab }),
+  setShowInfoPanel: (showInfoPanel) => {
+    try { window.localStorage.setItem('blz.infoPanel', showInfoPanel ? '1' : '0'); } catch { /* ignore */ }
+    set({ showInfoPanel });
+  },
+  toggleInfoPanel: () => set(state => {
+    const next = !state.showInfoPanel;
+    try { window.localStorage.setItem('blz.infoPanel', next ? '1' : '0'); } catch { /* ignore */ }
+    return { showInfoPanel: next };
+  }),
+  setInfoPanelSection: (infoPanelSection) => set({ infoPanelSection }),
   toggleProfile: () => set(state => ({ showProfile: !state.showProfile })),
   setShowProfile: (showProfile) => set({ showProfile }),
   setShowProfileSettings: (v) => set({ showProfileSettings: v }),
