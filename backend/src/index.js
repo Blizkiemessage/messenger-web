@@ -53,6 +53,7 @@ const { csrfOrigin }          = require('./middleware/csrfOrigin');
 const { closeDb }             = require('./config/database');
 const { startDbBackupWorker }  = require('./workers/dbBackup');
 const { startS3CleanupWorker } = require('./workers/s3Cleanup');
+const { startDeletedAccountCleanupWorker } = require('./workers/deletedAccountCleanup');
 
 console.log('[STARTUP] Loading route modules...');
 const authRoutes = require('./routes/auth');
@@ -215,6 +216,7 @@ server.listen(PORT, () => {
   // (needs DB to be open and migrations done — both guaranteed at this point)
   startDbBackupWorker();
   startS3CleanupWorker();
+  startDeletedAccountCleanupWorker();
 });
 
 // ─── Graceful Shutdown ─────────────────────────────────────────────────────

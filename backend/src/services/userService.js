@@ -8,6 +8,12 @@ const bcrypt = require('bcryptjs');
 const { getDb } = require('../config/database');
 const { verifyTotp, verifyAndConsumeBackupCode } = require('../utils/totp');
 
+// Permanent, login-less placeholder user that orphaned references (messages,
+// calls, chat notes) are reassigned to on account deletion instead of being
+// deleted themselves — see db/versions/017_deleted_account_ghost.js and
+// services/chat/teardown.js.
+const DELETED_ACCOUNT_USER_ID = 'deleted-account';
+
 function sanitizeUser(u, { showPrivate = false, viewerId = null } = {}, alias = undefined) {
   if (!u) return null;
 
@@ -104,10 +110,10 @@ function searchUsers(q, excludeId) {
     .prepare(
       `SELECT id, username, display_name, avatar_url, last_seen_at, no_group_add, hide_avatar, avatar_exceptions
        FROM users
-       WHERE id != ? AND (LOWER(username) LIKE ? OR LOWER(display_name) LIKE ?)
+       WHERE id != ? AND id != ? AND (LOWER(username) LIKE ? OR LOWER(display_name) LIKE ?)
        LIMIT 20`
     )
-    .all([excludeId, like, like])
+    .all([excludeId, DELETED_ACCOUNT_USER_ID, like, like])
     .map(u => ({
       ...sanitizeUser(u, { viewerId: excludeId }),
       no_group_add: u.no_group_add ? true : false,
@@ -220,4 +226,5 @@ module.exports = {
   setContactAlias, deleteContactAlias, getContactAlias,
   updatePresenceStatus, clearExpiredPresenceStatuses,
   verifyAccountDeletionAuth,
+  DELETED_ACCOUNT_USER_ID,
 };

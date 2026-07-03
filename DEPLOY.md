@@ -60,6 +60,7 @@
 - **ИИ-ассистенты / сводки:** `AI_SUMMARY_*`, `AI_ASSISTANT_*`, `AI_DATA_*` (см. CLAUDE.md).
 - **GIF:** `GIPHY_API_KEY`.
 - **Бэкапы БД в S3:** включены всегда (ключ — `DB_BACKUP_ENCRYPTION_KEY` либо HKDF от `MESSAGE_ENCRYPTION_KEY`); опц. изоляция `DB_BACKUP_S3_BUCKET`/`_ACCESS_KEY_ID`/`_SECRET_ACCESS_KEY`, расписание `DB_BACKUP_HOUR_UTC`, хранение `DB_BACKUP_KEEP_DAYS`. Восстановление — `npm run restore-backup -- <файл|--s3 ключ> [out.db]`.
+- **Удаление аккаунта («Удалённый аккаунт»):** опц. `DELETED_ACCOUNT_RETENTION_DAYS` (по умолчанию 180) — через сколько дней воркер `workers/deletedAccountCleanup.js` удаляет сообщения/звонки, унаследованные аккаунтом-заглушкой при удалении реальных аккаунтов.
 
 > Подробнее по группам и фичам — `CLAUDE.md` (карта проекта) и `ROADMAP.md`.
 

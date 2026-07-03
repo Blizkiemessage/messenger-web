@@ -6,6 +6,7 @@
 const { getDb } = require('../../config/database');
 const { deleteManyFromS3 } = require('../../utils/s3Delete');
 const { saveMessage } = require('../messageService');
+const { DELETED_ACCOUNT_USER_ID } = require('../userService');
 
 function deleteDirectChat(chatId, userId) {
   const db = getDb();
@@ -113,18 +114,28 @@ function deleteAccount(userId) {
       db.prepare('DELETE FROM chats WHERE id = ?').run(chatId);
     }
 
-    // `calls` and `chat_notes` reference users(id) WITHOUT a cascade/set-null
-    // action (see 001_initial.js) — a call history row or a note this user
-    // last edited/authored in a chat they've LEFT (chat survives, only their
-    // chat_members row is removed above) otherwise blocks the DELETE below
-    // with "FOREIGN KEY constraint failed" (discovered 2026-07-03 testing a
-    // real account: PRAGMA foreign_keys=ON in config/database.js means this
-    // was never just theoretical). Call history isn't needed once the
-    // account is gone; note authorship is nullable by schema, just missing
-    // the ON DELETE SET NULL clause.
-    db.prepare('DELETE FROM calls WHERE caller_id = ? OR callee_id = ?').run(userId, userId);
-    db.prepare('UPDATE chat_notes SET last_edited_by = NULL WHERE last_edited_by = ?').run(userId);
-    db.prepare('UPDATE chat_notes SET created_by = NULL WHERE created_by = ?').run(userId);
+    // `messages.sender_id`, `calls.caller_id`/`callee_id` and
+    // `chat_notes.last_edited_by`/`created_by` reference users(id) WITHOUT a
+    // cascade/set-null action (001_initial.js) — with PRAGMA foreign_keys=ON
+    // (always on, config/database.js) any surviving row referencing this user
+    // blocks the DELETE below with "FOREIGN KEY constraint failed": a message
+    // in a GROUP chat they've left (chat survives for the remaining members,
+    // only chat_members is removed above), a call, or a chat note. Discovered
+    // 2026-07-03 testing a real production account that had made a WebRTC call.
+    //
+    // Content must NOT be deleted to route around this — messages/calls/notes
+    // belong to the conversation, not solely to the departing user — so every
+    // orphaned reference is reassigned to a single permanent, login-less
+    // "Удалённый аккаунт" placeholder instead (DELETED_ACCOUNT_USER_ID,
+    // seeded by db/versions/017_deleted_account_ghost.js). Whatever the ghost
+    // account accumulates this way is subject to its own long-term retention
+    // cleanup (workers/deletedAccountCleanup.js), so this doesn't grow the
+    // database forever.
+    db.prepare('UPDATE messages SET sender_id = ? WHERE sender_id = ?').run(DELETED_ACCOUNT_USER_ID, userId);
+    db.prepare('UPDATE calls SET caller_id = ? WHERE caller_id = ?').run(DELETED_ACCOUNT_USER_ID, userId);
+    db.prepare('UPDATE calls SET callee_id = ? WHERE callee_id = ?').run(DELETED_ACCOUNT_USER_ID, userId);
+    db.prepare('UPDATE chat_notes SET last_edited_by = ? WHERE last_edited_by = ?').run(DELETED_ACCOUNT_USER_ID, userId);
+    db.prepare('UPDATE chat_notes SET created_by = ? WHERE created_by = ?').run(DELETED_ACCOUNT_USER_ID, userId);
 
     db.prepare('DELETE FROM users WHERE id = ?').run(userId);
 

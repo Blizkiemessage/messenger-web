@@ -40,7 +40,10 @@ db.exec(`
     last_seen_at INTEGER NOT NULL,
     totp_enabled INTEGER NOT NULL DEFAULT 0,
     totp_secret TEXT,
-    totp_backup_codes TEXT
+    totp_backup_codes TEXT,
+    no_group_add INTEGER NOT NULL DEFAULT 0,
+    hide_avatar INTEGER NOT NULL DEFAULT 0,
+    avatar_exceptions TEXT NOT NULL DEFAULT '[]'
   );
   CREATE TABLE sessions (
     id TEXT PRIMARY KEY,
@@ -260,6 +263,9 @@ const ALICE_HASH = bcrypt.hashSync('SecurePass1!', 10);
 db.prepare('INSERT INTO users (id,username,email,password_hash,display_name,created_at,last_seen_at) VALUES (?,?,?,?,?,?,?)').run(['alice','alice',null,ALICE_HASH,'Alice',NOW,NOW]);
 db.prepare('INSERT INTO users (id,username,email,password_hash,display_name,created_at,last_seen_at) VALUES (?,?,?,?,?,?,?)').run(['bob',  'bob',  null,null,      'Bob',  NOW,NOW]);
 db.prepare('INSERT INTO users (id,username,email,password_hash,display_name,created_at,last_seen_at) VALUES (?,?,?,?,?,?,?)').run(['carol','carol',null,null,      'Carol',NOW,NOW]);
+// Mirrors db/versions/017_deleted_account_ghost.js — the permanent placeholder
+// that deleteAccount() reassigns orphaned messages/calls/notes to.
+db.prepare('INSERT INTO users (id,username,email,display_name,password_hash,created_at,last_seen_at) VALUES (?,?,?,?,?,?,?)').run(['deleted-account',null,null,'Удалённый аккаунт',null,0,0]);
 
 db.prepare('INSERT INTO chats (id,type,name,created_at) VALUES (?,?,?,?)').run(['chat-direct','direct',null,    NOW]);
 db.prepare('INSERT INTO chats (id,type,name,created_at) VALUES (?,?,?,?)').run(['chat-group', 'group', 'Test',  NOW]);
@@ -1519,8 +1525,11 @@ describe('chat collections', () => {
 // was invisible in this test file only because it never turned the pragma on
 // before now). Confirmed live: an account that had made a WebRTC test call
 // got a 500 on deletion; fixed in services/chat/teardown.js.
-describe('deleteAccount — FK cleanup for calls/chat_notes', () => {
-  test('account with call history and an authored note can still be deleted', () => {
+describe('deleteAccount — orphaned references reassigned to "Удалённый аккаунт" ghost', () => {
+  const { searchUsers } = require('../src/services/userService');
+  const GHOST = 'deleted-account';
+
+  test('call history and an authored note are reassigned to the ghost, not deleted', () => {
     const NOW2 = Date.now();
     db.prepare('INSERT INTO users (id,username,email,password_hash,display_name,created_at,last_seen_at) VALUES (?,?,?,?,?,?,?)')
       .run(['dave-del', 'davedel', null, ALICE_HASH, 'Dave', NOW2, NOW2]);
@@ -1533,9 +1542,72 @@ describe('deleteAccount — FK cleanup for calls/chat_notes', () => {
     assert.doesNotThrow(() => deleteAccount('dave-del'));
 
     assert.equal(db.prepare('SELECT * FROM users WHERE id = ?').get('dave-del'), undefined);
-    assert.equal(db.prepare('SELECT * FROM calls WHERE caller_id = ? OR callee_id = ?').get('dave-del', 'dave-del'), undefined);
+    const call = db.prepare('SELECT * FROM calls WHERE id = ?').get('call-1');
+    assert.equal(call.caller_id, GHOST, 'call row survives, reassigned to the ghost — not deleted');
+    assert.equal(call.callee_id, 'alice');
     const note = db.prepare('SELECT * FROM chat_notes WHERE id = ?').get('note-1');
-    assert.equal(note.last_edited_by, null);
-    assert.equal(note.created_by, null);
+    assert.equal(note.last_edited_by, GHOST);
+    assert.equal(note.created_by, GHOST);
+  });
+
+  test('a message sent in a GROUP chat the user has left is reassigned to the ghost, chat and content survive', () => {
+    const NOW3 = Date.now();
+    db.prepare('INSERT INTO users (id,username,email,password_hash,display_name,created_at,last_seen_at) VALUES (?,?,?,?,?,?,?)')
+      .run(['erin-del', 'erindel', null, ALICE_HASH, 'Erin', NOW3, NOW3]);
+    db.prepare('INSERT INTO chats (id,type,name,created_at) VALUES (?,?,?,?)').run(['chat-erin-group', 'group', 'Erin group', NOW3]);
+    db.prepare('INSERT INTO chat_members (chat_id,user_id,role,joined_at,unread_count) VALUES (?,?,?,?,?)').run(['chat-erin-group', 'alice',    'admin',  NOW3, 0]);
+    db.prepare('INSERT INTO chat_members (chat_id,user_id,role,joined_at,unread_count) VALUES (?,?,?,?,?)').run(['chat-erin-group', 'erin-del', 'member', NOW3, 0]);
+    insertMsg('erin-msg-1', 'chat-erin-group', 'erin-del', 'сообщение перед уходом из группы');
+
+    assert.doesNotThrow(() => deleteAccount('erin-del'));
+
+    // Group survives (alice is still a member) — deleting an account must not
+    // wipe out a chat other people are still in.
+    assert.ok(db.prepare('SELECT id FROM chats WHERE id = ?').get('chat-erin-group'));
+    assert.equal(
+      db.prepare('SELECT 1 FROM chat_members WHERE chat_id = ? AND user_id = ?').get('chat-erin-group', 'erin-del'),
+      undefined,
+      'departed user is removed from chat_members'
+    );
+    const msg = db.prepare('SELECT sender_id, ciphertext FROM messages WHERE id = ?').get('erin-msg-1');
+    assert.equal(msg.sender_id, GHOST, 'message survives, reassigned to the ghost — content not deleted');
+    assert.ok(msg.ciphertext, 'message content is untouched (still encrypted, not blanked)');
+  });
+
+  test('the ghost account never appears in user search results', () => {
+    const results = searchUsers('удал', 'alice');
+    assert.ok(!results.some(u => u.id === GHOST));
+    const byDisplayName = searchUsers('Удалённый', 'alice');
+    assert.ok(!byDisplayName.some(u => u.id === GHOST));
+  });
+});
+
+describe('deletedAccountCleanup — retention worker prunes old ghost-attributed content', () => {
+  const { runCleanup } = require('../src/workers/deletedAccountCleanup');
+  const GHOST = 'deleted-account';
+  const DAY = 24 * 60 * 60 * 1000;
+
+  test('deletes ghost messages/calls past retention, keeps recent ones and other users\' content', () => {
+    const old  = Date.now() - 200 * DAY; // past the 180-day default
+    const recent = Date.now() - 5 * DAY;
+
+    insertMsg('ghost-old-msg', 'chat-group', GHOST, 'старое сообщение удалённого аккаунта');
+    db.prepare('UPDATE messages SET created_at = ? WHERE id = ?').run(old, 'ghost-old-msg');
+
+    insertMsg('ghost-recent-msg', 'chat-group', GHOST, 'недавнее сообщение удалённого аккаунта');
+    db.prepare('UPDATE messages SET created_at = ? WHERE id = ?').run(recent, 'ghost-recent-msg');
+
+    db.prepare('INSERT INTO calls (id,chat_id,caller_id,callee_id,created_at) VALUES (?,?,?,?,?)')
+      .run(['ghost-old-call', 'chat-group', GHOST, 'alice', old]);
+
+    const result = runCleanup();
+    assert.ok(result.messagesDeleted >= 1);
+    assert.ok(result.callsDeleted >= 1);
+
+    assert.equal(db.prepare('SELECT id FROM messages WHERE id = ?').get('ghost-old-msg'), undefined);
+    assert.equal(db.prepare('SELECT id FROM calls WHERE id = ?').get('ghost-old-call'), undefined);
+    // Recent ghost content and any non-ghost content are untouched.
+    assert.ok(db.prepare('SELECT id FROM messages WHERE id = ?').get('ghost-recent-msg'));
+    assert.ok(db.prepare('SELECT id FROM chats WHERE id = ?').get('chat-group'));
   });
 });
