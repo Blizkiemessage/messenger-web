@@ -56,6 +56,11 @@ export async function blockUser(id: string): Promise<{ is_blocked: boolean }> {
   return res.data;
 }
 
+export async function reportUser(id: string, reason?: string): Promise<{ ok: true }> {
+  const res = await client.post<{ ok: true }>(`/users/${id}/report`, { reason });
+  return res.data;
+}
+
 export async function setAlias(id: string, alias: string): Promise<{ alias: string }> {
   const res = await client.post<{ alias: string }>(`/users/${id}/alias`, { alias });
   return res.data;

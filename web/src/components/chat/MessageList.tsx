@@ -32,6 +32,8 @@ interface Props {
   onForwardSingle: (msgId: string) => void;
   /** Открыть выбор коллекции для вложения сообщения (если есть права + файл). */
   onAddToCollection?: (msg: Message) => void;
+  /** Открыть форму жалобы на чужое сообщение. */
+  onReportMessage?: (msg: Message) => void;
   onReply: (msg: Message, selectedText: string) => void;
   onReact: (msgId: string, emoji: string) => void;
   scrollTargetId: string | null;
@@ -76,7 +78,7 @@ function canManageCollections(chat: Chat, meId: string): boolean {
 export function MessageList({
   messages, chat, meId, partnerReadAt, selectedIds, hasSelection,
   loadingMessages, onToggleSelect, onClearSelection, onViewUser,
-  onPinMessage, onUnpinMessage, onDeleteSingle, onForwardSingle, onAddToCollection,
+  onPinMessage, onUnpinMessage, onDeleteSingle, onForwardSingle, onAddToCollection, onReportMessage,
   onReply, onReact, scrollTargetId, onScrollTargetHandled,
   searchQuery, matchedIds, currentMatchId, pinnedFocusId,
   hasMoreMessages, loadingMore, onLoadMore,
@@ -575,6 +577,20 @@ export function MessageList({
                   <path d="M4 18v-2a4 4 0 0 1 4-4h12"/>
                 </svg>
                 Переслать
+              </button>
+            )}
+
+            {/* Report — only for someone else's message (reporting your own makes no sense) */}
+            {onReportMessage && !ctxMenu.msg.is_system && ctxMenu.msg.sender_id !== meId && (
+              <button
+                className="msgCtxItem"
+                onClick={() => { onReportMessage(ctxMenu.msg); setCtxMenu(null); }}
+              >
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/>
+                  <line x1="4" y1="22" x2="4" y2="15"/>
+                </svg>
+                Пожаловаться
               </button>
             )}
 

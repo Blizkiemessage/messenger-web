@@ -642,17 +642,39 @@ const Pages = {
 
         tbody.innerHTML = '';
         reports.forEach(r => {
-          const thumbHtml = r.pack_cover
-            ? `<div class="pack-thumb"><img src="${esc(r.pack_cover)}" alt=""></div>`
-            : `<div class="pack-thumb">📦</div>`;
+          // UGC reporting (2026-07-03): content_type is now sticker_pack/user/message —
+          // branch the row's identity column + primary action per type. Message
+          // reports never show decrypted content here — only metadata (chat/sender) —
+          // moderation is dismiss-only for user/message reports for now.
+          let thumbHtml, titleHtml, subHtml, deleteBtnHtml = '';
+          if (r.content_type === 'user') {
+            thumbHtml = `<div class="pack-thumb">👤</div>`;
+            titleHtml = r.target_username ? '@' + esc(r.target_username) : 'Аккаунт удалён';
+            subHtml   = 'Жалоба на пользователя';
+          } else if (r.content_type === 'message') {
+            thumbHtml = `<div class="pack-thumb">💬</div>`;
+            titleHtml = r.message_sender_username ? 'От @' + esc(r.message_sender_username) : 'Сообщение удалено';
+            subHtml   = r.message_chat_id ? `Чат ${esc(String(r.message_chat_id).slice(0, 8))}…` : 'Жалоба на сообщение';
+          } else {
+            thumbHtml = r.pack_cover
+              ? `<div class="pack-thumb"><img src="${esc(r.pack_cover)}" alt=""></div>`
+              : `<div class="pack-thumb">📦</div>`;
+            titleHtml = esc(r.pack_name || 'Удалён');
+            subHtml   = r.pack_type === 'emoji' ? 'Эмодзи-пак' : 'Стикерпак';
+            deleteBtnHtml = `
+              <button class="btn btn-ghost-danger btn-sm" onclick="Pages.content.deletePack('${esc(r.content_id)}')">
+                <i class="bi bi-trash3"></i> Удалить пак
+              </button>
+            `;
+          }
           const tr = document.createElement('tr');
           tr.innerHTML = `
             <td>
               <div class="user-cell">
                 ${thumbHtml}
                 <div>
-                  <div class="user-name">${esc(r.pack_name || 'Удалён')}</div>
-                  <div class="user-sub">${r.pack_type === 'emoji' ? 'Эмодзи-пак' : 'Стикерпак'}</div>
+                  <div class="user-name">${titleHtml}</div>
+                  <div class="user-sub">${subHtml}</div>
                 </div>
               </div>
             </td>
@@ -665,9 +687,7 @@ const Pages = {
             <td style="text-align:right">
               ${!resolved ? `
                 <div style="display:flex;gap:6px;justify-content:flex-end">
-                  <button class="btn btn-ghost-danger btn-sm" onclick="Pages.content.deletePack('${esc(r.content_id)}')">
-                    <i class="bi bi-trash3"></i> Удалить пак
-                  </button>
+                  ${deleteBtnHtml}
                   <button class="btn btn-ghost btn-sm" onclick="Pages.content.dismissReport('${esc(r.id)}')">
                     <i class="bi bi-x-circle"></i> Отклонить
                   </button>

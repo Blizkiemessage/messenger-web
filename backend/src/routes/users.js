@@ -13,6 +13,7 @@
  *   GET    /users/check-username         — availability check
  *   GET    /users/search                 — search by username / display_name
  *   GET    /users/:id                    — public profile of another user
+ *   POST   /users/:id/report             — report a user profile (UGC moderation)
  */
 
 const express = require('express');
@@ -23,8 +24,9 @@ const { deleteAccount } = require('../services/chatService');
 const { deleteFromS3 } = require('../utils/s3Delete');
 const { signAvatarUrl, signUserAvatars } = require('../utils/s3Sign');
 const { initiateEmailChange, verifyEmailChange } = require('../services/authService');
+const { createReport } = require('../services/contentReportService');
 const { getDb } = require('../config/database');
-const { emailSendLimiter, otpVerifyLimiter } = require('../middleware/rateLimits');
+const { emailSendLimiter, otpVerifyLimiter, reportLimiter } = require('../middleware/rateLimits');
 
 const router = express.Router();
 router.use(authMiddleware);
@@ -224,6 +226,16 @@ router.post('/:id/block', (req, res, next) => {
       });
     }
     res.json(result);
+  } catch (err) { next(err); }
+});
+
+// POST /users/:id/report — body: { reason?: string }
+router.post('/:id/report', reportLimiter, (req, res, next) => {
+  try {
+    if (req.params.id === req.userId) return res.status(400).json({ error: 'Нельзя пожаловаться на себя' });
+    const target = getUserById(req.params.id);
+    if (!target) return res.status(404).json({ error: 'User not found' });
+    res.json(createReport(req.userId, 'user', req.params.id, req.body?.reason));
   } catch (err) { next(err); }
 });
 

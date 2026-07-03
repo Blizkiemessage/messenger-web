@@ -31,6 +31,8 @@ import type { UploadResult } from '../../api/upload';
 import type { Message } from '../../types';
 import { ForwardModal } from '../modals/ForwardModal';
 import { AddToCollectionModal } from '../modals/AddToCollectionModal';
+import { ReportModal } from '../modals/ReportModal';
+import { reportMessage as apiReportMessage } from '../../api/chats';
 import { PollCreatorModal } from './PollCreatorModal';
 import { PollVotersModal } from './PollVotersModal';
 import { MediaPlayerProvider } from '../../contexts/MediaPlayerContext';
@@ -501,6 +503,7 @@ export function ChatArea() {
   const [showStudio,     setShowStudio]     = useState(false);
   const [showMediaModal, setShowMediaModal] = useState(false);
   const [addToColMsg,    setAddToColMsg]    = useState<Message | null>(null);
+  const [reportMsg,      setReportMsg]      = useState<Message | null>(null);
   // ── F4: Notes panel ───────────────────────────────────────────────────────
   const [showNotes,      setShowNotes]      = useState(false);
   // ── F2: AI summary modal ──────────────────────────────────────────────────
@@ -757,6 +760,7 @@ export function ChatArea() {
         onDeleteSingle={handleDeleteSingle}
         onForwardSingle={handleForwardSingle}
         onAddToCollection={setAddToColMsg}
+        onReportMessage={setReportMsg}
         onReply={handleReply}
         onReact={handleReact}
         scrollTargetId={scrollTargetId}
@@ -880,6 +884,15 @@ export function ChatArea() {
           chatId={activeChat.id}
           messageId={addToColMsg.id}
           onClose={() => setAddToColMsg(null)}
+        />
+      )}
+
+      {/* Пожаловаться на сообщение */}
+      {reportMsg && activeChat && (
+        <ReportModal
+          title="Пожаловаться на сообщение"
+          onClose={() => setReportMsg(null)}
+          onSubmit={reason => apiReportMessage(activeChat.id, reportMsg.id, reason)}
         />
       )}
 

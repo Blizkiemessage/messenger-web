@@ -61,6 +61,17 @@ const adminLoginLimiter = rateLimit({
   legacyHeaders: false,
 });
 
+// Content reports (message/user/sticker-pack) — 20 / hour per IP.
+// Legitimate use is rare per user; this mainly guards the admin moderation
+// queue against being flooded with junk reports.
+const reportLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 20,
+  message: { error: 'Слишком много жалоб. Попробуйте через час.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
 // Global search — 30 req / min per IP (search hits the DB / FTS index on every call)
 const searchLimiter = rateLimit({
   windowMs: 60 * 1000,
@@ -151,4 +162,5 @@ module.exports = {
   refreshLimiter,
   webauthnLoginLimiter,
   supportLimiter,
+  reportLimiter,
 };

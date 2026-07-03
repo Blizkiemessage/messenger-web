@@ -21,15 +21,26 @@ router.get('/content-reports', (req, res, next) => {
   try {
     const db = getDb();
     const resolved = req.query.resolved === '1' ? 1 : 0;
+    // UGC reporting (2026-07-03) added content_type='message'/'user' alongside
+    // the original sticker-pack reports (migration 018). Each join is scoped by
+    // content_type so unrelated ids never accidentally match — message/user
+    // reports never decrypt message content here (metadata only: chat/sender),
+    // keeping the "no plaintext outside the encrypted message flow" invariant.
     const rows = db.prepare(`
       SELECT cr.*,
         u.username AS reporter_username, u.display_name AS reporter_name,
         sp.name AS pack_name, sp.type AS pack_type, sp.cover_url AS pack_cover,
-        ou.username AS owner_username
+        ou.username AS owner_username,
+        tu.username AS target_username, tu.display_name AS target_name,
+        m.chat_id AS message_chat_id, m.created_at AS message_created_at,
+        su.username AS message_sender_username
       FROM content_reports cr
       LEFT JOIN users u ON cr.reporter_id = u.id
-      LEFT JOIN sticker_packs sp ON cr.content_id = sp.id
+      LEFT JOIN sticker_packs sp ON cr.content_type = 'sticker_pack' AND cr.content_id = sp.id
       LEFT JOIN users ou ON sp.owner_id = ou.id
+      LEFT JOIN users tu ON cr.content_type = 'user' AND cr.content_id = tu.id
+      LEFT JOIN messages m ON cr.content_type = 'message' AND cr.content_id = m.id
+      LEFT JOIN users su ON m.sender_id = su.id
       WHERE cr.resolved = ?
       ORDER BY cr.created_at DESC
     `).all([resolved]);

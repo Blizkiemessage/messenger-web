@@ -66,6 +66,11 @@ export async function reactToMessage(
   return res.data;
 }
 
+export async function reportMessage(chatId: string, messageId: string, reason?: string): Promise<{ ok: true }> {
+  const res = await client.post(`/chats/${chatId}/messages/${messageId}/report`, { reason });
+  return res.data;
+}
+
 export async function markChatRead(chatId: string, readUntil?: number): Promise<{ readAt: number }> {
   const res = await client.post<{ ok: boolean; readAt: number }>(
     `/chats/${chatId}/read`,

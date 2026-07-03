@@ -234,6 +234,18 @@ db.exec(`
     last_edited_by TEXT REFERENCES users(id), last_edited_at INTEGER NOT NULL,
     created_at INTEGER NOT NULL, created_by TEXT REFERENCES users(id)
   );
+  -- Matches the post-018 schema (content_type CHECK widened to include
+  -- 'message'/'user' for UGC reporting, store-launch audit 2026-07-03).
+  CREATE TABLE content_reports (
+    id TEXT PRIMARY KEY,
+    reporter_id TEXT REFERENCES users(id) ON DELETE SET NULL,
+    content_type TEXT NOT NULL CHECK (content_type IN ('sticker_pack','user_gif','message','user')),
+    content_id TEXT NOT NULL,
+    reason TEXT,
+    resolved INTEGER NOT NULL DEFAULT 0,
+    created_at INTEGER NOT NULL DEFAULT 0
+  );
+  CREATE INDEX idx_content_reports_unresolved ON content_reports(resolved, created_at);
 `);
 
 // ── Inject mocks into module cache before services are required ───────────────
@@ -1609,5 +1621,39 @@ describe('deletedAccountCleanup — retention worker prunes old ghost-attributed
     // Recent ghost content and any non-ghost content are untouched.
     assert.ok(db.prepare('SELECT id FROM messages WHERE id = ?').get('ghost-recent-msg'));
     assert.ok(db.prepare('SELECT id FROM chats WHERE id = ?').get('chat-group'));
+  });
+});
+
+// ── Store-launch audit (2026-07-03): UGC reporting on messages/users ────────
+describe('contentReportService — report dedup, and content_reports accepts message/user', () => {
+  const { createReport } = require('../src/services/contentReportService');
+
+  test('creates a report row with the given content_type', () => {
+    createReport('alice', 'message', 'some-msg-id', 'спам');
+    const row = db.prepare(
+      'SELECT * FROM content_reports WHERE reporter_id = ? AND content_id = ? AND content_type = ?'
+    ).get('alice', 'some-msg-id', 'message');
+    assert.ok(row);
+    assert.equal(row.reason, 'спам');
+    assert.equal(row.resolved, 0);
+  });
+
+  test('content_type accepts "user" too (CHECK constraint widened by migration 018)', () => {
+    createReport('alice', 'user', 'bob', null);
+    const row = db.prepare(
+      'SELECT * FROM content_reports WHERE reporter_id = ? AND content_id = ? AND content_type = ?'
+    ).get('alice', 'bob', 'user');
+    assert.ok(row);
+  });
+
+  test('the same reporter cannot report the same content twice (409)', () => {
+    assert.throws(
+      () => createReport('alice', 'message', 'some-msg-id', 'ещё раз'),
+      (err) => { assert.equal(err.status, 409); return true; }
+    );
+  });
+
+  test('a different reporter CAN report the same content', () => {
+    assert.doesNotThrow(() => createReport('bob', 'message', 'some-msg-id', 'тоже спам'));
   });
 });

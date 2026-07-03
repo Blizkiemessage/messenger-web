@@ -8,7 +8,8 @@
  *   GET    /chats/:chatId/messages              — paginated history
  *   POST   /chats/:chatId/messages              — send a message
  *   DELETE /chats/:chatId/messages              — bulk soft-delete own messages
- *   POST   /chats/:chatId/messages/:msgId/react — toggle like reaction
+ *   POST   /chats/:chatId/messages/:msgId/react  — toggle like reaction
+ *   POST   /chats/:chatId/messages/:msgId/report — report a message (UGC moderation)
  */
 
 const express = require('express');
@@ -21,6 +22,8 @@ const { signUrl, signMessageUrls, signAvatarUrl, headObjectSize } = require('../
 const { deleteFromS3 } = require('../utils/s3Delete');
 const { MAX_PRESIGN_SIZE } = require('../utils/allowedMimeTypes');
 const { parsePagination } = require('../utils/pagination');
+const { createReport } = require('../services/contentReportService');
+const { reportLimiter } = require('../middleware/rateLimits');
 
 const router = express.Router();
 router.use(authMiddleware);
@@ -345,6 +348,26 @@ router.post('/:chatId/messages/:msgId/react2', (req, res, next) => {
     }
 
     res.json({ reactions });
+  } catch (err) { next(err); }
+});
+
+// POST /chats/:chatId/messages/:msgId/report — body: { reason?: string }
+router.post('/:chatId/messages/:msgId/report', reportLimiter, (req, res, next) => {
+  try {
+    const { chatId, msgId } = req.params;
+    const db = getDb();
+
+    const member = db
+      .prepare('SELECT 1 FROM chat_members WHERE chat_id = ? AND user_id = ?')
+      .get([chatId, req.userId]);
+    if (!member) return res.status(403).json({ error: 'Forbidden' });
+
+    const msg = db
+      .prepare('SELECT id FROM messages WHERE id = ? AND chat_id = ? AND deleted_at IS NULL')
+      .get([msgId, chatId]);
+    if (!msg) return res.status(404).json({ error: 'Сообщение не найдено' });
+
+    res.json(createReport(req.userId, 'message', msgId, req.body?.reason));
   } catch (err) { next(err); }
 });
 

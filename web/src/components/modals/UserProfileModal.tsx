@@ -7,8 +7,9 @@ import { useEffect, useRef, useState } from 'react';
 import { type User } from '../../types';
 import { avatarLetter, formatBirthDate, formatLastSeen } from '../../utils/format';
 import { resolveUrl, PRESENCE_COLORS, PRESENCE_LABELS, PRESENCE_EMOJI } from '../ui/Avatar';
-import { getUserById, blockUser, setAlias, deleteAlias } from '../../api/users';
+import { getUserById, blockUser, reportUser, setAlias, deleteAlias } from '../../api/users';
 import { useChatsStore } from '../../store/useChatsStore';
+import { ReportModal } from './ReportModal';
 
 interface Props {
   userId: string;
@@ -25,6 +26,7 @@ export function UserProfileModal({ userId, onClose, onStartChat }: Props) {
   const [aliasInput, setAliasInput] = useState('');
   const [aliasBusy,  setAliasBusy]  = useState(false);
   const [blockBusy,  setBlockBusy]  = useState(false);
+  const [showReport, setShowReport] = useState(false);
   const [error,      setError]      = useState<string | null>(null);
   const menuRef       = useRef<HTMLDivElement>(null);
   const aliasInputRef = useRef<HTMLInputElement>(null);
@@ -124,6 +126,7 @@ export function UserProfileModal({ userId, onClose, onStartChat }: Props) {
   // ── JSX ──────────────────────────────────────────────────────────────────────
 
   return (
+    <>
     <div className="modalOverlay" onClick={e => e.target === e.currentTarget && onClose()}>
       <div className="upCard">
 
@@ -162,6 +165,14 @@ export function UserProfileModal({ userId, onClose, onStartChat }: Props) {
                       Заблокировать
                     </>
                   )}
+                </button>
+
+                <button className="ctxItem" onClick={() => { setMenuOpen(false); setShowReport(true); }}>
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/>
+                    <line x1="4" y1="22" x2="4" y2="15"/>
+                  </svg>
+                  Пожаловаться
                 </button>
 
                 <div className="ctxDivider" />
@@ -348,5 +359,13 @@ export function UserProfileModal({ userId, onClose, onStartChat }: Props) {
         )}
       </div>
     </div>
+    {showReport && user && (
+      <ReportModal
+        title="Пожаловаться на пользователя"
+        onClose={() => setShowReport(false)}
+        onSubmit={reason => reportUser(user.id, reason)}
+      />
+    )}
+    </>
   );
 }
