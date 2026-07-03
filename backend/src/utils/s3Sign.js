@@ -19,7 +19,7 @@
  *   - Signing fails for any reason
  */
 const path                           = require('path');
-const { S3Client, GetObjectCommand, HeadObjectCommand } = require('@aws-sdk/client-s3');
+const { S3Client, GetObjectCommand, HeadObjectCommand, HeadBucketCommand } = require('@aws-sdk/client-s3');
 const { getSignedUrl }               = require('@aws-sdk/s3-request-presigner');
 const logger                         = require('./logger');
 
@@ -340,7 +340,29 @@ async function signStickerPacks(packs) {
   return packs;
 }
 
+/**
+ * Cheap S3 reachability probe for the health-check endpoint.
+ * Returns 'not_configured' in local-disk-mode (no S3 env set — not a failure),
+ * 'ok' if the bucket answers, 'unavailable' otherwise. Bounded by timeoutMs so
+ * a stalled S3 endpoint can't hang the health check.
+ */
+async function checkS3Health(timeoutMs = 2000) {
+  if (!useS3) return 'not_configured';
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    await s3.send(new HeadBucketCommand({ Bucket: process.env.S3_BUCKET }), { abortSignal: controller.signal });
+    return 'ok';
+  } catch (err) {
+    logger.warn('[Health]', 'S3 check failed', { error: err?.message });
+    return 'unavailable';
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 module.exports = {
+  checkS3Health,
   signUrl,
   headObjectSize,
   safeServeOverrides, // exported for unit tests

@@ -4,7 +4,9 @@
  *    When hide_avatar=true, avatar_url is hidden from other users
  *    unless their ID is in avatar_exceptions JSON array.
  */
+const bcrypt = require('bcryptjs');
 const { getDb } = require('../config/database');
+const { verifyTotp, verifyAndConsumeBackupCode } = require('../utils/totp');
 
 function sanitizeUser(u, { showPrivate = false, viewerId = null } = {}, alias = undefined) {
   if (!u) return null;
@@ -181,9 +183,41 @@ function clearExpiredPresenceStatuses() {
   return expired.map(r => r.id);
 }
 
+/**
+ * Re-authenticates a user before an irreversible action (account deletion).
+ * Requires the current password, plus a valid TOTP/backup code when 2FA is
+ * enabled — a valid session alone isn't enough, since a session left open on
+ * a shared device would otherwise let anyone delete the account in one request.
+ * Throws Object.assign(new Error(msg), {status}) on failure; resolves on success.
+ */
+async function verifyAccountDeletionAuth(userId, password, code) {
+  if (!password || typeof password !== 'string') {
+    throw Object.assign(new Error('Введите пароль для подтверждения'), { status: 400 });
+  }
+
+  const db  = getDb();
+  const row = db.prepare(
+    'SELECT password_hash, totp_enabled, totp_secret FROM users WHERE id = ?'
+  ).get(userId);
+  if (!row) throw Object.assign(new Error('User not found'), { status: 404 });
+
+  const passwordValid = row.password_hash ? await bcrypt.compare(password, row.password_hash) : false;
+  if (!passwordValid) throw Object.assign(new Error('Неверный пароль'), { status: 401 });
+
+  if (row.totp_enabled) {
+    const trimmed = typeof code === 'string' ? code.trim() : '';
+    if (!trimmed) throw Object.assign(new Error('Введите код двухфакторной аутентификации'), { status: 400 });
+    const codeValid = /^\d{6}$/.test(trimmed)
+      ? verifyTotp(row.totp_secret, trimmed)
+      : await verifyAndConsumeBackupCode(userId, trimmed, db);
+    if (!codeValid) throw Object.assign(new Error('Неверный код'), { status: 401 });
+  }
+}
+
 module.exports = {
   sanitizeUser, getUserById, updateUser, searchUsers,
   toggleBlockUser, isBlocked,
   setContactAlias, deleteContactAlias, getContactAlias,
   updatePresenceStatus, clearExpiredPresenceStatuses,
+  verifyAccountDeletionAuth,
 };

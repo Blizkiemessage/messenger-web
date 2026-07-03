@@ -13,6 +13,7 @@ const { getDb }          = require('../config/database');
 const { authMiddleware } = require('../middleware/auth');
 const { signAccess, signRefresh } = require('../utils/jwt');
 const { sanitizeUser }   = require('../services/userService');
+const { webauthnLoginLimiter } = require('../middleware/rateLimits');
 const logger             = require('../utils/logger');
 
 const router      = Router();
@@ -173,7 +174,7 @@ router.post('/register/verify', authMiddleware, async (req, res, next) => {
 
 // ── Authentication ────────────────────────────────────────────────────────────
 
-router.post('/auth/options', async (req, res, next) => {
+router.post('/auth/options', webauthnLoginLimiter, async (req, res, next) => {
   try {
     const db = getDb();
     const { rpID } = getRpConfig();
@@ -202,7 +203,7 @@ router.post('/auth/options', async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
-router.post('/auth/verify', async (req, res, next) => {
+router.post('/auth/verify', webauthnLoginLimiter, async (req, res, next) => {
   try {
     const db = getDb();
     const { rpID, origin } = getRpConfig();

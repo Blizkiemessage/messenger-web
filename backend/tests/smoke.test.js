@@ -33,7 +33,10 @@ db.exec(`
     display_name TEXT NOT NULL DEFAULT '',
     avatar_url TEXT,
     created_at INTEGER NOT NULL,
-    last_seen_at INTEGER NOT NULL
+    last_seen_at INTEGER NOT NULL,
+    totp_enabled INTEGER NOT NULL DEFAULT 0,
+    totp_secret TEXT,
+    totp_backup_codes TEXT
   );
   CREATE TABLE sessions (
     id TEXT PRIMARY KEY,
@@ -493,6 +496,53 @@ describe('TOTP secret encryption at rest', () => {
   });
 });
 
+// ── Store-launch audit (2026-07-03): re-auth gate before account deletion ────
+describe('verifyAccountDeletionAuth — reconfirmation before account deletion', () => {
+  const { verifyAccountDeletionAuth } = require('../src/services/userService');
+  const { encryptSecret, generateSecret, generateBackupCodes, hashBackupCodes } = require('../src/utils/totp');
+
+  test('rejects with 400 when password is missing', async () => {
+    await assert.rejects(
+      () => verifyAccountDeletionAuth('alice', ''),
+      (err) => { assert.equal(err.status, 400); return true; }
+    );
+  });
+
+  test('rejects with 401 on wrong password', async () => {
+    await assert.rejects(
+      () => verifyAccountDeletionAuth('alice', 'WrongPassword1!'),
+      (err) => { assert.equal(err.status, 401); assert.equal(err.message, 'Неверный пароль'); return true; }
+    );
+  });
+
+  test('resolves when password is correct and 2FA is not enabled', async () => {
+    await assert.doesNotReject(() => verifyAccountDeletionAuth('alice', 'SecurePass1!'));
+  });
+
+  test('2FA-enabled user: missing code → 400, wrong code → 401, valid backup code → resolves (and is single-use)', async () => {
+    const plainCodes = generateBackupCodes(3);
+    const hashed = await hashBackupCodes(plainCodes);
+    db.prepare(
+      "INSERT INTO users (id,username,email,password_hash,display_name,created_at,last_seen_at,totp_enabled,totp_secret,totp_backup_codes) VALUES (?,?,?,?,?,?,?,?,?,?)"
+    ).run(['del-2fa','del2fa',null,ALICE_HASH,'Del2fa',NOW,NOW,1,encryptSecret(generateSecret()),JSON.stringify(hashed)]);
+
+    await assert.rejects(
+      () => verifyAccountDeletionAuth('del-2fa', 'SecurePass1!'),
+      (err) => { assert.equal(err.status, 400); return true; }
+    );
+    await assert.rejects(
+      () => verifyAccountDeletionAuth('del-2fa', 'SecurePass1!', 'NOT-A-REAL-CODE'),
+      (err) => { assert.equal(err.status, 401); assert.equal(err.message, 'Неверный код'); return true; }
+    );
+    await assert.doesNotReject(() => verifyAccountDeletionAuth('del-2fa', 'SecurePass1!', plainCodes[0]));
+    // Same backup code can't be reused a second time
+    await assert.rejects(
+      () => verifyAccountDeletionAuth('del-2fa', 'SecurePass1!', plainCodes[0]),
+      (err) => { assert.equal(err.status, 401); return true; }
+    );
+  });
+});
+
 // ── 4c2. Reactions are scoped to the message's chat (audit #5) ────────────────
 describe('reactions — cross-chat IDOR guard', () => {
   test('member can react to a message in their own chat', () => {
@@ -746,6 +796,16 @@ describe('s3Sign — safe serving metadata', () => {
     const o = safeServeOverrides('voice.webm', { contentType: 'audio/webm', disposition: 'inline' });
     assert.equal(o.ResponseContentType, 'audio/webm');
     assert.equal(o.ResponseContentDisposition, 'inline');
+  });
+});
+
+// ── Store-launch audit (2026-07-03): health check reports S3 reachability ───
+describe('checkS3Health — health endpoint S3 probe', () => {
+  const { checkS3Health } = require('../src/utils/s3Sign');
+
+  test('reports "not_configured" (not a failure) when no S3 env is set — matches this test env', async () => {
+    // Test env sets no S3_* vars, so the module's local-disk-mode branch applies.
+    assert.equal(await checkS3Health(), 'not_configured');
   });
 });
 

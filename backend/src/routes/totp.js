@@ -34,7 +34,7 @@ router.get('/status', (req, res, next) => {
 });
 
 // POST /totp/setup — generate a new pending TOTP secret and return QR code
-router.post('/setup', async (req, res, next) => {
+router.post('/setup', otpVerifyLimiter, async (req, res, next) => {
   try {
     const db = getDb();
     const user = db.prepare('SELECT id, username, totp_enabled FROM users WHERE id = ?').get(req.userId);

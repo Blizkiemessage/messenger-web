@@ -1,9 +1,11 @@
 import { type User } from '../types';
+import { useDraftStore } from '../store/useDraftStore';
 
 const KEY         = 'blizkie.user.v1';
 const LEGACY_KEY  = 'blizkie.session.v1';
 const LEGACY_TOKEN_KEY = 'blizkie.token.v1'; // access token used to live here — now purged
 const REFRESH_KEY = 'blizkie.refresh.v1';
+const LAST_CHAT_KEY = 'blz.lastChat'; // mirrors useChatsStore.ts — not imported to avoid a store↔store cycle
 
 /**
  * Public session data stored in localStorage.
@@ -50,6 +52,11 @@ export function clearSession(): void {
   localStorage.removeItem(LEGACY_TOKEN_KEY);
   localStorage.removeItem(REFRESH_KEY);
   localStorage.removeItem(LEGACY_KEY); // clean up old key if present
+  localStorage.removeItem(LAST_CHAT_KEY);
+  // Unsent draft text is per-account and must not survive on a shared device
+  // after logout — every logout path (manual, 401, revoked session,
+  // account-deleted) funnels through this single function.
+  try { useDraftStore.getState().clearAllDrafts(); } catch { /* store not ready yet */ }
 }
 
 /** Store the access token in memory (NOT localStorage). */

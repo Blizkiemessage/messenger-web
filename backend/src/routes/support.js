@@ -5,6 +5,7 @@ const { authMiddleware } = require('../middleware/auth');
 const { getUserById } = require('../services/userService');
 const { sendSupportEmail } = require('../config/email');
 const { getDb } = require('../config/database');
+const { supportLimiter } = require('../middleware/rateLimits');
 
 const router = express.Router();
 
@@ -16,7 +17,7 @@ const upload = multer({
   },
 });
 
-router.post('/', authMiddleware, upload.single('image'), async (req, res, next) => {
+router.post('/', authMiddleware, supportLimiter, upload.single('image'), async (req, res, next) => {
   try {
     const { subject, description } = req.body;
     if (!subject || !description) {

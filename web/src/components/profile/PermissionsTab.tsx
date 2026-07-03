@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, type ReactNode } from 'react';
+import { registerPush, hasActivePushSubscription } from '../../utils/push';
 
 type PermState = 'granted' | 'denied' | 'prompt' | 'unsupported';
 
@@ -41,6 +42,28 @@ export function PermissionsTab() {
   const [cameraErr,  setCameraErr]  = useState<string | null>(null);
   const [micErr,     setMicErr]     = useState<string | null>(null);
   const [notifErr,   setNotifErr]   = useState<string | null>(null);
+
+  // Browser permission can be "granted" while the actual push subscription
+  // died in the background (common on iOS Safari) — check separately so we
+  // can offer a one-click reconnect instead of failing silently forever.
+  const [pushSubscribed, setPushSubscribed] = useState<boolean | null>(null);
+  const [reconnecting,   setReconnecting]   = useState(false);
+
+  useEffect(() => {
+    if (notifState !== 'granted') { setPushSubscribed(null); return; }
+    let cancelled = false;
+    hasActivePushSubscription().then(v => { if (!cancelled) setPushSubscribed(v); });
+    return () => { cancelled = true; };
+  }, [notifState]);
+
+  const reconnectPush = useCallback(async () => {
+    setReconnecting(true);
+    setNotifErr(null);
+    const result = await registerPush();
+    setPushSubscribed(result.ok);
+    if (!result.ok) setNotifErr('Не удалось подключить push-уведомления. Попробуйте ещё раз.');
+    setReconnecting(false);
+  }, []);
 
   const requestCamera = useCallback(async () => {
     setCameraErr(null);
@@ -150,10 +173,20 @@ export function PermissionsTab() {
                   Заблокировано браузером. Нажмите на иконку замка в адресной строке, чтобы изменить.
                 </div>
               )}
+              {/* Permission can be "granted" while the push subscription itself died in the
+                  background (common on iOS Safari) — surface that separately from the OS-level state. */}
+              {item.label === 'Уведомления' && notifState === 'granted' && pushSubscribed === false && !notifErr && (
+                <div className="permErr">Уведомления не подключены. Возможно, подписка устарела.</div>
+              )}
             </div>
             {item.onRequest && item.state !== 'granted' && item.state !== 'unsupported' && (
               <button className="permRequestBtn" onClick={item.onRequest}>
                 Разрешить
+              </button>
+            )}
+            {item.label === 'Уведомления' && notifState === 'granted' && pushSubscribed === false && (
+              <button className="permRequestBtn" onClick={reconnectPush} disabled={reconnecting}>
+                {reconnecting ? '…' : 'Переподключить'}
               </button>
             )}
           </div>

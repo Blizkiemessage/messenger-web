@@ -12,7 +12,7 @@ import { useChatsStore } from '../store/useChatsStore';
 import { useStickerStore } from '../store/useStickerStore';
 import { useCallStore } from '../store/useCallStore';
 import { webrtcManager } from '../services/webrtcManager';
-import { registerPush } from '../utils/push';
+import { registerPush, hasActivePushSubscription } from '../utils/push';
 import { useNotesStore } from '../store/useNotesStore';
 
 let _markReadTimer: ReturnType<typeof setTimeout> | null = null;
@@ -53,7 +53,19 @@ export function useSocket() {
     // the connection is really alive and reconnect if it died while backgrounded.
     // Without this a resumed PWA can sit on a dead "connected" socket — no
     // presence/typing and, critically, missed incoming calls — until a reload.
-    const ensureAlive = () => { if (document.visibilityState === 'visible') ensureSocketHealthy(); };
+    // Push subscriptions can silently die (browser-invalidated, especially on
+    // iOS Safari) while the app sits backgrounded with permission still
+    // "granted" — re-subscribing here on the same triggers that heal the
+    // socket means a dead subscription doesn't linger past the next resume.
+    const ensurePushAlive = async () => {
+      if (typeof Notification === 'undefined' || Notification.permission !== 'granted') return;
+      if (!(await hasActivePushSubscription())) registerPush();
+    };
+    const ensureAlive = () => {
+      if (document.visibilityState !== 'visible') return;
+      ensureSocketHealthy();
+      ensurePushAlive();
+    };
     const onOnline = () => ensureSocketHealthy();
     document.addEventListener('visibilitychange', ensureAlive);
     window.addEventListener('focus', ensureAlive);

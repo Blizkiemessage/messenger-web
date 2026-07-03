@@ -40,6 +40,18 @@ const otpVerifyLimiter = rateLimit({
   legacyHeaders: false,
 });
 
+// WebAuthn/passkey login (auth/options + auth/verify) — same shape as loginLimiter.
+// Defense-in-depth: passkeys resist brute force by design (challenge-response,
+// not a guessable secret), but /auth/options accepts a bare username and could
+// otherwise be used for unlimited-rate user-enumeration by timing/response size.
+const webauthnLoginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 30,
+  message: { error: 'Слишком много попыток входа. Попробуйте через 15 минут.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
 // Admin login — tight: 5 attempts / 30 min per IP
 const adminLoginLimiter = rateLimit({
   windowMs: 30 * 60 * 1000,
@@ -97,6 +109,15 @@ const refreshLimiter = rateLimit({
   legacyHeaders: false,
 });
 
+// Support tickets (sends an email + optional image upload per request) — 10 / hour per IP.
+const supportLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 10,
+  message: { error: 'Слишком много обращений в поддержку. Попробуйте через час.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
 // Assistant LLM routing — 20 req / min per IP (each call hits an external LLM).
 const assistantLimiter = rateLimit({
   windowMs: 60 * 1000,
@@ -128,4 +149,6 @@ module.exports = {
   linkPreviewLimiter,
   totpVerifyLimiter,
   refreshLimiter,
+  webauthnLoginLimiter,
+  supportLimiter,
 };

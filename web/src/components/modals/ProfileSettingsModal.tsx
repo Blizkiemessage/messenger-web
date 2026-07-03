@@ -14,7 +14,7 @@ interface Props {
   me: User;
   onClose: () => void;
   onUpdate: (u: User) => void;
-  onDeleteAccount: () => Promise<void>;
+  onDeleteAccount: (password: string, code?: string) => Promise<void>;
 }
 
 type Tab = 'profile' | 'password' | 'privacy' | 'appearance' | 'sessions' | 'permissions' | 'export';
@@ -123,44 +123,44 @@ export function ProfileSettingsModal({ me, onClose, onUpdate, onDeleteAccount }:
   const [tab, setTab] = useState<Tab | null>(null);
 
   const [showDeleteConfirm,  setShowDeleteConfirm]  = useState(false);
-  const [showDeleteUsername, setShowDeleteUsername] = useState(false);
-  const [deleteInput,  setDeleteInput]  = useState('');
+  const [showDeletePassword, setShowDeletePassword] = useState(false);
+  const [deletePassword, setDeletePassword] = useState('');
+  const [deleteCode,     setDeleteCode]     = useState('');
   const [deleteError,  setDeleteError]  = useState<string | null>(null);
   const [deleting,     setDeleting]     = useState(false);
 
   function openDeleteConfirm() {
     setShowDeleteConfirm(true);
-    setShowDeleteUsername(false);
-    setDeleteInput('');
+    setShowDeletePassword(false);
+    setDeletePassword('');
+    setDeleteCode('');
     setDeleteError(null);
   }
 
-  function proceedToUsernameStep() {
+  function proceedToPasswordStep() {
     setShowDeleteConfirm(false);
-    setShowDeleteUsername(true);
-    setDeleteInput('');
+    setShowDeletePassword(true);
+    setDeletePassword('');
+    setDeleteCode('');
     setDeleteError(null);
   }
 
   function cancelDelete() {
     setShowDeleteConfirm(false);
-    setShowDeleteUsername(false);
-    setDeleteInput('');
+    setShowDeletePassword(false);
+    setDeletePassword('');
+    setDeleteCode('');
     setDeleteError(null);
   }
 
-  async function confirmDeleteWithUsername() {
-    if (deleteInput.trim().toLowerCase() !== (me.username ?? '').toLowerCase()) {
-      setDeleteError('Неверный username');
-      return;
-    }
+  async function confirmDeleteWithPassword() {
     setDeleting(true);
     setDeleteError(null);
     try {
-      await onDeleteAccount();
-    } catch {
+      await onDeleteAccount(deletePassword, me.totp_enabled ? deleteCode.trim() : undefined);
+    } catch (e) {
       setDeleting(false);
-      setDeleteError('Ошибка при удалении. Попробуйте снова.');
+      setDeleteError(e instanceof Error ? e.message : 'Ошибка при удалении. Попробуйте снова.');
     }
   }
 
@@ -281,14 +281,14 @@ export function ProfileSettingsModal({ me, onClose, onUpdate, onDeleteAccount }:
             </div>
             <div className="confirmBtns">
               <button className="psDeleteCancelBtn" onClick={cancelDelete}>Отмена</button>
-              <button className="psDeleteConfirmBtn" onClick={proceedToUsernameStep}>Продолжить</button>
+              <button className="psDeleteConfirmBtn" onClick={proceedToPasswordStep}>Продолжить</button>
             </div>
           </div>
         </div>
       )}
 
-      {/* Delete confirmation — step 2 */}
-      {showDeleteUsername && (
+      {/* Delete confirmation — step 2: password (+ 2FA code if enabled) */}
+      {showDeletePassword && (
         <div className="modalOverlay" style={{ zIndex: 10200 }}
           onClick={e => e.target === e.currentTarget && !deleting && cancelDelete()}>
           <div className="confirmCard" style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
@@ -302,24 +302,35 @@ export function ProfileSettingsModal({ me, onClose, onUpdate, onDeleteAccount }:
             </div>
             <div className="confirmTitle">Подтвердите удаление</div>
             <div className="confirmText" style={{ marginBottom: 0 }}>
-              Введите ваш username <strong>@{me.username}</strong> для подтверждения
+              Введите пароль от аккаунта <strong>@{me.username}</strong> для подтверждения
             </div>
             <input
               className="authInput"
-              value={deleteInput}
-              onChange={e => { setDeleteInput(e.target.value); setDeleteError(null); }}
-              placeholder={me.username ?? 'username'}
+              type="password"
+              value={deletePassword}
+              onChange={e => { setDeletePassword(e.target.value); setDeleteError(null); }}
+              placeholder="Пароль"
               autoFocus
               disabled={deleting}
-              onKeyDown={e => { if (e.key === 'Enter' && !deleting) confirmDeleteWithUsername(); }}
+              onKeyDown={e => { if (e.key === 'Enter' && !deleting) confirmDeleteWithPassword(); }}
             />
+            {me.totp_enabled && (
+              <input
+                className="authInput"
+                value={deleteCode}
+                onChange={e => { setDeleteCode(e.target.value); setDeleteError(null); }}
+                placeholder="Код 2FA или резервный код"
+                disabled={deleting}
+                onKeyDown={e => { if (e.key === 'Enter' && !deleting) confirmDeleteWithPassword(); }}
+              />
+            )}
             {deleteError && <div className="authError">{deleteError}</div>}
             <div className="confirmBtns">
               <button className="psDeleteCancelBtn" onClick={cancelDelete} disabled={deleting}>Отмена</button>
               <button
                 className="psDeleteConfirmBtn"
-                disabled={deleting || !deleteInput.trim()}
-                onClick={confirmDeleteWithUsername}
+                disabled={deleting || !deletePassword || (me.totp_enabled && !deleteCode.trim())}
+                onClick={confirmDeleteWithPassword}
               >
                 {deleting ? '…' : 'Удалить навсегда'}
               </button>

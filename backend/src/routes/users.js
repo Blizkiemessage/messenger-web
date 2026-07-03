@@ -17,12 +17,13 @@
 
 const express = require('express');
 const { authMiddleware } = require('../middleware/auth');
-const { getUserById, updateUser, searchUsers, sanitizeUser, toggleBlockUser, isBlocked, setContactAlias, deleteContactAlias, getContactAlias, updatePresenceStatus } = require('../services/userService');
+const { getUserById, updateUser, searchUsers, sanitizeUser, toggleBlockUser, isBlocked, setContactAlias, deleteContactAlias, getContactAlias, updatePresenceStatus, verifyAccountDeletionAuth } = require('../services/userService');
 const { getUserChats } = require('../services/chatService');
 const { deleteAccount } = require('../services/chatService');
 const { deleteFromS3 } = require('../utils/s3Delete');
 const { signAvatarUrl, signUserAvatars } = require('../utils/s3Sign');
 const { initiateEmailChange, verifyEmailChange } = require('../services/authService');
+const { getDb } = require('../config/database');
 const { emailSendLimiter, otpVerifyLimiter } = require('../middleware/rateLimits');
 
 const router = express.Router();
@@ -75,9 +76,15 @@ router.patch('/me', async (req, res, next) => {
   }
 });
 
-// DELETE /users/me — permanently delete account
-router.delete('/me', (req, res, next) => {
+// DELETE /users/me — permanently delete account.
+// Requires the current password (+ a valid TOTP/backup code if 2FA is enabled) in the
+// body — a bare valid session is not enough, since a session left open on a shared
+// device would otherwise let anyone irreversibly delete the account in one request.
+router.delete('/me', otpVerifyLimiter, async (req, res, next) => {
   try {
+    const { password, code } = req.body || {};
+    await verifyAccountDeletionAuth(req.userId, password, code);
+
     const { groupNotifications, deletedDirectChatIds, directChatMembersMap } = deleteAccount(req.userId);
 
     const io = req.app.get('io');
@@ -134,7 +141,6 @@ router.get('/check-username', (req, res) => {
   if (!username || !/^[a-z0-9_]{3,32}$/.test(username)) {
     return res.status(400).json({ error: 'Username must be 3–32 characters: letters, digits, _' });
   }
-  const { getDb } = require('../config/database');
   const existing = getDb().prepare('SELECT id FROM users WHERE username = ?').get(username);
   res.json({ available: !existing });
 });

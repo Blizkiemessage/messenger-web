@@ -36,9 +36,9 @@ export async function authLogout(): Promise<void> {
   await client.post('/auth/logout');
 }
 
-/** Permanently delete the current user's account */
-export async function deleteAccount(): Promise<void> {
-  await client.delete('/users/me');
+/** Permanently delete the current user's account — requires password (+ TOTP/backup code if 2FA is enabled) */
+export async function deleteAccount(password: string, code?: string): Promise<void> {
+  await client.delete('/users/me', { data: { password, code } });
 }
 
 /** Send a password reset link to the given email */

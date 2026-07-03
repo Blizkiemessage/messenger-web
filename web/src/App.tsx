@@ -23,6 +23,7 @@ import { NavRail } from './components/nav/NavRail';
 import { ChatArea } from './components/chat/ChatArea';
 import { useIsMobile } from './hooks/useIsMobile';
 import { CallOverlay } from './components/call/CallOverlay';
+import { ErrorBoundary } from './components/ErrorBoundary';
 import { IncomingCallModal } from './components/call/IncomingCallModal';
 import {
   DeleteConfirmModal,
@@ -226,8 +227,8 @@ export default function App() {
     );
   }
 
-  async function onDeleteAccount() {
-    await apiDeleteAccount();
+  async function onDeleteAccount(password: string, code?: string) {
+    await apiDeleteAccount(password, code);
     clearSession();
   }
 
@@ -401,8 +402,11 @@ export default function App() {
       )}
 
       {/* ── E3: WebRTC call UI — rendered above everything ──────────────── */}
-      <IncomingCallModal />
-      <CallOverlay />
+      {/* Scoped boundary: a crash in the call UI shouldn't take down the whole app. */}
+      <ErrorBoundary scope="calls" fallback={null}>
+        <IncomingCallModal />
+        <CallOverlay />
+      </ErrorBoundary>
 
       <div className={`layout${hasSelection ? ' selecting' : ''}${activeChat ? ' chatOpen' : ''}${!isMobile ? ' hasRail' : ''}`}>
         {!isMobile && (

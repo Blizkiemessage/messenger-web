@@ -11,6 +11,8 @@ import {
   StaleWhileRevalidate,
 } from 'workbox-strategies';
 import { ExpirationPlugin } from 'workbox-expiration';
+import { API_BASE_URL } from './config';
+import { urlBase64ToUint8Array } from './utils/pushKeyEncoding';
 
 declare const self: ServiceWorkerGlobalScope;
 
@@ -121,3 +123,42 @@ self.addEventListener('notificationclick', e => {
 self.addEventListener('activate', e => {
   e.waitUntil(self.clients.claim());
 });
+
+// ── Re-subscribe when the browser invalidates our push subscription ───────
+// Without this, a push subscription that dies while no tab is open (or the
+// tab never resumes) silently stops delivering anything — including
+// incoming-call pushes — until the user happens to trigger a fresh
+// registerPush() call from the main thread. Best-effort: relies on the
+// HttpOnly session cookie, so it only succeeds where third-party cookies
+// aren't blocked (same-origin deploys); cross-origin setups still self-heal
+// via the main-thread check in useSocket.ts on next resume.
+self.addEventListener('pushsubscriptionchange', (event: PushSubscriptionChangeEvent) => {
+  event.waitUntil((async () => {
+    try {
+      const oldSub = event.oldSubscription;
+      const applicationServerKey =
+        (oldSub?.options.applicationServerKey as ArrayBuffer | null) ??
+        urlBase64ToUint8Array(await fetchVapidPublicKey());
+
+      const subscription = await self.registration.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey,
+      });
+      const sub = subscription.toJSON();
+      await fetch(`${API_BASE_URL}/push/subscribe`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ endpoint: sub.endpoint, keys: sub.keys }),
+      });
+    } catch (err) {
+      console.error('[SW] pushsubscriptionchange re-subscribe failed:', err);
+    }
+  })());
+});
+
+async function fetchVapidPublicKey(): Promise<string> {
+  const res = await fetch(`${API_BASE_URL}/push/vapid-public-key`, { credentials: 'include' });
+  const data = await res.json() as { publicKey: string };
+  return data.publicKey;
+}

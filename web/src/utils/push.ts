@@ -9,34 +9,33 @@
  */
 
 import apiClient from '../api/client';
+import { urlBase64ToUint8Array } from './pushKeyEncoding';
 
-function urlBase64ToUint8Array(base64String: string): Uint8Array<ArrayBuffer> {
-  const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
-  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
-  const rawData = atob(base64);
-  const buffer = new ArrayBuffer(rawData.length);
-  const output = new Uint8Array(buffer);
-  for (let i = 0; i < rawData.length; i++) {
-    output[i] = rawData.charCodeAt(i);
-  }
-  return output;
-}
+export type PushRegisterResult =
+  | { ok: true }
+  | { ok: false; reason: 'unsupported' | 'permission-denied' | 'no-vapid-key' | 'error'; error?: unknown };
 
-export async function registerPush(): Promise<void> {
+/**
+ * Returns a result instead of swallowing failures silently — callers that
+ * care (e.g. the Permissions tab's "reconnect notifications" button) can
+ * show the user why push isn't working, instead of it failing invisibly.
+ * The fire-and-forget call site in useSocket.ts still just ignores the
+ * result, which is fine — it only needs the best-effort attempt.
+ */
+export async function registerPush(): Promise<PushRegisterResult> {
   try {
-    // Bail out if push is not supported
-    if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
+    if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+      return { ok: false, reason: 'unsupported' };
+    }
 
-    // Request notification permission
     const permission = await Notification.requestPermission();
-    if (permission !== 'granted') return;
+    if (permission !== 'granted') return { ok: false, reason: 'permission-denied' };
 
     // SW is registered early in main.tsx; just wait for it to be ready.
     const registration = await navigator.serviceWorker.ready;
 
-    // Fetch VAPID public key
     const { data } = await apiClient.get<{ publicKey: string }>('/push/vapid-public-key');
-    if (!data?.publicKey) return;
+    if (!data?.publicKey) return { ok: false, reason: 'no-vapid-key' };
 
     const applicationServerKey = urlBase64ToUint8Array(data.publicKey);
 
@@ -48,15 +47,28 @@ export async function registerPush(): Promise<void> {
       });
     }
 
-    // Send subscription to backend
     const sub = subscription.toJSON();
     await apiClient.post('/push/subscribe', {
       endpoint: sub.endpoint,
       keys: sub.keys,
     });
+    return { ok: true };
   } catch (err) {
-    // Non-critical — silently swallow errors
-    console.warn('[Push] Registration failed:', err);
+    console.error('[Push] Registration failed:', err);
+    return { ok: false, reason: 'error', error: err };
+  }
+}
+
+/** True if permission is granted AND there's an active PushManager subscription. */
+export async function hasActivePushSubscription(): Promise<boolean> {
+  try {
+    if (!('serviceWorker' in navigator) || !('PushManager' in window)) return false;
+    if (typeof Notification === 'undefined' || Notification.permission !== 'granted') return false;
+    const registration = await navigator.serviceWorker.ready;
+    const subscription = await registration.pushManager.getSubscription();
+    return !!subscription;
+  } catch {
+    return false;
   }
 }
 
@@ -70,6 +82,6 @@ export async function unregisterPush(): Promise<void> {
     await subscription.unsubscribe();
     await apiClient.delete('/push/subscribe', { data: { endpoint } });
   } catch (err) {
-    console.warn('[Push] Unregister failed:', err);
+    console.error('[Push] Unregister failed:', err);
   }
 }
