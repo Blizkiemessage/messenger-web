@@ -113,6 +113,19 @@ function deleteAccount(userId) {
       db.prepare('DELETE FROM chats WHERE id = ?').run(chatId);
     }
 
+    // `calls` and `chat_notes` reference users(id) WITHOUT a cascade/set-null
+    // action (see 001_initial.js) — a call history row or a note this user
+    // last edited/authored in a chat they've LEFT (chat survives, only their
+    // chat_members row is removed above) otherwise blocks the DELETE below
+    // with "FOREIGN KEY constraint failed" (discovered 2026-07-03 testing a
+    // real account: PRAGMA foreign_keys=ON in config/database.js means this
+    // was never just theoretical). Call history isn't needed once the
+    // account is gone; note authorship is nullable by schema, just missing
+    // the ON DELETE SET NULL clause.
+    db.prepare('DELETE FROM calls WHERE caller_id = ? OR callee_id = ?').run(userId, userId);
+    db.prepare('UPDATE chat_notes SET last_edited_by = NULL WHERE last_edited_by = ?').run(userId);
+    db.prepare('UPDATE chat_notes SET created_by = NULL WHERE created_by = ?').run(userId);
+
     db.prepare('DELETE FROM users WHERE id = ?').run(userId);
 
     db.exec('COMMIT');

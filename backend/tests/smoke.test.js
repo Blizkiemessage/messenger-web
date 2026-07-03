@@ -24,6 +24,10 @@ const bcrypt = require('bcryptjs');
 
 // ── In-memory SQLite with minimal schema ─────────────────────────────────────
 const db = new Database(':memory:');
+// Matches production (config/database.js sets this too) — off by default in
+// better-sqlite3, so without it FK-constraint bugs (like the deleteAccount
+// one found 2026-07-03) are invisible here even though they bite in prod.
+db.pragma('foreign_keys = ON');
 db.exec(`
   CREATE TABLE users (
     id TEXT PRIMARY KEY,
@@ -212,6 +216,21 @@ db.exec(`
   );
   CREATE INDEX idx_mst_token ON message_search_tokens(token, chat_id, message_id);
   CREATE INDEX idx_mst_msg   ON message_search_tokens(message_id);
+  -- FK to users(id) WITHOUT cascade, matching 001_initial.js exactly — this is
+  -- what makes deleteAccount's FOREIGN KEY bug (found 2026-07-03) reproducible.
+  CREATE TABLE calls (
+    id TEXT PRIMARY KEY, chat_id TEXT NOT NULL,
+    caller_id TEXT NOT NULL REFERENCES users(id),
+    callee_id TEXT NOT NULL REFERENCES users(id),
+    call_type TEXT NOT NULL DEFAULT 'audio', status TEXT NOT NULL DEFAULT 'pending',
+    created_at INTEGER NOT NULL
+  );
+  CREATE TABLE chat_notes (
+    id TEXT PRIMARY KEY, chat_id TEXT NOT NULL,
+    title TEXT NOT NULL DEFAULT 'Заметка', content TEXT NOT NULL DEFAULT '',
+    last_edited_by TEXT REFERENCES users(id), last_edited_at INTEGER NOT NULL,
+    created_at INTEGER NOT NULL, created_by TEXT REFERENCES users(id)
+  );
 `);
 
 // ── Inject mocks into module cache before services are required ───────────────
@@ -225,14 +244,14 @@ mockModule('../src/config/email', {
   sendOtpEmail: async () => {},
   sendPasswordResetEmail: async () => {},
 });
-mockModule('../src/utils/s3Delete', { deleteFromS3: () => {} });
+mockModule('../src/utils/s3Delete', { deleteFromS3: () => {}, deleteManyFromS3: () => {} });
 
 // ── Services (loaded after mocks) ────────────────────────────────────────────
 const { validatePassword, loginOrRegister } = require('../src/services/authService');
 const { deleteMessages, editMessage, getChatMessages, saveMessage, forwardMessages, searchMessages, toggleReaction, toggleEmojiReaction } = require('../src/services/messageService');
 const { ALLOWED_TYPES }                     = require('../src/utils/allowedMimeTypes');
 const { encrypt, decrypt }                  = require('../src/crypto/aes');
-const { setChatBackground }                 = require('../src/services/chatService');
+const { setChatBackground, deleteAccount }  = require('../src/services/chatService');
 
 // ── Seed data ────────────────────────────────────────────────────────────────
 const NOW = Date.now();
@@ -1489,5 +1508,34 @@ describe('chat collections', () => {
     assert.equal(col.getCollectionItems('chat-direct', c.id, 'alice').items.length, 0);
     col.deleteCollection('chat-direct', c.id, 'alice');
     assert.ok(!col.listCollections('chat-direct', 'alice').some(x => x.id === c.id));
+  });
+});
+
+// ── Store-launch testing (2026-07-03): deleteAccount FK bug found on a real
+// production account — `calls` and `chat_notes` reference users(id) WITHOUT a
+// cascade/set-null action (001_initial.js), so a call-history row or an
+// authored note blocks `DELETE FROM users` with "FOREIGN KEY constraint
+// failed" once foreign_keys=ON (which config/database.js always sets — this
+// was invisible in this test file only because it never turned the pragma on
+// before now). Confirmed live: an account that had made a WebRTC test call
+// got a 500 on deletion; fixed in services/chat/teardown.js.
+describe('deleteAccount — FK cleanup for calls/chat_notes', () => {
+  test('account with call history and an authored note can still be deleted', () => {
+    const NOW2 = Date.now();
+    db.prepare('INSERT INTO users (id,username,email,password_hash,display_name,created_at,last_seen_at) VALUES (?,?,?,?,?,?,?)')
+      .run(['dave-del', 'davedel', null, ALICE_HASH, 'Dave', NOW2, NOW2]);
+
+    db.prepare('INSERT INTO calls (id,chat_id,caller_id,callee_id,created_at) VALUES (?,?,?,?,?)')
+      .run(['call-1', 'chat-direct', 'dave-del', 'alice', NOW2]);
+    db.prepare('INSERT INTO chat_notes (id,chat_id,last_edited_by,last_edited_at,created_at,created_by) VALUES (?,?,?,?,?,?)')
+      .run(['note-1', 'chat-direct', 'dave-del', NOW2, NOW2, 'dave-del']);
+
+    assert.doesNotThrow(() => deleteAccount('dave-del'));
+
+    assert.equal(db.prepare('SELECT * FROM users WHERE id = ?').get('dave-del'), undefined);
+    assert.equal(db.prepare('SELECT * FROM calls WHERE caller_id = ? OR callee_id = ?').get('dave-del', 'dave-del'), undefined);
+    const note = db.prepare('SELECT * FROM chat_notes WHERE id = ?').get('note-1');
+    assert.equal(note.last_edited_by, null);
+    assert.equal(note.created_by, null);
   });
 });
