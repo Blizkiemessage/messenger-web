@@ -24,6 +24,7 @@ import { ChatArea } from './components/chat/ChatArea';
 import { useIsMobile } from './hooks/useIsMobile';
 import { CallOverlay } from './components/call/CallOverlay';
 import { ErrorBoundary } from './components/ErrorBoundary';
+import { WarningModal } from './components/modals/WarningModal';
 import { IncomingCallModal } from './components/call/IncomingCallModal';
 import {
   DeleteConfirmModal,
@@ -407,6 +408,8 @@ export default function App() {
         <IncomingCallModal />
         <CallOverlay />
       </ErrorBoundary>
+
+      <WarningModal />
 
       <div className={`layout${hasSelection ? ' selecting' : ''}${activeChat ? ' chatOpen' : ''}${!isMobile ? ' hasRail' : ''}`}>
         {!isMobile && (

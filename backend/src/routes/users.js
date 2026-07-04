@@ -14,6 +14,8 @@
  *   GET    /users/search                 — search by username / display_name
  *   GET    /users/:id                    — public profile of another user
  *   POST   /users/:id/report             — report a user profile (UGC moderation)
+ *   GET    /users/me/warnings            — unacknowledged moderation warnings
+ *   POST   /users/me/warnings/:id/acknowledge
  */
 
 const express = require('express');
@@ -25,6 +27,7 @@ const { deleteFromS3 } = require('../utils/s3Delete');
 const { signAvatarUrl, signUserAvatars } = require('../utils/s3Sign');
 const { initiateEmailChange, verifyEmailChange } = require('../services/authService');
 const { createReport } = require('../services/contentReportService');
+const { getUnacknowledgedWarnings, acknowledgeWarning } = require('../services/moderationService');
 const { getDb } = require('../config/database');
 const { emailSendLimiter, otpVerifyLimiter, reportLimiter } = require('../middleware/rateLimits');
 
@@ -134,6 +137,20 @@ router.post('/me/verify-email-change', otpVerifyLimiter, async (req, res, next) 
     }
     const user = await verifyEmailChange(req.userId, email.trim(), otp.trim());
     res.json(user);
+  } catch (err) { next(err); }
+});
+
+// GET /users/me/warnings — unacknowledged moderation warnings, shown once until acknowledged
+router.get('/me/warnings', (req, res, next) => {
+  try {
+    res.json(getUnacknowledgedWarnings(req.userId));
+  } catch (err) { next(err); }
+});
+
+// POST /users/me/warnings/:id/acknowledge
+router.post('/me/warnings/:id/acknowledge', (req, res, next) => {
+  try {
+    res.json(acknowledgeWarning(req.userId, req.params.id));
   } catch (err) { next(err); }
 });
 

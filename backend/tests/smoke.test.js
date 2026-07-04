@@ -43,7 +43,10 @@ db.exec(`
     totp_backup_codes TEXT,
     no_group_add INTEGER NOT NULL DEFAULT 0,
     hide_avatar INTEGER NOT NULL DEFAULT 0,
-    avatar_exceptions TEXT NOT NULL DEFAULT '[]'
+    avatar_exceptions TEXT NOT NULL DEFAULT '[]',
+    is_banned INTEGER NOT NULL DEFAULT 0,
+    ban_reason TEXT,
+    banned_at INTEGER
   );
   CREATE TABLE sessions (
     id TEXT PRIMARY KEY,
@@ -53,6 +56,14 @@ db.exec(`
     user_agent TEXT DEFAULT '',
     last_used_at INTEGER,
     ip_address TEXT
+  );
+  CREATE TABLE refresh_tokens (
+    id TEXT PRIMARY KEY,
+    session_id TEXT NOT NULL,
+    user_id TEXT NOT NULL,
+    expires_at INTEGER NOT NULL,
+    revoked INTEGER NOT NULL DEFAULT 0,
+    created_at INTEGER NOT NULL
   );
   CREATE TABLE chats (
     id TEXT PRIMARY KEY,
@@ -246,6 +257,17 @@ db.exec(`
     created_at INTEGER NOT NULL DEFAULT 0
   );
   CREATE INDEX idx_content_reports_unresolved ON content_reports(resolved, created_at);
+  -- Matches 019_moderation_actions.js
+  CREATE TABLE user_warnings (
+    id TEXT PRIMARY KEY,
+    user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    admin_id TEXT REFERENCES users(id) ON DELETE SET NULL,
+    message TEXT NOT NULL,
+    report_id TEXT REFERENCES content_reports(id) ON DELETE SET NULL,
+    created_at INTEGER NOT NULL,
+    acknowledged_at INTEGER
+  );
+  CREATE INDEX idx_user_warnings_user ON user_warnings(user_id, acknowledged_at);
 `);
 
 // ── Inject mocks into module cache before services are required ───────────────
@@ -355,6 +377,27 @@ describe('loginOrRegister — auth error normalization', () => {
     try { await loginOrRegister('alice',  'WrongPass1!'); } catch (e) { err2 = e; }
     assert.equal(err1?.message, err2?.message, 'error messages must be identical');
     assert.equal(err1?.status,  err2?.status,  'status codes must be identical');
+  });
+
+  // ── Store-launch audit (2026-07-04): full report handling — banned accounts ──
+  test('banned account with correct credentials is rejected with the reason, not given a session', async () => {
+    db.prepare('INSERT INTO users (id,username,email,password_hash,display_name,created_at,last_seen_at,is_banned,ban_reason) VALUES (?,?,?,?,?,?,?,?,?)')
+      .run(['banned-login', 'bannedlogin', null, ALICE_HASH, 'Banned', NOW, NOW, 1, 'Спам']);
+
+    await assert.rejects(
+      () => loginOrRegister('bannedlogin', 'SecurePass1!'),
+      (err) => {
+        assert.equal(err.status, 403);
+        assert.equal(err.message, 'Аккаунт заблокирован: Спам');
+        return true;
+      }
+    );
+  });
+
+  test('correct credentials with no ban proceed normally (sanity check the ban check does not false-positive)', async () => {
+    const result = await loginOrRegister('alice', 'SecurePass1!');
+    assert.ok(result.accessToken);
+    assert.equal(result.user.username, 'alice');
   });
 });
 
@@ -1655,5 +1698,111 @@ describe('contentReportService — report dedup, and content_reports accepts mes
 
   test('a different reporter CAN report the same content', () => {
     assert.doesNotThrow(() => createReport('bob', 'message', 'some-msg-id', 'тоже спам'));
+  });
+});
+
+// ── Store-launch audit (2026-07-04): full report handling — moderationService ──
+describe('moderationService — ban/unban/warn/acknowledge', () => {
+  const {
+    banUser, unbanUser, warnUser, getModerationInfo,
+    getUnacknowledgedWarnings, acknowledgeWarning,
+  } = require('../src/services/moderationService');
+
+  function makeUser(id, username) {
+    db.prepare('INSERT INTO users (id,username,email,password_hash,display_name,created_at,last_seen_at) VALUES (?,?,?,?,?,?,?)')
+      .run([id, username, null, ALICE_HASH, username, NOW, NOW]);
+  }
+
+  // admin_id/user_id in user_warnings/sessions are real FKs to users(id) — every
+  // "acting admin" id used below must be a real row, this is the shared one.
+  makeUser('mod-admin-1', 'modadmin1');
+
+  test('banUser sets flags and revokes all active sessions/refresh tokens', () => {
+    makeUser('mod-target-1', 'modtarget1');
+    db.prepare('INSERT INTO sessions (id,user_id,created_at,revoked) VALUES (?,?,?,0)').run(['sess-1', 'mod-target-1', NOW]);
+    db.prepare('INSERT INTO sessions (id,user_id,created_at,revoked) VALUES (?,?,?,0)').run(['sess-2', 'mod-target-1', NOW]);
+    db.prepare('INSERT INTO refresh_tokens (id,session_id,user_id,expires_at,revoked,created_at) VALUES (?,?,?,?,0,?)').run(['rt-1', 'sess-1', 'mod-target-1', NOW + 1000, NOW]);
+
+    const result = banUser('mod-target-1', 'Нарушение правил', 'mod-admin-1');
+    assert.equal(result.ok, true);
+    assert.deepEqual(result.sessionIds.sort(), ['sess-1', 'sess-2']);
+
+    const user = db.prepare('SELECT is_banned, ban_reason FROM users WHERE id = ?').get('mod-target-1');
+    assert.equal(user.is_banned, 1);
+    assert.equal(user.ban_reason, 'Нарушение правил');
+    assert.equal(db.prepare('SELECT revoked FROM sessions WHERE id = ?').get('sess-1').revoked, 1);
+    assert.equal(db.prepare('SELECT revoked FROM sessions WHERE id = ?').get('sess-2').revoked, 1);
+    assert.equal(db.prepare('SELECT revoked FROM refresh_tokens WHERE id = ?').get('rt-1').revoked, 1);
+  });
+
+  test('banUser refuses to let an admin ban themselves', () => {
+    makeUser('mod-self', 'modself');
+    assert.throws(
+      () => banUser('mod-self', 'test', 'mod-self'),
+      (err) => { assert.equal(err.status, 400); return true; }
+    );
+  });
+
+  test('unbanUser clears the ban flags', () => {
+    makeUser('mod-target-2', 'modtarget2');
+    banUser('mod-target-2', 'reason', 'mod-admin-1');
+    unbanUser('mod-target-2');
+    const user = db.prepare('SELECT is_banned, ban_reason, banned_at FROM users WHERE id = ?').get('mod-target-2');
+    assert.equal(user.is_banned, 0);
+    assert.equal(user.ban_reason, null);
+    assert.equal(user.banned_at, null);
+  });
+
+  test('warnUser records a warning and resolves the linked report; getModerationInfo returns it with the admin username', () => {
+    makeUser('mod-target-3', 'modtarget3');
+    makeUser('mod-admin', 'modadmin');
+    db.prepare("INSERT INTO content_reports (id,reporter_id,content_type,content_id,reason,resolved,created_at) VALUES (?,?,?,?,?,0,?)")
+      .run(['report-for-warn', 'bob', 'user', 'mod-target-3', 'test', NOW]);
+
+    const warning = warnUser('mod-target-3', 'Пожалуйста, соблюдайте правила', 'mod-admin', 'report-for-warn');
+    assert.ok(warning.id);
+
+    const report = db.prepare('SELECT resolved FROM content_reports WHERE id = ?').get('report-for-warn');
+    assert.equal(report.resolved, 1, 'warning with a reportId marks that report resolved');
+
+    const info = getModerationInfo('mod-target-3');
+    assert.equal(info.warnings.length, 1);
+    assert.equal(info.warnings[0].admin_username, 'modadmin');
+    assert.equal(info.warnings[0].message, 'Пожалуйста, соблюдайте правила');
+  });
+
+  test('warnUser rejects an empty message', () => {
+    makeUser('mod-target-4', 'modtarget4');
+    assert.throws(
+      () => warnUser('mod-target-4', '   ', 'mod-admin-1', null),
+      (err) => { assert.equal(err.status, 400); return true; }
+    );
+  });
+
+  test('unacknowledged warnings show up for the user and disappear once acknowledged', () => {
+    makeUser('mod-target-5', 'modtarget5');
+    const w = warnUser('mod-target-5', 'Первое предупреждение', 'mod-admin-1', null);
+
+    const before = getUnacknowledgedWarnings('mod-target-5');
+    assert.equal(before.length, 1);
+    assert.equal(before[0].id, w.id);
+
+    acknowledgeWarning('mod-target-5', w.id);
+    const after = getUnacknowledgedWarnings('mod-target-5');
+    assert.equal(after.length, 0);
+  });
+
+  test('acknowledging someone else\'s warning (or an already-acknowledged one) fails', () => {
+    makeUser('mod-target-6', 'modtarget6');
+    const w = warnUser('mod-target-6', 'test', 'mod-admin-1', null);
+    assert.throws(
+      () => acknowledgeWarning('someone-else', w.id),
+      (err) => { assert.equal(err.status, 404); return true; }
+    );
+    acknowledgeWarning('mod-target-6', w.id);
+    assert.throws(
+      () => acknowledgeWarning('mod-target-6', w.id),
+      (err) => { assert.equal(err.status, 404); return true; }
+    );
   });
 });

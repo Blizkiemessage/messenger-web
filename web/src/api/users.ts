@@ -61,6 +61,18 @@ export async function reportUser(id: string, reason?: string): Promise<{ ok: tru
   return res.data;
 }
 
+export type Warning = { id: string; message: string; created_at: number };
+
+export async function getUnacknowledgedWarnings(): Promise<Warning[]> {
+  const res = await client.get<Warning[]>('/users/me/warnings');
+  return res.data;
+}
+
+export async function acknowledgeWarning(id: string): Promise<{ ok: true }> {
+  const res = await client.post<{ ok: true }>(`/users/me/warnings/${id}/acknowledge`);
+  return res.data;
+}
+
 export async function setAlias(id: string, alias: string): Promise<{ alias: string }> {
   const res = await client.post<{ alias: string }>(`/users/${id}/alias`, { alias });
   return res.data;

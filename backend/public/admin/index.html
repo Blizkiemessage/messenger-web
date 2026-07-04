@@ -106,6 +106,8 @@
     .btn-ghost:hover { background: var(--card-hover); color: var(--text); border-color: var(--border-light); }
     .btn-ghost-danger { background: transparent; border-color: rgba(239,68,68,.4); color: var(--danger); }
     .btn-ghost-danger:hover { background: rgba(239,68,68,.1); }
+    .btn-ghost-warning { background: transparent; border-color: rgba(245,158,11,.4); color: var(--warning); }
+    .btn-ghost-warning:hover { background: rgba(245,158,11,.1); }
     .btn:disabled { opacity: .4; cursor: not-allowed; }
 
     /* ── Inputs ─────────────────────────────────────────────────────────── */
@@ -185,6 +187,12 @@
 
     /* ── Modals ─────────────────────────────────────────────────────────── */
     .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.65); display: flex; align-items: center; justify-content: center; padding: 16px; z-index: 1000; backdrop-filter: blur(4px); opacity: 0; transition: opacity .2s; pointer-events: none; }
+    /* Confirm dialogs can be triggered from within an already-open modal (e.g.
+       "Заблокировать" from inside the report/user detail modal) — same z-index
+       + earlier DOM position meant it silently rendered BEHIND the calling
+       modal (found 2026-07-04 testing the new ban/warn flow; the pre-existing
+       "Удалить аккаунт" confirm from user-modal had this exact latent bug too). */
+    #confirm-modal { z-index: 1100; }
     .modal-overlay.open { opacity: 1; pointer-events: auto; }
     .modal-box { background: var(--card-bg); border: 1px solid var(--border-light); border-radius: 14px; width: 100%; max-width: 520px; max-height: 85vh; display: flex; flex-direction: column; transform: scale(.95); transition: transform .2s; overflow: hidden; }
     .modal-overlay.open .modal-box { transform: scale(1); }
@@ -724,7 +732,25 @@
     <div class="modal-body" id="user-modal-body">Загрузка…</div>
     <div class="modal-footer">
       <button class="btn btn-ghost-danger btn-sm" id="user-modal-delete-btn"><i class="bi bi-trash3"></i> Удалить аккаунт</button>
+      <button class="btn btn-ghost-warning btn-sm" id="user-modal-warn-btn"><i class="bi bi-exclamation-triangle"></i> Предупредить</button>
+      <button class="btn btn-ghost-danger btn-sm" id="user-modal-ban-btn"><i class="bi bi-slash-circle"></i> Заблокировать</button>
       <button class="btn btn-ghost btn-sm" onclick="Modals.user.close()">Закрыть</button>
+    </div>
+  </div>
+</div>
+
+<!-- Report investigate modal -->
+<div id="report-modal" class="modal-overlay">
+  <div class="modal-box wide">
+    <div class="modal-header">
+      <span class="modal-title"><i class="bi bi-search" style="color:var(--warning)"></i> Разбор жалобы</span>
+      <button class="modal-close" onclick="Modals.report.close()"><i class="bi bi-x-lg"></i></button>
+    </div>
+    <div class="modal-body" id="report-modal-body">Загрузка…</div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost-warning btn-sm" id="report-modal-warn-btn" onclick="Modals.report.warn()"><i class="bi bi-exclamation-triangle"></i> Предупредить</button>
+      <button class="btn btn-ghost-danger btn-sm" id="report-modal-ban-btn" onclick="Modals.report.ban()"><i class="bi bi-slash-circle"></i> Заблокировать</button>
+      <button class="btn btn-ghost btn-sm" onclick="Modals.report.close()">Закрыть</button>
     </div>
   </div>
 </div>

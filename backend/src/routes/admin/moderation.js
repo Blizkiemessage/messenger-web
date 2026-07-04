@@ -3,13 +3,16 @@
 /**
  * routes/admin/moderation.js — content reports + sticker pack moderation.
  *   GET   /content-reports?resolved=0
+ *   GET   /content-reports/:id/report-context  (investigate: decrypted message / user moderation history)
  *   PATCH /content-reports/:id/dismiss
  *   GET   /sticker-packs
  *   DELETE /sticker-packs/:id    (soft-delete + close related reports)
  */
 const express = require('express');
 const { getDb } = require('../../config/database');
+const { decrypt } = require('../../crypto/aes');
 const { logAdminAction } = require('../../services/adminAuditService');
+const { getModerationInfo } = require('../../services/moderationService');
 const { clientIp } = require('./_shared');
 
 const router = express.Router();
@@ -45,6 +48,68 @@ router.get('/content-reports', (req, res, next) => {
       ORDER BY cr.created_at DESC
     `).all([resolved]);
     res.json(rows);
+  } catch (err) { next(err); }
+});
+
+// GET /content-reports/:id/report-context — "investigate": what was actually
+// reported. Message reports decrypt the text server-side to show the admin —
+// the first (and only) code path in the app that ever does this, so it's
+// audit-logged like any other sensitive moderation action. User reports
+// return moderation history (ban status + past warnings) instead.
+router.get('/content-reports/:id/report-context', (req, res, next) => {
+  try {
+    const db = getDb();
+    const report = db.prepare('SELECT * FROM content_reports WHERE id = ?').get(req.params.id);
+    if (!report) return res.status(404).json({ error: 'Report not found' });
+
+    if (report.content_type === 'message') {
+      const msg = db.prepare(
+        `SELECT m.chat_id, m.ciphertext, m.iv, m.auth_tag, m.created_at, m.attachment_type,
+                c.name AS chat_name, c.type AS chat_type,
+                su.id AS sender_id, su.username AS sender_username
+         FROM messages m
+         LEFT JOIN chats c ON m.chat_id = c.id
+         LEFT JOIN users su ON m.sender_id = su.id
+         WHERE m.id = ?`
+      ).get(report.content_id);
+      if (!msg) return res.json({ content_type: 'message', deleted: true });
+
+      let text = null;
+      try { text = decrypt({ ciphertext: msg.ciphertext, iv: msg.iv, authTag: msg.auth_tag }); }
+      catch { /* corrupt/legacy row — show attachment-only context */ }
+
+      logAdminAction({
+        adminUserId: req.userId,
+        action: 'view_reported_content',
+        targetType: 'message',
+        targetId: report.content_id,
+        ipAddress: clientIp(req),
+        userAgent: req.headers['user-agent'] || null,
+      });
+
+      return res.json({
+        content_type: 'message',
+        chat_id: msg.chat_id,
+        chat_name: msg.chat_name,
+        chat_type: msg.chat_type,
+        sender_id: msg.sender_id,
+        sender_username: msg.sender_username,
+        created_at: msg.created_at,
+        attachment_type: msg.attachment_type,
+        text,
+      });
+    }
+
+    if (report.content_type === 'user') {
+      const user = db.prepare(
+        'SELECT id, username, display_name, email, created_at, last_seen_at FROM users WHERE id = ?'
+      ).get(report.content_id);
+      if (!user) return res.json({ content_type: 'user', deleted: true });
+      const info = getModerationInfo(report.content_id);
+      return res.json({ content_type: 'user', ...user, ...info });
+    }
+
+    res.status(400).json({ error: 'No investigate view for this content_type' });
   } catch (err) { next(err); }
 });
 

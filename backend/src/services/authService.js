@@ -87,6 +87,17 @@ async function loginOrRegister(login, password, userAgent = '', ipAddress = '') 
     throw authError();
   }
 
+  // Banned accounts never get a session — checked here so both the plain and
+  // the 2FA-pending path (below) are covered by one check. Unlike authError()
+  // above, this intentionally reveals the reason: credentials were already
+  // confirmed correct, so there's no enumeration risk left to protect against.
+  if (user.is_banned) {
+    throw Object.assign(
+      new Error(user.ban_reason ? `Аккаунт заблокирован: ${user.ban_reason}` : 'Аккаунт заблокирован'),
+      { status: 403 }
+    );
+  }
+
   // If TOTP is enabled, signal to the caller — do NOT create a session yet
   if (user.totp_enabled) {
     return { totpRequired: true, userId: user.id };

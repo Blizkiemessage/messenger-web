@@ -253,6 +253,14 @@ router.post('/auth/verify', webauthnLoginLimiter, async (req, res, next) => {
     const user   = db.prepare('SELECT * FROM users WHERE id = ?').get(userId);
     if (!user) return res.status(404).json({ error: 'Пользователь не найден' });
 
+    // Passkey login creates its own session independently of authService's
+    // loginOrRegister — needs the same ban check that path has.
+    if (user.is_banned) {
+      return res.status(403).json({
+        error: user.ban_reason ? `Аккаунт заблокирован: ${user.ban_reason}` : 'Аккаунт заблокирован',
+      });
+    }
+
     const now            = Date.now();
     const sessionId      = uuidv4();
     const refreshTokenId = uuidv4();

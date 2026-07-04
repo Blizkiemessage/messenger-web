@@ -142,4 +142,39 @@ async function sendPasswordResetEmail(to, resetUrl) {
   });
 }
 
-module.exports = { sendOtpEmail, sendSupportEmail, sendPasswordResetEmail };
+/**
+ * Send a moderation warning email — the out-of-band channel for a warning
+ * that's also stored in user_warnings and shown in-app until acknowledged
+ * (routes/users.js GET/POST .../me/warnings). Reaches the user even if they
+ * don't open the app right away.
+ */
+async function sendModerationWarningEmail({ to, username, message }) {
+  const escapedMsg = message
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+
+  if (!process.env.SMTP_HOST) {
+    devFallback('Moderation warning')(`to @${username}: ${message}`);
+    return;
+  }
+
+  const from = process.env.SMTP_FROM || process.env.SMTP_USER;
+  await getTransporter().sendMail({
+    from,
+    to,
+    subject: 'Предупреждение от администрации',
+    text: `Здравствуйте, @${username}.\n\nВаш аккаунт получил предупреждение от администрации:\n\n${message}\n\nПожалуйста, соблюдайте правила использования сервиса — повторные нарушения могут привести к блокировке аккаунта.`,
+    html: `
+      <div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:24px">
+        <h2 style="margin:0 0 16px;color:#111">Предупреждение от администрации</h2>
+        <p style="margin:0 0 8px;color:#555">Здравствуйте, @${username}.</p>
+        <p style="margin:0 0 16px;color:#555">Ваш аккаунт получил предупреждение:</p>
+        <div style="padding:16px;border-radius:8px;background:#fff4e5;border:1px solid #ffd9a0;color:#7a4a00;white-space:pre-wrap">${escapedMsg}</div>
+        <p style="margin:16px 0 0;color:#888;font-size:13px">Пожалуйста, соблюдайте правила использования сервиса — повторные нарушения могут привести к блокировке аккаунта.</p>
+      </div>
+    `,
+  });
+}
+
+module.exports = { sendOtpEmail, sendSupportEmail, sendPasswordResetEmail, sendModerationWarningEmail };

@@ -164,6 +164,16 @@ router.post('/totp-verify', totpVerifyLimiter, async (req, res, next) => {
       return res.status(401).json({ error: 'Пользователь не найден' });
     }
 
+    // Account could have been banned in the window between /login (issuing
+    // pendingToken) and this second step — re-check here since this route
+    // creates its own session independently of loginOrRegister.
+    if (user.is_banned) {
+      clearTotpPendingCookie(res);
+      return res.status(403).json({
+        error: user.ban_reason ? `Аккаунт заблокирован: ${user.ban_reason}` : 'Аккаунт заблокирован',
+      });
+    }
+
     // If 2FA was disabled during this flow, reject and force re-login
     if (!user.totp_enabled) {
       clearTotpPendingCookie(res);

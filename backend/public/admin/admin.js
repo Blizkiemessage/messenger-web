@@ -136,6 +136,53 @@ const Confirm = (() => {
 })();
 
 // ═══════════════════════════════════════════════════════════════════════════
+//  MODERATION ACTIONS (warn / ban) — shared by the Users tab and the report
+//  investigate modal, so both entry points behave identically.
+// ═══════════════════════════════════════════════════════════════════════════
+
+const Moderation = {
+  async warn(userId, username, reportId, onDone) {
+    const message = prompt(`Текст предупреждения для @${username || 'пользователя'}:`);
+    if (!message || !message.trim()) return;
+    try {
+      await Api.post(`/users/${userId}/warn`, { message: message.trim(), reportId: reportId || undefined });
+      Toast.success('Предупреждение отправлено', `@${username || ''}`);
+      if (onDone) onDone();
+    } catch (e) { Toast.error('Ошибка', e.message); }
+  },
+
+  async toggleBan(userId, username, isBanned, onDone) {
+    if (isBanned) {
+      const ok = await Confirm.ask({
+        icon: '✅', title: 'Разблокировать пользователя?',
+        msg: `@${username} снова сможет входить в аккаунт.`,
+        okLabel: 'Разблокировать', okClass: 'btn-primary',
+      });
+      if (!ok) return;
+      try {
+        await Api.post(`/users/${userId}/unban`);
+        Toast.success('Пользователь разблокирован', `@${username || ''}`);
+        if (onDone) onDone();
+      } catch (e) { Toast.error('Ошибка', e.message); }
+    } else {
+      const reason = prompt(`Причина блокировки @${username || ''} (необязательно):`);
+      if (reason === null) return; // cancelled
+      const ok = await Confirm.ask({
+        icon: '🚫', title: 'Заблокировать пользователя?',
+        msg: `@${username} не сможет войти в аккаунт до разблокировки. Все его текущие сессии будут завершены.`,
+        okLabel: 'Заблокировать',
+      });
+      if (!ok) return;
+      try {
+        await Api.post(`/users/${userId}/ban`, { reason: reason.trim() || null });
+        Toast.success('Пользователь заблокирован', `@${username || ''}`);
+        if (onDone) onDone();
+      } catch (e) { Toast.error('Ошибка', e.message); }
+    }
+  },
+};
+
+// ═══════════════════════════════════════════════════════════════════════════
 //  API CLIENT
 // ═══════════════════════════════════════════════════════════════════════════
 
@@ -233,9 +280,12 @@ const Modals = {
   // ── User detail ──────────────────────────────────────────────────────────
   user: {
     _userId: null,
+    _isBanned: false,
 
     async open(userId, username) {
       Modals._open('user-modal');
+      Modals.user._userId = userId;
+      Modals.user._isBanned = false;
       document.getElementById('user-modal-title').textContent = `@${username}`;
       document.getElementById('user-modal-body').innerHTML = '<div style="text-align:center;padding:32px;color:var(--text-2)">Загрузка…</div>';
 
@@ -255,6 +305,12 @@ const Modals = {
         } catch (e) { Toast.error('Ошибка', e.message); }
       };
 
+      document.getElementById('user-modal-warn-btn').onclick = () =>
+        Moderation.warn(userId, username, null, () => Modals.user.open(userId, username));
+
+      document.getElementById('user-modal-ban-btn').onclick = () =>
+        Moderation.toggleBan(userId, username, Modals.user._isBanned, () => Modals.user.open(userId, username));
+
       try {
         const [user, sessions] = await Promise.all([
           Api.get(`/users/${userId}`),
@@ -267,6 +323,26 @@ const Modals = {
     },
 
     _render(u, sessions) {
+      Modals.user._isBanned = !!u.is_banned;
+      const banBtn = document.getElementById('user-modal-ban-btn');
+      banBtn.innerHTML = u.is_banned
+        ? '<i class="bi bi-check-circle"></i> Разблокировать'
+        : '<i class="bi bi-slash-circle"></i> Заблокировать';
+
+      const warnings = u.warnings || [];
+      const warningsHtml = warnings.length
+        ? warnings.map(w => `
+            <div class="session-row">
+              <div class="session-info">
+                <div class="session-ua">${esc(w.message)}</div>
+                <div class="session-meta">
+                  ${fmtDateTime(w.created_at)} · от ${w.admin_username ? '@' + esc(w.admin_username) : '—'}
+                  ${w.acknowledged_at ? '' : ' · <span style="color:var(--warning)">не прочитано</span>'}
+                </div>
+              </div>
+            </div>`).join('')
+        : '<div style="color:var(--text-2);font-size:13px;padding:8px 0">Предупреждений не было</div>';
+
       const privacyFlags = [
         u.hide_bio        && 'Скрыто «О себе»',
         u.hide_birth_date && 'Скрыта дата рождения',
@@ -308,7 +384,11 @@ const Modals = {
         <div class="detail-row"><div class="detail-label">Дата рождения</div><div class="detail-value">${esc(u.birth_date || '—')}</div></div>
         <div class="detail-row"><div class="detail-label">Сообщений</div><div class="detail-value">${u.message_count ?? '—'}</div></div>
         <div class="detail-row"><div class="detail-label">2FA</div><div class="detail-value">${u.totp_enabled ? '<span class="badge badge-success"><i class="bi bi-shield-check"></i> Включена</span>' : '<span class="badge badge-muted">Отключена</span>'}</div></div>
+        <div class="detail-row"><div class="detail-label">Статус</div><div class="detail-value">${u.is_banned ? `<span class="badge badge-danger"><i class="bi bi-slash-circle"></i> Заблокирован${u.ban_reason ? ': ' + esc(u.ban_reason) : ''}</span>` : '<span class="badge badge-success">Активен</span>'}</div></div>
         ${privacyFlags.length ? `<div class="detail-row"><div class="detail-label">Приватность</div><div class="detail-value">${privacyFlags.map(f => `<span class="badge badge-muted" style="margin-right:4px;margin-bottom:4px">${esc(f)}</span>`).join('')}</div></div>` : ''}
+
+        <div style="margin-top:24px;font-size:14px;font-weight:700;margin-bottom:12px">Предупреждения (${warnings.length})</div>
+        <div>${warningsHtml}</div>
 
         <div style="margin-top:24px;font-size:14px;font-weight:700;margin-bottom:12px">
           Сессии (${sessions.length}) <span style="font-weight:400;font-size:12px;color:var(--text-2)">— активных: ${sessions.filter(s=>!s.revoked).length}</span>
@@ -331,6 +411,110 @@ const Modals = {
     },
 
     close() { Modals._close('user-modal'); },
+  },
+
+  // ── Report investigate (message: decrypted text; user: profile + moderation history) ──
+  report: {
+    _reportId: null,
+    _targetUserId: null,
+    _targetUsername: null,
+    _isBanned: false,
+
+    async open(reportId) {
+      Modals._open('report-modal');
+      this._reportId = reportId;
+      this._targetUserId = null;
+      document.getElementById('report-modal-body').innerHTML = '<div style="text-align:center;padding:32px;color:var(--text-2)">Загрузка…</div>';
+      document.getElementById('report-modal-warn-btn').style.display = 'none';
+      document.getElementById('report-modal-ban-btn').style.display = 'none';
+
+      try {
+        const ctx = await Api.get(`/content-reports/${reportId}/report-context`);
+        Modals.report._render(ctx);
+      } catch (e) {
+        document.getElementById('report-modal-body').innerHTML = `<div style="color:var(--danger);text-align:center;padding:24px">${esc(e.message)}</div>`;
+      }
+    },
+
+    _render(ctx) {
+      if (ctx.deleted) {
+        document.getElementById('report-modal-body').innerHTML =
+          '<div style="text-align:center;padding:32px;color:var(--text-2)">Контент был удалён до рассмотрения жалобы.</div>';
+        return;
+      }
+
+      if (ctx.content_type === 'message') {
+        this._targetUserId   = ctx.sender_id || null;
+        this._targetUsername = ctx.sender_username || null;
+        this._isBanned = false; // banning from a message report always starts from "not banned" — open the user's own profile to see/lift an existing ban
+        document.getElementById('report-modal-body').innerHTML = `
+          <div class="detail-row"><div class="detail-label">Отправитель</div><div class="detail-value">${ctx.sender_username ? '@' + esc(ctx.sender_username) : '<span style="color:var(--text-3)">Аккаунт удалён</span>'}</div></div>
+          <div class="detail-row"><div class="detail-label">Чат</div><div class="detail-value">${esc(ctx.chat_name || 'Без названия')} <span class="badge badge-muted">${ctx.chat_type === 'group' ? 'группа' : 'личный'}</span></div></div>
+          <div class="detail-row"><div class="detail-label">Отправлено</div><div class="detail-value">${fmtDateTime(ctx.created_at)}</div></div>
+          ${ctx.attachment_type ? `<div class="detail-row"><div class="detail-label">Вложение</div><div class="detail-value">${esc(ctx.attachment_type)}</div></div>` : ''}
+          <div style="margin-top:16px">
+            <div class="form-label" style="margin-bottom:6px">Текст сообщения</div>
+            <pre class="code-block">${ctx.text ? esc(ctx.text) : '<span style="color:var(--text-3)">Не удалось расшифровать (повреждённая запись)</span>'}</pre>
+          </div>
+        `;
+      } else if (ctx.content_type === 'user') {
+        this._targetUserId   = ctx.id;
+        this._targetUsername = ctx.username;
+        this._isBanned = !!ctx.is_banned;
+        const warnings = ctx.warnings || [];
+        const warningsHtml = warnings.length
+          ? warnings.map(w => `
+              <div class="session-row">
+                <div class="session-info">
+                  <div class="session-ua">${esc(w.message)}</div>
+                  <div class="session-meta">${fmtDateTime(w.created_at)} · от ${w.admin_username ? '@' + esc(w.admin_username) : '—'}</div>
+                </div>
+              </div>`).join('')
+          : '<div style="color:var(--text-2);font-size:13px;padding:8px 0">Предупреждений не было</div>';
+
+        document.getElementById('report-modal-body').innerHTML = `
+          <div style="display:flex;align-items:center;gap:16px;margin-bottom:20px">
+            ${avatarHtml(ctx.username, 48)}
+            <div>
+              <div style="font-size:16px;font-weight:700">${esc(ctx.display_name || ctx.username)}</div>
+              <div style="color:var(--text-2);font-size:13px">@${esc(ctx.username)}</div>
+            </div>
+          </div>
+          <div class="detail-row"><div class="detail-label">Email</div><div class="detail-value">${ctx.email ? esc(ctx.email) : '—'}</div></div>
+          <div class="detail-row"><div class="detail-label">Зарегистрирован</div><div class="detail-value">${fmtDateTime(ctx.created_at)}</div></div>
+          <div class="detail-row"><div class="detail-label">Статус</div><div class="detail-value">${ctx.is_banned ? `<span class="badge badge-danger">Заблокирован${ctx.ban_reason ? ': ' + esc(ctx.ban_reason) : ''}</span>` : '<span class="badge badge-success">Активен</span>'}</div></div>
+          <div style="margin-top:20px;font-size:14px;font-weight:700;margin-bottom:8px">Предупреждения (${warnings.length})</div>
+          ${warningsHtml}
+        `;
+      } else {
+        document.getElementById('report-modal-body').innerHTML =
+          '<div style="text-align:center;padding:32px;color:var(--text-2)">Нет расширенного просмотра для этого типа жалобы.</div>';
+        return;
+      }
+
+      const warnBtn = document.getElementById('report-modal-warn-btn');
+      const banBtn  = document.getElementById('report-modal-ban-btn');
+      warnBtn.style.display = this._targetUserId ? '' : 'none';
+      banBtn.style.display  = this._targetUserId ? '' : 'none';
+      banBtn.innerHTML = this._isBanned
+        ? '<i class="bi bi-check-circle"></i> Разблокировать'
+        : '<i class="bi bi-slash-circle"></i> Заблокировать';
+    },
+
+    warn() {
+      if (!this._targetUserId) return;
+      Moderation.warn(this._targetUserId, this._targetUsername, this._reportId, () => {
+        Modals.report.close();
+        Pages.content.loadReports();
+      });
+    },
+
+    ban() {
+      if (!this._targetUserId) return;
+      Moderation.toggleBan(this._targetUserId, this._targetUsername, this._isBanned, () => Modals.report.open(this._reportId));
+    },
+
+    close() { Modals._close('report-modal'); },
   },
 
   // ── Error detail ─────────────────────────────────────────────────────────
@@ -646,15 +830,25 @@ const Pages = {
           // branch the row's identity column + primary action per type. Message
           // reports never show decrypted content here — only metadata (chat/sender) —
           // moderation is dismiss-only for user/message reports for now.
-          let thumbHtml, titleHtml, subHtml, deleteBtnHtml = '';
+          let thumbHtml, titleHtml, subHtml, deleteBtnHtml = '', investigateBtnHtml = '';
           if (r.content_type === 'user') {
             thumbHtml = `<div class="pack-thumb">👤</div>`;
             titleHtml = r.target_username ? '@' + esc(r.target_username) : 'Аккаунт удалён';
             subHtml   = 'Жалоба на пользователя';
+            investigateBtnHtml = `
+              <button class="btn btn-ghost btn-sm" onclick="Modals.report.open('${esc(r.id)}')">
+                <i class="bi bi-search"></i> Подробнее
+              </button>
+            `;
           } else if (r.content_type === 'message') {
             thumbHtml = `<div class="pack-thumb">💬</div>`;
             titleHtml = r.message_sender_username ? 'От @' + esc(r.message_sender_username) : 'Сообщение удалено';
             subHtml   = r.message_chat_id ? `Чат ${esc(String(r.message_chat_id).slice(0, 8))}…` : 'Жалоба на сообщение';
+            investigateBtnHtml = `
+              <button class="btn btn-ghost btn-sm" onclick="Modals.report.open('${esc(r.id)}')">
+                <i class="bi bi-search"></i> Подробнее
+              </button>
+            `;
           } else {
             thumbHtml = r.pack_cover
               ? `<div class="pack-thumb"><img src="${esc(r.pack_cover)}" alt=""></div>`
@@ -687,6 +881,7 @@ const Pages = {
             <td style="text-align:right">
               ${!resolved ? `
                 <div style="display:flex;gap:6px;justify-content:flex-end">
+                  ${investigateBtnHtml}
                   ${deleteBtnHtml}
                   <button class="btn btn-ghost btn-sm" onclick="Pages.content.dismissReport('${esc(r.id)}')">
                     <i class="bi bi-x-circle"></i> Отклонить
