@@ -9,15 +9,18 @@ import { AppearanceTab }       from '../profile/AppearanceTab';
 import { SessionsTab }         from '../profile/SessionsTab';
 import { PermissionsTab }      from '../profile/PermissionsTab';
 import { ExportDataTab }       from '../profile/ExportDataTab';
+import { DocumentsTab }        from '../profile/DocumentsTab';
 
 interface Props {
   me: User;
   onClose: () => void;
   onUpdate: (u: User) => void;
   onDeleteAccount: (password: string, code?: string) => Promise<void>;
+  /** Открыть сразу на определённой вкладке (из deep-link — см. deeplinks.ts). */
+  initialTab?: Tab;
 }
 
-type Tab = 'profile' | 'password' | 'privacy' | 'appearance' | 'sessions' | 'permissions' | 'export';
+export type Tab = 'profile' | 'password' | 'privacy' | 'appearance' | 'sessions' | 'permissions' | 'export' | 'documents';
 
 interface MenuItem {
   id: Tab;
@@ -107,6 +110,24 @@ const MENU_SECTIONS: MenuSection[] = [
       },
     ],
   },
+  {
+    title: 'Документы',
+    items: [
+      {
+        id: 'documents',
+        label: 'Политика и условия использования',
+        icon: (
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+            <polyline points="14 2 14 8 20 8"/>
+            <line x1="16" y1="13" x2="8" y2="13"/>
+            <line x1="16" y1="17" x2="8" y2="17"/>
+            <line x1="10" y1="9" x2="8" y2="9"/>
+          </svg>
+        ),
+      },
+    ],
+  },
 ];
 
 const TAB_LABELS: Record<Tab, string> = {
@@ -117,10 +138,11 @@ const TAB_LABELS: Record<Tab, string> = {
   sessions:    'Сессии',
   permissions: 'Разрешения',
   export:      'Мои данные',
+  documents:   'Документы',
 };
 
-export function ProfileSettingsModal({ me, onClose, onUpdate, onDeleteAccount }: Props) {
-  const [tab, setTab] = useState<Tab | null>(null);
+export function ProfileSettingsModal({ me, onClose, onUpdate, onDeleteAccount, initialTab }: Props) {
+  const [tab, setTab] = useState<Tab | null>(initialTab ?? null);
 
   const [showDeleteConfirm,  setShowDeleteConfirm]  = useState(false);
   const [showDeletePassword, setShowDeletePassword] = useState(false);
@@ -258,6 +280,7 @@ export function ProfileSettingsModal({ me, onClose, onUpdate, onDeleteAccount }:
             {tab === 'sessions'    && <SessionsTab />}
             {tab === 'permissions' && <PermissionsTab />}
             {tab === 'export'      && <ExportDataTab />}
+            {tab === 'documents'   && <DocumentsTab />}
           </div>
         )}
       </div>

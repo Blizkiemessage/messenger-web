@@ -46,7 +46,18 @@ db.exec(`
     avatar_exceptions TEXT NOT NULL DEFAULT '[]',
     is_banned INTEGER NOT NULL DEFAULT 0,
     ban_reason TEXT,
-    banned_at INTEGER
+    banned_at INTEGER,
+    terms_accepted_at INTEGER
+  );
+  CREATE TABLE otps (
+    id TEXT PRIMARY KEY,
+    target TEXT NOT NULL,
+    code_hash TEXT NOT NULL,
+    expires_at INTEGER NOT NULL,
+    used INTEGER NOT NULL DEFAULT 0,
+    created_at INTEGER NOT NULL,
+    meta TEXT,
+    attempts INTEGER NOT NULL DEFAULT 0
   );
   CREATE TABLE sessions (
     id TEXT PRIMARY KEY,
@@ -277,14 +288,17 @@ function mockModule(relPath, exports) {
 }
 
 mockModule('../src/config/database', { getDb: () => db });
+// Captures the last OTP "sent" so registration tests can drive the real
+// verify step instead of only inspecting the otps table.
+let lastSentOtp = null;
 mockModule('../src/config/email', {
-  sendOtpEmail: async () => {},
+  sendOtpEmail: async (_to, otp) => { lastSentOtp = otp; },
   sendPasswordResetEmail: async () => {},
 });
 mockModule('../src/utils/s3Delete', { deleteFromS3: () => {}, deleteManyFromS3: () => {} });
 
 // ── Services (loaded after mocks) ────────────────────────────────────────────
-const { validatePassword, loginOrRegister } = require('../src/services/authService');
+const { validatePassword, loginOrRegister, initiateRegistration, verifyEmailAndCreateAccount } = require('../src/services/authService');
 const { deleteMessages, editMessage, getChatMessages, saveMessage, forwardMessages, searchMessages, toggleReaction, toggleEmojiReaction } = require('../src/services/messageService');
 const { ALLOWED_TYPES }                     = require('../src/utils/allowedMimeTypes');
 const { encrypt, decrypt }                  = require('../src/crypto/aes');
@@ -398,6 +412,35 @@ describe('loginOrRegister — auth error normalization', () => {
     const result = await loginOrRegister('alice', 'SecurePass1!');
     assert.ok(result.accessToken);
     assert.equal(result.user.username, 'alice');
+  });
+});
+
+// ── Store-launch audit §1 (2026-07-04): consent gate on registration ─────────
+describe('initiateRegistration / verifyEmailAndCreateAccount — terms acceptance', () => {
+  test('rejects registration when acceptedTerms is not exactly true', async () => {
+    await assert.rejects(
+      () => initiateRegistration('newperson', 'newperson@example.com', 'SecurePass1!', false),
+      (err) => {
+        assert.equal(err.status, 400);
+        assert.match(err.message, /Условия использования/);
+        return true;
+      }
+    );
+    await assert.rejects(
+      () => initiateRegistration('newperson', 'newperson@example.com', 'SecurePass1!', undefined),
+      (err) => { assert.equal(err.status, 400); return true; }
+    );
+  });
+
+  test('accepted registration carries terms_accepted_at through to the created user', async () => {
+    await initiateRegistration('newperson', 'newperson@example.com', 'SecurePass1!', true);
+    assert.ok(lastSentOtp, 'OTP should have been "sent"');
+
+    const result = await verifyEmailAndCreateAccount('newperson@example.com', lastSentOtp);
+    assert.equal(result.user.username, 'newperson');
+
+    const row = db.prepare('SELECT terms_accepted_at FROM users WHERE username = ?').get('newperson');
+    assert.ok(row.terms_accepted_at > 0);
   });
 });
 

@@ -126,6 +126,9 @@ export default function App() {
   // Предвыбранный интент ассистента (из deep-link `assistant?topic=`)
   const [assistantTopic, setAssistantTopic] = useState<string | undefined>(undefined);
 
+  // Предвыбранная вкладка настроек профиля (из deep-link `appearance`/`documents`)
+  const [profileSettingsTab, setProfileSettingsTab] = useState<'appearance' | 'documents' | undefined>(undefined);
+
   // ── Deep-links: глобальные действия (чат-привязанные исполняет ChatArea) ──
   const pendingDeepLink = useDeepLinkStore(s => s.pending);
   useEffect(() => {
@@ -151,8 +154,9 @@ export default function App() {
         }
         break;
       }
-      case 'profile-settings':
-      case 'appearance':       app.setShowProfileSettings(true); break;
+      case 'profile-settings': setProfileSettingsTab(undefined); app.setShowProfileSettings(true); break;
+      case 'appearance':       setProfileSettingsTab('appearance'); app.setShowProfileSettings(true); break;
+      case 'documents':        setProfileSettingsTab('documents');  app.setShowProfileSettings(true); break;
       case 'create-group':     app.setShowCreateGroup(true); break;
       case 'find-friends': {
         const el = document.getElementById('blzSearch') as HTMLInputElement | null;
@@ -295,9 +299,10 @@ export default function App() {
         {showProfileSettings && (
           <ProfileSettingsModal
             me={me}
-            onClose={() => setShowProfileSettings(false)}
+            onClose={() => { setShowProfileSettings(false); setProfileSettingsTab(undefined); }}
             onUpdate={updateMe}
             onDeleteAccount={onDeleteAccount}
+            initialTab={profileSettingsTab}
           />
         )}
 

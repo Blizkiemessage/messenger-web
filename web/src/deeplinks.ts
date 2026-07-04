@@ -20,6 +20,7 @@ export type DeepLinkAction =
   | { type: 'open-saved' }
   | { type: 'profile-settings' }
   | { type: 'appearance' }            // вкладка «Внешний вид» в настройках профиля
+  | { type: 'documents' }             // вкладка «Документы» (Privacy Policy/ToS) в настройках профиля
   | { type: 'create-group' }
   | { type: 'find-friends' }          // фокус на поиске в сайдбаре
   | { type: 'invite' }                // поделиться приложением / ссылкой
@@ -55,6 +56,7 @@ export function parseDeepLink(href: string): DeepLinkAction | null {
     case 'open-saved':      return { type };
     case 'profile-settings':return { type };
     case 'appearance':      return { type };
+    case 'documents':       return { type };
     case 'create-group':    return { type };
     case 'find-friends':    return { type };
     case 'invite':          return { type };

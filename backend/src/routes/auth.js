@@ -233,7 +233,7 @@ router.post('/totp-verify', totpVerifyLimiter, async (req, res, next) => {
 // POST /auth/register — step 1: validate, send OTP email
 router.post('/register', registrationLimiter, async (req, res, next) => {
   try {
-    const { username, email, password } = req.body;
+    const { username, email, password, acceptedTerms } = req.body;
     if (!username || typeof username !== 'string' || username.trim().length < 3) {
       return res.status(400).json({ error: 'Username обязателен (минимум 3 символа)' });
     }
@@ -245,7 +245,7 @@ router.post('/register', registrationLimiter, async (req, res, next) => {
     if (!password || typeof password !== 'string') {
       return res.status(400).json({ error: 'Введите пароль' });
     }
-    const result = await initiateRegistration(username.trim(), email.trim(), password);
+    const result = await initiateRegistration(username.trim(), email.trim(), password, acceptedTerms === true);
     res.json(result); // { email }
   } catch (err) {
     next(err);

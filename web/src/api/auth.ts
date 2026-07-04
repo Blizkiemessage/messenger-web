@@ -12,8 +12,9 @@ export async function authRegister(
   username: string,
   email: string,
   password: string,
+  acceptedTerms: boolean,
 ): Promise<{ email: string }> {
-  const res = await client.post<{ email: string }>('/auth/register', { username, email, password });
+  const res = await client.post<{ email: string }>('/auth/register', { username, email, password, acceptedTerms });
   return res.data;
 }
 

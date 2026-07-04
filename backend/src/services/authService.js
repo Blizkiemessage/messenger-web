@@ -172,9 +172,12 @@ async function setUserPassword(userId, newPassword, currentPassword) {
 /**
  * Step 1 of email-verified registration.
  * Validates input, sends OTP to email, stores pending record in otps table.
+ * `acceptedTerms` must be explicitly true — enforced server-side too (not
+ * just the RegisterForm checkbox) so the API can't be hit directly to skip
+ * consent (§1 of docs/STORE_LAUNCH_TZ.md).
  * Returns { email } on success.
  */
-async function initiateRegistration(username, email, password) {
+async function initiateRegistration(username, email, password, acceptedTerms) {
   const db = getDb();
   const cleanUser = username.trim().toLowerCase();
   const cleanEmail = email.trim().toLowerCase();
@@ -187,6 +190,12 @@ async function initiateRegistration(username, email, password) {
   }
   if (!cleanEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail)) {
     throw Object.assign(new Error('Введите корректный email'), { status: 400 });
+  }
+  if (acceptedTerms !== true) {
+    throw Object.assign(
+      new Error('Нужно принять Условия использования и Политику конфиденциальности'),
+      { status: 400 }
+    );
   }
   validatePassword(password);
 
@@ -207,7 +216,7 @@ async function initiateRegistration(username, email, password) {
   const now = Date.now();
   const passwordHash = await bcrypt.hash(password, 10);
   const otpId = uuidv4();
-  const meta = JSON.stringify({ username: cleanUser, password_hash: passwordHash });
+  const meta = JSON.stringify({ username: cleanUser, password_hash: passwordHash, terms_accepted_at: now });
 
   db.prepare(
     `INSERT INTO otps (id, target, code_hash, expires_at, used, created_at, meta)
@@ -251,7 +260,7 @@ async function verifyEmailAndCreateAccount(email, otp, userAgent = '', ipAddress
   // Mark OTP used immediately to prevent replay
   db.prepare('UPDATE otps SET used = 1 WHERE id = ?').run(row.id);
 
-  const { username, password_hash } = JSON.parse(row.meta);
+  const { username, password_hash, terms_accepted_at } = JSON.parse(row.meta);
   const now = Date.now();
 
   // Race condition guard
@@ -266,9 +275,9 @@ async function verifyEmailAndCreateAccount(email, otp, userAgent = '', ipAddress
 
   const userId = uuidv4();
   db.prepare(
-    `INSERT INTO users (id, username, display_name, email, password_hash, created_at, last_seen_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?)`
-  ).run([userId, username, username, cleanEmail, password_hash, now, now]);
+    `INSERT INTO users (id, username, display_name, email, password_hash, created_at, last_seen_at, terms_accepted_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+  ).run([userId, username, username, cleanEmail, password_hash, now, now, terms_accepted_at || now]);
 
   const user = db.prepare('SELECT * FROM users WHERE id = ?').get(userId);
   const { accessToken, refreshToken, sessionId } = createSessionWithTokens(db, userId, userAgent, ipAddress, now);

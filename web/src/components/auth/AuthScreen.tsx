@@ -135,6 +135,11 @@ export function AuthScreen({ theme, onThemeToggle, onAuthenticated, invitedBy }:
           />
         )}
       </div>
+
+      <div style={{ marginTop: 20, fontSize: 12.5, color: 'var(--muted)', display: 'flex', gap: 14, justifyContent: 'center' }}>
+        <a href="/privacy" target="_blank" rel="noopener noreferrer" style={{ color: 'inherit' }}>Конфиденциальность</a>
+        <a href="/terms" target="_blank" rel="noopener noreferrer" style={{ color: 'inherit' }}>Условия использования</a>
+      </div>
     </div>
   );
 }

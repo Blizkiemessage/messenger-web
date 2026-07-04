@@ -21,6 +21,7 @@ export function RegisterForm({ onAuthenticated, onSwitchTab }: Props) {
   const [passwordConfirm, setPasswordConfirm] = useState('');
   const [busy,  setBusy]  = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
 
   // Which field has ever been touched (for contextual hints)
   const [touchedUser,  setTouchedUser]  = useState(false);
@@ -48,14 +49,15 @@ export function RegisterForm({ onAuthenticated, onSwitchTab }: Props) {
     emailValid &&
     pwStrong &&
     passwordsMatch &&
-    passwordConfirm.length > 0;
+    passwordConfirm.length > 0 &&
+    acceptedTerms;
 
   const onRegister = useCallback(async () => {
     if (!ready || busy) return;
     setError(null);
     setBusy(true);
     try {
-      const res = await authRegister(username.trim(), email.trim(), password);
+      const res = await authRegister(username.trim(), email.trim(), password, acceptedTerms);
       setPendingEmail(res.email);
       setStep('otp');
     } catch (e: any) {
@@ -63,7 +65,7 @@ export function RegisterForm({ onAuthenticated, onSwitchTab }: Props) {
     } finally {
       setBusy(false);
     }
-  }, [username, email, password, ready, busy]);
+  }, [username, email, password, acceptedTerms, ready, busy]);
 
   const onVerify = useCallback(async () => {
     if (otp.length !== 6 || otpBusy) return;
@@ -155,6 +157,26 @@ export function RegisterForm({ onAuthenticated, onSwitchTab }: Props) {
       {showMismatch && (
         <div className="authFieldHintError">Пароли не совпадают</div>
       )}
+
+      {/* Consent checkbox — required, App Store/Play Market submission needs it (docs/STORE_LAUNCH_TZ.md §1) */}
+      <label style={{ display: 'flex', alignItems: 'flex-start', gap: 8, fontSize: 13, color: 'var(--muted)', lineHeight: 1.4, margin: '4px 0 2px', cursor: 'pointer' }}>
+        <input
+          type="checkbox"
+          checked={acceptedTerms}
+          onChange={e => setAcceptedTerms(e.target.checked)}
+          style={{ marginTop: 2, flexShrink: 0 }}
+        />
+        <span>
+          Я принимаю{' '}
+          <a href="/terms" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--accent)' }}>
+            Условия использования
+          </a>{' '}
+          и{' '}
+          <a href="/privacy" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--accent)' }}>
+            Политику конфиденциальности
+          </a>
+        </span>
+      </label>
 
       {error && <div className="authError">{error}</div>}
 
