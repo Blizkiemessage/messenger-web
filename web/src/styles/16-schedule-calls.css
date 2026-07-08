@@ -763,6 +763,31 @@
   text-shadow: 0 1px 4px rgba(0,0,0,0.4);
 }
 
+/* Server-restart warning (docs/STORE_LAUNCH_TZ.md §7) — shown when the server
+   warns of an imminent graceful shutdown mid-call, a few seconds before the
+   socket is force-disconnected. */
+.callEndingSoonBanner {
+  position: absolute;
+  top: max(20px, env(safe-area-inset-top));
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  max-width: min(360px, calc(100% - 32px));
+  padding: 10px 16px;
+  border-radius: 999px;
+  background: rgba(0,0,0,0.55);
+  border: 1px solid rgba(255,190,110,0.4);
+  color: #ffd9a8;
+  font-size: 13px;
+  line-height: 1.35;
+  text-align: center;
+  backdrop-filter: blur(6px);
+}
+.callEndingSoonBanner svg { flex-shrink: 0; }
+
 /* Status / duration */
 .callStatusText {
   font-size: 14px;

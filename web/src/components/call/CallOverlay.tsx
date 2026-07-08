@@ -58,6 +58,7 @@ export function CallOverlay() {
   const callType       = useCallStore(s => s.callType);
   const peerInfo       = useCallStore(s => s.peerInfo);
   const endReason      = useCallStore(s => s.endReason);
+  const endingSoonMessage = useCallStore(s => s.endingSoonMessage);
   const localStream    = useCallStore(s => s.localStream);
   const remoteStream   = useCallStore(s => s.remoteStream);
   const isMuted        = useCallStore(s => s.isMuted);
@@ -191,9 +192,10 @@ export function CallOverlay() {
   }
 
   const endedText =
-    endReason === 'rejected' ? 'Звонок отклонён' :
-    endReason === 'busy'     ? 'Пользователь занят' :
-    endReason === 'failed'   ? 'Ошибка соединения' :
+    endReason === 'rejected'       ? 'Звонок отклонён' :
+    endReason === 'busy'           ? 'Пользователь занят' :
+    endReason === 'failed'         ? 'Ошибка соединения' :
+    endReason === 'server-restart' ? 'Сервер обновляется — перезвоните' :
     'Звонок завершён';
 
   const statusText =
@@ -220,6 +222,15 @@ export function CallOverlay() {
             <Avatar user={peerInfo} size={96} radius={48} />
           </div>
           <div className="callPeerName">{peerName}</div>
+        </div>
+      )}
+
+      {endingSoonMessage && status !== 'ended' && (
+        <div className="callEndingSoonBanner" role="status">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M12 9v4M12 17h.01M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+          </svg>
+          <span>{endingSoonMessage}</span>
         </div>
       )}
 

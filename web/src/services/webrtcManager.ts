@@ -555,7 +555,7 @@ class WebRTCManager {
   hangup(
     callId: string | null,
     emitEvent: boolean,
-    reason: 'ended' | 'rejected' | 'busy' | 'failed' = 'ended',
+    reason: 'ended' | 'rejected' | 'busy' | 'failed' | 'server-restart' = 'ended',
   ): void {
     if (emitEvent && callId) {
       getSocket()?.emit('call:end', { callId });

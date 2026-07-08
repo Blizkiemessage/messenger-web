@@ -498,6 +498,19 @@ function initSocket(httpServer) {
   // Expose onlineUsers on the io instance so REST routes can check presence
   io.onlineUsers = onlineUsers;
 
+  // ── Graceful shutdown support (docs/STORE_LAUNCH_TZ.md §7) ────────────────
+  // index.js's SIGTERM handler uses these to warn active-call participants
+  // before hard-disconnecting sockets on deploy, instead of cutting them off
+  // silently.
+  io.getActiveCallsCount = () => activeCalls.size;
+
+  io.notifyCallsEndingSoon = (message) => {
+    for (const [callId, call] of activeCalls) {
+      io.to(`user:${call.callerId}`).emit('call:ending-soon', { callId, message });
+      io.to(`user:${call.calleeId}`).emit('call:ending-soon', { callId, message });
+    }
+  };
+
   // ── Session revocation: force-disconnect live sockets ────────────────────────
   // REST routes call this immediately after revoking a session (logout, "kill
   // device", password reset) so the affected sockets stop receiving events at

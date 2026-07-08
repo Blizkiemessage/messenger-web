@@ -321,7 +321,17 @@ export function useSocket() {
     const onCallEnded = ({ callId }: { callId: string }) => {
       const callStore = useCallStore.getState();
       if (callStore.callId !== callId) return;
-      webrtcManager.hangup(null, false, 'ended');
+      // If the server already warned us this call would end due to a
+      // graceful restart, show that reason instead of a generic "ended".
+      webrtcManager.hangup(null, false, callStore.endingSoonMessage ? 'server-restart' : 'ended');
+    };
+
+    // Server is about to gracefully restart (docs/STORE_LAUNCH_TZ.md §7) —
+    // warn the user before the socket gets force-disconnected in a few seconds.
+    const onCallEndingSoon = ({ callId, message }: { callId: string; message?: string }) => {
+      const callStore = useCallStore.getState();
+      if (callStore.callId !== callId) return;
+      callStore.setEndingSoonMessage(message || 'Сервер обновляется — звонок скоро завершится.');
     };
 
     const onCallBusy = ({ callId }: { callId: string }) => {
@@ -347,6 +357,7 @@ export function useSocket() {
     socket.on('call:ended',         onCallEnded);        // ✅ E3
     socket.on('call:busy',          onCallBusy);         // ✅ E3
     socket.on('call:error',         onCallError);        // ✅ E3
+    socket.on('call:ending-soon',   onCallEndingSoon);
 
     return () => {
       socket.off('connect',              onConnect);
@@ -378,6 +389,7 @@ export function useSocket() {
       socket.off('call:ended',         onCallEnded);
       socket.off('call:busy',          onCallBusy);
       socket.off('call:error',         onCallError);
+      socket.off('call:ending-soon',   onCallEndingSoon);
       socket.off('note:created', onNoteCreated);
       socket.off('note:updated', onNoteUpdated);
       socket.off('note:deleted', onNoteDeleted);

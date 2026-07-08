@@ -221,16 +221,20 @@ server.listen(PORT, () => {
 
 // ─── Graceful Shutdown ─────────────────────────────────────────────────────
 // Amvera sends SIGTERM when redeploying or stopping the container.
-// Sequence: reject new requests → kick all sockets → close HTTP → close DB → exit.
+// Sequence: reject new requests → warn active-call participants → grace
+// period → kick all sockets → close HTTP → close DB → exit.
 let isShuttingDown = false;
 
-function shutdown(signal) {
-  if (isShuttingDown) return;
-  isShuttingDown = true;
-  app.locals.isShuttingDown = true; // health route will return 503
+// docs/STORE_LAUNCH_TZ.md §7 — a deploy landing mid-call used to silently cut
+// both participants with no explanation (only the client's ~12s peer-gone
+// stats detector would eventually notice). Give them a short warning instead
+// and a moment to notice before the hard disconnect. Comfortably under
+// Docker/Amvera's default SIGTERM→SIGKILL grace period (10s).
+const CALL_SHUTDOWN_GRACE_MS = Number(process.env.CALL_SHUTDOWN_GRACE_MS) || 4000;
+const CALL_SHUTDOWN_MESSAGE =
+  'Сервер обновляется, звонок сейчас завершится — просто перезвоните ещё раз через минуту.';
 
-  logger.info('[shutdown]', `Received ${signal} — starting graceful shutdown`);
-
+function finishShutdown() {
   // ── 1. Kick all Socket.IO clients immediately ────────────────────────────
   // Without this io.close() blocks until browsers naturally disconnect (30+ s).
   try { io.disconnectSockets(true); } catch { /* ignore */ }
@@ -248,6 +252,26 @@ function shutdown(signal) {
 
   logger.info('[shutdown]', 'Shutdown complete — exiting');
   process.exit(0);
+}
+
+function shutdown(signal) {
+  if (isShuttingDown) return;
+  isShuttingDown = true;
+  app.locals.isShuttingDown = true; // health route will return 503
+
+  logger.info('[shutdown]', `Received ${signal} — starting graceful shutdown`);
+
+  const activeCallsCount = io.getActiveCallsCount ? io.getActiveCallsCount() : 0;
+  if (activeCallsCount > 0) {
+    logger.info(
+      '[shutdown]',
+      `${activeCallsCount} active call(s) — warning participants, waiting ${CALL_SHUTDOWN_GRACE_MS}ms before disconnect`,
+    );
+    try { io.notifyCallsEndingSoon(CALL_SHUTDOWN_MESSAGE); } catch { /* ignore */ }
+    setTimeout(finishShutdown, CALL_SHUTDOWN_GRACE_MS);
+  } else {
+    finishShutdown();
+  }
 }
 
 process.on('SIGTERM', () => shutdown('SIGTERM'));

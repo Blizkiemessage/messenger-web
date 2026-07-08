@@ -31,7 +31,9 @@ interface CallState {
   /** Elapsed seconds, ticked by interval in CallOverlay */
   elapsedSeconds: number;
   /** Why the call ended — for status text differentiation */
-  endReason: 'ended' | 'rejected' | 'busy' | 'failed' | null;
+  endReason: 'ended' | 'rejected' | 'busy' | 'failed' | 'server-restart' | null;
+  /** Set when the server warns of an imminent graceful shutdown (call:ending-soon) */
+  endingSoonMessage: string | null;
 
   // ── Primitive setters ─────────────────────────────────────────────────────
   setStatus: (s: CallStatus) => void;
@@ -42,7 +44,8 @@ interface CallState {
   setIsVideoOff: (v: boolean) => void;
   setStartedAt: (ts: number | null) => void;
   setElapsedSeconds: (n: number) => void;
-  setEndReason: (r: 'ended' | 'rejected' | 'busy' | 'failed') => void;
+  setEndReason: (r: 'ended' | 'rejected' | 'busy' | 'failed' | 'server-restart') => void;
+  setEndingSoonMessage: (m: string | null) => void;
 
   // ── Complex actions ───────────────────────────────────────────────────────
   startOutgoingCall: (p: {
@@ -62,27 +65,29 @@ interface CallState {
 const IDLE: Pick<
   CallState,
   'callId'|'chatId'|'callType'|'status'|'peerId'|'peerInfo'|'isInitiator'|
-  'localStream'|'remoteStream'|'isMuted'|'isVideoOff'|'startedAt'|'elapsedSeconds'|'endReason'
+  'localStream'|'remoteStream'|'isMuted'|'isVideoOff'|'startedAt'|'elapsedSeconds'|
+  'endReason'|'endingSoonMessage'
 > = {
   callId: null, chatId: null, callType: 'audio', status: 'idle',
   peerId: null, peerInfo: null, isInitiator: false,
   localStream: null, remoteStream: null,
   isMuted: false, isVideoOff: false,
-  startedAt: null, elapsedSeconds: 0, endReason: null,
+  startedAt: null, elapsedSeconds: 0, endReason: null, endingSoonMessage: null,
 };
 
 export const useCallStore = create<CallState>((set, get) => ({
   ...IDLE,
 
-  setStatus:         (status)         => set({ status }),
-  setCallType:       (callType)       => set({ callType }),
-  setLocalStream:    (localStream)    => set({ localStream }),
-  setRemoteStream:   (remoteStream)   => set({ remoteStream }),
-  setIsMuted:        (isMuted)        => set({ isMuted }),
-  setIsVideoOff:     (isVideoOff)     => set({ isVideoOff }),
-  setStartedAt:      (startedAt)      => set({ startedAt }),
-  setElapsedSeconds: (elapsedSeconds) => set({ elapsedSeconds }),
-  setEndReason:      (endReason)      => set({ endReason }),
+  setStatus:            (status)            => set({ status }),
+  setCallType:          (callType)           => set({ callType }),
+  setLocalStream:       (localStream)        => set({ localStream }),
+  setRemoteStream:      (remoteStream)       => set({ remoteStream }),
+  setIsMuted:           (isMuted)            => set({ isMuted }),
+  setIsVideoOff:        (isVideoOff)         => set({ isVideoOff }),
+  setStartedAt:         (startedAt)          => set({ startedAt }),
+  setElapsedSeconds:    (elapsedSeconds)     => set({ elapsedSeconds }),
+  setEndReason:         (endReason)          => set({ endReason }),
+  setEndingSoonMessage: (endingSoonMessage)  => set({ endingSoonMessage }),
 
   startOutgoingCall: ({ callId, chatId, callType, peerId, peerInfo }) =>
     set({ ...IDLE, callId, chatId, callType, peerId, peerInfo, status: 'calling', isInitiator: true, endReason: null }),
