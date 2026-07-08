@@ -26,5 +26,16 @@
   "unblock": "Разблокировать",
   "report": "Пожаловаться",
   "online": "Онлайн",
-  "offline": "не в сети"
+  "offline": "не в сети",
+  "savedMessagesTitle": "Сохранённые сообщения",
+  "yourNotes": "Ваши заметки",
+  "groupFallback": "Группа",
+  "dialogFallback": "Диалог",
+  "membersCount_one": "{{count}} участник",
+  "membersCount_few": "{{count}} участника",
+  "membersCount_many": "{{count}} участников",
+  "membersCount_other": "{{count}} участников",
+  "presenceFree": "Свободен",
+  "presenceBusy": "Занят",
+  "presenceDnd": "Не беспокоить"
 }

@@ -12,6 +12,7 @@ import { useState } from 'react';
 import { type User } from '../../types';
 import { avatarLetter } from '../../utils/format';
 import { API_BASE_URL } from '../../config';
+import i18n from '../../i18n';
 
 export function resolveUrl(url?: string | null): string | null {
   if (!url) return null;
@@ -26,12 +27,10 @@ export const PRESENCE_COLORS: Record<'free' | 'busy' | 'dnd', string> = {
   dnd:  '#ef4444',
 };
 
-/** Maps a presence status to its human-readable Russian label. */
-export const PRESENCE_LABELS: Record<'free' | 'busy' | 'dnd', string> = {
-  free: 'Свободен',
-  busy: 'Занят',
-  dnd:  'Не беспокоить',
-};
+/** Maps a presence status to its human-readable, translated label. */
+export function getPresenceLabel(status: 'free' | 'busy' | 'dnd'): string {
+  return i18n.t(`common:presence${status.charAt(0).toUpperCase()}${status.slice(1)}`);
+}
 
 export const PRESENCE_EMOJI: Record<'free' | 'busy' | 'dnd', string> = {
   free: '🟢',

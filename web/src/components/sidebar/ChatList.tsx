@@ -1,4 +1,5 @@
 import { useState, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import { type Chat } from '../../types';
 import { ChatItem } from './ChatItem';
 import { useChatsStore } from '../../store/useChatsStore';
@@ -20,6 +21,7 @@ interface Props {
 export function ChatList({
   chats, meId, activeChatId, filter, loading, error, onSelect, onContextMenu,
 }: Props) {
+  const { t } = useTranslation('nav');
   const onlineUsers  = useChatsStore(s => s.onlineUsers);
   const typingUsers  = useChatsStore(s => s.typingUsers);
 
@@ -77,9 +79,9 @@ export function ChatList({
     if (othersTyping.length === 1) {
       const member = c.members.find(m => m.id === othersTyping[0]);
       const name   = member?.display_name || member?.username || null;
-      typingPreview = name ? `${name} печатает` : 'Печатает';
+      typingPreview = name ? t('chatList.typingNamed', { name }) : t('chatList.typingGeneric');
     } else if (othersTyping.length > 1) {
-      typingPreview = `${othersTyping.length} пользователя печатают`;
+      typingPreview = t('chatList.typingMultiple', { count: othersTyping.length });
     }
     return { partner, isOnline, typingPreview };
   };
@@ -89,10 +91,10 @@ export function ChatList({
       <div className="chatList">
         {error && <div className="listErr">{error}</div>}
         <div className="listHint">
-          {filter === 'groups' ? 'Нет групп'
-            : filter === 'direct' ? 'Нет личных чатов'
-            : filter.startsWith('folder:') ? 'Папка пуста. Добавьте чаты через контекстное меню'
-            : 'Найдите пользователя выше чтобы начать диалог'}
+          {filter === 'groups' ? t('chatList.noGroups')
+            : filter === 'direct' ? t('chatList.noDirect')
+            : filter.startsWith('folder:') ? t('chatList.emptyFolder')
+            : t('chatList.findUserHint')}
         </div>
       </div>
     );
@@ -101,7 +103,7 @@ export function ChatList({
   return (
     <div className="chatList">
       {error  && <div className="listErr">{error}</div>}
-      {loading && <div className="listHint">Загрузка…</div>}
+      {loading && <div className="listHint">{t('chatList.loading')}</div>}
 
       {/* ── Pinned chats (draggable) ───────────────────────────────────────── */}
       {pinnedChats.length > 0 && (

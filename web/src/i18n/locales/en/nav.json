@@ -1,0 +1,82 @@
+{
+  "common": {
+    "chats": "Chats",
+    "calls": "Calls",
+    "search": "Search",
+    "profile": "Profile",
+    "settings": "Settings",
+    "support": "Support",
+    "inviteFriends": "Invite friends",
+    "appearance": "Theme",
+    "logout": "Log out",
+    "logoutAria": "Log out of account",
+    "assistant": "Assistant",
+    "openAssistant": "Open assistant",
+    "newGroup": "New group",
+    "saved": "Saved messages",
+    "create": "Create",
+    "mainNav": "Main menu",
+    "railNav": "Main navigation",
+    "actions": "Actions",
+    "createFolder": "Create folder",
+    "defaultUser": "User"
+  },
+  "folderTabs": {
+    "all": "All",
+    "direct": "Direct",
+    "groups": "Groups"
+  },
+  "chatList": {
+    "loading": "Loading…",
+    "noGroups": "No groups",
+    "noDirect": "No direct chats",
+    "emptyFolder": "Folder is empty. Add chats via the context menu",
+    "findUserHint": "Search for a user above to start a chat",
+    "typingGeneric": "Typing",
+    "typingNamed": "{{name}} is typing",
+    "typingMultiple_one": "{{count}} person is typing",
+    "typingMultiple_few": "{{count}} people are typing",
+    "typingMultiple_many": "{{count}} people are typing",
+    "typingMultiple_other": "{{count}} people are typing"
+  },
+  "chatItem": {
+    "noMessages": "No messages",
+    "draftLabel": "Draft:",
+    "photo": "Photo",
+    "video": "Video",
+    "videoNote": "Video message",
+    "audio": "Audio",
+    "attachment": "Attachment",
+    "dailyPrompt": "🌙 Daily prompt",
+    "sticker": "Sticker"
+  },
+  "search": {
+    "placeholder": "Search…",
+    "clear": "Clear",
+    "tabGeneral": "All",
+    "tabPeople": "People",
+    "tabMessages": "Messages",
+    "peopleLabel": "People",
+    "chatsLabel": "Chats",
+    "messagesLabel": "Messages",
+    "group": "Group",
+    "directChat": "Direct chat",
+    "noResults": "Nothing found"
+  },
+  "status": {
+    "changeStatus": "Change status",
+    "setStatus": "Set status",
+    "notePlaceholder": "Note (optional)",
+    "expiryNone": "No expiry",
+    "expiry30m": "In 30 minutes",
+    "expiry1h": "In 1 hour",
+    "expiry4h": "In 4 hours",
+    "expiryToday": "Until end of day",
+    "expiryCustom": "Custom…",
+    "unitMin": "minutes",
+    "unitHour": "hours",
+    "unitDay": "days",
+    "apply": "Apply",
+    "clear": "Clear"
+  }
+}

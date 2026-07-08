@@ -8,7 +8,8 @@
  * Optional note (max 60 chars) and optional auto-expiry (presets + custom duration).
  */
 import { useState, useRef, useEffect } from 'react';
-import { PRESENCE_LABELS, PRESENCE_COLORS, PRESENCE_EMOJI } from './Avatar';
+import { useTranslation } from 'react-i18next';
+import { getPresenceLabel, PRESENCE_COLORS, PRESENCE_EMOJI } from './Avatar';
 import { setPresenceStatus, type PresenceStatus } from '../../api/presence';
 import { useSessionStore } from '../../store/useSessionStore';
 
@@ -37,12 +38,6 @@ function getExpiryMs(
   return null;
 }
 
-const STATUS_OPTIONS: { value: PresenceStatus; label: string; emoji: string; color: string }[] = [
-  { value: 'free', label: 'Свободен',         emoji: PRESENCE_EMOJI.free, color: PRESENCE_COLORS.free },
-  { value: 'busy', label: 'Занят',            emoji: PRESENCE_EMOJI.busy, color: PRESENCE_COLORS.busy },
-  { value: 'dnd',  label: 'Не беспокоить',   emoji: PRESENCE_EMOJI.dnd,  color: PRESENCE_COLORS.dnd  },
-];
-
 interface Props {
   currentStatus: PresenceStatus;
   currentNote?: string | null;
@@ -50,6 +45,12 @@ interface Props {
 }
 
 export function StatusPicker({ currentStatus, currentNote, currentExpiresAt: _currentExpiresAt }: Props) {
+  const { t } = useTranslation('nav');
+  const STATUS_OPTIONS: { value: PresenceStatus; label: string; emoji: string; color: string }[] = [
+    { value: 'free', label: getPresenceLabel('free'), emoji: PRESENCE_EMOJI.free, color: PRESENCE_COLORS.free },
+    { value: 'busy', label: getPresenceLabel('busy'), emoji: PRESENCE_EMOJI.busy, color: PRESENCE_COLORS.busy },
+    { value: 'dnd',  label: getPresenceLabel('dnd'),  emoji: PRESENCE_EMOJI.dnd,  color: PRESENCE_COLORS.dnd  },
+  ];
   const [open,        setOpen]        = useState(false);
   const [selected,    setSelected]    = useState<PresenceStatus>(currentStatus);
   const [note,        setNote]        = useState(currentNote ?? '');
@@ -102,16 +103,16 @@ export function StatusPicker({ currentStatus, currentNote, currentExpiresAt: _cu
         className="statusPickerChip"
         onClick={() => setOpen(v => !v)}
         style={color ? { borderColor: color, color } : undefined}
-        title="Изменить статус"
+        title={t('status.changeStatus')}
       >
         {selected ? (
           <>
             <span>{PRESENCE_EMOJI[selected]}</span>
-            <span className="statusPickerChipLabel">{PRESENCE_LABELS[selected]}</span>
+            <span className="statusPickerChipLabel">{getPresenceLabel(selected)}</span>
             {currentNote && <span className="statusPickerChipNote">— {currentNote}</span>}
           </>
         ) : (
-          <span className="statusPickerChipEmpty">Установить статус</span>
+          <span className="statusPickerChipEmpty">{t('status.setStatus')}</span>
         )}
         <svg
           className={`statusPickerChevron${open ? ' open' : ''}`}
@@ -149,7 +150,7 @@ export function StatusPicker({ currentStatus, currentNote, currentExpiresAt: _cu
             <>
               <input
                 className="statusPickerNoteInput"
-                placeholder="Заметка (необязательно)"
+                placeholder={t('status.notePlaceholder')}
                 value={note}
                 maxLength={60}
                 onChange={e => setNote(e.target.value)}
@@ -159,12 +160,12 @@ export function StatusPicker({ currentStatus, currentNote, currentExpiresAt: _cu
                 value={expiry}
                 onChange={e => setExpiry(e.target.value as ExpiryOption)}
               >
-                <option value="none">Без истечения</option>
-                <option value="30m">Через 30 минут</option>
-                <option value="1h">Через 1 час</option>
-                <option value="4h">Через 4 часа</option>
-                <option value="today">До конца дня</option>
-                <option value="custom">Своё время…</option>
+                <option value="none">{t('status.expiryNone')}</option>
+                <option value="30m">{t('status.expiry30m')}</option>
+                <option value="1h">{t('status.expiry1h')}</option>
+                <option value="4h">{t('status.expiry4h')}</option>
+                <option value="today">{t('status.expiryToday')}</option>
+                <option value="custom">{t('status.expiryCustom')}</option>
               </select>
 
               {expiry === 'custom' && (
@@ -185,9 +186,9 @@ export function StatusPicker({ currentStatus, currentNote, currentExpiresAt: _cu
                     value={customUnit}
                     onChange={e => setCustomUnit(e.target.value as CustomUnit)}
                   >
-                    <option value="min">минут</option>
-                    <option value="h">часов</option>
-                    <option value="d">дней</option>
+                    <option value="min">{t('status.unitMin')}</option>
+                    <option value="h">{t('status.unitHour')}</option>
+                    <option value="d">{t('status.unitDay')}</option>
                   </select>
                 </div>
               )}
@@ -201,11 +202,11 @@ export function StatusPicker({ currentStatus, currentNote, currentExpiresAt: _cu
               onClick={() => apply(selected)}
               disabled={busy || !selected}
             >
-              {busy ? '…' : 'Применить'}
+              {busy ? '…' : t('status.apply')}
             </button>
             {selected && (
               <button className="statusPickerClear" onClick={() => apply(null)} disabled={busy}>
-                Сбросить
+                {t('status.clear')}
               </button>
             )}
           </div>

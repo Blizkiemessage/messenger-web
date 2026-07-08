@@ -6,7 +6,7 @@ import { useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { type Chat } from '../../types';
 import { chatTitle, chatSubtitle, avatarLetter, formatLastSeen } from '../../utils/format';
-import { Avatar, resolveUrl, PRESENCE_LABELS, PRESENCE_EMOJI } from '../ui/Avatar';
+import { Avatar, resolveUrl, getPresenceLabel, PRESENCE_EMOJI } from '../ui/Avatar';
 import { AssistantOrb } from '../ui/AssistantOrb';
 import { useChatsStore } from '../../store/useChatsStore';
 import { useAppStore } from '../../store/useAppStore';
@@ -206,7 +206,7 @@ export function ChatHeader({
               <div className="chSub chSubPresence">
                 <span className="chPresencePill" data-status={partnerPresence}>
                   {PRESENCE_EMOJI[partnerPresence]}&nbsp;
-                  <span className="chPresenceLabel">{PRESENCE_LABELS[partnerPresence]}</span>
+                  <span className="chPresenceLabel">{getPresenceLabel(partnerPresence)}</span>
                   {partner?.presence_note && (
                     <span className="chPresenceNote">
                       &nbsp;— {partner.presence_note}

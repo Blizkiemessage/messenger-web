@@ -7,6 +7,7 @@
  * Профиль открывает всплывающее меню (NavProfilePopover). На мобильном
  * (≤700px) панель скрыта — там работает прежняя мобильная оболочка.
  */
+import { useTranslation } from 'react-i18next';
 import { type User } from '../../types';
 import { type Theme } from '../../utils/theme';
 import { type Locale } from '../../i18n';
@@ -70,10 +71,11 @@ export function NavRail({
   onTab, onToggleProfile, onCloseProfile,
   onOpenAssistant, onOpenSupport, onOpenSettings, onOpenInvite, onToggleTheme, onSetLanguage, onLogout,
 }: Props) {
+  const { t } = useTranslation('nav');
   return (
-    <nav className="navRail" aria-label="Главная навигация">
+    <nav className="navRail" aria-label={t('common.railNav')}>
       {/* Ассистент — яркая градиентная кнопка-звёзды вверху (без подписи) */}
-      <button className="navTopAssistant" onClick={onOpenAssistant} title="Помощник" aria-label="Открыть помощника">
+      <button className="navTopAssistant" onClick={onOpenAssistant} title={t('common.assistant')} aria-label={t('common.openAssistant')}>
         <span className="navTopAssistantGlow" aria-hidden />
         <span className="navTopAssistantIcon"><AssistantSpark /></span>
       </button>
@@ -83,24 +85,24 @@ export function NavRail({
         <button
           className={`navItem${activeTab === 'chats' ? ' active' : ''}`}
           onClick={() => onTab('chats')}
-          title="Чаты"
+          title={t('common.chats')}
         >
           <span className="navItemIcon"><ChatsIcon /></span>
-          <span className="navItemLabel">Чаты</span>
+          <span className="navItemLabel">{t('common.chats')}</span>
         </button>
 
         <button
           className={`navItem${activeTab === 'calls' ? ' active' : ''}`}
           onClick={() => onTab('calls')}
-          title="Звонки"
+          title={t('common.calls')}
         >
           <span className="navItemIcon"><CallsIcon /></span>
-          <span className="navItemLabel">Звонки</span>
+          <span className="navItemLabel">{t('common.calls')}</span>
         </button>
 
-        <button className="navItem" onClick={onOpenSupport} title="Тех. поддержка">
+        <button className="navItem" onClick={onOpenSupport} title={t('common.support')}>
           <span className="navItemIcon"><SupportIcon /></span>
-          <span className="navItemLabel">Поддержка</span>
+          <span className="navItemLabel">{t('common.support')}</span>
         </button>
       </div>
 
@@ -109,7 +111,7 @@ export function NavRail({
         <button
           className={`navProfileBtn${profileOpen ? ' active' : ''}`}
           onClick={onToggleProfile}
-          title="Профиль"
+          title={t('common.profile')}
         >
           <Avatar user={me} size={38} radius={12} presenceStatus={me.presence_status ?? null} />
         </button>

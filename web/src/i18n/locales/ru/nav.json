@@ -1,0 +1,82 @@
+{
+  "common": {
+    "chats": "Чаты",
+    "calls": "Звонки",
+    "search": "Поиск",
+    "profile": "Профиль",
+    "settings": "Настройки",
+    "support": "Тех. поддержка",
+    "inviteFriends": "Пригласить друзей",
+    "appearance": "Тема оформления",
+    "logout": "Выйти",
+    "logoutAria": "Выйти из аккаунта",
+    "assistant": "Помощник",
+    "openAssistant": "Открыть помощника",
+    "newGroup": "Новая группа",
+    "saved": "Сохранённые",
+    "create": "Создать",
+    "mainNav": "Главное меню",
+    "railNav": "Главная навигация",
+    "actions": "Действия",
+    "createFolder": "Создать папку",
+    "defaultUser": "Пользователь"
+  },
+  "folderTabs": {
+    "all": "Все",
+    "direct": "Личные",
+    "groups": "Группы"
+  },
+  "chatList": {
+    "loading": "Загрузка…",
+    "noGroups": "Нет групп",
+    "noDirect": "Нет личных чатов",
+    "emptyFolder": "Папка пуста. Добавьте чаты через контекстное меню",
+    "findUserHint": "Найдите пользователя выше чтобы начать диалог",
+    "typingGeneric": "Печатает",
+    "typingNamed": "{{name}} печатает",
+    "typingMultiple_one": "{{count}} пользователь печатает",
+    "typingMultiple_few": "{{count}} пользователя печатают",
+    "typingMultiple_many": "{{count}} пользователей печатают",
+    "typingMultiple_other": "{{count}} пользователей печатают"
+  },
+  "chatItem": {
+    "noMessages": "Нет сообщений",
+    "draftLabel": "Черновик:",
+    "photo": "Фото",
+    "video": "Видео",
+    "videoNote": "Видеосообщение",
+    "audio": "Аудио",
+    "attachment": "Вложение",
+    "dailyPrompt": "🌙 Вопрос дня",
+    "sticker": "Стикер"
+  },
+  "search": {
+    "placeholder": "Поиск…",
+    "clear": "Очистить",
+    "tabGeneral": "Общий",
+    "tabPeople": "Люди",
+    "tabMessages": "Сообщения",
+    "peopleLabel": "Люди",
+    "chatsLabel": "Чаты",
+    "messagesLabel": "Сообщения",
+    "group": "Группа",
+    "directChat": "Личный чат",
+    "noResults": "Ничего не найдено"
+  },
+  "status": {
+    "changeStatus": "Изменить статус",
+    "setStatus": "Установить статус",
+    "notePlaceholder": "Заметка (необязательно)",
+    "expiryNone": "Без истечения",
+    "expiry30m": "Через 30 минут",
+    "expiry1h": "Через 1 час",
+    "expiry4h": "Через 4 часа",
+    "expiryToday": "До конца дня",
+    "expiryCustom": "Своё время…",
+    "unitMin": "минут",
+    "unitHour": "часов",
+    "unitDay": "дней",
+    "apply": "Применить",
+    "clear": "Сбросить"
+  }
+}

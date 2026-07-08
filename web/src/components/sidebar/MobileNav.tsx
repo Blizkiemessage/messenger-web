@@ -6,6 +6,7 @@
  * Профиль открывают модалки. Рендерится только на мобильном (десктоп его не
  * использует — там сайдбар со своим нижним блоком).
  */
+import { useTranslation } from 'react-i18next';
 import { type User } from '../../types';
 import { type MobileTab } from '../../store/useAppStore';
 import { Avatar } from '../ui/Avatar';
@@ -53,9 +54,10 @@ function AssistantSpark() {
 }
 
 export function MobileNav({ me, activeTab, onTab, onAssistant, onProfile, profileActive }: Props) {
-  const tabActive = (t: MobileTab) => activeTab === t && !profileActive;
+  const { t } = useTranslation('nav');
+  const tabActive = (tab: MobileTab) => activeTab === tab && !profileActive;
   return (
-    <nav className="mNav" aria-label="Главное меню">
+    <nav className="mNav" aria-label={t('common.mainNav')}>
       {/* Фоновая «подложка» с вырезом-колыбелью под орб (mask в CSS). */}
       <span className="mNavBg" aria-hidden />
 
@@ -66,19 +68,19 @@ export function MobileNav({ me, activeTab, onTab, onAssistant, onProfile, profil
           onClick={() => onTab('chats')}
         >
           <span className="mNavIcon"><ChatsIcon /></span>
-          <span className="mNavLabel">Чаты</span>
+          <span className="mNavLabel">{t('common.chats')}</span>
         </button>
         <button
           className={`mNavBtn${tabActive('calls') ? ' active' : ''}`}
           onClick={() => onTab('calls')}
         >
           <span className="mNavIcon"><CallsIcon /></span>
-          <span className="mNavLabel">Звонки</span>
+          <span className="mNavLabel">{t('common.calls')}</span>
         </button>
       </div>
 
       {/* Центральная «фишка» — ассистент (увеличенный орб над вырезом) */}
-      <button className="mNavOrb" onClick={onAssistant} aria-label="Открыть помощника" title="Помощник">
+      <button className="mNavOrb" onClick={onAssistant} aria-label={t('common.openAssistant')} title={t('common.assistant')}>
         <span className="mNavOrbAura" aria-hidden />
         <span className="mNavOrbIcon"><AssistantSpark /></span>
       </button>
@@ -90,7 +92,7 @@ export function MobileNav({ me, activeTab, onTab, onAssistant, onProfile, profil
           onClick={() => onTab('search')}
         >
           <span className="mNavIcon"><SearchIcon /></span>
-          <span className="mNavLabel">Поиск</span>
+          <span className="mNavLabel">{t('common.search')}</span>
         </button>
         <button
           className={`mNavBtn mNavBtnProfile${profileActive ? ' active' : ''}`}
@@ -99,7 +101,7 @@ export function MobileNav({ me, activeTab, onTab, onAssistant, onProfile, profil
           <span className="mNavIcon mNavAvatar">
             <Avatar user={me} size={24} radius={8} presenceStatus={me.presence_status ?? null} />
           </span>
-          <span className="mNavLabel">Профиль</span>
+          <span className="mNavLabel">{t('common.profile')}</span>
         </button>
       </div>
     </nav>

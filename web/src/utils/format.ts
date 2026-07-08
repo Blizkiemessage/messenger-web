@@ -1,4 +1,5 @@
 import { type Chat } from '../types';
+import i18n from '../i18n';
 
 export function formatTime(ts: number): string {
   try {
@@ -9,15 +10,15 @@ export function formatTime(ts: number): string {
 }
 
 export function chatTitle(chat: Chat, meId: string): string {
-  if (chat.type === 'saved') return 'Сохранённые сообщения';
-  if (chat.type === 'group') return chat.name || 'Группа';
+  if (chat.type === 'saved') return i18n.t('common:savedMessagesTitle');
+  if (chat.type === 'group') return chat.name || i18n.t('common:groupFallback');
   const other = chat.members.find(m => m.id !== meId);
-  return other?.display_name || other?.username || 'Диалог';
+  return other?.display_name || other?.username || i18n.t('common:dialogFallback');
 }
 
 export function chatSubtitle(chat: Chat, meId: string): string {
-  if (chat.type === 'saved') return 'Ваши заметки';
-  if (chat.type === 'group') return `${chat.members.length} участников`;
+  if (chat.type === 'saved') return i18n.t('common:yourNotes');
+  if (chat.type === 'group') return i18n.t('common:membersCount', { count: chat.members.length });
   const other = chat.members.find(m => m.id !== meId);
   return other?.username ? `@${other.username}` : '';
 }

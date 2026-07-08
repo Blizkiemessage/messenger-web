@@ -16,7 +16,7 @@ import { useEffect, useRef, useState } from 'react';
 import { type Chat } from '../../types';
 import { type InfoPanelSection } from '../../store/useAppStore';
 import { chatTitle, chatSubtitle, avatarLetter, formatLastSeen } from '../../utils/format';
-import { Avatar, resolveUrl, PRESENCE_LABELS, PRESENCE_EMOJI } from '../ui/Avatar';
+import { Avatar, resolveUrl, getPresenceLabel, PRESENCE_EMOJI } from '../ui/Avatar';
 import { useChatsStore } from '../../store/useChatsStore';
 import { muteChat as apiMuteChat } from '../../api/chats';
 import { ChatBackgroundSettings } from '../modals/ChatBackgroundModal';
@@ -84,7 +84,7 @@ export function ChatInfoPanel({
   const subtitle = isGroup
     ? chatSubtitle(chat, meId)
     : partnerPresence
-      ? `${PRESENCE_EMOJI[partnerPresence]} ${PRESENCE_LABELS[partnerPresence]}`
+      ? `${PRESENCE_EMOJI[partnerPresence]} ${getPresenceLabel(partnerPresence)}`
       : formatLastSeen(partner?.last_seen_at, isPartnerOnline);
 
   async function handleMute() {

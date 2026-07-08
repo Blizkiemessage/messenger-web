@@ -2,6 +2,7 @@
  * ChatItem — sidebar chat list row.
  * ✅ Pin indicator, mute icon + grey badge, drag-and-drop support.
  */
+import { useTranslation } from 'react-i18next';
 import { type Chat } from '../../types';
 import { chatTitle, avatarLetter, formatTime } from '../../utils/format';
 import { Avatar, resolveUrl } from '../ui/Avatar';
@@ -41,12 +42,13 @@ function LastMessagePreview({ msg, typingPreview }: {
   msg: Chat['last_message'];
   typingPreview?: string | null;
 }) {
+  const { t } = useTranslation('nav');
   const { packItems } = useStickerStore();
   if (typingPreview) {
     return <span className="ciPreview ciPreviewTyping">{typingPreview}</span>;
   }
   if (!msg) {
-    return <span className="ciPreview ciPreviewMuted">Нет сообщений</span>;
+    return <span className="ciPreview ciPreviewMuted">{t('chatItem.noMessages')}</span>;
   }
 
   const isSticker  = msg.attachment_type === 'sticker';
@@ -57,7 +59,7 @@ function LastMessagePreview({ msg, typingPreview }: {
   const isVN       = msg.attachment_type === 'video_note';
 
   if (msg.attachment_type === 'daily_prompt') {
-    return <span className="ciPreview">🌙 Вопрос дня</span>;
+    return <span className="ciPreview">{t('chatItem.dailyPrompt')}</span>;
   }
 
   if (isSticker) {
@@ -68,7 +70,7 @@ function LastMessagePreview({ msg, typingPreview }: {
         <img
           src={url}
           className="ciStickerThumb"
-          alt="Стикер"
+          alt={t('chatItem.sticker')}
           loading="lazy"
         />
       </span>
@@ -98,7 +100,7 @@ function LastMessagePreview({ msg, typingPreview }: {
             <circle cx="8.5" cy="8.5" r="1.5"/>
             <polyline points="21 15 16 10 5 21"/>
           </svg>
-          {msg.text ? stripPreview(msg.text) : 'Фото'}
+          {msg.text ? stripPreview(msg.text) : t('chatItem.photo')}
         </span>
       </span>
     );
@@ -111,7 +113,7 @@ function LastMessagePreview({ msg, typingPreview }: {
           <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" style={{ marginRight: 3, flexShrink: 0 }}>
             <polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2"/>
           </svg>
-          {msg.text ? stripPreview(msg.text) : isVN ? 'Видеосообщение' : 'Видео'}
+          {msg.text ? stripPreview(msg.text) : isVN ? t('chatItem.videoNote') : t('chatItem.video')}
         </span>
       </span>
     );
@@ -124,7 +126,7 @@ function LastMessagePreview({ msg, typingPreview }: {
           <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" style={{ marginRight: 3, flexShrink: 0 }}>
             <path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/>
           </svg>
-          Аудио
+          {t('chatItem.audio')}
         </span>
       </span>
     );
@@ -139,7 +141,7 @@ function LastMessagePreview({ msg, typingPreview }: {
     return <span className="ciPreview">{nodes}</span>;
   }
 
-  return <span className="ciPreview ciPreviewMuted">Вложение</span>;
+  return <span className="ciPreview ciPreviewMuted">{t('chatItem.attachment')}</span>;
 }
 
 interface Props {
@@ -166,6 +168,7 @@ export function ChatItem({
   onDragStart, onDragOver, onDrop, onDragEnd,
   onClick, onContextMenu,
 }: Props) {
+  const { t } = useTranslation('nav');
   const title     = chatTitle(chat, meId);
   const isSaved   = chat.type === 'saved';
   // Show draft in sidebar for non-active chats only (active chat shows draft in composer)
@@ -234,7 +237,7 @@ export function ChatItem({
         <div className="ciBottom">
           {draftText && !typingPreview ? (
             <span className="ciPreview">
-              <span className="ciDraftLabel">Черновик:</span>
+              <span className="ciDraftLabel">{t('chatItem.draftLabel')}</span>
               <span className="ciPreviewText">{stripPreview(draftText)}</span>
             </span>
           ) : (

@@ -29,13 +29,13 @@ interface Props {
 export function MobileProfileMenu({
   me, theme, language, onClose, onOpenSettings, onOpenSupport, onToggleTheme, onSetLanguage, onLogout,
 }: Props) {
-  const { t } = useTranslation('settings');
+  const { t } = useTranslation(['settings', 'nav']);
   const isDark = theme === 'dark';
 
   return (
     <Portal>
       <div className="mpOverlay" onClick={onClose}>
-        <div className="mpSheet" onClick={e => e.stopPropagation()} role="dialog" aria-label="Профиль">
+        <div className="mpSheet" onClick={e => e.stopPropagation()} role="dialog" aria-label={t('nav:common.profile')}>
           {/* Хваталка-полоска */}
           <div className="mpGrab" />
 
@@ -43,7 +43,7 @@ export function MobileProfileMenu({
           <div className="mpHead">
             <Avatar user={me} size={54} radius={16} presenceStatus={me.presence_status ?? null} />
             <div className="mpHeadInfo">
-              <div className="mpHeadName">{me.display_name || me.username || 'Пользователь'}</div>
+              <div className="mpHeadName">{me.display_name || me.username || t('nav:common.defaultUser')}</div>
               <div className="mpHeadSub">{me.email ? me.email : `@${me.username || ''}`}</div>
             </div>
           </div>
@@ -69,7 +69,7 @@ export function MobileProfileMenu({
                 <circle cx="9" cy="8" r="2.4" fill="var(--card)" /><circle cx="15" cy="16" r="2.4" fill="var(--card)" />
               </svg>
             </span>
-            <span className="mpItemLabel">Настройки</span>
+            <span className="mpItemLabel">{t('nav:common.settings')}</span>
             <svg className="mpItemChevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><polyline points="9 18 15 12 9 6" /></svg>
           </button>
 
@@ -82,7 +82,7 @@ export function MobileProfileMenu({
                 <path d="M3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z" />
               </svg>
             </span>
-            <span className="mpItemLabel">Тех. поддержка</span>
+            <span className="mpItemLabel">{t('nav:common.support')}</span>
             <svg className="mpItemChevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><polyline points="9 18 15 12 9 6" /></svg>
           </button>
 
@@ -103,7 +103,7 @@ export function MobileProfileMenu({
                 </svg>
               )}
             </span>
-            <span className="mpItemLabel">Тема оформления</span>
+            <span className="mpItemLabel">{t('nav:common.appearance')}</span>
             <span className={`mpThemeSwitch${isDark ? ' dark' : ''}`} aria-hidden>
               <span className="mpThemeKnob">
                 {isDark ? (
@@ -163,7 +163,7 @@ export function MobileProfileMenu({
                 <line x1="21" y1="12" x2="9" y2="12" />
               </svg>
             </span>
-            <span className="mpItemLabel">Выйти</span>
+            <span className="mpItemLabel">{t('nav:common.logout')}</span>
           </button>
         </div>
       </div>

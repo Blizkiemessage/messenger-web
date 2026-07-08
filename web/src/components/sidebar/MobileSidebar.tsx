@@ -12,6 +12,7 @@
  * данные пропсами из Sidebar.
  */
 import { useState, useEffect, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import { type User, type Chat, type ChatFolder } from '../../types';
 import { type Theme } from '../../utils/theme';
 import { type Locale } from '../../i18n';
@@ -49,18 +50,18 @@ interface Props {
   settingsActive: boolean;
 }
 
-const TITLES: Record<string, string> = {
-  chats: 'Чаты',
-  calls: 'Звонки',
-  search: 'Поиск',
-};
-
 export function MobileSidebar({
   me, filteredChats, activeChatId, chatFilter, loadingChats, dataError, folders,
   onFilterChange, onSelectChat, onContextMenu, onNewGroup, onSavedMessages,
   onCreateFolder, onEditFolder, onOpenAssistant, onOpenSettings, onOpenSupport,
   theme, onToggleTheme, language, onSetLanguage, onLogout, settingsActive,
 }: Props) {
+  const { t } = useTranslation('nav');
+  const TITLES: Record<string, string> = {
+    chats: t('common.chats'),
+    calls: t('common.calls'),
+    search: t('common.search'),
+  };
   const mobileTab = useAppStore(s => s.mobileTab);
   const setMobileTab = useAppStore(s => s.setMobileTab);
 
@@ -87,8 +88,8 @@ export function MobileSidebar({
         <button
           className="mTopAction mTopLogout"
           onClick={onLogout}
-          aria-label="Выйти из аккаунта"
-          title="Выйти"
+          aria-label={t('common.logoutAria')}
+          title={t('common.logout')}
         >
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
@@ -97,15 +98,15 @@ export function MobileSidebar({
           </svg>
         </button>
 
-        <h1 className="mTopTitle">{TITLES[mobileTab] ?? 'Чаты'}</h1>
+        <h1 className="mTopTitle">{TITLES[mobileTab] ?? t('common.chats')}</h1>
 
         {/* Создать (карандаш) → меню: Новая группа / Сохранённые */}
         <div className="mComposeWrap" ref={composeRef}>
           <button
             className={`mTopAction${showCompose ? ' active' : ''}`}
             onClick={() => setShowCompose(v => !v)}
-            aria-label="Создать"
-            title="Создать"
+            aria-label={t('common.create')}
+            title={t('common.create')}
           >
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M12 20h9" />
@@ -124,7 +125,7 @@ export function MobileSidebar({
                   <circle cx="9" cy="7" r="4" />
                   <path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" />
                 </svg>
-                Новая группа
+                {t('common.newGroup')}
               </button>
               <button
                 className="mComposeItem"
@@ -133,7 +134,7 @@ export function MobileSidebar({
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
                 </svg>
-                Сохранённые
+                {t('common.saved')}
               </button>
             </div>
           )}

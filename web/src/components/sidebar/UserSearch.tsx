@@ -9,6 +9,7 @@
  * Tabs appear only when the query is ≥ 2 chars.
  */
 import { useState, useEffect, useRef, type ReactNode } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Avatar, resolveUrl } from '../ui/Avatar';
 import { useSearch } from '../../hooks/useSearch';
 import { globalSearch, type GlobalSearchResult, type ChatSearchResult, type MessageSearchResult } from '../../api/search';
@@ -17,12 +18,6 @@ import { useChatsStore } from '../../store/useChatsStore';
 import { type User } from '../../types';
 
 type Mode = 'general' | 'user' | 'message';
-
-const TABS: { id: Mode; label: string }[] = [
-  { id: 'general',  label: 'Общий' },
-  { id: 'user',     label: 'Люди' },
-  { id: 'message',  label: 'Сообщения' },
-];
 
 function formatTime(ts: number): string {
   const d = new Date(ts);
@@ -101,6 +96,12 @@ function MsgIcon({ size = 28 }: { size?: number }) {
 }
 
 export function UserSearch() {
+  const { t } = useTranslation('nav');
+  const TABS: { id: Mode; label: string }[] = [
+    { id: 'general',  label: t('search.tabGeneral') },
+    { id: 'user',     label: t('search.tabPeople') },
+    { id: 'message',  label: t('search.tabMessages') },
+  ];
   const [mode, setMode] = useState<Mode>('general');
   const { query, setQuery, results: userResults, searching: userSearching } = useSearch();
 
@@ -190,11 +191,11 @@ export function UserSearch() {
           className="searchInput"
           value={query}
           onChange={e => setQuery(e.target.value)}
-          placeholder="Поиск…"
+          placeholder={t('search.placeholder')}
         />
         {isLoading && <span className="searchSpinner">…</span>}
         {query && !isLoading && (
-          <button className="searchClear" onClick={clear} aria-label="Очистить">
+          <button className="searchClear" onClick={clear} aria-label={t('search.clear')}>
             <svg viewBox="0 0 16 16" fill="none" width="14" height="14">
               <path d="M4 4l8 8M12 4l-8 8" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"/>
             </svg>
@@ -223,7 +224,7 @@ export function UserSearch() {
           {/* Users section */}
           {showUsers && displayedUsers.length > 0 && (
             <div className="srSection">
-              {mode === 'general' && <div className="srLabel">Люди</div>}
+              {mode === 'general' && <div className="srLabel">{t('search.peopleLabel')}</div>}
               {displayedUsers.map(u => (
                 <button key={u.id} className="srItem" onClick={() => onStartChat(u)}>
                   <Avatar user={u} size={34} radius={10} />
@@ -239,13 +240,13 @@ export function UserSearch() {
           {/* Chats section */}
           {showChats && displayedChats.length > 0 && (
             <div className="srSection">
-              <div className="srLabel">Чаты</div>
+              <div className="srLabel">{t('search.chatsLabel')}</div>
               {displayedChats.map((c: ChatSearchResult) => (
                 <button key={c.id} className="srItem" onClick={() => onOpenChat(c.id)}>
                   <SquareAvatar name={c.name} avatarUrl={c.avatar_url} size={34} />
                   <div>
                     <div className="srName">{c.name}</div>
-                    <div className="srSub">{c.type === 'group' ? 'Группа' : (c.partner_username ? `@${c.partner_username}` : 'Личный чат')}</div>
+                    <div className="srSub">{c.type === 'group' ? t('search.group') : (c.partner_username ? `@${c.partner_username}` : t('search.directChat'))}</div>
                   </div>
                 </button>
               ))}
@@ -255,7 +256,7 @@ export function UserSearch() {
           {/* Messages section */}
           {showMessages && displayedMessages.length > 0 && (
             <div className="srSection">
-              {mode === 'general' && <div className="srLabel">Сообщения</div>}
+              {mode === 'general' && <div className="srLabel">{t('search.messagesLabel')}</div>}
               {displayedMessages.map((m: MessageSearchResult) => (
                 <button key={m.id} className="srMsgItem" onClick={() => onOpenMessage(m)}>
                   <MsgIcon size={34} />
@@ -273,7 +274,7 @@ export function UserSearch() {
 
           {/* Empty state */}
           {!isLoading && showResults && !hasAny && (
-            <div className="srEmpty">Ничего не найдено</div>
+            <div className="srEmpty">{t('search.noResults')}</div>
           )}
         </div>
       )}

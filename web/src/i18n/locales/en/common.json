@@ -26,5 +26,16 @@
   "unblock": "Unblock",
   "report": "Report",
   "online": "Online",
-  "offline": "offline"
+  "offline": "offline",
+  "savedMessagesTitle": "Saved messages",
+  "yourNotes": "Your notes",
+  "groupFallback": "Group",
+  "dialogFallback": "Chat",
+  "membersCount_one": "{{count}} member",
+  "membersCount_few": "{{count}} members",
+  "membersCount_many": "{{count}} members",
+  "membersCount_other": "{{count}} members",
+  "presenceFree": "Free",
+  "presenceBusy": "Busy",
+  "presenceDnd": "Do not disturb"
 }

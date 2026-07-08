@@ -29,7 +29,7 @@ interface Props {
 export function NavProfilePopover({
   me, theme, language, onClose, onOpenSettings, onOpenInvite, onToggleTheme, onSetLanguage, onLogout,
 }: Props) {
-  const { t } = useTranslation('settings');
+  const { t } = useTranslation(['settings', 'nav']);
   const isDark = theme === 'dark';
   const ref = useRef<HTMLDivElement>(null);
 
@@ -48,15 +48,15 @@ export function NavProfilePopover({
   }, [onClose]);
 
   return (
-    <div className="npPopover" ref={ref} role="dialog" aria-label="Профиль">
+    <div className="npPopover" ref={ref} role="dialog" aria-label={t('nav:common.profile')}>
       {/* Шапка пользователя + выход в углу */}
       <div className="npHead">
         <Avatar user={me} size={46} radius={14} presenceStatus={me.presence_status ?? null} />
         <div className="npHeadInfo">
-          <div className="npHeadName">{me.display_name || me.username || 'Пользователь'}</div>
+          <div className="npHeadName">{me.display_name || me.username || t('nav:common.defaultUser')}</div>
           <div className="npHeadSub">{me.email ? me.email : `@${me.username || ''}`}</div>
         </div>
-        <button className="npLogout" onClick={onLogout} aria-label="Выйти из аккаунта" title="Выйти">
+        <button className="npLogout" onClick={onLogout} aria-label={t('nav:common.logoutAria')} title={t('nav:common.logout')}>
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
             <polyline points="16 17 21 12 16 7" />
@@ -84,7 +84,7 @@ export function NavProfilePopover({
             <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
           </svg>
         </span>
-        <span className="npItemLabel">Настройки</span>
+        <span className="npItemLabel">{t('nav:common.settings')}</span>
         <svg className="npItemChevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><polyline points="9 18 15 12 9 6" /></svg>
       </button>
 
@@ -97,7 +97,7 @@ export function NavProfilePopover({
             <line x1="19" y1="8" x2="19" y2="14" /><line x1="22" y1="11" x2="16" y2="11" />
           </svg>
         </span>
-        <span className="npItemLabel">Пригласить друзей</span>
+        <span className="npItemLabel">{t('nav:common.inviteFriends')}</span>
         <svg className="npItemChevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><polyline points="9 18 15 12 9 6" /></svg>
       </button>
 
@@ -118,7 +118,7 @@ export function NavProfilePopover({
             </svg>
           )}
         </span>
-        <span className="npItemLabel">Тема оформления</span>
+        <span className="npItemLabel">{t('nav:common.appearance')}</span>
         <span className={`npThemeSwitch${isDark ? ' dark' : ''}`} aria-hidden>
           <span className="npThemeKnob">
             {isDark ? (
