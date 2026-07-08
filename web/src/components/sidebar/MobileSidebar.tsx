@@ -14,6 +14,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { type User, type Chat, type ChatFolder } from '../../types';
 import { type Theme } from '../../utils/theme';
+import { type Locale } from '../../i18n';
 import { useAppStore } from '../../store/useAppStore';
 import { FolderTabs } from './FolderTabs';
 import { ChatList } from './ChatList';
@@ -42,6 +43,8 @@ interface Props {
   onOpenSupport: () => void;
   theme: Theme;
   onToggleTheme: () => void;
+  language: Locale;
+  onSetLanguage: (l: Locale) => void;
   onLogout: () => void;
   settingsActive: boolean;
 }
@@ -56,7 +59,7 @@ export function MobileSidebar({
   me, filteredChats, activeChatId, chatFilter, loadingChats, dataError, folders,
   onFilterChange, onSelectChat, onContextMenu, onNewGroup, onSavedMessages,
   onCreateFolder, onEditFolder, onOpenAssistant, onOpenSettings, onOpenSupport,
-  theme, onToggleTheme, onLogout, settingsActive,
+  theme, onToggleTheme, language, onSetLanguage, onLogout, settingsActive,
 }: Props) {
   const mobileTab = useAppStore(s => s.mobileTab);
   const setMobileTab = useAppStore(s => s.setMobileTab);
@@ -183,10 +186,12 @@ export function MobileSidebar({
         <MobileProfileMenu
           me={me}
           theme={theme}
+          language={language}
           onClose={() => setShowProfileMenu(false)}
           onOpenSettings={onOpenSettings}
           onOpenSupport={onOpenSupport}
           onToggleTheme={onToggleTheme}
+          onSetLanguage={onSetLanguage}
           onLogout={onLogout}
         />
       )}

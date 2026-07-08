@@ -1,4 +1,5 @@
 import { useState, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import { PasswordInput } from '../ui/PasswordInput';
 import { authResetPassword } from '../../api/auth';
 
@@ -12,6 +13,7 @@ interface Props {
 type Step = 'form' | 'success' | 'expired';
 
 export function ResetPasswordForm({ resetId, resetToken, onSuccess, onExpired }: Props) {
+  const { t } = useTranslation('auth');
   const [password,        setPassword]        = useState('');
   const [passwordConfirm, setPasswordConfirm] = useState('');
   const [step,   setStep]  = useState<Step>('form');
@@ -41,12 +43,12 @@ export function ResetPasswordForm({ resetId, resetToken, onSuccess, onExpired }:
       if (msg.includes('истекла') || msg.includes('недействительна') || msg.includes('попыток')) {
         setStep('expired');
       } else {
-        setError(msg || 'Не удалось сбросить пароль. Попробуйте ещё раз.');
+        setError(msg || t('reset.genericError'));
       }
     } finally {
       setBusy(false);
     }
-  }, [resetId, resetToken, password, ready, busy]);
+  }, [resetId, resetToken, password, ready, busy, t]);
 
   /* ── Success ── */
   if (step === 'success') {
@@ -54,14 +56,14 @@ export function ResetPasswordForm({ resetId, resetToken, onSuccess, onExpired }:
       <>
         <div style={{ textAlign: 'center', padding: '8px 0 4px' }}>
           <div style={{ fontSize: 40, marginBottom: 12 }}>✅</div>
-          <div style={{ fontSize: 17, fontWeight: 700, marginBottom: 8 }}>Пароль изменён!</div>
+          <div style={{ fontSize: 17, fontWeight: 700, marginBottom: 8 }}>{t('reset.successTitle')}</div>
           <p style={{ fontSize: 13, color: 'var(--muted)', lineHeight: 1.6, margin: 0 }}>
-            Новый пароль успешно установлен. Теперь войдите в аккаунт с новым паролем.
+            {t('reset.successText')}
           </p>
         </div>
 
         <button className="authBtn" onClick={onSuccess}>
-          Войти в аккаунт
+          {t('reset.successCta')}
         </button>
       </>
     );
@@ -73,15 +75,14 @@ export function ResetPasswordForm({ resetId, resetToken, onSuccess, onExpired }:
       <>
         <div style={{ textAlign: 'center', padding: '8px 0 4px' }}>
           <div style={{ fontSize: 40, marginBottom: 12 }}>⏰</div>
-          <div style={{ fontSize: 17, fontWeight: 700, marginBottom: 8 }}>Ссылка устарела</div>
+          <div style={{ fontSize: 17, fontWeight: 700, marginBottom: 8 }}>{t('reset.expiredTitle')}</div>
           <p style={{ fontSize: 13, color: 'var(--muted)', lineHeight: 1.6, margin: 0 }}>
-            Ссылка для сброса пароля недействительна или истекла (1 час).
-            Запросите новую ссылку.
+            {t('reset.expiredText')}
           </p>
         </div>
 
         <button className="authBtn" onClick={onExpired}>
-          Запросить новую ссылку
+          {t('reset.expiredCta')}
         </button>
       </>
     );
@@ -91,43 +92,43 @@ export function ResetPasswordForm({ resetId, resetToken, onSuccess, onExpired }:
   return (
     <>
       <p style={{ fontSize: 13, color: 'var(--muted)', lineHeight: 1.6, margin: '-4px 0 2px', textAlign: 'center' }}>
-        Придумайте новый пароль для вашего аккаунта
+        {t('reset.prompt')}
       </p>
 
-      <div className="authLabel">Новый пароль</div>
+      <div className="authLabel">{t('reset.newPassword')}</div>
       <PasswordInput
         value={password}
         onChange={setPassword}
-        placeholder="Минимум 8 символов"
+        placeholder={t('register.passwordPlaceholder')}
         onKeyDown={e => { if (e.key === 'Enter' && ready && !busy) onSubmit(); }}
       />
       {password.length > 0 && (
         <div className="pwStrength">
           <span className={pwLongEnough ? 'pwReqOk' : 'pwReqNo'}>
-            {pwLongEnough ? '✓' : '✗'} Минимум 8 символов
+            {pwLongEnough ? '✓' : '✗'} {t('register.passwordMinLength')}
           </span>
           <span className={pwHasDigitOrSpecial ? 'pwReqOk' : 'pwReqNo'}>
-            {pwHasDigitOrSpecial ? '✓' : '✗'} Цифра или спецсимвол
+            {pwHasDigitOrSpecial ? '✓' : '✗'} {t('register.passwordDigitOrSpecial')}
           </span>
         </div>
       )}
 
-      <div className="authLabel">Подтвердите пароль</div>
+      <div className="authLabel">{t('reset.confirmPassword')}</div>
       <PasswordInput
         value={passwordConfirm}
         onChange={setPasswordConfirm}
-        placeholder="Повторите пароль"
+        placeholder={t('register.confirmPasswordPlaceholder')}
         onFocus={() => setTouchedConf(true)}
         onKeyDown={e => { if (e.key === 'Enter' && ready && !busy) onSubmit(); }}
       />
       {showMismatch && (
-        <div className="authFieldHintError">Пароли не совпадают</div>
+        <div className="authFieldHintError">{t('register.passwordMismatch')}</div>
       )}
 
       {error && <div className="authError">{error}</div>}
 
       <button className="authBtn" disabled={!ready || busy} onClick={onSubmit}>
-        {busy ? '…' : 'Сохранить новый пароль'}
+        {busy ? '…' : t('reset.submit')}
       </button>
     </>
   );

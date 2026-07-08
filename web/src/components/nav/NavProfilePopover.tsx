@@ -2,29 +2,34 @@
  * NavProfilePopover — десктопное меню профиля (всплывает над аватаром в NavRail).
  *
  * Десктопный аналог мобильного MobileProfileMenu: шапка пользователя + пункты
- * Настройки / Пригласить / Тема (слайдер) / Язык (заглушка). Кнопка «Выйти»
- * вынесена в правый верхний угол шапки (как на референсе) — не нужно листать.
- * Тех. поддержка вынесена в саму панель навигации, поэтому здесь её нет.
+ * Настройки / Пригласить / Тема (слайдер) / Язык (RU/EN переключатель). Кнопка
+ * «Выйти» вынесена в правый верхний угол шапки (как на референсе) — не нужно
+ * листать. Тех. поддержка вынесена в саму панель навигации, поэтому здесь её нет.
  */
 import { useEffect, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Avatar } from '../ui/Avatar';
 import { StatusPicker } from '../ui/StatusPicker';
 import { type User } from '../../types';
 import { type Theme } from '../../utils/theme';
+import { type Locale } from '../../i18n';
 
 interface Props {
   me: User;
   theme: Theme;
+  language: Locale;
   onClose: () => void;
   onOpenSettings: () => void;
   onOpenInvite: () => void;
   onToggleTheme: () => void;
+  onSetLanguage: (l: Locale) => void;
   onLogout: () => void;
 }
 
 export function NavProfilePopover({
-  me, theme, onClose, onOpenSettings, onOpenInvite, onToggleTheme, onLogout,
+  me, theme, language, onClose, onOpenSettings, onOpenInvite, onToggleTheme, onSetLanguage, onLogout,
 }: Props) {
+  const { t } = useTranslation('settings');
   const isDark = theme === 'dark';
   const ref = useRef<HTMLDivElement>(null);
 
@@ -133,17 +138,34 @@ export function NavProfilePopover({
         </span>
       </button>
 
-      {/* Язык — заглушка */}
-      <button className="npItem npItemDisabled" disabled>
-        <span className="npItemIcon">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M4 5h7M8 3v2M6 5c0 4-2.5 6-4 7M5.5 9c0 2 2 3.5 4.5 4.5" />
-            <path d="M13 20l4-9 4 9M14.5 17h5" />
-          </svg>
-        </span>
-        <span className="npItemLabel">Язык</span>
-        <span className="npSoon">Скоро</span>
-      </button>
+      {/* Язык — карточки-флаги */}
+      <div className="npLangBlock">
+        <div className="npItem npItemStatic">
+          <span className="npItemIcon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M4 5h7M8 3v2M6 5c0 4-2.5 6-4 7M5.5 9c0 2 2 3.5 4.5 4.5" />
+              <path d="M13 20l4-9 4 9M14.5 17h5" />
+            </svg>
+          </span>
+          <span className="npItemLabel">{t('language')}</span>
+        </div>
+        <div className="npLangOptions">
+          <button
+            className={`npLangCard${language === 'ru' ? ' active' : ''}`}
+            onClick={() => onSetLanguage('ru')}
+          >
+            <span className="npLangFlag" aria-hidden>🇷🇺</span>
+            {t('languageRussian')}
+          </button>
+          <button
+            className={`npLangCard${language === 'en' ? ' active' : ''}`}
+            onClick={() => onSetLanguage('en')}
+          >
+            <span className="npLangFlag" aria-hidden>🇬🇧</span>
+            {t('languageEnglish')}
+          </button>
+        </div>
+      </div>
     </div>
   );
 }

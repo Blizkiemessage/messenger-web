@@ -1,3 +1,4 @@
+/// <reference types="vitest/config" />
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
@@ -51,5 +52,12 @@ export default defineConfig({
     // graph, so the heavy emoji-mart dataset (~500 KB) downloaded on first paint even
     // though no one had opened the picker. Letting the splitter follow the dynamic
     // imports keeps that weight off the initial load.
+  },
+
+  test: {
+    environment: 'jsdom',
+    globals: true,
+    setupFiles: ['./src/test/setup.ts'],
+    css: false,
   },
 })

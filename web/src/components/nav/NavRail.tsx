@@ -9,6 +9,7 @@
  */
 import { type User } from '../../types';
 import { type Theme } from '../../utils/theme';
+import { type Locale } from '../../i18n';
 import { type DesktopTab } from '../../store/useAppStore';
 import { Avatar } from '../ui/Avatar';
 import { NavProfilePopover } from './NavProfilePopover';
@@ -16,6 +17,7 @@ import { NavProfilePopover } from './NavProfilePopover';
 interface Props {
   me: User;
   theme: Theme;
+  language: Locale;
   activeTab: DesktopTab;
   profileOpen: boolean;
   onTab: (t: DesktopTab) => void;
@@ -26,6 +28,7 @@ interface Props {
   onOpenSettings: () => void;
   onOpenInvite: () => void;
   onToggleTheme: () => void;
+  onSetLanguage: (l: Locale) => void;
   onLogout: () => void;
 }
 
@@ -63,9 +66,9 @@ function AssistantSpark() {
 }
 
 export function NavRail({
-  me, theme, activeTab, profileOpen,
+  me, theme, language, activeTab, profileOpen,
   onTab, onToggleProfile, onCloseProfile,
-  onOpenAssistant, onOpenSupport, onOpenSettings, onOpenInvite, onToggleTheme, onLogout,
+  onOpenAssistant, onOpenSupport, onOpenSettings, onOpenInvite, onToggleTheme, onSetLanguage, onLogout,
 }: Props) {
   return (
     <nav className="navRail" aria-label="Главная навигация">
@@ -115,10 +118,12 @@ export function NavRail({
           <NavProfilePopover
             me={me}
             theme={theme}
+            language={language}
             onClose={onCloseProfile}
             onOpenSettings={onOpenSettings}
             onOpenInvite={onOpenInvite}
             onToggleTheme={onToggleTheme}
+            onSetLanguage={onSetLanguage}
             onLogout={onLogout}
           />
         )}

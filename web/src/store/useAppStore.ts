@@ -5,6 +5,7 @@
 import { create } from 'zustand';
 import { type Chat } from '../types';
 import { type Theme, getStoredTheme, applyTheme } from '../utils/theme';
+import { type Locale, getStoredLocale, setLocale } from '../i18n';
 import { getSession } from '../storage/session';
 
 /** Активная вкладка нижнего меню на мобильном (десктоп его не использует). */
@@ -23,6 +24,7 @@ const initialInfoPanelOpen = typeof window !== 'undefined'
 
 interface AppState {
   theme: Theme;
+  language: Locale;
   /** Какая вкладка нижнего меню открыта на мобильном. */
   mobileTab: MobileTab;
   /** Какая вкладка боковой панели навигации открыта на десктопе. */
@@ -51,6 +53,7 @@ interface AppState {
   showForwardModal: boolean;
 
   toggleTheme: () => void;
+  setLanguage: (l: Locale) => void;
   setMobileTab: (t: MobileTab) => void;
   setDesktopTab: (t: DesktopTab) => void;
   setShowInfoPanel: (v: boolean) => void;
@@ -75,13 +78,16 @@ interface AppState {
   setShowForwardModal: (v: boolean) => void;
 }
 
-// Prefer theme saved in the session user object (synced from backend) over localStorage
+// Prefer theme/language saved in the session user object (synced from backend) over localStorage
 const _savedSession = getSession();
 const initialTheme: Theme = (_savedSession?.user?.theme as Theme) || getStoredTheme();
 applyTheme(initialTheme);
+const initialLanguage: Locale = (_savedSession?.user?.language as Locale) || getStoredLocale();
+setLocale(initialLanguage);
 
 export const useAppStore = create<AppState>((set) => ({
   theme: initialTheme,
+  language: initialLanguage,
   mobileTab: 'chats',
   desktopTab: 'chats',
   showInfoPanel: initialInfoPanelOpen,
@@ -108,6 +114,10 @@ export const useAppStore = create<AppState>((set) => ({
     applyTheme(next);
     return { theme: next };
   }),
+  setLanguage: (language) => {
+    setLocale(language);
+    set({ language });
+  },
 
   setMobileTab: (mobileTab) => set({ mobileTab }),
   setDesktopTab: (desktopTab) => set({ desktopTab }),

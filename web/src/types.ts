@@ -23,6 +23,7 @@ export type User = {
   theme?: 'dark' | 'light';        // ✅ persisted appearance setting
   accent_color?: string;            // ✅ persisted accent color
   app_bg?: string | null;           // ✅ persisted app background (JSON AppBg, см. utils/appBackground.ts)
+  language?: 'ru' | 'en';           // ✅ persisted UI language, synced across devices
   created_at?: number;
   last_seen_at?: number | null;
   has_password?: boolean;

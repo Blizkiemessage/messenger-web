@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { type User } from '../../types';
 import { type InviteInviter } from '../../api/invites';
 import { type Theme } from '../../utils/theme';
@@ -34,13 +35,13 @@ interface Props {
   invitedBy?: InviteInviter | null;
 }
 
-const viewTitles: Record<AuthView, string> = {
-  tabs:   'Добро пожаловать!',
-  forgot: 'Восстановление пароля',
-  reset:  'Новый пароль',
-};
-
 export function AuthScreen({ theme, onThemeToggle, onAuthenticated, invitedBy }: Props) {
+  const { t } = useTranslation('auth');
+  const viewTitles: Record<AuthView, string> = {
+    tabs:   t('welcomeTitle'),
+    forgot: t('forgotTitle'),
+    reset:  t('resetTitle'),
+  };
   const [tab,         setTab]         = useState<AuthTab>('login');
   const [view,        setView]        = useState<AuthView>('tabs');
   const [resetParams, setResetParams] = useState<ResetParams | null>(null);
@@ -77,8 +78,8 @@ export function AuthScreen({ theme, onThemeToggle, onAuthenticated, invitedBy }:
               : <span>{(invitedBy.display_name || invitedBy.username || '?').charAt(0).toUpperCase()}</span>}
           </div>
           <div className="authInviteText">
-            <b>{invitedBy.display_name || invitedBy.username}</b> приглашает вас в Blizkie
-            <span className="authInviteHint">Зарегистрируйтесь — и вы сразу станете контактами</span>
+            <b>{invitedBy.display_name || invitedBy.username}</b> {t('invitedBySuffix')}
+            <span className="authInviteHint">{t('invitedHint')}</span>
           </div>
         </div>
       )}
@@ -93,13 +94,13 @@ export function AuthScreen({ theme, onThemeToggle, onAuthenticated, invitedBy }:
               className={`authTab${tab === 'login'    ? ' active' : ''}`}
               onClick={() => setTab('login')}
             >
-              Войти
+              {t('tabLogin')}
             </button>
             <button
               className={`authTab${tab === 'register' ? ' active' : ''}`}
               onClick={() => setTab('register')}
             >
-              Регистрация
+              {t('tabRegister')}
             </button>
           </div>
         )}
@@ -137,8 +138,8 @@ export function AuthScreen({ theme, onThemeToggle, onAuthenticated, invitedBy }:
       </div>
 
       <div style={{ marginTop: 20, fontSize: 12.5, color: 'var(--muted)', display: 'flex', gap: 14, justifyContent: 'center' }}>
-        <a href="/privacy" target="_blank" rel="noopener noreferrer" style={{ color: 'inherit' }}>Конфиденциальность</a>
-        <a href="/terms" target="_blank" rel="noopener noreferrer" style={{ color: 'inherit' }}>Условия использования</a>
+        <a href="/privacy" target="_blank" rel="noopener noreferrer" style={{ color: 'inherit' }}>{t('privacyLink')}</a>
+        <a href="/terms" target="_blank" rel="noopener noreferrer" style={{ color: 'inherit' }}>{t('termsLink')}</a>
       </div>
     </div>
   );

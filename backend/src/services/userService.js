@@ -53,6 +53,7 @@ function sanitizeUser(u, { showPrivate = false, viewerId = null } = {}, alias = 
     theme:        showPrivate ? (u.theme        || 'dark')     : undefined,
     accent_color: showPrivate ? (u.accent_color || '#2f81f7')  : undefined,
     app_bg:       showPrivate ? (u.app_bg       || null)       : undefined,
+    language:     showPrivate ? (u.language     || 'ru')       : undefined,
     // F3: presence intention status — intentionally visible to chat members (not sensitive)
     presence_status:     u.presence_status     || null,
     presence_note:       u.presence_note       || null,
@@ -64,11 +65,13 @@ function getUserById(userId) {
   return getDb().prepare('SELECT * FROM users WHERE id = ?').get(userId) ?? null;
 }
 
+const VALID_LANGUAGES = ['ru', 'en'];
+
 function updateUser(userId, {
   username, display_name, avatar_url, bio,
   birth_date, hide_bio, hide_birth_date, hide_email, no_group_add,
   hide_avatar, avatar_exceptions, hide_last_seen,
-  theme, accent_color, app_bg,
+  theme, accent_color, app_bg, language,
 }) {
   const db = getDb();
 
@@ -99,6 +102,12 @@ function updateUser(userId, {
       throw Object.assign(new Error('Invalid app_bg'), { status: 400 });
     }
     db.prepare('UPDATE users SET app_bg = ? WHERE id = ?').run([app_bg, userId]);
+  }
+  if (language !== undefined) {
+    if (!VALID_LANGUAGES.includes(language)) {
+      throw Object.assign(new Error('Invalid language'), { status: 400 });
+    }
+    db.prepare('UPDATE users SET language = ? WHERE id = ?').run([language, userId]);
   }
 
   return db.prepare('SELECT * FROM users WHERE id = ?').get(userId);

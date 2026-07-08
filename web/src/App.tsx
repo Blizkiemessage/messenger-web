@@ -10,6 +10,7 @@ import './app.css';
 import { useSessionStore } from './store/useSessionStore';
 import { useChatsStore, selectActiveChat } from './store/useChatsStore';
 import { useAppStore } from './store/useAppStore';
+import { type Locale } from './i18n';
 import { useFolderStore } from './store/useFolderStore';
 import { useDeepLinkStore } from './store/useDeepLinkStore';
 import { isChatScoped } from './deeplinks';
@@ -68,6 +69,8 @@ export default function App() {
   // App store — individual selectors
   const theme = useAppStore(s => s.theme);
   const toggleTheme = useAppStore(s => s.toggleTheme);
+  const language = useAppStore(s => s.language);
+  const setLanguage = useAppStore(s => s.setLanguage);
   const showProfileSettings = useAppStore(s => s.showProfileSettings);
   const setShowProfileSettings = useAppStore(s => s.setShowProfileSettings);
   const showCreateGroup = useAppStore(s => s.showCreateGroup);
@@ -269,6 +272,10 @@ export default function App() {
     const next = useAppStore.getState().theme;
     apiUpdateMe({ theme: next }).then(u => updateMe(u)).catch(() => {});
   };
+  const handleSetLanguage = (next: Locale) => {
+    setLanguage(next);
+    apiUpdateMe({ language: next }).then(u => updateMe(u)).catch(() => {});
+  };
   const handleLogout = async () => {
     try { await authLogout(); } catch { /* cookie might already be gone */ }
     clearSession();
@@ -421,6 +428,7 @@ export default function App() {
           <NavRail
             me={me}
             theme={theme}
+            language={language}
             activeTab={desktopTab}
             profileOpen={showProfile}
             onTab={setDesktopTab}
@@ -431,6 +439,7 @@ export default function App() {
             onOpenSettings={() => { setShowProfile(false); setShowProfileSettings(true); }}
             onOpenInvite={() => { setShowProfile(false); setShowInvite(true); }}
             onToggleTheme={handleRailThemeToggle}
+            onSetLanguage={handleSetLanguage}
             onLogout={handleLogout}
           />
         )}

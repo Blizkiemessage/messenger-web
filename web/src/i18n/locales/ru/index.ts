@@ -1,0 +1,9 @@
+/**
+ * Реестр русских неймспейсов. Новый неймспейс = новый JSON + импорт здесь
+ * (и зеркально в locales/en/index.ts) — см. web/src/i18n/index.ts.
+ */
+import common from './common.json';
+import settings from './settings.json';
+import auth from './auth.json';
+
+export default { common, settings, auth };

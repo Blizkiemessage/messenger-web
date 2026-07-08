@@ -3,6 +3,7 @@
  * After submit, shows OTP verification modal.
  */
 import { useState, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import { type User } from '../../types';
 import { PasswordInput } from '../ui/PasswordInput';
 import { Portal } from '../ui/Portal';
@@ -15,6 +16,7 @@ interface Props {
 }
 
 export function RegisterForm({ onAuthenticated, onSwitchTab }: Props) {
+  const { t } = useTranslation('auth');
   const [username,        setUsername]        = useState('');
   const [email,           setEmail]           = useState('');
   const [password,        setPassword]        = useState('');
@@ -61,11 +63,11 @@ export function RegisterForm({ onAuthenticated, onSwitchTab }: Props) {
       setPendingEmail(res.email);
       setStep('otp');
     } catch (e: any) {
-      setError(e?.message ?? 'Ошибка регистрации');
+      setError(e?.message ?? t('register.genericError'));
     } finally {
       setBusy(false);
     }
-  }, [username, email, password, acceptedTerms, ready, busy]);
+  }, [username, email, password, acceptedTerms, ready, busy, t]);
 
   const onVerify = useCallback(async () => {
     if (otp.length !== 6 || otpBusy) return;
@@ -78,12 +80,12 @@ export function RegisterForm({ onAuthenticated, onSwitchTab }: Props) {
       if (res.refreshToken) saveRefreshToken(res.refreshToken);
       onAuthenticated(res.user, res.sessionId ?? null);
     } catch (e: any) {
-      setOtpError(e?.message ?? 'Неверный код');
+      setOtpError(e?.message ?? t('register.otpInvalid'));
       setOtp('');
     } finally {
       setOtpBusy(false);
     }
-  }, [otp, pendingEmail, otpBusy, onAuthenticated]);
+  }, [otp, pendingEmail, otpBusy, onAuthenticated, t]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && ready && !busy) onRegister();
@@ -92,70 +94,70 @@ export function RegisterForm({ onAuthenticated, onSwitchTab }: Props) {
   return (
     <>
       {/* Username */}
-      <div className="authLabel">Username</div>
+      <div className="authLabel">{t('register.username')}</div>
       <input
         className="authInput"
         value={username}
         onChange={e => setUsername(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ''))}
         onFocus={() => setTouchedUser(true)}
-        placeholder="username"
+        placeholder={t('register.usernamePlaceholder')}
         autoCapitalize="none"
         autoComplete="username"
         autoFocus
         onKeyDown={handleKeyDown}
       />
       {touchedUser && username.length > 0 && username.trim().length < 3 && (
-        <div className="authFieldHint">Минимум 3 символа · только латиница, цифры и _</div>
+        <div className="authFieldHint">{t('register.usernameHint')}</div>
       )}
 
       {/* Email */}
-      <div className="authLabel">Email</div>
+      <div className="authLabel">{t('register.email')}</div>
       <input
         className="authInput"
         type="email"
         value={email}
         onChange={e => setEmail(e.target.value)}
         onFocus={() => setTouchedEmail(true)}
-        placeholder="you@example.com"
+        placeholder={t('register.emailPlaceholder')}
         autoCapitalize="none"
         autoComplete="email"
         onKeyDown={handleKeyDown}
       />
       {touchedEmail && email.length > 0 && !emailValid && (
-        <div className="authFieldHint">Введите корректный email</div>
+        <div className="authFieldHint">{t('register.emailHint')}</div>
       )}
 
       {/* Password */}
-      <div className="authLabel">Пароль</div>
+      <div className="authLabel">{t('register.password')}</div>
       <PasswordInput
         value={password}
         onChange={setPassword}
         onFocus={() => setTouchedPass(true)}
-        placeholder="Минимум 8 символов"
+        placeholder={t('register.passwordPlaceholder')}
         onKeyDown={handleKeyDown}
       />
       {touchedPass && password.length > 0 && (
         <div className="pwStrength">
           <span className={pwLongEnough ? 'pwReqOk' : 'pwReqNo'}>
-            {pwLongEnough ? '✓' : '✗'} Минимум 8 символов
+            {pwLongEnough ? '✓' : '✗'} {t('register.passwordMinLength')}
           </span>
           <span className={pwHasDigitOrSpecial ? 'pwReqOk' : 'pwReqNo'}>
-            {pwHasDigitOrSpecial ? '✓' : '✗'} Цифра или спецсимвол
+            {pwHasDigitOrSpecial ? '✓' : '✗'} {t('register.passwordDigitOrSpecial')}
           </span>
         </div>
       )}
 
       {/* Confirm password */}
-      <div className="authLabel">Повторите пароль</div>
+      <div className="authLabel">{t('register.confirmPassword')}</div>
       <PasswordInput
         value={passwordConfirm}
         onChange={setPasswordConfirm}
         onFocus={() => setTouchedConf(true)}
-        placeholder="Повторите пароль"
+        placeholder={t('register.confirmPasswordPlaceholder')}
         onKeyDown={handleKeyDown}
       />
       {showMismatch && (
-        <div className="authFieldHintError">Пароли не совпадают</div>
+        <div className="authFieldHintError">{t('register.passwordMismatch')}</div>
       )}
 
       {/* Consent checkbox — required, App Store/Play Market submission needs it (docs/STORE_LAUNCH_TZ.md §1) */}
@@ -167,13 +169,13 @@ export function RegisterForm({ onAuthenticated, onSwitchTab }: Props) {
           style={{ marginTop: 2, flexShrink: 0 }}
         />
         <span>
-          Я принимаю{' '}
+          {t('register.acceptTermsPrefix')}{' '}
           <a href="/terms" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--accent)' }}>
-            Условия использования
+            {t('register.termsOfService')}
           </a>{' '}
-          и{' '}
+          {t('register.and')}{' '}
           <a href="/privacy" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--accent)' }}>
-            Политику конфиденциальности
+            {t('register.privacyPolicy')}
           </a>
         </span>
       </label>
@@ -181,13 +183,13 @@ export function RegisterForm({ onAuthenticated, onSwitchTab }: Props) {
       {error && <div className="authError">{error}</div>}
 
       <button className="authBtn" disabled={!ready || busy} onClick={onRegister}>
-        {busy ? '…' : 'Создать аккаунт'}
+        {busy ? '…' : t('register.submit')}
       </button>
 
       <div className="authSwitchRow">
-        Уже есть аккаунт?{' '}
+        {t('register.haveAccount')}{' '}
         <button className="authSwitchLink" onClick={onSwitchTab}>
-          Войти
+          {t('register.loginLink')}
         </button>
       </div>
 
@@ -197,13 +199,13 @@ export function RegisterForm({ onAuthenticated, onSwitchTab }: Props) {
           <div className="modalOverlay">
             <div className="confirmCard" style={{ width: 'min(400px, 100%)', display: 'flex', flexDirection: 'column', gap: '14px' }}>
               <div>
-                <div style={{ fontSize: 18, fontWeight: 700, marginBottom: 8 }}>Подтверждение email</div>
+                <div style={{ fontSize: 18, fontWeight: 700, marginBottom: 8 }}>{t('register.otpTitle')}</div>
                 <p style={{ fontSize: 14, color: 'var(--muted)', lineHeight: 1.5, margin: 0 }}>
-                  На вашу почту <strong>{pendingEmail}</strong> выслан разовый код подтверждения
+                  {t('register.otpSentToPrefix')} <strong>{pendingEmail}</strong> {t('register.otpSentToSuffix')}
                 </p>
               </div>
 
-              <div className="authLabel">Код из письма</div>
+              <div className="authLabel">{t('register.otpCodeLabel')}</div>
               <input
                 className="authInput"
                 value={otp}
@@ -220,7 +222,7 @@ export function RegisterForm({ onAuthenticated, onSwitchTab }: Props) {
                 disabled={otp.length !== 6 || otpBusy}
                 onClick={onVerify}
               >
-                {otpBusy ? '…' : 'Подтвердить'}
+                {otpBusy ? '…' : t('register.otpConfirm')}
               </button>
 
               <div className="authSwitchRow">
@@ -228,7 +230,7 @@ export function RegisterForm({ onAuthenticated, onSwitchTab }: Props) {
                   className="authSwitchLink"
                   onClick={() => { setStep('form'); setOtp(''); setOtpError(null); }}
                 >
-                  Изменить данные
+                  {t('register.editData')}
                 </button>
               </div>
             </div>

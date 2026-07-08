@@ -22,6 +22,7 @@ export async function updateMe(payload: {
   theme?: string;
   accent_color?: string;
   app_bg?: string | null;
+  language?: 'ru' | 'en';
 }): Promise<User> {
   const res = await client.patch<User>('/users/me', payload);
   return res.data;

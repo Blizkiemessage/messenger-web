@@ -1,4 +1,5 @@
 import { useState, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import { authForgotPassword } from '../../api/auth';
 
 interface Props {
@@ -9,6 +10,7 @@ interface Props {
 type Step = 'form' | 'sent' | 'notFound';
 
 export function ForgotPasswordForm({ onBack, onSwitchToRegister }: Props) {
+  const { t } = useTranslation('auth');
   const [email,   setEmail]   = useState('');
   const [step,    setStep]    = useState<Step>('form');
   const [busy,    setBusy]    = useState(false);
@@ -27,12 +29,12 @@ export function ForgotPasswordForm({ onBack, onSwitchToRegister }: Props) {
       if (e?.status === 404 || e?.message?.includes('не найден')) {
         setStep('notFound');
       } else {
-        setError(e?.message ?? 'Что-то пошло не так. Попробуйте позже.');
+        setError(e?.message ?? t('forgot.genericError'));
       }
     } finally {
       setBusy(false);
     }
-  }, [email, emailValid, busy]);
+  }, [email, emailValid, busy, t]);
 
   /* ── Sent state ── */
   if (step === 'sent') {
@@ -40,20 +42,20 @@ export function ForgotPasswordForm({ onBack, onSwitchToRegister }: Props) {
       <>
         <div style={{ textAlign: 'center', padding: '8px 0 4px' }}>
           <div style={{ fontSize: 40, marginBottom: 12 }}>📬</div>
-          <div style={{ fontSize: 17, fontWeight: 700, marginBottom: 8 }}>Письмо отправлено!</div>
+          <div style={{ fontSize: 17, fontWeight: 700, marginBottom: 8 }}>{t('forgot.sentTitle')}</div>
           <p style={{ fontSize: 13, color: 'var(--muted)', lineHeight: 1.6, margin: '0 0 4px' }}>
-            Ссылка для сброса пароля отправлена на
+            {t('forgot.sentTo')}
           </p>
           <p style={{ fontSize: 13, fontWeight: 600, margin: '0 0 16px', wordBreak: 'break-all' }}>
             {email.trim()}
           </p>
           <p style={{ fontSize: 12, color: 'var(--muted)', lineHeight: 1.6, margin: 0 }}>
-            Ссылка действительна&nbsp;1&nbsp;час. Проверьте папку «Спам», если письмо не пришло.
+            {t('forgot.sentHint')}
           </p>
         </div>
 
         <button className="authBtn" onClick={onBack}>
-          Вернуться ко входу
+          {t('forgot.returnToLogin')}
         </button>
       </>
     );
@@ -65,20 +67,20 @@ export function ForgotPasswordForm({ onBack, onSwitchToRegister }: Props) {
       <>
         <div style={{ textAlign: 'center', padding: '8px 0 4px' }}>
           <div style={{ fontSize: 40, marginBottom: 12 }}>🔍</div>
-          <div style={{ fontSize: 17, fontWeight: 700, marginBottom: 8 }}>Аккаунт не найден</div>
+          <div style={{ fontSize: 17, fontWeight: 700, marginBottom: 8 }}>{t('forgot.notFoundTitle')}</div>
           <p style={{ fontSize: 13, color: 'var(--muted)', lineHeight: 1.6, margin: 0 }}>
-            Аккаунт с адресом <strong style={{ color: 'var(--text)' }}>{email.trim()}</strong> не существует.
-            Возможно, вы указали другой email при регистрации.
+            {t('forgot.notFoundTextPrefix')} <strong style={{ color: 'var(--text)' }}>{email.trim()}</strong>{' '}
+            {t('forgot.notFoundTextSuffix')}
           </p>
         </div>
 
         <button className="authBtn" onClick={onSwitchToRegister}>
-          Зарегистрироваться
+          {t('forgot.registerCta')}
         </button>
 
         <div className="authSwitchRow">
           <button className="authSwitchLink" onClick={() => setStep('form')}>
-            Попробовать другой email
+            {t('forgot.tryAnotherEmail')}
           </button>
         </div>
       </>
@@ -89,10 +91,10 @@ export function ForgotPasswordForm({ onBack, onSwitchToRegister }: Props) {
   return (
     <>
       <p style={{ fontSize: 13, color: 'var(--muted)', lineHeight: 1.6, margin: '-4px 0 2px', textAlign: 'center' }}>
-        Введите email аккаунта — мы отправим ссылку для сброса пароля
+        {t('forgot.prompt')}
       </p>
 
-      <div className="authLabel">Email аккаунта</div>
+      <div className="authLabel">{t('forgot.emailLabel')}</div>
       <input
         className="authInput"
         type="email"
@@ -108,12 +110,12 @@ export function ForgotPasswordForm({ onBack, onSwitchToRegister }: Props) {
       {error && <div className="authError">{error}</div>}
 
       <button className="authBtn" disabled={!emailValid || busy} onClick={onSubmit}>
-        {busy ? '…' : 'Отправить ссылку'}
+        {busy ? '…' : t('forgot.submit')}
       </button>
 
       <div className="authSwitchRow">
         <button className="authSwitchLink" onClick={onBack}>
-          ← Вернуться ко входу
+          {t('forgot.backToLogin')}
         </button>
       </div>
     </>

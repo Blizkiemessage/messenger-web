@@ -5,6 +5,7 @@ import { useChatsStore } from '../../store/useChatsStore';
 import { useAppStore } from '../../store/useAppStore';
 import { useFolderStore } from '../../store/useFolderStore';
 import { type ChatFolder } from '../../types';
+import { type Locale } from '../../i18n';
 import { useIsMobile } from '../../hooks/useIsMobile';
 import { UserSearch } from './UserSearch';
 import { FolderTabs } from './FolderTabs';
@@ -63,11 +64,17 @@ export function Sidebar() {
   const theme = useAppStore(s => s.theme);
   const desktopTab = useAppStore(s => s.desktopTab);
   const toggleThemeAction = useAppStore(s => s.toggleTheme);
+  const language = useAppStore(s => s.language);
+  const setLanguageAction = useAppStore(s => s.setLanguage);
   const sessionUpdateMe = useSessionStore(s => s.updateMe);
   const toggleTheme = () => {
     toggleThemeAction();
     const next = useAppStore.getState().theme;
     updateMe({ theme: next }).then(u => sessionUpdateMe(u)).catch(() => {});
+  };
+  const setLanguage = (next: Locale) => {
+    setLanguageAction(next);
+    updateMe({ language: next }).then(u => sessionUpdateMe(u)).catch(() => {});
   };
   const setShowProfileSettings = useAppStore(s => s.setShowProfileSettings);
   const setShowCreateGroup = useAppStore(s => s.setShowCreateGroup);
@@ -143,6 +150,8 @@ export function Sidebar() {
           onOpenSupport={() => setShowSupport(true)}
           theme={theme}
           onToggleTheme={toggleTheme}
+          language={language}
+          onSetLanguage={setLanguage}
           onLogout={async () => {
             try { await authLogout(); } catch { /* cookie might already be gone */ }
             clearSession();

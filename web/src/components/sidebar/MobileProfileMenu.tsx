@@ -3,28 +3,33 @@
  *
  * Открывается по тапу «Профиль» в нижнем меню. Содержит шапку пользователя
  * и пункты: Настройки, Тех. поддержка, Тема оформления (слайдер солнце/луна),
- * Язык (заглушка), Выйти. Сам экран настроек/поддержки — отдельные модалки,
- * открываются из этого меню.
+ * Язык (RU/EN переключатель), Выйти. Сам экран настроек/поддержки — отдельные
+ * модалки, открываются из этого меню.
  */
+import { useTranslation } from 'react-i18next';
 import { Portal } from '../ui/Portal';
 import { Avatar } from '../ui/Avatar';
 import { StatusPicker } from '../ui/StatusPicker';
 import { type User } from '../../types';
 import { type Theme } from '../../utils/theme';
+import { type Locale } from '../../i18n';
 
 interface Props {
   me: User;
   theme: Theme;
+  language: Locale;
   onClose: () => void;
   onOpenSettings: () => void;
   onOpenSupport: () => void;
   onToggleTheme: () => void;
+  onSetLanguage: (l: Locale) => void;
   onLogout: () => void;
 }
 
 export function MobileProfileMenu({
-  me, theme, onClose, onOpenSettings, onOpenSupport, onToggleTheme, onLogout,
+  me, theme, language, onClose, onOpenSettings, onOpenSupport, onToggleTheme, onSetLanguage, onLogout,
 }: Props) {
+  const { t } = useTranslation('settings');
   const isDark = theme === 'dark';
 
   return (
@@ -118,17 +123,34 @@ export function MobileProfileMenu({
             </span>
           </button>
 
-          {/* Язык — заглушка */}
-          <button className="mpItem mpItemDisabled" disabled>
-            <span className="mpItemIcon">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M4 5h7M8 3v2M6 5c0 4-2.5 6-4 7M5.5 9c0 2 2 3.5 4.5 4.5" />
-                <path d="M13 20l4-9 4 9M14.5 17h5" />
-              </svg>
-            </span>
-            <span className="mpItemLabel">Язык</span>
-            <span className="mpSoon">Скоро</span>
-          </button>
+          {/* Язык — карточки-флаги */}
+          <div className="mpLangBlock">
+            <div className="mpItem mpItemStatic">
+              <span className="mpItemIcon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M4 5h7M8 3v2M6 5c0 4-2.5 6-4 7M5.5 9c0 2 2 3.5 4.5 4.5" />
+                  <path d="M13 20l4-9 4 9M14.5 17h5" />
+                </svg>
+              </span>
+              <span className="mpItemLabel">{t('language')}</span>
+            </div>
+            <div className="mpLangOptions">
+              <button
+                className={`mpLangCard${language === 'ru' ? ' active' : ''}`}
+                onClick={() => onSetLanguage('ru')}
+              >
+                <span className="mpLangFlag" aria-hidden>🇷🇺</span>
+                {t('languageRussian')}
+              </button>
+              <button
+                className={`mpLangCard${language === 'en' ? ' active' : ''}`}
+                onClick={() => onSetLanguage('en')}
+              >
+                <span className="mpLangFlag" aria-hidden>🇬🇧</span>
+                {t('languageEnglish')}
+              </button>
+            </div>
+          </div>
 
           <div className="mpDivider" />
 
