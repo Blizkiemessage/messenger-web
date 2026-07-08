@@ -1,14 +1,16 @@
 /**
  * calls.js — E3 WebRTC: ICE server config + call history
  *
- * GET /calls/ice-servers   → returns ICE server configuration (STUN + optional TURN)
- * GET /calls/history/:chatId → returns call history for a chat (paginated)
+ * GET /calls/ice-servers     → returns ICE server configuration (STUN + optional TURN)
+ * GET /calls/history         → global call log across all of the user's 1:1 calls (paginated)
+ * GET /calls/history/:chatId → returns call history for a single chat (paginated)
  */
 const express = require('express');
 const router = express.Router();
 const crypto = require('crypto');
 const { authMiddleware } = require('../middleware/auth');
 const { getDb } = require('../config/database');
+const { signAvatarUrl } = require('../utils/s3Sign');
 
 // ── ICE Servers ──────────────────────────────────────────────────────────────
 // Returns STUN + optional TURN credentials.
@@ -124,7 +126,63 @@ router.get('/ice-servers', authMiddleware, async (req, res) => {
   res.json({ iceServers });
 });
 
-// ── Call History ─────────────────────────────────────────────────────────────
+// ── Call History (global) ──────────────────────────────────────────────────
+// Cross-chat call log for the current user — every 1:1 call where they were
+// either caller or callee, newest first. Calls are 1:1 only (no group calls),
+// so "the other participant" is unambiguous. Works even if the underlying
+// chat was since deleted (calls.chat_id has no FK to chats — see teardown.js
+// deleteDirectChat, a hard delete of the shared chat row) — the frontend
+// re-resolves/recreates the chat by the other user's id when needed, not by
+// chat_id, so a stale chat_id here is harmless.
+router.get('/history', authMiddleware, async (req, res) => {
+  const userId = req.userId;
+  const limit  = Math.min(parseInt(req.query.limit) || 30, 100);
+  const before = req.query.before ? parseInt(req.query.before) : Date.now();
+
+  const db = getDb();
+  const rows = db.prepare(`
+    SELECT
+      c.id, c.chat_id, c.caller_id, c.callee_id, c.call_type,
+      c.status, c.started_at, c.ended_at, c.duration, c.created_at,
+      caller.username     AS caller_username,
+      caller.display_name AS caller_display_name,
+      caller.avatar_url   AS caller_avatar_url,
+      callee.username     AS callee_username,
+      callee.display_name AS callee_display_name,
+      callee.avatar_url   AS callee_avatar_url
+    FROM calls c
+    LEFT JOIN users caller ON caller.id = c.caller_id
+    LEFT JOIN users callee ON callee.id = c.callee_id
+    WHERE (c.caller_id = ? OR c.callee_id = ?) AND c.created_at < ?
+    ORDER BY c.created_at DESC
+    LIMIT ?
+  `).all([userId, userId, before, limit]);
+
+  const calls = await Promise.all(rows.map(async (r) => {
+    const isOutgoing = r.caller_id === userId;
+    let otherAvatarUrl = isOutgoing ? r.callee_avatar_url : r.caller_avatar_url;
+    if (otherAvatarUrl) otherAvatarUrl = await signAvatarUrl(otherAvatarUrl);
+    return {
+      id: r.id,
+      callType: r.call_type,
+      status: r.status,
+      startedAt: r.started_at,
+      endedAt: r.ended_at,
+      duration: r.duration,
+      createdAt: r.created_at,
+      direction: isOutgoing ? 'outgoing' : 'incoming',
+      otherUser: {
+        id: isOutgoing ? r.callee_id : r.caller_id,
+        username: isOutgoing ? r.callee_username : r.caller_username,
+        display_name: isOutgoing ? r.callee_display_name : r.caller_display_name,
+        avatar_url: otherAvatarUrl,
+      },
+    };
+  }));
+
+  res.json({ calls });
+});
+
 router.get('/history/:chatId', authMiddleware, (req, res) => {
   const { chatId } = req.params;
   const userId = req.userId;

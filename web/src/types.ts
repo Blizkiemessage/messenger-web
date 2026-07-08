@@ -252,6 +252,19 @@ export type CallRecord = {
   callee_display_name?: string | null;
 };
 
+/** Global (cross-chat) call log entry — GET /calls/history */
+export type GlobalCallHistoryEntry = {
+  id: string;
+  callType: CallType;
+  status: 'pending' | 'active' | 'ended' | 'rejected' | 'missed';
+  startedAt: number | null;
+  endedAt: number | null;
+  duration: number | null;
+  createdAt: number;
+  direction: 'incoming' | 'outgoing';
+  otherUser: User;
+};
+
 // ── F4: Shared Notes ─────────────────────────────────────────────────────────
 
 export type SharedNote = {

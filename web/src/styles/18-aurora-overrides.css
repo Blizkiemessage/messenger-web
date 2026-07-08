@@ -1387,28 +1387,6 @@
   .mobileShell .sidebarBottom,
   .mobileShell .asstOrbSidebar { display: none; }
 
-  /* ── Заглушка «Звонки» ────────────────────────────────────────────── */
-  .mCallsEmpty {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 10px;
-    padding: 40px 28px;
-    text-align: center;
-  }
-  .mCallsEmptyIcon {
-    width: 72px; height: 72px;
-    display: grid; place-items: center;
-    border-radius: 50%;
-    color: var(--accent);
-    background: var(--accent-dim);
-  }
-  .mCallsEmptyIcon svg { width: 32px; height: 32px; }
-  .mCallsEmptyTitle { font-size: 16px; font-weight: 700; color: var(--text); }
-  .mCallsEmptySub { font-size: 13px; color: var(--muted); max-width: 220px; line-height: 1.5; }
-
   /* ── Стеклянное меню профиля (bottom sheet) ───────────────────────── */
   .mpOverlay {
     position: fixed;
@@ -1755,16 +1733,6 @@
   .npThemeKnob svg { width: 14px; height: 14px; }
   .npThemeSwitch.dark .npThemeKnob { transform: translateX(24px); color: var(--text); }
 
-  /* ── Заглушка «Звонки» в колонке списка ────────────────────────────── */
-  .railCallsEmpty {
-    flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
-    gap: 10px; padding: 30px; text-align: center;
-  }
-  .railCallsEmptyIcon { width: 66px; height: 66px; border-radius: 50%; display: grid; place-items: center; color: var(--accent); background: var(--accent-dim); }
-  .railCallsEmptyIcon svg { width: 30px; height: 30px; }
-  .railCallsEmptyTitle { font-size: 16px; font-weight: 700; color: var(--text); }
-  .railCallsEmptySub { font-size: 13px; color: var(--muted); max-width: 220px; line-height: 1.5; }
-
   /* ── Сцена чата: переписка + правая панель ─────────────────────────── */
   .chatStage { display: flex; flex-direction: row; flex: 1; min-height: 0; overflow: hidden; position: relative; }
   .chatStage > .chatAreaInner { flex: 1; min-width: 0; }
@@ -1866,3 +1834,65 @@
   .navTopAssistantGlow { animation: none; }
   .navTopAssistant, .navItem, .navProfileBtn, .chatInfoPanel, .npPopover { animation: none; transition: none; }
 }
+
+/* ── История звонков (глобальная, вкладка «Звонки») ─────────────────────────
+   Общий компонент CallHistoryList — используется и в мобильной карточке
+   (.mCard), и в десктопной колонке (.sidebar); строки переиспользуют классы
+   .chatItem/.ciAvatarWrap/.ciBody/.ciTop/.ciBottom из списка чатов ради
+   единого вида, здесь — только специфика самой истории звонков. */
+.callHistoryList {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+.callHistoryDayHeader {
+  padding: 12px 16px 4px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+.callHistoryItem { cursor: pointer; }
+.callHistoryStatus { display: inline-flex; align-items: center; gap: 4px; }
+.chCallDirIcon { flex-shrink: 0; opacity: 0.7; }
+.callHistoryMissed,
+.callHistoryMissed .chCallDirIcon { color: #ef4444; }
+.callHistoryCallBackBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: none;
+  background: transparent;
+  color: var(--accent);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background 0.15s;
+}
+.callHistoryCallBackBtn:hover { background: var(--accent-dim); }
+.callHistoryEmpty,
+.callHistoryLoading {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 40px 28px;
+  text-align: center;
+  color: var(--muted);
+}
+.callHistoryEmptyIcon {
+  width: 72px; height: 72px;
+  display: grid; place-items: center;
+  border-radius: 50%;
+  color: var(--accent);
+  background: var(--accent-dim);
+}
+.callHistoryEmptyIcon svg { width: 32px; height: 32px; }
+.callHistoryEmptyTitle { font-size: 16px; font-weight: 700; color: var(--text); }
+.callHistoryEmptySub { font-size: 13px; color: var(--muted); max-width: 220px; line-height: 1.5; }
+.callHistoryLoadingMore { text-align: center; padding: 12px; font-size: 12px; color: var(--muted); }
