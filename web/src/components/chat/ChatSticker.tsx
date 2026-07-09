@@ -6,6 +6,7 @@
  * file_url instead of falling back to the potentially-stale attachment_url.
  */
 import { useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { resolveUrl } from '../ui/Avatar';
 import { StickerMedia } from '../ui/StickerMedia';
 import { useStickerStore } from '../../store/useStickerStore';
@@ -17,6 +18,7 @@ interface Props {
 }
 
 export function ChatSticker({ m, onStickerPackClick }: Props) {
+  const { t } = useTranslation('chat');
   let packId: string | null = null;
   let itemId: string | null = null;
   try {
@@ -71,12 +73,12 @@ export function ChatSticker({ m, onStickerPackClick }: Props) {
         e.stopPropagation();
         onStickerPackClick!(packId!);
       }}
-      title={clickable ? 'Просмотреть стикерпак' : undefined}
+      title={clickable ? t('sticker.viewPackTitle') : undefined}
     >
       <StickerMedia
         fileUrl={stickerFileUrl}
         thumbUrl={stickerThumb}
-        alt="Стикер"
+        alt={t('sticker.altText')}
         className="bubbleSticker"
         loading="eager"
       />

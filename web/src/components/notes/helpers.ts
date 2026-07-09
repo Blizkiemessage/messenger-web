@@ -18,23 +18,23 @@ export function parseBlocks(raw: string): NoteBlock[] {
 
 export function serialize(blocks: NoteBlock[]): string { return JSON.stringify(blocks); }
 
-export function relTime(ts: number): string {
+export function relTime(ts: number, t: (k: string, o?: any) => string, locale: string): string {
   const d = Date.now() - ts;
-  if (d < 60_000) return 'только что';
+  if (d < 60_000) return t('common:justNow');
   const m = Math.floor(d / 60_000);
-  if (m < 60) return `${m} мин. назад`;
+  if (m < 60) return t('notes:time.minutesAgo', { count: m });
   const h = Math.floor(m / 60);
-  if (h < 24) return `${h} ч. назад`;
+  if (h < 24) return t('notes:time.hoursAgo', { count: h });
   const days = Math.floor(h / 24);
-  if (days < 7) return `${days} дн. назад`;
-  return new Date(ts).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' });
+  if (days < 7) return t('notes:time.daysAgo', { count: days });
+  return new Date(ts).toLocaleDateString(locale, { day: 'numeric', month: 'short' });
 }
 
-export function fmtSize(b?: number): string {
+export function fmtSize(b: number | undefined, t: (k: string, o?: any) => string): string {
   if (!b) return '';
-  if (b < 1024) return `${b} Б`;
-  if (b < 1048576) return `${(b / 1024).toFixed(1)} КБ`;
-  return `${(b / 1048576).toFixed(1)} МБ`;
+  if (b < 1024) return t('modals:collections.sizeBytes', { count: b });
+  if (b < 1048576) return t('modals:collections.sizeKB', { count: (b / 1024).toFixed(1) });
+  return t('modals:collections.sizeMB', { count: (b / 1048576).toFixed(1) });
 }
 
 export function fmtSec(s: number): string {
@@ -69,13 +69,13 @@ export function canEdit(note: SharedNote, meId: string): boolean {
   return (note.edit_exceptions ?? []).includes(meId);
 }
 
-export function snippet(content: string): string {
-  if (!content) return 'Пусто';
+export function snippet(content: string, t: (k: string) => string): string {
+  if (!content) return t('notes:empty');
   try {
     const blocks = JSON.parse(content) as NoteBlock[];
     const text = blocks.find(b => b.type === 'text') as TextBlock | undefined;
     const plain = (text?.text ?? '').replace(/\n+/g, ' ').trim();
-    return plain.slice(0, 80) || (blocks.length > 1 ? '📎 Вложение' : 'Пусто');
+    return plain.slice(0, 80) || (blocks.length > 1 ? `📎 ${t('notes:attachment')}` : t('notes:empty'));
   } catch {
     return content.replace(/\n+/g, ' ').slice(0, 80);
   }

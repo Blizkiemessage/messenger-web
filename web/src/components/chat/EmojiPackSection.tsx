@@ -5,6 +5,7 @@
  * Clicking an emoji calls onSelectEmoji(packId, itemId, fileUrl).
  */
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useStickerStore } from '../../store/useStickerStore';
 import { browsePublicPacks, installPack, uninstallPack, getPackItems } from '../../api/sticker-packs';
 import { PackCover } from '../ui/PackCover';
@@ -18,6 +19,7 @@ interface Props {
 type Mode = 'grid' | 'browse';
 
 export function EmojiPackSection({ onSelectEmoji, onOpenStudio }: Props) {
+  const { t } = useTranslation('chat');
   const { emojiPacks, packItems, fetchInstalledPacks, fetchPackItems } = useStickerStore();
 
   const [mode, setMode]                 = useState<Mode>('grid');
@@ -130,7 +132,7 @@ export function EmojiPackSection({ onSelectEmoji, onOpenStudio }: Props) {
           </button>
           <input
             className="emojiPackBrowseSearch"
-            placeholder="Поиск паков…"
+            placeholder={t('emojiPackSection.searchPacksPlaceholder')}
             value={browseQuery}
             onChange={e => handleBrowseSearch(e.target.value)}
             autoFocus
@@ -143,13 +145,13 @@ export function EmojiPackSection({ onSelectEmoji, onOpenStudio }: Props) {
             className={`browseTypeBtn${browseType === 'emoji' ? ' active' : ''}`}
             onClick={() => handleBrowseTypeChange('emoji')}
           >
-            Эмодзи
+            {t('emojiPackSection.typeEmoji')}
           </button>
           <button
             className={`browseTypeBtn${browseType === 'sticker' ? ' active' : ''}`}
             onClick={() => handleBrowseTypeChange('sticker')}
           >
-            Стикеры
+            {t('emojiPackSection.typeStickers')}
           </button>
         </div>
 
@@ -172,14 +174,14 @@ export function EmojiPackSection({ onSelectEmoji, onOpenStudio }: Props) {
                 disabled={installingId === browsePreview.id}
                 onClick={() => handleInstall(browsePreview)}
               >
-                {installingId === browsePreview.id ? '…' : browsePreview.is_installed ? 'Удалить' : 'Добавить'}
+                {installingId === browsePreview.id ? '…' : browsePreview.is_installed ? t('common:delete') : t('emojiPackSection.add')}
               </button>
             </div>
             {previewLoading && <div className="emojiPackLoading"><div className="gifSpinner" /></div>}
             <div className="emojiGrid">
               {previewItems.map(item => (
                 <button key={item.id} className="emojiItem"
-                  title={item.emoji_hint || item.keywords?.[0] || 'эмодзи'}
+                  title={item.emoji_hint || item.keywords?.[0] || t('emojiPackSection.emojiAlt')}
                   onClick={() => browsePreview.is_installed && onSelectEmoji(item.pack_id, item.id, item.file_url)}
                 >
                   <img src={item.thumb_url || item.file_url} className="emojiItemImg" alt="" loading="lazy" />
@@ -192,9 +194,9 @@ export function EmojiPackSection({ onSelectEmoji, onOpenStudio }: Props) {
             {browsing && <div className="emojiPackLoading"><div className="gifSpinner" /></div>}
             {!browsing && browseResults.length === 0 && (
               <div className="emojiPackEmpty">
-                <span>Публичных паков не найдено</span>
+                <span>{t('sticker.noPacksFound')}</span>
                 <button className="emojiPackStudioBtn" onClick={() => { setMode('grid'); onOpenStudio(); }}>
-                  Создать в Студии →
+                  {t('emojiPackSection.createInStudioCta')}
                 </button>
               </div>
             )}
@@ -206,7 +208,9 @@ export function EmojiPackSection({ onSelectEmoji, onOpenStudio }: Props) {
                 <div className="emojiPackBrowseInfo">
                   <div className="emojiPackBrowseName">{pack.name}</div>
                   <div className="emojiPackBrowseMeta">
-                    {(pack as any).item_count ?? 0} {browseType === 'sticker' ? 'стикеров' : 'эмодзи'}
+                    {browseType === 'sticker'
+                      ? t('sticker.itemCountStickers', { count: (pack as any).item_count ?? 0 })
+                      : t('sticker.itemCountEmoji', { count: (pack as any).item_count ?? 0 })}
                   </div>
                 </div>
                 <button
@@ -228,14 +232,14 @@ export function EmojiPackSection({ onSelectEmoji, onOpenStudio }: Props) {
   if (emojiPacks.length === 0) {
     return (
       <div className="emojiPackSection emojiPackSectionEmpty">
-        <div className="emojiPackSectionLabel">Кастомные эмодзи</div>
+        <div className="emojiPackSectionLabel">{t('emojiPackSection.customEmojiLabel')}</div>
         <div className="emojiPackEmpty">
-          <span>Нет установленных паков</span>
+          <span>{t('emojiPackSection.noPacksInstalled')}</span>
           <button className="emojiPackStudioBtn" onClick={onOpenStudio}>
-            Создать в Студии →
+            {t('emojiPackSection.createInStudioCta')}
           </button>
           <button className="emojiPackStudioBtn" onClick={() => setMode('browse')}>
-            Найти паки →
+            {t('emojiPackSection.findPacksCta')}
           </button>
         </div>
       </div>
@@ -246,8 +250,8 @@ export function EmojiPackSection({ onSelectEmoji, onOpenStudio }: Props) {
     <div className="emojiPackSection">
       {/* Header row */}
       <div className="emojiPackSectionHeader">
-        <span className="emojiPackSectionLabel">Кастомные эмодзи</span>
-        <button className="emojiPackFindBtn" onClick={() => setMode('browse')} title="Найти паки эмодзи">
+        <span className="emojiPackSectionLabel">{t('emojiPackSection.customEmojiLabel')}</span>
+        <button className="emojiPackFindBtn" onClick={() => setMode('browse')} title={t('emojiPackSection.findEmojiPacksTitle')}>
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
           </svg>
@@ -273,13 +277,13 @@ export function EmojiPackSection({ onSelectEmoji, onOpenStudio }: Props) {
           <div className="emojiPackLoading"><div className="gifSpinner" /></div>
         )}
         {!loading && items.length === 0 && (
-          <div className="emojiPackEmpty"><span>Пак пуст</span></div>
+          <div className="emojiPackEmpty"><span>{t('sticker.packEmpty')}</span></div>
         )}
         {!loading && items.filter(it => it?.id).map(item => (
           <button
             key={item.id}
             className="emojiItem"
-            title={item.emoji_hint || item.keywords?.[0] || 'эмодзи'}
+            title={item.emoji_hint || item.keywords?.[0] || t('emojiPackSection.emojiAlt')}
             onClick={() => onSelectEmoji(item.pack_id, item.id, item.file_url)}
           >
             <img

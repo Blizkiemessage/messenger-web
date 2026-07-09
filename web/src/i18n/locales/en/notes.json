@@ -1,0 +1,55 @@
+{
+  "time": {
+    "minutesAgo": "{{count}} min ago",
+    "hoursAgo": "{{count}} h ago",
+    "daysAgo": "{{count}} days ago"
+  },
+  "empty": "Empty",
+  "attachment": "Attachment",
+  "saving": "Saving…",
+  "panel": {
+    "title": "Notes",
+    "newBtn": "New",
+    "newTitle": "New note",
+    "closeTitle": "Close",
+    "untitled": "Untitled",
+    "emptyTitle": "No notes",
+    "emptySub": "Tap \"New\" to create the first one"
+  },
+  "editor": {
+    "backTitle": "Back to notes list",
+    "editModeTitle": "Switch to editing",
+    "readModeTitle": "Reading mode",
+    "edit": "Edit",
+    "view": "View",
+    "settingsTitle": "Note settings",
+    "deleteTitle": "Delete note",
+    "untitled": "Untitled",
+    "titlePlaceholder": "Title",
+    "startWritingPlaceholder": "Start writing…",
+    "attachTitle": "Attach a file or media",
+    "emojiTitle": "Emoji, stickers, GIF",
+    "deleteConfirmTitle": "Delete this note?",
+    "deleteConfirmSub": "This action cannot be undone."
+  },
+  "settings": {
+    "title": "Note settings",
+    "editSectionLabel": "Editing",
+    "editAll": "All members",
+    "editRestricted": "Selected members only",
+    "editRestrictedDesc": "Choose which members are allowed to edit this note.",
+    "visSectionLabel": "Visibility",
+    "visPublic": "Public",
+    "visPrivate": "Hidden",
+    "visPrivateDesc": "Only you and the selected members will be able to see this note.",
+    "youAuthor": "You (author)",
+    "always": "Always",
+    "member": "Member",
+    "save": "Save"
+  },
+  "media": {
+    "downloadTitle": "Download",
+    "preparing": "Preparing…",
+    "uploading": "Uploading {{pct}}%"
+  }
+}

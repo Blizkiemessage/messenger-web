@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import { fetchTrendingGifs, searchGifs } from '../../api/gif';
 import { type GifResult } from '../../types';
 
@@ -10,6 +11,7 @@ interface Props {
 }
 
 export function GifTab({ onSendGif }: Props) {
+  const { t } = useTranslation('chat');
   const [query,       setQuery]       = useState('');
   const [gifs,        setGifs]        = useState<GifResult[]>([]);
   const [loading,     setLoading]     = useState(false);
@@ -40,12 +42,12 @@ export function GifTab({ onSendGif }: Props) {
       offsetRef.current = PAGE_SIZE;
       hasMoreRef.current = page.results.length === PAGE_SIZE;
     } catch {
-      setError(q ? 'Ошибка поиска' : 'Не удалось загрузить GIF');
+      setError(q ? t('gif.searchError') : t('gif.loadError'));
     } finally {
       setLoading(false);
       busyRef.current = false;
     }
-  }, []);
+  }, [t]);
 
   // ── Load next page (appends) ──────────────────────────────────────────────
   const loadMore = useCallback(async (q: string) => {
@@ -110,7 +112,7 @@ export function GifTab({ onSendGif }: Props) {
         <input
           className="gifSearch"
           type="text"
-          placeholder="Поиск GIF…"
+          placeholder={t('gif.searchPlaceholder')}
           value={query}
           onChange={e => setQuery(e.target.value)}
         />
@@ -126,8 +128,8 @@ export function GifTab({ onSendGif }: Props) {
 
       {/* My GIFs section (empty until Stage 6) */}
       <div className="gifMySection">
-        <span className="gifMySectionLabel">Мои GIF</span>
-        <span className="gifMySectionHint">Появятся после создания в Студии</span>
+        <span className="gifMySectionLabel">{t('gif.myGifs')}</span>
+        <span className="gifMySectionHint">{t('gif.myGifsHint')}</span>
       </div>
 
       {/* Grid */}
@@ -138,11 +140,11 @@ export function GifTab({ onSendGif }: Props) {
         {!loading && error && (
           <div className="gifError">
             <span>{error}</span>
-            <button onClick={() => loadFirst(query.trim())}>Повторить</button>
+            <button onClick={() => loadFirst(query.trim())}>{t('common:retry')}</button>
           </div>
         )}
         {!loading && !error && gifs.length === 0 && (
-          <div className="gifEmpty">Ничего не найдено</div>
+          <div className="gifEmpty">{t('gif.nothingFound')}</div>
         )}
         {gifs.map(gif => (
           <div

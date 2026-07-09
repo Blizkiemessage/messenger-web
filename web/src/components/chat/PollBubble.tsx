@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import type { Poll } from '../../types';
 
 interface Props {
@@ -10,12 +11,13 @@ interface Props {
 }
 
 export function PollBubble({ poll, meId: _meId, onVote, onRetract: _onRetract, onViewVoters }: Props) {
+  const { t } = useTranslation('chat');
   const hasVoted = poll.my_votes.length > 0;
   // Staged selections for multiple-choice polls (before submitting)
   const [staged, setStaged] = useState<string[]>([]);
 
-  const metaText = poll.is_anonymous ? 'Анонимный опрос' : 'Публичный опрос';
-  const typeText = poll.is_quiz ? ' · Викторина' : poll.allow_multiple ? ' · Несколько ответов' : '';
+  const metaText = poll.is_anonymous ? t('poll.anonymousPoll') : t('poll.publicPoll');
+  const typeText = poll.is_quiz ? ` · ${t('poll.quizSuffix')}` : poll.allow_multiple ? ` · ${t('poll.multipleAnswersSuffix')}` : '';
 
   function handleOptionClick(optId: string) {
     if (hasVoted) {
@@ -116,16 +118,14 @@ export function PollBubble({ poll, meId: _meId, onVote, onRetract: _onRetract, o
           onClick={handleMultiVote}
           disabled={staged.length === 0}
         >
-          Голосовать
+          {t('poll.voteBtn')}
         </button>
       )}
 
       <div className="pollTotalVotes">
         {poll.total_votes === 0
-          ? 'Нет голосов'
-          : poll.total_votes === 1
-            ? '1 голос'
-            : `${poll.total_votes} голосов`}
+          ? t('poll.totalVotesZero')
+          : t('poll.totalVotes', { count: poll.total_votes })}
       </div>
     </div>
   );

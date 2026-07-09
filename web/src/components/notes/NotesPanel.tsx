@@ -10,6 +10,7 @@
  *   NoteEditor   — the rich block editor (read + edit modes)
  */
 import { useState, useEffect, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import type { SharedNote, Chat } from '../../types';
 import { useNotesStore } from '../../store/useNotesStore';
 import { useSessionStore } from '../../store/useSessionStore';
@@ -23,6 +24,8 @@ const EMPTY_NOTES: SharedNote[] = [];
 interface Props { chat: Chat; onClose: () => void; }
 
 export function NotesPanel({ chat, onClose }: Props) {
+  const { t, i18n } = useTranslation('notes');
+  const locale = i18n.language === 'en' ? 'en-US' : 'ru-RU';
   const meId       = useSessionStore(s => s.me!.id);
   const notesRaw   = useNotesStore(s => s.notesByChatId[chat.id]);
   const notes      = notesRaw ?? EMPTY_NOTES;
@@ -91,15 +94,15 @@ export function NotesPanel({ chat, onClose }: Props) {
             <polyline points="14 2 14 8 20 8"/>
             <line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/>
           </svg>
-          Заметки
+          {t('panel.title')}
         </div>
-        <button className="notesNewBtn" onClick={handleCreate} disabled={creating} title="Новая заметка">
+        <button className="notesNewBtn" onClick={handleCreate} disabled={creating} title={t('panel.newTitle')}>
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
             <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
           </svg>
-          Новая
+          {t('panel.newBtn')}
         </button>
-        <button className="notesPanelClose" onClick={onClose} title="Закрыть">
+        <button className="notesPanelClose" onClick={onClose} title={t('panel.closeTitle')}>
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
             <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
           </svg>
@@ -117,17 +120,17 @@ export function NotesPanel({ chat, onClose }: Props) {
               <polyline points="14 2 14 8 20 8"/>
               <line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/>
             </svg>
-            <div className="notesEmptyText">Нет заметок</div>
-            <div className="notesEmptySub">Нажмите «Новая», чтобы создать первую</div>
+            <div className="notesEmptyText">{t('panel.emptyTitle')}</div>
+            <div className="notesEmptySub">{t('panel.emptySub')}</div>
           </div>
         )}
         {notes.map(note => (
           <button key={note.id} className="notesItem" onClick={() => setEditing(note)}>
             <div className="notesItemTop">
-              <span className="notesItemTitle">{note.title || 'Без названия'}</span>
-              <span className="notesItemTime">{relTime(note.last_edited_at)}</span>
+              <span className="notesItemTitle">{note.title || t('panel.untitled')}</span>
+              <span className="notesItemTime">{relTime(note.last_edited_at, t, locale)}</span>
             </div>
-            <div className="notesItemSnippet">{snippet(note.content)}</div>
+            <div className="notesItemSnippet">{snippet(note.content, t)}</div>
             {note.last_edited_by_name && (
               <div className="notesItemEditor">
                 <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">

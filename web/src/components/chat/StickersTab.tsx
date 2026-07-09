@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useStickerStore } from '../../store/useStickerStore';
 import { browsePublicPacks, installPack, uninstallPack, getPackItems } from '../../api/sticker-packs';
 import { StickerMedia } from '../ui/StickerMedia';
@@ -13,6 +14,7 @@ interface Props {
 type Mode = 'grid' | 'browse' | 'manage';
 
 export function StickersTab({ onSendSticker, onOpenStudio }: Props) {
+  const { t } = useTranslation('chat');
   const { stickerPacks: installedPacks, packItems, recentStickers, fetchInstalledPacks, fetchPackItems } =
     useStickerStore();
 
@@ -139,14 +141,14 @@ export function StickersTab({ onSendSticker, onOpenStudio }: Props) {
       <div className="stickersTabRoot">
         <div className="stickerBrowseHeader">
           <button className="stickerBrowseBack" onClick={() => { setMode('grid'); setBrowsePreviewPack(null); setBrowseQuery(''); }}
-            title="Назад">
+            title={t('common:back')}>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
               <polyline points="15 18 9 12 15 6"/>
             </svg>
           </button>
           <input
             className="stickerBrowseSearch"
-            placeholder="Поиск публичных паков…"
+            placeholder={t('stickersTab.searchPacksPlaceholder')}
             value={browseQuery}
             onChange={e => handleSearchChange(e.target.value)}
             autoFocus
@@ -159,13 +161,13 @@ export function StickersTab({ onSendSticker, onOpenStudio }: Props) {
             className={`browseTypeBtn${browseType === 'sticker' ? ' active' : ''}`}
             onClick={() => handleBrowseTypeChange('sticker')}
           >
-            Стикерпаки
+            {t('stickersTab.typeStickerPacks')}
           </button>
           <button
             className={`browseTypeBtn${browseType === 'emoji' ? ' active' : ''}`}
             onClick={() => handleBrowseTypeChange('emoji')}
           >
-            Эмодзи
+            {t('stickersTab.typeEmoji')}
           </button>
         </div>
 
@@ -193,16 +195,16 @@ export function StickersTab({ onSendSticker, onOpenStudio }: Props) {
               >
                 {installingId === browsePreviewPack.id
                   ? '…'
-                  : (browsePreviewPack as any).is_installed ? 'Удалить' : 'Установить'}
+                  : (browsePreviewPack as any).is_installed ? t('common:delete') : t('stickersTab.install')}
               </button>
             </div>
             {previewLoading && <div className="stickerLoading"><div className="gifSpinner" /></div>}
             <div className="stickerGrid">
               {browsePreviewItems.map(item => (
                 <button key={item.id} className="stickerItem"
-                  title={item.emoji_hint || 'Стикер'}
+                  title={item.emoji_hint || t('sticker.altText')}
                   onClick={() => (browsePreviewPack as any).is_installed && handleSend(item)}>
-                  <StickerMedia fileUrl={item.file_url} thumbUrl={item.thumb_url} alt={item.emoji_hint || 'Стикер'} />
+                  <StickerMedia fileUrl={item.file_url} thumbUrl={item.thumb_url} alt={item.emoji_hint || t('sticker.altText')} />
                 </button>
               ))}
             </div>
@@ -211,7 +213,7 @@ export function StickersTab({ onSendSticker, onOpenStudio }: Props) {
           <div className="stickerBrowseList">
             {browsing && <div className="stickerLoading"><div className="gifSpinner" /></div>}
             {!browsing && browseResults.length === 0 && (
-              <div className="stickerEmpty"><span>Публичных паков не найдено</span></div>
+              <div className="stickerEmpty"><span>{t('sticker.noPacksFound')}</span></div>
             )}
             {!browsing && browseResults.map(pack => (
               <div key={pack.id} className="stickerBrowseRow" onClick={() => handlePreviewPack(pack)}>
@@ -221,7 +223,9 @@ export function StickersTab({ onSendSticker, onOpenStudio }: Props) {
                 <div className="stickerBrowseRowInfo">
                   <div className="stickerBrowseRowName">{pack.name}</div>
                   <div className="stickerBrowseRowMeta">
-                    {(pack as any).item_count ?? 0} {browseType === 'emoji' ? 'эмодзи' : 'стикеров'}
+                    {browseType === 'emoji'
+                      ? t('sticker.itemCountEmoji', { count: (pack as any).item_count ?? 0 })
+                      : t('sticker.itemCountStickers', { count: (pack as any).item_count ?? 0 })}
                   </div>
                 </div>
                 <button
@@ -245,16 +249,16 @@ export function StickersTab({ onSendSticker, onOpenStudio }: Props) {
       <div className="stickersTabRoot">
         {/* Header */}
         <div className="stickerManageHeader">
-          <span className="stickerManageTitle">Мои паки</span>
-          <button className="stickerManageDone" onClick={() => setMode('grid')}>Готово</button>
+          <span className="stickerManageTitle">{t('stickersTab.manageTitle')}</span>
+          <button className="stickerManageDone" onClick={() => setMode('grid')}>{t('common:done')}</button>
         </div>
 
         <div className="stickerManageList">
           {installedPacks.length === 0 && (
             <div className="stickerEmpty">
-              <span>Нет добавленных паков</span>
+              <span>{t('stickersTab.noPacksAdded')}</span>
               <button className="stickerEmptyStudioBtn" onClick={() => setMode('browse')}>
-                Найти паки →
+                {t('stickersTab.findPacksCta')}
               </button>
             </div>
           )}
@@ -266,15 +270,15 @@ export function StickersTab({ onSendSticker, onOpenStudio }: Props) {
               <div className="stickerManageInfo">
                 <div className="stickerManageName">{pack.name}</div>
                 <div className="stickerManageMeta">
-                  {(pack as any).item_count ?? '…'} стикеров
-                  {pack.is_public ? '' : ' · Приватный'}
+                  {(pack as any).item_count != null ? t('sticker.itemCountStickers', { count: (pack as any).item_count }) : '…'}
+                  {pack.is_public ? '' : t('stickersTab.privateLabel')}
                 </div>
               </div>
               <button
                 className="stickerManageRemoveBtn"
                 disabled={removingId === pack.id}
                 onClick={() => handleRemovePack(pack.id)}
-                title="Убрать из коллекции"
+                title={t('stickersTab.removeFromCollectionTitle')}
               >
                 {removingId === pack.id
                   ? <div className="gifSpinner" style={{ width: 14, height: 14 }} />
@@ -301,7 +305,7 @@ export function StickersTab({ onSendSticker, onOpenStudio }: Props) {
         <button
           className={`stickerPackIcon stickerPackIconBtn${activePackId === 'recent' ? ' active' : ''}`}
           onClick={() => setActivePackId('recent')}
-          title="Недавние"
+          title={t('stickersTab.recentTitle')}
         >
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <circle cx="12" cy="12" r="10"/>
@@ -325,7 +329,7 @@ export function StickersTab({ onSendSticker, onOpenStudio }: Props) {
             <button
               className="stickerPackIcon stickerPackIconBtn"
               onClick={() => setMode('manage')}
-              title="Управление паками"
+              title={t('stickersTab.managePacksTitle')}
             >
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <line x1="8" y1="6" x2="21" y2="6"/>
@@ -340,7 +344,7 @@ export function StickersTab({ onSendSticker, onOpenStudio }: Props) {
           <button
             className="stickerPackIcon stickerPackIconBtn"
             onClick={() => setMode('browse')}
-            title="Найти паки"
+            title={t('stickersTab.findPacksTitle')}
           >
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <circle cx="11" cy="11" r="8"/>
@@ -358,32 +362,32 @@ export function StickersTab({ onSendSticker, onOpenStudio }: Props) {
 
         {!loading && activePackId === 'recent' && !hasRecent && (
           <div className="stickerEmpty">
-            <span>Нет недавних стикеров</span>
+            <span>{t('stickersTab.noRecentStickers')}</span>
           </div>
         )}
 
         {!loading && activePackId !== 'recent' && items.length === 0 && (
           <div className="stickerEmpty">
-            <span>Пак пуст</span>
+            <span>{t('sticker.packEmpty')}</span>
           </div>
         )}
 
         {!loading && installedPacks.length === 0 && activePackId === 'recent' && (
           <div className="stickerEmpty">
-            <span>Нет установленных паков.</span>
+            <span>{t('stickersTab.noInstalledPacks')}</span>
             <button className="stickerEmptyStudioBtn" onClick={onOpenStudio}>
-              Создай свой в Студии →
+              {t('stickersTab.createInStudioCta')}
             </button>
             <button className="stickerEmptyStudioBtn" onClick={() => setMode('browse')}>
-              Найти публичные паки →
+              {t('stickersTab.findPublicPacksCta')}
             </button>
           </div>
         )}
 
         {!loading && items.filter(it => it?.id).map(item => (
           <button key={item.id} className="stickerItem" onClick={() => handleSend(item)}
-            title={item.emoji_hint || 'Стикер'}>
-            <StickerMedia fileUrl={item.file_url} thumbUrl={item.thumb_url} alt={item.emoji_hint || 'Стикер'} />
+            title={item.emoji_hint || t('sticker.altText')}>
+            <StickerMedia fileUrl={item.file_url} thumbUrl={item.thumb_url} alt={item.emoji_hint || t('sticker.altText')} />
           </button>
         ))}
       </div>

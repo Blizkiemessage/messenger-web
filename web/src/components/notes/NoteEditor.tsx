@@ -5,6 +5,7 @@
  */
 import { useState, useEffect, useRef, useCallback, lazy, Suspense } from 'react';
 import { createPortal } from 'react-dom';
+import { useTranslation } from 'react-i18next';
 import type { SharedNote, Chat } from '../../types';
 import { useNotesStore } from '../../store/useNotesStore';
 import { useAppStore } from '../../store/useAppStore';
@@ -32,6 +33,8 @@ interface EditorProps {
 }
 
 export function NoteEditor({ note, chat, meId, onBack, onDelete, onNoteUpdated }: EditorProps) {
+  const { t, i18n } = useTranslation('notes');
+  const locale = i18n.language === 'en' ? 'en-US' : 'ru-RU';
   const theme      = useAppStore(s => s.theme);
   const upsertNote = useNotesStore(s => s.upsertNote);
 
@@ -310,7 +313,7 @@ export function NoteEditor({ note, chat, meId, onBack, onDelete, onNoteUpdated }
 
       {/* ── Header ── */}
       <div className="notesEditorHeader">
-        <button className="notesBackBtn" onClick={onBack} title="К списку заметок">
+        <button className="notesBackBtn" onClick={onBack} title={t('editor.backTitle')}>
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
             <polyline points="15 18 9 12 15 6"/>
           </svg>
@@ -318,9 +321,9 @@ export function NoteEditor({ note, chat, meId, onBack, onDelete, onNoteUpdated }
 
         <div className="notesEditorMeta">
           {saving
-            ? <span className="notesSaving">Сохранение…</span>
+            ? <span className="notesSaving">{t('saving')}</span>
             : <span className="notesSavedAt">
-                {relTime(savedAt)}
+                {relTime(savedAt, t, locale)}
                 {editorName && <span className="notesSavedBy"> · {editorName}</span>}
               </span>
           }
@@ -331,7 +334,7 @@ export function NoteEditor({ note, chat, meId, onBack, onDelete, onNoteUpdated }
           <button
             className={`notesModeToggle${!readMode ? ' ntmEdit' : ''}`}
             onClick={() => setReadMode(v => !v)}
-            title={readMode ? 'Перейти к редактированию' : 'Режим чтения'}
+            title={readMode ? t('editor.editModeTitle') : t('editor.readModeTitle')}
           >
             {readMode
               ? <>
@@ -339,14 +342,14 @@ export function NoteEditor({ note, chat, meId, onBack, onDelete, onNoteUpdated }
                     <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
                     <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
                   </svg>
-                  <span>Редактировать</span>
+                  <span>{t('editor.edit')}</span>
                 </>
               : <>
                   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                     <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
                     <circle cx="12" cy="12" r="3"/>
                   </svg>
-                  <span>Просмотр</span>
+                  <span>{t('editor.view')}</span>
                 </>
             }
           </button>
@@ -354,7 +357,7 @@ export function NoteEditor({ note, chat, meId, onBack, onDelete, onNoteUpdated }
 
         {/* Settings gear — author only */}
         {isAuthor && (
-          <button className="notesSettingsBtn" onClick={() => setSettings(true)} title="Настройки заметки">
+          <button className="notesSettingsBtn" onClick={() => setSettings(true)} title={t('editor.settingsTitle')}>
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <circle cx="12" cy="12" r="3"/>
               <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
@@ -363,7 +366,7 @@ export function NoteEditor({ note, chat, meId, onBack, onDelete, onNoteUpdated }
         )}
 
         {canDelete && (
-          <button className="notesDeleteBtn" onClick={() => setConfirmDel(true)} title="Удалить заметку">
+          <button className="notesDeleteBtn" onClick={() => setConfirmDel(true)} title={t('editor.deleteTitle')}>
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
               <path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
@@ -374,12 +377,12 @@ export function NoteEditor({ note, chat, meId, onBack, onDelete, onNoteUpdated }
 
       {/* ── Title ── */}
       {readMode
-        ? <div className="notesReadTitle">{title || 'Без названия'}</div>
+        ? <div className="notesReadTitle">{title || t('editor.untitled')}</div>
         : <input
             className="notesEditorTitle"
             value={title}
             onChange={e => { setTitle(e.target.value); scheduleSave(); }}
-            placeholder="Заголовок"
+            placeholder={t('editor.titlePlaceholder')}
             maxLength={200}
           />
       }
@@ -400,7 +403,7 @@ export function NoteEditor({ note, chat, meId, onBack, onDelete, onNoteUpdated }
                 ref={el => { if (el) taRefs.current.set(blk.id, el); else taRefs.current.delete(blk.id); }}
                 className="notesTextBlock"
                 value={blk.text}
-                placeholder={i === 0 ? 'Начните писать…' : ''}
+                placeholder={i === 0 ? t('editor.startWritingPlaceholder') : ''}
                 rows={1}
                 maxLength={50000}
                 onChange={e => {
@@ -442,7 +445,7 @@ export function NoteEditor({ note, chat, meId, onBack, onDelete, onNoteUpdated }
             className="notesToolbarBtn"
             onClick={() => fileRef.current?.click()}
             disabled={uploadPct !== null}
-            title="Прикрепить файл или медиа"
+            title={t('editor.attachTitle')}
           >
             <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/>
@@ -454,7 +457,7 @@ export function NoteEditor({ note, chat, meId, onBack, onDelete, onNoteUpdated }
               ref={emojiBtnRef}
               className={`notesToolbarBtn${showEmoji ? ' ntbActive' : ''}`}
               onClick={() => setShowEmoji(v => !v)}
-              title="Emoji, стикеры, GIF"
+              title={t('editor.emojiTitle')}
             >
               <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <circle cx="12" cy="12" r="10"/>
@@ -466,7 +469,7 @@ export function NoteEditor({ note, chat, meId, onBack, onDelete, onNoteUpdated }
 
             {showEmoji && (
               <div ref={emojiRef} className="notesEmojiPanel">
-                <Suspense fallback={<div className="notesEmojiLoader">Загрузка…</div>}>
+                <Suspense fallback={<div className="notesEmojiLoader">{t('common:loading')}</div>}>
                   <EmojiStickerPanel
                     onEmojiSelect={(e: { native: string }) => insertEmoji(e.native)}
                     onSendGif={handleSendGif}
@@ -493,11 +496,11 @@ export function NoteEditor({ note, chat, meId, onBack, onDelete, onNoteUpdated }
       {confirmDel && createPortal(
         <div className="notesConfirmOverlay" onClick={() => setConfirmDel(false)}>
           <div className="notesConfirmCard" onClick={e => e.stopPropagation()}>
-            <div className="notesConfirmTitle">Удалить заметку?</div>
-            <div className="notesConfirmSub">Это действие нельзя отменить.</div>
+            <div className="notesConfirmTitle">{t('editor.deleteConfirmTitle')}</div>
+            <div className="notesConfirmSub">{t('editor.deleteConfirmSub')}</div>
             <div className="notesConfirmActions">
-              <button className="notesConfirmCancel" onClick={() => setConfirmDel(false)}>Отмена</button>
-              <button className="notesConfirmOk" onClick={handleDelete}>Удалить</button>
+              <button className="notesConfirmCancel" onClick={() => setConfirmDel(false)}>{t('common:cancel')}</button>
+              <button className="notesConfirmOk" onClick={handleDelete}>{t('common:delete')}</button>
             </div>
           </div>
         </div>,

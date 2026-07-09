@@ -4,6 +4,7 @@
  */
 import { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
+import { useTranslation } from 'react-i18next';
 import type { NoteBlock, VideoBlock_, ImageBlock } from './types';
 import { fmtSize, fmtSec, fileColor, fileLabel } from './helpers';
 
@@ -23,8 +24,9 @@ export function FileIcon({ name }: { name: string }) {
 }
 
 export function DeleteBlockBtn({ onClick }: { onClick: () => void }) {
+  const { t } = useTranslation('common');
   return (
-    <button className="noteBlockDel" onClick={onClick} title="Удалить">
+    <button className="noteBlockDel" onClick={onClick} title={t('delete')}>
       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round">
         <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
       </svg>
@@ -103,6 +105,7 @@ export function NoteVideoBlock({ block, onDelete, readOnly }: { block: VideoBloc
 // ─── Media block renderer ─────────────────────────────────────────────────────
 
 export function MediaBlock({ block, onDelete, readOnly }: { block: NoteBlock; onDelete: () => void; readOnly?: boolean }) {
+  const { t } = useTranslation('notes');
   const [lb, setLb] = useState<string | null>(null);
   if (block.type === 'text') return null;
   if (block.type === 'video') return <NoteVideoBlock block={block} onDelete={onDelete} readOnly={readOnly} />;
@@ -132,9 +135,9 @@ export function MediaBlock({ block, onDelete, readOnly }: { block: NoteBlock; on
       <FileIcon name={block.name} />
       <div className="nfInfo">
         <div className="nfName">{block.name}</div>
-        <div className="nfSize">{fmtSize(block.size)}</div>
+        <div className="nfSize">{fmtSize(block.size, t)}</div>
       </div>
-      <a href={block.url} download={block.name} className="nfDown" title="Скачать" onClick={e => e.stopPropagation()}>
+      <a href={block.url} download={block.name} className="nfDown" title={t('media.downloadTitle')} onClick={e => e.stopPropagation()}>
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
           <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
           <polyline points="7 10 12 15 17 10"/>
@@ -149,11 +152,12 @@ export function MediaBlock({ block, onDelete, readOnly }: { block: NoteBlock; on
 // ─── Upload progress bar ──────────────────────────────────────────────────────
 
 export function UploadBar({ pct }: { pct: number }) {
+  const { t } = useTranslation('notes');
   return (
     <div className="noteUploadBar">
       <div className="noteUploadFill" style={{ width: `${Math.max(pct, 2)}%` }} />
       <span className="noteUploadLabel">
-        {pct <= 1 ? 'Подготовка…' : `Загрузка ${pct}%`}
+        {pct <= 1 ? t('media.preparing') : t('media.uploading', { pct })}
       </span>
     </div>
   );

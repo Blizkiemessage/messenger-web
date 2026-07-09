@@ -1,0 +1,55 @@
+{
+  "time": {
+    "minutesAgo": "{{count}} мин. назад",
+    "hoursAgo": "{{count}} ч. назад",
+    "daysAgo": "{{count}} дн. назад"
+  },
+  "empty": "Пусто",
+  "attachment": "Вложение",
+  "saving": "Сохранение…",
+  "panel": {
+    "title": "Заметки",
+    "newBtn": "Новая",
+    "newTitle": "Новая заметка",
+    "closeTitle": "Закрыть",
+    "untitled": "Без названия",
+    "emptyTitle": "Нет заметок",
+    "emptySub": "Нажмите «Новая», чтобы создать первую"
+  },
+  "editor": {
+    "backTitle": "К списку заметок",
+    "editModeTitle": "Перейти к редактированию",
+    "readModeTitle": "Режим чтения",
+    "edit": "Редактировать",
+    "view": "Просмотр",
+    "settingsTitle": "Настройки заметки",
+    "deleteTitle": "Удалить заметку",
+    "untitled": "Без названия",
+    "titlePlaceholder": "Заголовок",
+    "startWritingPlaceholder": "Начните писать…",
+    "attachTitle": "Прикрепить файл или медиа",
+    "emojiTitle": "Emoji, стикеры, GIF",
+    "deleteConfirmTitle": "Удалить заметку?",
+    "deleteConfirmSub": "Это действие нельзя отменить."
+  },
+  "settings": {
+    "title": "Настройки заметки",
+    "editSectionLabel": "Редактирование",
+    "editAll": "Все участники",
+    "editRestricted": "Только избранные",
+    "editRestrictedDesc": "Выберите участников, которым разрешено редактировать эту заметку.",
+    "visSectionLabel": "Видимость",
+    "visPublic": "Публичная",
+    "visPrivate": "Скрытая",
+    "visPrivateDesc": "Только вы и отмеченные участники смогут видеть эту заметку.",
+    "youAuthor": "Вы (автор)",
+    "always": "Всегда",
+    "member": "Участник",
+    "save": "Сохранить"
+  },
+  "media": {
+    "downloadTitle": "Скачать",
+    "preparing": "Подготовка…",
+    "uploading": "Загрузка {{pct}}%"
+  }
+}

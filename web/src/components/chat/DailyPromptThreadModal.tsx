@@ -10,6 +10,7 @@
  * Медиа в ответах рендерятся теми же плеерами, что и сообщения.
  */
 import { useEffect, useRef, useState, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import { type Chat } from '../../types';
 import type { UploadResult } from '../../api/upload';
 import {
@@ -51,6 +52,7 @@ export function DailyPromptThreadModal({ chat, meId, instanceId, onClose }: Prop
 function ArchiveView({ chat, meId: _meId, onPick, onClose }: {
   chat: Chat; meId: string; onPick: (id: string) => void; onClose: () => void;
 }) {
+  const { t } = useTranslation('chat');
   const [items, setItems] = useState<DailyPromptInstance[] | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -58,26 +60,26 @@ function ArchiveView({ chat, meId: _meId, onPick, onClose }: {
     let alive = true;
     listDailyInstances(chat.id)
       .then(r => { if (alive) setItems(r.items); })
-      .catch(e => { if (alive) setError(e?.message || 'Ошибка'); });
+      .catch(e => { if (alive) setError(e?.message || t('common:error')); });
     return () => { alive = false; };
-  }, [chat.id]);
+  }, [chat.id, t]);
 
   return (
     <>
       <div className="dpThreadHeader">
-        <div className="dpThreadTitle">Архив вопросов</div>
+        <div className="dpThreadTitle">{t('dailyPrompt.archiveTitle')}</div>
         <button className="upCloseBtn" onClick={onClose}>✕</button>
       </div>
       <div className="dpThreadBody">
         {error && <div className="dpError">{error}</div>}
-        {!items && !error && <div className="dpLoading">Загрузка…</div>}
-        {items && items.length === 0 && <div className="dpQEmpty">Вопросов ещё не было</div>}
+        {!items && !error && <div className="dpLoading">{t('common:loading')}</div>}
+        {items && items.length === 0 && <div className="dpQEmpty">{t('dailyPrompt.archiveEmpty')}</div>}
         {items && items.map(it => (
           <button key={it.id} className="dpArchiveItem" onClick={() => onPick(it.id)}>
             <div className="dpArchiveQ">{it.text}</div>
             <div className="dpArchiveMeta">
               <span>{formatDateSeparator(it.created_at)}</span>
-              <span className="dpArchiveCount">{it.answer_count} {plural(it.answer_count, 'ответ', 'ответа', 'ответов')}</span>
+              <span className="dpArchiveCount">{t('dailyPrompt.answerCount', { count: it.answer_count })}</span>
             </div>
           </button>
         ))}
@@ -91,6 +93,7 @@ function ArchiveView({ chat, meId: _meId, onPick, onClose }: {
 function ThreadView({ chat, meId, instanceId, onBack, onClose }: {
   chat: Chat; meId: string; instanceId: string; onBack: (() => void) | null; onClose: () => void;
 }) {
+  const { t } = useTranslation('chat');
   const [question, setQuestion] = useState<string>('');
   const [answers, setAnswers] = useState<DailyPromptAnswer[]>([]);
   const [loading, setLoading] = useState(true);
@@ -106,10 +109,10 @@ function ThreadView({ chat, meId, instanceId, onBack, onClose }: {
     setLoading(true);
     getDailyThread(chat.id, instanceId)
       .then(r => { if (!alive) return; setQuestion(r.instance.text); setAnswers(r.answers); })
-      .catch(e => { if (alive) setError(e?.message || 'Ошибка'); })
+      .catch(e => { if (alive) setError(e?.message || t('common:error')); })
       .finally(() => { if (alive) setLoading(false); });
     return () => { alive = false; };
-  }, [chat.id, instanceId]);
+  }, [chat.id, instanceId, t]);
 
   // Realtime: ответы других участников приходят через window-событие из useSocket
   useEffect(() => {
@@ -142,8 +145,8 @@ function ThreadView({ chat, meId, instanceId, onBack, onClose }: {
     try {
       const r = await addDailyAnswer(chat.id, instanceId, { text });
       setAnswers(prev => [...prev, r.answer]);
-    } catch (e: any) { setError(e?.message || 'Не удалось отправить'); }
-  }, [draft, chat.id, instanceId]);
+    } catch (e: any) { setError(e?.message || t('dailyPrompt.sendFailed')); }
+  }, [draft, chat.id, instanceId, t]);
 
   const sendAttachment = useCallback(async (result: UploadResult, caption: string) => {
     try {
@@ -157,25 +160,25 @@ function ThreadView({ chat, meId, instanceId, onBack, onClose }: {
         voice_waveform: result.waveform ? JSON.stringify(result.waveform) : undefined,
       });
       setAnswers(prev => [...prev, r.answer]);
-    } catch (e: any) { setError(e?.message || 'Не удалось отправить'); }
-  }, [chat.id, instanceId]);
+    } catch (e: any) { setError(e?.message || t('dailyPrompt.sendFailed')); }
+  }, [chat.id, instanceId, t]);
 
   const removeAnswer = useCallback(async (id: string) => {
     try {
       await deleteDailyAnswer(chat.id, id);
       setAnswers(prev => prev.filter(a => a.id !== id));
-    } catch (e: any) { setError(e?.message || 'Не удалось удалить'); }
-  }, [chat.id]);
+    } catch (e: any) { setError(e?.message || t('dailyPrompt.deleteFailed')); }
+  }, [chat.id, t]);
 
   return (
     <>
       <div className="dpThreadHeader">
         {onBack && (
-          <button className="dpThreadBack" onClick={onBack} title="К списку">
+          <button className="dpThreadBack" onClick={onBack} title={t('dailyPrompt.backToList')}>
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
           </button>
         )}
-        <div className="dpThreadTitle">🌙 Вопрос дня</div>
+        <div className="dpThreadTitle">{t('dailyPrompt.threadTitle')}</div>
         <button className="upCloseBtn" onClick={onClose}>✕</button>
       </div>
 
@@ -183,14 +186,14 @@ function ThreadView({ chat, meId, instanceId, onBack, onClose }: {
 
       <div className="dpThreadBody">
         {error && <div className="dpError">{error}</div>}
-        {loading && <div className="dpLoading">Загрузка…</div>}
+        {loading && <div className="dpLoading">{t('common:loading')}</div>}
         {!loading && answers.length === 0 && (
-          <div className="dpQEmpty">Пока никто не ответил. Будьте первым 🌟</div>
+          <div className="dpQEmpty">{t('dailyPrompt.threadEmpty')}</div>
         )}
         {answers.map(a => {
           const isOwn = a.user_id === meId;
           const u = memberById(a.user_id);
-          const name = isOwn ? 'Вы' : (u?.display_name || u?.username || 'Участник');
+          const name = isOwn ? t('bubble.you') : (u?.display_name || u?.username || t('dailyPrompt.member'));
           const url = resolveUrl(a.attachment_url) ?? a.attachment_url ?? '';
           return (
             <div key={a.id} className={`dpAnswer${isOwn ? ' own' : ''}`}>
@@ -199,7 +202,7 @@ function ThreadView({ chat, meId, instanceId, onBack, onClose }: {
                 <div className="dpAnswerHead">
                   <span className="dpAnswerName">{name}</span>
                   {isOwn && (
-                    <button className="dpAnswerDel" title="Удалить" onClick={() => removeAnswer(a.id)}>✕</button>
+                    <button className="dpAnswerDel" title={t('common:delete')} onClick={() => removeAnswer(a.id)}>✕</button>
                   )}
                 </div>
                 {a.attachment_type === 'audio' && (
@@ -240,11 +243,4 @@ function ThreadView({ chat, meId, instanceId, onBack, onClose }: {
       </div>
     </>
   );
-}
-
-function plural(n: number, one: string, few: string, many: string): string {
-  const m10 = n % 10, m100 = n % 100;
-  if (m10 === 1 && m100 !== 11) return one;
-  if (m10 >= 2 && m10 <= 4 && (m100 < 10 || m100 >= 20)) return few;
-  return many;
 }
