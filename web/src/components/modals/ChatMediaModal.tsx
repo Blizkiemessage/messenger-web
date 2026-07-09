@@ -3,6 +3,7 @@
  * Lazy-loaded. Works for both direct and group chats.
  */
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import { getChatMedia, type MediaTab } from '../../api/chats';
 import type { Message } from '../../types';
 import client from '../../api/client';
@@ -14,19 +15,21 @@ type Tab = MediaTab | 'collections';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-const TAB_LABELS: Record<MediaTab, string> = {
-  media:    'Медиа',
-  files:    'Файлы',
-  audio:    'Аудио',
-  stickers: 'Стикеры',
-  links:    'Ссылки',
-};
+function getTabLabels(t: (k: string) => string): Record<MediaTab, string> {
+  return {
+    media:    t('chatMedia.tabMedia'),
+    files:    t('chatMedia.tabFiles'),
+    audio:    t('chatMedia.tabAudio'),
+    stickers: t('chatMedia.tabStickers'),
+    links:    t('chatMedia.tabLinks'),
+  };
+}
 
-function formatSize(bytes: number | null | undefined): string {
+function formatSize(bytes: number | null | undefined, t: (k: string, o?: any) => string): string {
   if (!bytes) return '';
-  if (bytes < 1024)       return `${bytes} Б`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} КБ`;
-  return `${(bytes / (1024 * 1024)).toFixed(1)} МБ`;
+  if (bytes < 1024)       return t('collections.sizeBytes', { count: bytes });
+  if (bytes < 1024 * 1024) return t('collections.sizeKB', { count: (bytes / 1024).toFixed(1) });
+  return t('collections.sizeMB', { count: (bytes / (1024 * 1024)).toFixed(1) });
 }
 
 function formatDuration(secs: number | null | undefined): string {
@@ -36,9 +39,9 @@ function formatDuration(secs: number | null | undefined): string {
   return `${m}:${s.toString().padStart(2, '0')}`;
 }
 
-function formatDate(ts: number): string {
+function formatDate(ts: number, locale: string): string {
   const d = new Date(ts);
-  return d.toLocaleDateString('ru-RU', { day: 'numeric', month: 'short', year: 'numeric' });
+  return d.toLocaleDateString(locale, { day: 'numeric', month: 'short', year: 'numeric' });
 }
 
 function getFileExt(name: string | null | undefined): string {
@@ -58,6 +61,8 @@ function getDomain(url: string): string {
 
 /** 3-column grid for images, videos, gifs */
 function MediaGrid({ items, onImageClick }: { items: Message[]; onImageClick: (url: string) => void }) {
+  const { i18n } = useTranslation('modals');
+  const locale = i18n.language === 'en' ? 'en-US' : 'ru-RU';
   if (!items.length) return null;
   return (
     <div className="cmMediaGrid">
@@ -72,7 +77,7 @@ function MediaGrid({ items, onImageClick }: { items: Message[]; onImageClick: (u
             key={msg.id}
             className={`cmMediaCell${isImg || isGif ? ' cmMediaCellClickable' : ''}`}
             onClick={() => (isImg || isGif) ? onImageClick(url) : undefined}
-            title={formatDate(msg.created_at)}
+            title={formatDate(msg.created_at, locale)}
           >
             {(isImg || isGif) ? (
               <img src={url} className="cmMediaImg" alt="" loading="lazy" />
@@ -95,6 +100,8 @@ function MediaGrid({ items, onImageClick }: { items: Message[]; onImageClick: (u
 
 /** List for audio messages */
 function AudioList({ items }: { items: Message[] }) {
+  const { t, i18n } = useTranslation('modals');
+  const locale = i18n.language === 'en' ? 'en-US' : 'ru-RU';
   const [playing, setPlaying] = useState<string | null>(null);
   const audioRefs = useRef<Record<string, HTMLAudioElement>>({});
 
@@ -129,7 +136,7 @@ function AudioList({ items }: { items: Message[] }) {
           <button
             className={`cmAudioPlayBtn${playing === msg.id ? ' playing' : ''}`}
             onClick={() => msg.attachment_url && togglePlay(msg.id, msg.attachment_url)}
-            title={playing === msg.id ? 'Пауза' : 'Воспроизвести'}
+            title={playing === msg.id ? t('chat:media.pause') : t('chat:media.play')}
           >
             {playing === msg.id ? (
               <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
@@ -142,17 +149,17 @@ function AudioList({ items }: { items: Message[] }) {
             )}
           </button>
           <div className="cmAudioMeta">
-            <span className="cmAudioName">{msg.attachment_name || 'Аудио'}</span>
+            <span className="cmAudioName">{msg.attachment_name || t('chatMedia.audioFallback')}</span>
             <span className="cmAudioSub">
               {msg.attachment_duration ? formatDuration(msg.attachment_duration) : ''}
               {msg.attachment_duration && msg.attachment_size ? ' · ' : ''}
-              {formatSize(msg.attachment_size)}
+              {formatSize(msg.attachment_size, t)}
               {(msg.attachment_duration || msg.attachment_size) ? ' · ' : ''}
-              {formatDate(msg.created_at)}
+              {formatDate(msg.created_at, locale)}
             </span>
           </div>
           {msg.attachment_url && (
-            <a href={msg.attachment_url} download={msg.attachment_name || 'audio'} className="cmItemDownload" title="Скачать">
+            <a href={msg.attachment_url} download={msg.attachment_name || 'audio'} className="cmItemDownload" title={t('chatMedia.download')}>
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
               </svg>
@@ -166,6 +173,8 @@ function AudioList({ items }: { items: Message[] }) {
 
 /** List for file/document attachments */
 function FilesList({ items }: { items: Message[] }) {
+  const { t, i18n } = useTranslation('modals');
+  const locale = i18n.language === 'en' ? 'en-US' : 'ru-RU';
   if (!items.length) return null;
   return (
     <div className="cmList">
@@ -181,15 +190,15 @@ function FilesList({ items }: { items: Message[] }) {
               <span className="cmFileExt">{ext}</span>
             </div>
             <div className="cmFileMeta">
-              <span className="cmFileName">{msg.attachment_name || 'Файл'}</span>
+              <span className="cmFileName">{msg.attachment_name || t('collections.file')}</span>
               <span className="cmFileSub">
-                {formatSize(msg.attachment_size)}
+                {formatSize(msg.attachment_size, t)}
                 {msg.attachment_size ? ' · ' : ''}
-                {formatDate(msg.created_at)}
+                {formatDate(msg.created_at, locale)}
               </span>
             </div>
             {msg.attachment_url && (
-              <a href={msg.attachment_url} download={msg.attachment_name || 'file'} className="cmItemDownload" title="Скачать">
+              <a href={msg.attachment_url} download={msg.attachment_name || 'file'} className="cmItemDownload" title={t('chatMedia.download')}>
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
                 </svg>
@@ -204,11 +213,13 @@ function FilesList({ items }: { items: Message[] }) {
 
 /** 4-column grid for stickers */
 function StickersGrid({ items }: { items: Message[] }) {
+  const { i18n } = useTranslation('modals');
+  const locale = i18n.language === 'en' ? 'en-US' : 'ru-RU';
   if (!items.length) return null;
   return (
     <div className="cmStickerGrid">
       {items.map(msg => (
-        <div key={msg.id} className="cmStickerCell" title={formatDate(msg.created_at)}>
+        <div key={msg.id} className="cmStickerCell" title={formatDate(msg.created_at, locale)}>
           <img src={msg.attachment_url ?? ''} className="cmStickerImg" alt="" loading="lazy" />
         </div>
       ))}
@@ -226,6 +237,8 @@ interface OgMeta {
 
 /** Single link card — fetches OG preview on mount */
 function LinkCard({ url, date }: { url: string; date: number }) {
+  const { i18n } = useTranslation('modals');
+  const locale = i18n.language === 'en' ? 'en-US' : 'ru-RU';
   const [meta, setMeta] = useState<OgMeta | null>(null);
   const [loaded, setLoaded] = useState(false);
 
@@ -268,7 +281,7 @@ function LinkCard({ url, date }: { url: string; date: number }) {
         {meta?.title && <div className="cmLinkTitle">{meta.title}</div>}
         {meta?.description && <div className="cmLinkDesc">{meta.description}</div>}
         <div className="cmLinkUrl">{url}</div>
-        <div className="cmLinkDate">{formatDate(date)}</div>
+        <div className="cmLinkDate">{formatDate(date, locale)}</div>
       </div>
 
       {/* External arrow */}
@@ -349,6 +362,8 @@ function Lightbox({ url, onClose }: { url: string; onClose: () => void }) {
 export function ChatMediaBrowser({
   chatId, onEscape, initialTab = 'media',
 }: { chatId: string; onEscape?: () => void; initialTab?: Tab }) {
+  const { t } = useTranslation('modals');
+  const TAB_LABELS = getTabLabels(t);
   const [tab,      setTab]      = useState<Tab>(initialTab);
   const [items,    setItems]    = useState<Message[]>([]);
   const [hasMore,  setHasMore]  = useState(false);
@@ -393,13 +408,13 @@ export function ChatMediaBrowser({
     <>
       {/* Tabs */}
       <div className="cmTabs">
-        {([...(Object.keys(TAB_LABELS) as MediaTab[]), 'collections'] as Tab[]).map(t => (
+        {([...(Object.keys(TAB_LABELS) as MediaTab[]), 'collections'] as Tab[]).map(tabId => (
           <button
-            key={t}
-            className={`cmTab${tab === t ? ' active' : ''}`}
-            onClick={() => setTab(t)}
+            key={tabId}
+            className={`cmTab${tab === tabId ? ' active' : ''}`}
+            onClick={() => setTab(tabId)}
           >
-            {t === 'collections' ? 'Коллекции' : TAB_LABELS[t]}
+            {tabId === 'collections' ? t('chatMedia.tabCollections') : TAB_LABELS[tabId]}
           </button>
         ))}
       </div>
@@ -417,7 +432,7 @@ export function ChatMediaBrowser({
               {tab === 'stickers' && <><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/></>}
               {tab === 'links'    && <><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></>}
             </svg>
-            <span>Нет вложений</span>
+            <span>{t('chatMedia.noAttachments')}</span>
           </div>
         ) : (
           <>
@@ -437,7 +452,7 @@ export function ChatMediaBrowser({
 
             {hasMore && !loading && (
               <button className="cmLoadMore" onClick={handleLoadMore}>
-                Загрузить ещё
+                {t('chatMedia.loadMore')}
               </button>
             )}
           </>
@@ -457,12 +472,13 @@ interface Props {
 }
 
 export function ChatMediaModal({ chatId, onClose }: Props) {
+  const { t } = useTranslation('modals');
   return (
     <div className="cmOverlay" onClick={onClose}>
       <div className="cmModal" onClick={e => e.stopPropagation()}>
         {/* Header */}
         <div className="cmHeader">
-          <span className="cmTitle">Медиа и файлы</span>
+          <span className="cmTitle">{t('chatMedia.title')}</span>
           <button className="cmCloseBtn" onClick={onClose}>
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
               <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>

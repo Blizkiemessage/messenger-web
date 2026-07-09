@@ -9,20 +9,23 @@
  * Типы фона: пресеты, свой цвет, свой градиент (с углом), своя картинка.
  */
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { type Chat } from '../../types';
 import { type ChatBg, cssForChatBg, parseChatBg } from '../../utils/appBackground';
 import { setChatBackground } from '../../api/chats';
 import { uploadFile } from '../../api/upload';
 import { useChatsStore } from '../../store/useChatsStore';
 
-const PRESETS: { label: string; bg: ChatBg }[] = [
-  { label: 'Полночь', bg: { type: 'solid',    c1: '#0b0911' } },
-  { label: 'Уголь',   bg: { type: 'solid',    c1: '#101418' } },
-  { label: 'Закат',   bg: { type: 'gradient', c1: '#2d1b4e', c2: '#7c2d5e', angle: 160 } },
-  { label: 'Океан',   bg: { type: 'gradient', c1: '#0c1222', c2: '#1b2a4a', angle: 160 } },
-  { label: 'Сияние',  bg: { type: 'gradient', c1: '#071a14', c2: '#103c4a', angle: 200 } },
-  { label: 'Розовый', bg: { type: 'gradient', c1: '#ffd9e8', c2: '#ffeedd', angle: 160 } },
-];
+function getPresets(t: (k: string) => string): { label: string; bg: ChatBg }[] {
+  return [
+    { label: t('chatBackground.presetMidnight'), bg: { type: 'solid',    c1: '#0b0911' } },
+    { label: t('chatBackground.presetCharcoal'), bg: { type: 'solid',    c1: '#101418' } },
+    { label: t('chatBackground.presetSunset'),   bg: { type: 'gradient', c1: '#2d1b4e', c2: '#7c2d5e', angle: 160 } },
+    { label: t('chatBackground.presetOcean'),    bg: { type: 'gradient', c1: '#0c1222', c2: '#1b2a4a', angle: 160 } },
+    { label: t('chatBackground.presetGlow'),     bg: { type: 'gradient', c1: '#071a14', c2: '#103c4a', angle: 200 } },
+    { label: t('chatBackground.presetPink'),     bg: { type: 'gradient', c1: '#ffd9e8', c2: '#ffeedd', angle: 160 } },
+  ];
+}
 
 /** Может ли пользователь менять ОБЩИЙ фон этого чата. */
 function canSetShared(chat: Chat, meId: string): boolean {
@@ -46,6 +49,8 @@ interface Props {
  * onClose вызывается после успешного «Применить»/«Убрать».
  */
 export function ChatBackgroundSettings({ chat, meId, onClose }: Props) {
+  const { t } = useTranslation('modals');
+  const PRESETS = getPresets(t);
   const sharedAllowed = canSetShared(chat, meId);
   const [draft, setDraft] = useState<ChatBg | null>(
     () => parseChatBg(chat.my_chat_bg) || parseChatBg(chat.chat_bg),
@@ -71,13 +76,13 @@ export function ChatBackgroundSettings({ chat, meId, onClose }: Props) {
     const file = e.target.files?.[0];
     e.target.value = '';
     if (!file) return;
-    if (!file.type.startsWith('image/')) { setError('Нужен файл-изображение'); return; }
+    if (!file.type.startsWith('image/')) { setError(t('chatBackground.needImageFile')); return; }
     setUploading(true); setError(null);
     try {
       const res = await uploadFile(file, () => {}).promise;
       setDraft({ type: 'image', url: res.url, dim: 0.35 });
     } catch {
-      setError('Не удалось загрузить картинку');
+      setError(t('chatBackground.uploadError'));
     } finally { setUploading(false); }
   }
 
@@ -99,7 +104,7 @@ export function ChatBackgroundSettings({ chat, meId, onClose }: Props) {
       applyResult(updated);
       onClose();
     } catch (err: any) {
-      setError(err?.message || 'Не удалось сохранить фон');
+      setError(err?.message || t('chatBackground.saveError'));
     } finally { setBusy(false); }
   }
 
@@ -110,7 +115,7 @@ export function ChatBackgroundSettings({ chat, meId, onClose }: Props) {
       applyResult(updated);
       onClose();
     } catch (err: any) {
-      setError(err?.message || 'Не удалось убрать фон');
+      setError(err?.message || t('chatBackground.removeError'));
     } finally { setBusy(false); }
   }
 
@@ -118,9 +123,9 @@ export function ChatBackgroundSettings({ chat, meId, onClose }: Props) {
     <>
         {/* Превью */}
         <div className="cbgPreview" style={previewCss ? { background: previewCss } : undefined}>
-          <div className="cbgPreviewBubble cbgPreviewIn">Привет!</div>
-          <div className="cbgPreviewBubble cbgPreviewOut">Как тебе фон? 🎨</div>
-          {!previewCss && <div className="cbgPreviewHint">Фон по умолчанию</div>}
+          <div className="cbgPreviewBubble cbgPreviewIn">{t('chatBackground.previewIn')}</div>
+          <div className="cbgPreviewBubble cbgPreviewOut">{t('chatBackground.previewOut')}</div>
+          {!previewCss && <div className="cbgPreviewHint">{t('chatBackground.defaultBg')}</div>}
         </div>
 
         {/* Пресеты */}
@@ -142,11 +147,11 @@ export function ChatBackgroundSettings({ chat, meId, onClose }: Props) {
         {/* Свой цвет / градиент */}
         <div className="apBgModeTabs cbgModeTabs">
           <button className={`apBgModeTab${mode === 'solid' ? ' active' : ''}`}
-            onClick={() => { setMode('solid'); patchCustom({ type: 'solid' }); }}>Цвет</button>
+            onClick={() => { setMode('solid'); patchCustom({ type: 'solid' }); }}>{t('chatBackground.color')}</button>
           <button className={`apBgModeTab${mode === 'gradient' ? ' active' : ''}`}
-            onClick={() => { setMode('gradient'); patchCustom({ type: 'gradient' }); }}>Градиент</button>
+            onClick={() => { setMode('gradient'); patchCustom({ type: 'gradient' }); }}>{t('chatBackground.gradient')}</button>
           <label className="apBgModeTab cbgImageBtn">
-            {uploading ? '…' : 'Картинка'}
+            {uploading ? '…' : t('chatBackground.image')}
             <input type="file" accept="image/*" className="apColorInput" onChange={handleImage} disabled={uploading} />
           </label>
         </div>
@@ -167,7 +172,7 @@ export function ChatBackgroundSettings({ chat, meId, onClose }: Props) {
                   <input type="color" className="apColorInput" value={draft.c2 || '#3d2b52'}
                     onChange={e => patchCustom({ c2: e.target.value })} />
                 </label>
-                <label className="apBgAngleRow" title="Угол градиента">
+                <label className="apBgAngleRow" title={t('chatBackground.gradientAngle')}>
                   <input type="range" min={0} max={360} step={5} className="apBgAngleSlider"
                     value={draft.angle ?? 160} onChange={e => patchCustom({ angle: Number(e.target.value) })} />
                   <span className="apBgAngleValue">{draft.angle ?? 160}°</span>
@@ -183,9 +188,9 @@ export function ChatBackgroundSettings({ chat, meId, onClose }: Props) {
             onClick={() => setForEveryone(v => !v)} type="button">
             <span className={`giPermToggle${forEveryone ? ' giPermToggleOn' : ''}`}><span className="giPermKnob" /></span>
             <span className="cbgEveryoneText">
-              <span className="cbgEveryoneLabel">Поменять для всех участников</span>
+              <span className="cbgEveryoneLabel">{t('chatBackground.changeForEveryone')}</span>
               <span className="cbgEveryoneHint">
-                {chat.type === 'direct' ? 'фон увидит и собеседник' : 'фон увидят все в группе'}
+                {chat.type === 'direct' ? t('chatBackground.hintDirect') : t('chatBackground.hintGroup')}
               </span>
             </span>
           </button>
@@ -194,9 +199,9 @@ export function ChatBackgroundSettings({ chat, meId, onClose }: Props) {
         {error && <div className="cbgError">{error}</div>}
 
         <div className="cbgActions">
-          <button className="cbgRemoveBtn" onClick={handleRemove} disabled={busy}>Убрать фон</button>
+          <button className="cbgRemoveBtn" onClick={handleRemove} disabled={busy}>{t('chatBackground.removeBg')}</button>
           <button className="cbgApplyBtn" onClick={handleApply} disabled={busy || uploading}>
-            {busy ? '…' : 'Применить'}
+            {busy ? '…' : t('chatBackground.apply')}
           </button>
         </div>
     </>
@@ -205,11 +210,12 @@ export function ChatBackgroundSettings({ chat, meId, onClose }: Props) {
 
 /** Самостоятельная модалка фона (используется вне хаба «Настройки чата»). */
 export function ChatBackgroundModal({ chat, meId, onClose }: Props) {
+  const { t } = useTranslation('modals');
   return (
     <div className="modalOverlay" onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
       <div className="modalCard cbgCard">
         <div className="cbgHeader">
-          <div className="cbgTitle">Фон чата</div>
+          <div className="cbgTitle">{t('chatBackground.title')}</div>
           <button className="upCloseBtn" onClick={onClose}>✕</button>
         </div>
         <ChatBackgroundSettings chat={chat} meId={meId} onClose={onClose} />

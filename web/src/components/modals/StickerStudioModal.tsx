@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
+import { useTranslation } from 'react-i18next';
 import Picker from '@emoji-mart/react';
 import data from '@emoji-mart/data';
 import {
@@ -24,6 +25,7 @@ interface Props {
 }
 
 export function StickerStudioModal({ onClose }: Props) {
+  const { t, i18n } = useTranslation('modals');
   const theme = useAppStore(s => s.theme);
   const [tab, setTab] = useState<StudioTab>('my-packs');
   // Sub-filter inside "Мои паки": show sticker packs or emoji packs
@@ -167,7 +169,7 @@ export function StickerStudioModal({ onClose }: Props) {
         const { cover_url } = await uploadPackLogo(editingPack.id, file);
         setMyPacks(prev => prev.map(p => p.id === editingPack.id ? { ...p, cover_url } : p));
         setEditingPack(ep => ep ? { ...ep, cover_url } : ep);
-      } catch (e: any) { setError(e.message || 'Ошибка загрузки логотипа'); }
+      } catch (e: any) { setError(e.message || t('stickerStudio.logoUploadError')); }
       finally { setEditLogoUploading(false); }
     }
   }, [editingPack, wizardLogoPreview]);
@@ -184,7 +186,7 @@ export function StickerStudioModal({ onClose }: Props) {
         type: packType,
         is_public: isPublic,
       });
-      if (!pack?.id) throw new Error('Сервер вернул некорректный ответ. Попробуй ещё раз.');
+      if (!pack?.id) throw new Error(t('stickerStudio.invalidResponse'));
 
       // Upload logo if one was chosen in step 1
       if (wizardLogoFile) {
@@ -199,9 +201,9 @@ export function StickerStudioModal({ onClose }: Props) {
       setQuota(q => q ? { ...q, packs_created: q.packs_created + 1 } : q);
       setStep(2);
     } catch (e: any) {
-      const msg: string = e?.message || 'Ошибка создания';
+      const msg: string = e?.message || t('stickerStudio.createError');
       setError(msg === 'quota_exceeded'
-        ? 'Достигнут лимит паков. Удали старый или купи дополнительный слот.'
+        ? t('stickerStudio.quotaExceeded')
         : msg);
     } finally {
       setCreating(false);
@@ -271,7 +273,7 @@ export function StickerStudioModal({ onClose }: Props) {
       if (wizardLogoPreview) { URL.revokeObjectURL(wizardLogoPreview); setWizardLogoPreview(null); }
       setTab('my-packs');
     } catch (e: any) {
-      setError(e.message || 'Ошибка публикации');
+      setError(e.message || t('stickerStudio.publishError'));
     } finally {
       setPublishing(false);
     }
@@ -394,7 +396,7 @@ export function StickerStudioModal({ onClose }: Props) {
         return { packItems: next };
       });
     } catch (e: any) {
-      setError(e.message || 'Ошибка сохранения эмодзи');
+      setError(e.message || t('stickerStudio.emojiSaveError'));
     } finally {
       setSavingEmojiItemId(null);
       setEmojiPickerItemId(null);
@@ -403,7 +405,7 @@ export function StickerStudioModal({ onClose }: Props) {
 
   // ── Delete pack ───────────────────────────────────────────────────────────
   async function handleDeletePack(pack: StickerPack) {
-    if (!confirm(`Удалить пак «${pack.name}»? Это действие нельзя отменить.`)) return;
+    if (!confirm(t('stickerStudio.deletePackConfirm', { name: pack.name }))) return;
     try {
       await deletePack(pack.id);
       setMyPacks(prev => prev.filter(p => p.id !== pack.id));
@@ -434,7 +436,7 @@ export function StickerStudioModal({ onClose }: Props) {
           setMyPacks(prev => prev.map(p => p.id === editingPack.id ? { ...p, cover_url } : p));
           setEditingPack(ep => ep ? { ...ep, cover_url } : ep);
         })
-        .catch(e => setError(e.message || 'Ошибка загрузки логотипа'))
+        .catch(e => setError(e.message || t('stickerStudio.logoUploadError')))
         .finally(() => setEditLogoUploading(false));
       return;
     }
@@ -465,12 +467,12 @@ export function StickerStudioModal({ onClose }: Props) {
                       <polyline points="15 18 9 12 15 6"/>
                     </svg>
                   </button>
-                  <span className="studioTitle">{itemsEditPack.type === 'emoji' ? 'Эмодзи' : 'Стикеры'}: {itemsEditPack.name}</span>
+                  <span className="studioTitle">{itemsEditPack.type === 'emoji' ? t('stickerStudio.unitEmoji') : t('stickerStudio.tabStickers')}: {itemsEditPack.name}</span>
                 </>
               ) : (
-                <span className="studioTitle">Студия стикеров</span>
+                <span className="studioTitle">{t('stickerStudio.studioTitle')}</span>
               )}
-              <button className="studioClose" onClick={onClose} title="Закрыть">
+              <button className="studioClose" onClick={onClose} title={t('common:close')}>
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
                   <line x1="18" y1="6" x2="6" y2="18"/>
                   <line x1="6" y1="6" x2="18" y2="18"/>
@@ -480,8 +482,8 @@ export function StickerStudioModal({ onClose }: Props) {
 
             {!itemsEditPack && (
               <div className="studioTabs">
-                <button className={`studioTab${tab === 'my-packs' ? ' active' : ''}`} onClick={() => setTab('my-packs')}>Мои паки</button>
-                <button className={`studioTab${tab === 'create'   ? ' active' : ''}`} onClick={() => { setTab('create'); setStep(1); }}>Создать пак</button>
+                <button className={`studioTab${tab === 'my-packs' ? ' active' : ''}`} onClick={() => setTab('my-packs')}>{t('stickerStudio.tabMyPacks')}</button>
+                <button className={`studioTab${tab === 'create'   ? ' active' : ''}`} onClick={() => { setTab('create'); setStep(1); }}>{t('stickerStudio.tabCreatePack')}</button>
               </div>
             )}
 
@@ -495,7 +497,7 @@ export function StickerStudioModal({ onClose }: Props) {
                     <div className="studioItemsCounter">
                       <span className="studioItemsCount">{totalInEdit}</span>
                       <span className="studioItemsMax">/ {MAX_ITEMS}</span>
-                      <span className="studioItemsLabel">{itemsEditPack.type === 'emoji' ? 'эмодзи' : 'стикеров'}</span>
+                      <span className="studioItemsLabel">{itemsEditPack.type === 'emoji' ? t('stickerStudio.unitEmoji') : t('stickerStudio.unitStickersGenitive')}</span>
                     </div>
 
                     <input
@@ -511,7 +513,7 @@ export function StickerStudioModal({ onClose }: Props) {
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
                           <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
                         </svg>
-                        Добавить
+                        {t('stickerStudio.add')}
                       </button>
                     )}
                   </div>
@@ -524,7 +526,7 @@ export function StickerStudioModal({ onClose }: Props) {
                       {/* Uploading queue */}
                       {uploadingItems.length > 0 && (
                         <>
-                          <p className="studioHint" style={{ marginBottom: 6 }}>Очередь загрузки:</p>
+                          <p className="studioHint" style={{ marginBottom: 6 }}>{t('stickerStudio.uploadQueueLabel')}</p>
                           <div className="studioItemGrid" style={{ marginBottom: 12 }}>
                             {uploadingItems.map((item, i) => (
                               <div key={i} className="studioItemCell">
@@ -543,26 +545,26 @@ export function StickerStudioModal({ onClose }: Props) {
                           </div>
                           <button className="studioBtnPrimary" style={{ marginBottom: 16 }}
                             onClick={() => uploadingItems.forEach((_, i) => uploadEditItem(i))}>
-                            Загрузить все
+                            {t('stickerStudio.uploadAll')}
                           </button>
                         </>
                       )}
 
                       {/* Existing items */}
                       {packItemsList.length === 0 && uploadingItems.length === 0 && (
-                        <div className="studioEmpty"><p>Пак пуст. Добавь {itemsEditPack.type === 'emoji' ? 'эмодзи' : 'стикеры'}.</p></div>
+                        <div className="studioEmpty"><p>{t('stickerStudio.packEmpty', { type: itemsEditPack.type === 'emoji' ? t('stickerStudio.unitEmoji') : t('stickerStudio.unitStickersPlain') })}</p></div>
                       )}
                       {packItemsList.length > 0 && (
                         <div className="studioItemGrid studioItemGridSm">
                           {packItemsList.map(item => (
                             <div key={item.id} className={`studioItemCell${emojiPickerItemId === item.id ? ' studioItemCellPickerOpen' : ''}`}>
-                              <StickerMedia fileUrl={item.file_url} thumbUrl={item.thumb_url} alt={item.emoji_hint || 'sticker'} />
+                              <StickerMedia fileUrl={item.file_url} thumbUrl={item.thumb_url} alt={item.emoji_hint || t('stickerStudio.stickerAltFallback')} />
                               <button className="studioItemRemove" onClick={() => removeEditItem(item.id)}>✕</button>
 
                               {/* Emoji hint picker button */}
                               <button
                                 className={`studioItemEmojiBtn${emojiPickerItemId === item.id ? ' open' : ''}`}
-                                title="Назначить эмодзи-привязку"
+                                title={t('stickerStudio.assignEmojiTitle')}
                                 onClick={e => {
                                   e.stopPropagation();
                                   setEmojiPickerItemId(emojiPickerItemId === item.id ? null : item.id);
@@ -583,12 +585,12 @@ export function StickerStudioModal({ onClose }: Props) {
                                 >
                                   <div className="studioItemEmojiPickerWrap">
                                     <div className="studioItemEmojiPickerToolbar">
-                                      <span className="studioItemEmojiPickerLabel">Привязка эмодзи</span>
+                                      <span className="studioItemEmojiPickerLabel">{t('stickerStudio.emojiBindingLabel')}</span>
                                       <button
                                         className="studioItemEmojiPickerClear"
-                                        title="Убрать привязку"
+                                        title={t('stickerStudio.removeBindingTitle')}
                                         onClick={() => handleSetItemEmojiHint(item.id, '')}
-                                      >Убрать</button>
+                                      >{t('stickerStudio.removeBinding')}</button>
                                       <button
                                         className="studioItemEmojiPickerClose"
                                         onClick={() => setEmojiPickerItemId(null)}
@@ -597,7 +599,7 @@ export function StickerStudioModal({ onClose }: Props) {
                                     <Picker
                                       data={data}
                                       theme={theme}
-                                      locale="ru"
+                                      locale={i18n.language === 'en' ? 'en' : 'ru'}
                                       previewPosition="none"
                                       skinTonePosition="none"
                                       maxFrequentRows={1}
@@ -630,7 +632,7 @@ export function StickerStudioModal({ onClose }: Props) {
                         <circle cx="12" cy="10" r="3"/>
                         <path d="M7 20c0-3 2.2-5 5-5s5 2 5 5"/>
                       </svg>
-                      Стикеры
+                      {t('stickerStudio.tabStickers')}
                       {myPacks.filter(p => p?.id && p.type === 'sticker').length > 0 && (
                         <span className="studioPackTypeCnt">{myPacks.filter(p => p?.id && p.type === 'sticker').length}</span>
                       )}
@@ -645,7 +647,7 @@ export function StickerStudioModal({ onClose }: Props) {
                         <line x1="9" y1="9" x2="9.01" y2="9"/>
                         <line x1="15" y1="9" x2="15.01" y2="9"/>
                       </svg>
-                      Эмодзи
+                      {t('stickerStudio.tabEmoji')}
                       {myPacks.filter(p => p?.id && p.type === 'emoji').length > 0 && (
                         <span className="studioPackTypeCnt">{myPacks.filter(p => p?.id && p.type === 'emoji').length}</span>
                       )}
@@ -653,14 +655,14 @@ export function StickerStudioModal({ onClose }: Props) {
                   </div>
 
                   {quota && (
-                    <div className="studioQuotaBadge">Паки: {formatQuota(quota)}</div>
+                    <div className="studioQuotaBadge">{t('stickerStudio.packsQuota', { quota: formatQuota(quota) })}</div>
                   )}
                   {loading && <div className="studioLoading"><div className="gifSpinner" /></div>}
                   {!loading && myPacks.filter(p => p?.id && p.type === myPacksFilter).length === 0 && (
                     <div className="studioEmpty">
-                      <p>Нет паков типа «{myPacksFilter === 'emoji' ? 'Эмодзи' : 'Стикеры'}».</p>
+                      <p>{t('stickerStudio.noPacksOfType', { type: myPacksFilter === 'emoji' ? t('stickerStudio.tabEmoji') : t('stickerStudio.tabStickers') })}</p>
                       <button className="studioBtnPrimary" onClick={() => { setTab('create'); setPackType(myPacksFilter); setStep(1); }}>
-                        Создать {myPacksFilter === 'emoji' ? 'эмодзи-пак' : 'стикерпак'}
+                        {myPacksFilter === 'emoji' ? t('stickerStudio.createEmojiPack') : t('stickerStudio.createStickerPack')}
                       </button>
                     </div>
                   )}
@@ -672,26 +674,26 @@ export function StickerStudioModal({ onClose }: Props) {
                       <div className="studioPackInfo">
                         <div className="studioPackName">{pack.name}</div>
                         <div className="studioPackMeta">
-                          {(pack as any).item_count ?? 0} {pack.type === 'emoji' ? 'эмодзи' : 'стикеров'} &bull; {pack.is_public ? 'Публичный' : 'Приватный'}
+                          {(pack as any).item_count ?? 0} {pack.type === 'emoji' ? t('stickerStudio.unitEmoji') : t('stickerStudio.unitStickersGenitive')} &bull; {pack.is_public ? t('stickerStudio.publicLabel') : t('stickerStudio.privateLabel')}
                         </div>
                       </div>
                       <div className="studioPackActions">
                         {/* Edit items */}
-                        <button className="studioIconBtn" onClick={() => openItemsEdit(pack)} title={`Редактировать ${pack.type === 'emoji' ? 'эмодзи' : 'стикеры'}`}>
+                        <button className="studioIconBtn" onClick={() => openItemsEdit(pack)} title={t('stickerStudio.editItemsTitle', { type: pack.type === 'emoji' ? t('stickerStudio.unitEmoji') : t('stickerStudio.unitStickersPlain') })}>
                           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                             <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/>
                             <rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/>
                           </svg>
                         </button>
                         {/* Edit metadata */}
-                        <button className="studioIconBtn" onClick={() => startEdit(pack)} title="Настройки пака">
+                        <button className="studioIconBtn" onClick={() => startEdit(pack)} title={t('stickerStudio.packSettingsTitle')}>
                           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                             <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
                             <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
                           </svg>
                         </button>
                         {/* Delete */}
-                        <button className="studioIconBtn studioIconBtnDanger" onClick={() => handleDeletePack(pack)} title="Удалить">
+                        <button className="studioIconBtn studioIconBtnDanger" onClick={() => handleDeletePack(pack)} title={t('common:delete')}>
                           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                             <polyline points="3 6 5 6 21 6"/>
                             <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
@@ -706,7 +708,7 @@ export function StickerStudioModal({ onClose }: Props) {
                   {/* Edit metadata dialog */}
                   {editingPack && (
                     <div className="studioEditDialog">
-                      <h4>Настройки пака</h4>
+                      <h4>{t('stickerStudio.packSettingsTitle')}</h4>
 
                       {/* Logo upload in edit mode */}
                       <input
@@ -724,7 +726,7 @@ export function StickerStudioModal({ onClose }: Props) {
                         <button
                           className={`studioLogoBtn${editLogoUploading ? ' studioLogoBtnLoading' : ''}`}
                           onClick={() => !editLogoUploading && logoEditInputRef.current?.click()}
-                          title="Изменить логотип пака"
+                          title={t('stickerStudio.changeLogoTitle')}
                           type="button"
                         >
                           {editLogoUploading
@@ -740,19 +742,19 @@ export function StickerStudioModal({ onClose }: Props) {
                             </span>
                           )}
                         </button>
-                        <span className="studioLogoHint">Логотип пака<br/><small>фото · гифка · видео до 5 с</small></span>
+                        <span className="studioLogoHint">{t('stickerStudio.logoHintLabel')}<br/><small>{t('stickerStudio.logoHintDetail')}</small></span>
                       </div>
 
-                      <input className="studioInput" value={editName} onChange={e => setEditName(e.target.value)} placeholder="Название" maxLength={64} />
-                      <input className="studioInput" value={editDesc} onChange={e => setEditDesc(e.target.value)} placeholder="Описание (необязательно)" maxLength={256} />
+                      <input className="studioInput" value={editName} onChange={e => setEditName(e.target.value)} placeholder={t('stickerStudio.namePlaceholder')} maxLength={64} />
+                      <input className="studioInput" value={editDesc} onChange={e => setEditDesc(e.target.value)} placeholder={t('stickerStudio.descPlaceholderOptional')} maxLength={256} />
                       <label className="studioToggleRow">
-                        <span>Публичный</span>
+                        <span>{t('stickerStudio.publicLabel')}</span>
                         <input type="checkbox" checked={editPublic} onChange={e => setEditPublic(e.target.checked)} />
                       </label>
                       <div className="studioEditActions">
-                        <button className="studioBtnSecondary" onClick={() => setEditingPack(null)}>Отмена</button>
+                        <button className="studioBtnSecondary" onClick={() => setEditingPack(null)}>{t('common:cancel')}</button>
                         <button className="studioBtnPrimary" onClick={saveEdit} disabled={editSaving}>
-                          {editSaving ? 'Сохранение…' : 'Сохранить'}
+                          {editSaving ? t('stickerStudio.savingShort') : t('common:save')}
                         </button>
                       </div>
                     </div>
@@ -772,7 +774,7 @@ export function StickerStudioModal({ onClose }: Props) {
                   {/* Step 1 */}
                   {step === 1 && (
                     <div className="studioStepBody">
-                      <h4>Шаг 1: Основное</h4>
+                      <h4>{t('stickerStudio.step1Heading')}</h4>
 
                       {/* Logo upload */}
                       <input
@@ -790,7 +792,7 @@ export function StickerStudioModal({ onClose }: Props) {
                         <button
                           className="studioLogoBtn"
                           onClick={() => logoWizardInputRef.current?.click()}
-                          title="Загрузить логотип пака"
+                          title={t('stickerStudio.uploadLogoTitle')}
                           type="button"
                         >
                           {wizardLogoPreview
@@ -811,24 +813,24 @@ export function StickerStudioModal({ onClose }: Props) {
                             </svg>
                           </span>
                         </button>
-                        <span className="studioLogoHint">Логотип пака<br/><small>фото · гифка · видео до 5 с</small></span>
+                        <span className="studioLogoHint">{t('stickerStudio.logoHintLabel')}<br/><small>{t('stickerStudio.logoHintDetail')}</small></span>
                       </div>
 
-                      <input className="studioInput" placeholder="Название пака *" value={packName}
+                      <input className="studioInput" placeholder={t('stickerStudio.packNamePlaceholder')} value={packName}
                         onChange={e => setPackName(e.target.value)} maxLength={64} />
-                      <input className="studioInput" placeholder="Описание (необязательно)" value={packDesc}
+                      <input className="studioInput" placeholder={t('stickerStudio.descPlaceholderOptional')} value={packDesc}
                         onChange={e => setPackDesc(e.target.value)} maxLength={256} />
                       <div className="studioRadioRow">
-                        <label><input type="radio" name="packType" value="sticker" checked={packType === 'sticker'} onChange={() => setPackType('sticker')} /> Стикеры</label>
-                        <label><input type="radio" name="packType" value="emoji"   checked={packType === 'emoji'}   onChange={() => setPackType('emoji')} /> Эмодзи</label>
+                        <label><input type="radio" name="packType" value="sticker" checked={packType === 'sticker'} onChange={() => setPackType('sticker')} /> {t('stickerStudio.tabStickers')}</label>
+                        <label><input type="radio" name="packType" value="emoji"   checked={packType === 'emoji'}   onChange={() => setPackType('emoji')} /> {t('stickerStudio.tabEmoji')}</label>
                       </div>
                       <label className="studioToggleRow">
-                        <span>Публичный (виден всем)</span>
+                        <span>{t('stickerStudio.publicVisibleToAll')}</span>
                         <input type="checkbox" checked={isPublic} onChange={e => setIsPublic(e.target.checked)} />
                       </label>
                       <div className="studioWizardFooter">
                         <button className="studioBtnPrimary" onClick={handleCreatePack} disabled={!packName.trim() || creating}>
-                          {creating ? 'Создание…' : 'Далее →'}
+                          {creating ? t('stickerStudio.creatingShort') : t('stickerStudio.next')}
                         </button>
                       </div>
                     </div>
@@ -837,11 +839,9 @@ export function StickerStudioModal({ onClose }: Props) {
                   {/* Step 2 */}
                   {step === 2 && (
                     <div className="studioStepBody">
-                      <h4>Шаг 2: Добавить стикеры</h4>
+                      <h4>{t('stickerStudio.step2Heading')}</h4>
                       <p className="studioHint">
-                        Форматы: PNG, WebP, GIF, APNG, SVG, AVIF, JPEG, BMP, MP4, WebM, MOV и другие.
-                        Макс. 50 МБ каждый. GIF/видео &gt; 5с откроют редактор обрезки.
-                        Стикеров: {pendingItems.length} / {MAX_ITEMS}
+                        {t('stickerStudio.step2Hint', { count: pendingItems.length, max: MAX_ITEMS })}
                       </p>
 
                       <input ref={fileInputRef} type="file" accept={ACCEPT_TYPES}
@@ -849,7 +849,7 @@ export function StickerStudioModal({ onClose }: Props) {
 
                       {pendingItems.length < MAX_ITEMS && (
                         <button className="studioBtnSecondary" onClick={() => fileInputRef.current?.click()}>
-                          + Добавить файлы
+                          + {t('stickerStudio.addFiles')}
                         </button>
                       )}
 
@@ -869,9 +869,9 @@ export function StickerStudioModal({ onClose }: Props) {
                       </div>
 
                       <div className="studioWizardFooter">
-                        <button className="studioBtnSecondary" onClick={() => setStep(1)}>← Назад</button>
+                        <button className="studioBtnSecondary" onClick={() => setStep(1)}>{t('stickerStudio.back')}</button>
                         <button className="studioBtnPrimary" onClick={handleStep2Next} disabled={pendingItems.length === 0}>
-                          Далее →
+                          {t('stickerStudio.next')}
                         </button>
                       </div>
                     </div>
@@ -880,8 +880,8 @@ export function StickerStudioModal({ onClose }: Props) {
                   {/* Step 3 */}
                   {step === 3 && (
                     <div className="studioStepBody">
-                      <h4>Шаг 3: Обложка и публикация</h4>
-                      <p className="studioHint">Выбери стикер для обложки пака (клик по стикеру):</p>
+                      <h4>{t('stickerStudio.step3Heading')}</h4>
+                      <p className="studioHint">{t('stickerStudio.step3Hint')}</p>
 
                       <div className="studioItemGrid">
                         {pendingItems.filter(it => it.uploaded).map(item => (
@@ -894,14 +894,14 @@ export function StickerStudioModal({ onClose }: Props) {
                       </div>
 
                       <label className="studioToggleRow">
-                        <span>Публичный</span>
+                        <span>{t('stickerStudio.publicLabel')}</span>
                         <input type="checkbox" checked={isPublic} onChange={e => setIsPublic(e.target.checked)} />
                       </label>
 
                       <div className="studioWizardFooter">
-                        <button className="studioBtnSecondary" onClick={() => setStep(2)}>← Назад</button>
+                        <button className="studioBtnSecondary" onClick={() => setStep(2)}>{t('stickerStudio.back')}</button>
                         <button className="studioBtnPrimary" onClick={handlePublish} disabled={publishing}>
-                          {publishing ? 'Публикация…' : 'Опубликовать ✓'}
+                          {publishing ? t('stickerStudio.publishing') : t('stickerStudio.publish')}
                         </button>
                       </div>
                     </div>

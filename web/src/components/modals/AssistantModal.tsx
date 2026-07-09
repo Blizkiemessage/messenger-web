@@ -10,6 +10,7 @@
  * Каркас диалога переиспользуем для будущего ассистента по данным (Этап D).
  */
 import { useEffect, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useDeepLinkStore } from '../../store/useDeepLinkStore';
 import { useAppStore } from '../../store/useAppStore';
 import { renderMarkdown } from '../../utils/markdown';
@@ -39,10 +40,8 @@ type ThreadItem =
   | { role: 'assistant-suggest'; query: string; suggestions: FaqIntent[] }
   | { role: 'assistant-empty'; query: string };
 
-const GREETING =
-  'Привет! Я помощник Blizkie 🪄\nСпросите, как что-то сделать, или выберите тему ниже.';
-
 export function AssistantModal({ topic, initialMode = 'help', onClose }: Props) {
+  const { t } = useTranslation('modals');
   const open = useDeepLinkStore(s => s.open);
   const setShowSupport = useAppStore(s => s.setShowSupport);
 
@@ -172,13 +171,13 @@ export function AssistantModal({ topic, initialMode = 'help', onClose }: Props) 
           <div className="asstHeaderTitle">
             <span className="asstAvatar" aria-hidden>{mode === 'data' ? '🧠' : '🪄'}</span>
             <div>
-              <div className="asstName">Помощник</div>
+              <div className="asstName">{t('assistant.name')}</div>
               <div className="asstStatus">
-                {mode === 'data' ? 'Найду ответы в ваших чатах' : 'Подскажу, как пользоваться Blizkie'}
+                {mode === 'data' ? t('assistant.statusData') : t('assistant.statusHelp')}
               </div>
             </div>
           </div>
-          <button className="asstClose" onClick={onClose} title="Закрыть">
+          <button className="asstClose" onClick={onClose} title={t('common:close')}>
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round">
               <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
             </svg>
@@ -193,7 +192,7 @@ export function AssistantModal({ topic, initialMode = 'help', onClose }: Props) 
             aria-selected={mode === 'help'}
             onClick={() => setMode('help')}
           >
-            Помощь по приложению
+            {t('assistant.tabHelp')}
           </button>
           <button
             className={`asstTab${mode === 'data' ? ' asstTabActive' : ''}`}
@@ -201,7 +200,7 @@ export function AssistantModal({ topic, initialMode = 'help', onClose }: Props) 
             aria-selected={mode === 'data'}
             onClick={() => setMode('data')}
           >
-            Мои чаты
+            {t('assistant.tabData')}
           </button>
         </div>
 
@@ -213,13 +212,13 @@ export function AssistantModal({ topic, initialMode = 'help', onClose }: Props) 
         <div className="asstThread" ref={scrollRef}>
           {/* Приветствие */}
           <div className="asstMsg asstMsgBot">
-            <div className="asstBubble">{renderMarkdown(GREETING)}</div>
+            <div className="asstBubble">{renderMarkdown(t('assistant.greeting'))}</div>
           </div>
 
           {/* Стартовый экран: категории + частые вопросы */}
           {!started && (
             <div className="asstStart">
-              <div className="asstSectionLabel">Частые вопросы</div>
+              <div className="asstSectionLabel">{t('assistant.frequentQuestions')}</div>
               <div className="asstChips">
                 {TOP_INTENTS.map(i => (
                   <button key={i.id} className="asstChip" onClick={() => answerIntent(i)}>
@@ -228,7 +227,7 @@ export function AssistantModal({ topic, initialMode = 'help', onClose }: Props) 
                 ))}
               </div>
 
-              <div className="asstSectionLabel">Темы</div>
+              <div className="asstSectionLabel">{t('assistant.topics')}</div>
               <div className="asstCats">
                 {(Object.keys(CATEGORY_META) as FaqCategory[]).map(cat => (
                   <button
@@ -293,7 +292,7 @@ export function AssistantModal({ topic, initialMode = 'help', onClose }: Props) 
                         ))}
                         {item.showSupport && (
                           <button className="asstActionBtn" onClick={openSupport}>
-                            Написать в поддержку
+                            {t('assistant.contactSupport')}
                           </button>
                         )}
                       </div>
@@ -306,7 +305,7 @@ export function AssistantModal({ topic, initialMode = 'help', onClose }: Props) 
               return (
                 <div key={idx} className="asstMsg asstMsgBot">
                   <div className="asstBubble">
-                    <p>Не нашёл точного ответа на «{item.query}». Возможно, вы имели в виду:</p>
+                    <p>{t('assistant.noMatchSuggest', { query: item.query })}</p>
                     <div className="asstChips asstSuggest">
                       {item.suggestions.map(s => (
                         <button key={s.id} className="asstChip" onClick={() => answerIntent(s)}>
@@ -316,7 +315,7 @@ export function AssistantModal({ topic, initialMode = 'help', onClose }: Props) 
                     </div>
                     <div className="asstActions">
                       <button className="asstActionBtn" onClick={openSupport}>
-                        Ничего из этого — в поддержку
+                        {t('assistant.noneOfThese')}
                       </button>
                     </div>
                   </div>
@@ -327,10 +326,10 @@ export function AssistantModal({ topic, initialMode = 'help', onClose }: Props) 
               return (
                 <div key={idx} className="asstMsg asstMsgBot">
                   <div className="asstBubble">
-                    <p>Не нашёл точного ответа на «{item.query}». Попробуйте переформулировать или загляните в темы выше.</p>
+                    <p>{t('assistant.noMatchEmpty', { query: item.query })}</p>
                     <div className="asstActions">
                       <button className="asstActionBtn asstActionPrimary" onClick={openSupport}>
-                        Написать в поддержку
+                        {t('assistant.contactSupport')}
                       </button>
                     </div>
                   </div>
@@ -372,18 +371,18 @@ export function AssistantModal({ topic, initialMode = 'help', onClose }: Props) 
             <input
               ref={inputRef}
               className="asstInput"
-              placeholder="Спросите: как пригласить, записать кружок…"
+              placeholder={t('assistant.inputPlaceholder')}
               value={query}
               onChange={e => setQuery(e.target.value)}
             />
-            <button className="asstSend" type="submit" disabled={!query.trim() || busy} title="Спросить">
+            <button className="asstSend" type="submit" disabled={!query.trim() || busy} title={t('assistant.ask')}>
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
                 <line x1="22" y1="2" x2="11" y2="13" /><polygon points="22 2 15 22 11 13 2 9 22 2" />
               </svg>
             </button>
           </form>
           <button className="asstSupportLink" onClick={openSupport}>
-            Не нашли ответ? Написать в поддержку →
+            {t('assistant.supportLink')}
           </button>
         </div>
         </>

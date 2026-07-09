@@ -4,6 +4,7 @@
  */
 import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
+import { useTranslation } from 'react-i18next';
 import { getPackById, getPackItems, installPack, uninstallPack, reportPack } from '../../api/sticker-packs';
 import { useStickerStore } from '../../store/useStickerStore';
 import { type StickerPack, type StickerPackItem } from '../../types';
@@ -18,6 +19,7 @@ interface Props {
 type View = 'preview' | 'report';
 
 export function StickerPackPreviewModal({ packId, onClose }: Props) {
+  const { t } = useTranslation('modals');
   const [pack, setPack]       = useState<(StickerPack & { is_installed: boolean }) | null>(null);
   const [items, setItems]     = useState<StickerPackItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -68,7 +70,7 @@ export function StickerPackPreviewModal({ packId, onClose }: Props) {
       await reportPack(packId, reportReason.trim());
       setReportDone(true);
     } catch (e: any) {
-      setReportError(e?.response?.data?.error || 'Ошибка при отправке жалобы');
+      setReportError(e?.response?.data?.error || t('stickerPackPreview.reportError'));
     } finally {
       setReportSending(false);
     }
@@ -83,16 +85,16 @@ export function StickerPackPreviewModal({ packId, onClose }: Props) {
         {/* Header */}
         <div className="packPreviewHeader">
           {view === 'report' ? (
-            <button className="packPreviewBack" onClick={() => { setView('preview'); setReportError(''); }} title="Назад">
+            <button className="packPreviewBack" onClick={() => { setView('preview'); setReportError(''); }} title={t('common:back')}>
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
                 <polyline points="15 18 9 12 15 6"/>
               </svg>
             </button>
           ) : (
-            <span className="packPreviewTitle">Стикерпак</span>
+            <span className="packPreviewTitle">{t('stickerPackPreview.title')}</span>
           )}
-          {view === 'report' && <span className="packPreviewTitle">Жалоба на пак</span>}
-          <button className="packPreviewClose" onClick={onClose} title="Закрыть">
+          {view === 'report' && <span className="packPreviewTitle">{t('stickerPackPreview.reportTitle')}</span>}
+          <button className="packPreviewClose" onClick={onClose} title={t('common:close')}>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
               <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
             </svg>
@@ -110,7 +112,7 @@ export function StickerPackPreviewModal({ packId, onClose }: Props) {
                   <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/>
                   <line x1="4" y1="22" x2="4" y2="15"/>
                 </svg>
-                Пожаловаться на пак
+                {t('stickerPackPreview.reportPack')}
               </button>
             </div>
 
@@ -125,7 +127,7 @@ export function StickerPackPreviewModal({ packId, onClose }: Props) {
                   <div className="packPreviewDesc">{pack.description}</div>
                 )}
                 <div className="packPreviewCount">
-                  {(pack as any).item_count ?? items.length} стикеров
+                  {t('stickerPackPreview.stickerCount', { count: (pack as any).item_count ?? items.length })}
                 </div>
               </div>
             </div>
@@ -133,11 +135,11 @@ export function StickerPackPreviewModal({ packId, onClose }: Props) {
             {/* Stickers grid */}
             <div className="packPreviewGrid">
               {items.map(item => (
-                <div key={item.id} className="packPreviewCell" title={item.emoji_hint || 'Стикер'}>
+                <div key={item.id} className="packPreviewCell" title={item.emoji_hint || t('stickerPackPreview.sticker')}>
                   <StickerMedia
                     fileUrl={item.file_url}
                     thumbUrl={item.thumb_url}
-                    alt={item.emoji_hint || 'Стикер'}
+                    alt={item.emoji_hint || t('stickerPackPreview.sticker')}
                   />
                 </div>
               ))}
@@ -153,8 +155,8 @@ export function StickerPackPreviewModal({ packId, onClose }: Props) {
                 {installing
                   ? '…'
                   : pack.is_installed
-                    ? 'Удалить из моих'
-                    : 'Добавить стикеры'}
+                    ? t('stickerPackPreview.removeFromMine')
+                    : t('stickerPackPreview.addStickers')}
               </button>
             </div>
           </>
@@ -166,9 +168,9 @@ export function StickerPackPreviewModal({ packId, onClose }: Props) {
                   <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
                   <polyline points="22 4 12 14.01 9 11.01"/>
                 </svg>
-                <p className="packReportDoneTitle">Жалоба отправлена</p>
-                <p className="packReportDoneDesc">Мы рассмотрим её в ближайшее время. Спасибо!</p>
-                <button className="packPreviewBtn" style={{ marginTop: 16 }} onClick={onClose}>Закрыть</button>
+                <p className="packReportDoneTitle">{t('stickerPackPreview.reportSent')}</p>
+                <p className="packReportDoneDesc">{t('stickerPackPreview.reportSentDesc')}</p>
+                <button className="packPreviewBtn" style={{ marginTop: 16 }} onClick={onClose}>{t('common:close')}</button>
               </div>
             ) : (
               <>
@@ -179,10 +181,10 @@ export function StickerPackPreviewModal({ packId, onClose }: Props) {
                   <div className="packReportPackName">{pack.name}</div>
                 </div>
 
-                <label className="packReportLabel">Причина жалобы</label>
+                <label className="packReportLabel">{t('stickerPackPreview.reportReasonLabel')}</label>
                 <textarea
                   className="packReportTextarea"
-                  placeholder="Опишите, что именно нарушает правила…"
+                  placeholder={t('stickerPackPreview.reportReasonPlaceholder')}
                   maxLength={1000}
                   value={reportReason}
                   onChange={e => setReportReason(e.target.value)}
@@ -195,7 +197,7 @@ export function StickerPackPreviewModal({ packId, onClose }: Props) {
                   onClick={handleReport}
                   style={{ marginTop: 12 }}
                 >
-                  {reportSending ? '…' : 'Отправить жалобу'}
+                  {reportSending ? '…' : t('report.submit')}
                 </button>
               </>
             )}

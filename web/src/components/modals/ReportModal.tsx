@@ -5,6 +5,7 @@
  */
 import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
+import { useTranslation } from 'react-i18next';
 
 interface Props {
   title: string;
@@ -12,9 +13,11 @@ interface Props {
   onSubmit: (reason: string) => Promise<unknown>;
 }
 
-const REASONS = ['Спам', 'Оскорбления или агрессия', 'Незаконный контент', 'Другое'];
-
 export function ReportModal({ title, onClose, onSubmit }: Props) {
+  const { t } = useTranslation('modals');
+  const REASONS = [
+    t('report.reasonSpam'), t('report.reasonAbuse'), t('report.reasonIllegal'), t('report.reasonOther'),
+  ];
   const [reason, setReason] = useState(REASONS[0]);
   const [comment, setComment] = useState('');
   const [busy, setBusy] = useState(false);
@@ -35,7 +38,7 @@ export function ReportModal({ title, onClose, onSubmit }: Props) {
       await onSubmit(full);
       setDone(true);
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Не удалось отправить жалобу');
+      setError(e instanceof Error ? e.message : t('report.submitError'));
     } finally {
       setBusy(false);
     }
@@ -46,13 +49,13 @@ export function ReportModal({ title, onClose, onSubmit }: Props) {
       <div className="atcModal" onClick={e => e.stopPropagation()}>
         <div className="atcHead">
           <span className="atcTitle">{title}</span>
-          <button className="atcClose" onClick={onClose} aria-label="Закрыть">✕</button>
+          <button className="atcClose" onClick={onClose} aria-label={t('common:close')}>✕</button>
         </div>
 
         {done ? (
           <>
-            <div className="colEmpty">Спасибо, жалоба отправлена. Мы её рассмотрим.</div>
-            <button className="colAddBtn" onClick={onClose}>Закрыть</button>
+            <div className="colEmpty">{t('report.thanks')}</div>
+            <button className="colAddBtn" onClick={onClose}>{t('common:close')}</button>
           </>
         ) : (
           <>
@@ -66,7 +69,7 @@ export function ReportModal({ title, onClose, onSubmit }: Props) {
             </select>
             <textarea
               className="authInput rprtTextarea"
-              placeholder="Комментарий (необязательно)"
+              placeholder={t('report.commentPlaceholder')}
               value={comment}
               maxLength={500}
               disabled={busy}
@@ -74,7 +77,7 @@ export function ReportModal({ title, onClose, onSubmit }: Props) {
             />
             {error && <div className="colError">{error}</div>}
             <button className="colAddBtn" disabled={busy} onClick={handleSubmit}>
-              {busy ? '…' : 'Отправить жалобу'}
+              {busy ? '…' : t('report.submit')}
             </button>
           </>
         )}

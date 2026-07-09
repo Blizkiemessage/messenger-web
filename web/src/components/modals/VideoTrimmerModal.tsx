@@ -8,6 +8,7 @@
  */
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
+import { useTranslation } from 'react-i18next';
 
 export const TRIM_MAX_DURATION = 15; // seconds
 
@@ -48,6 +49,7 @@ interface Props {
 }
 
 export function VideoTrimmerModal({ file, onConfirm, onCancel }: Props) {
+  const { t } = useTranslation('modals');
   const isGif = file.type === 'image/gif';
   const videoRef   = useRef<HTMLVideoElement>(null);
   const imgRef     = useRef<HTMLImageElement>(null);
@@ -154,7 +156,7 @@ export function VideoTrimmerModal({ file, onConfirm, onCancel }: Props) {
 
     try {
       const canvas = canvasRef.current!;
-      if (!('captureStream' in canvas)) throw new Error('Браузер не поддерживает запись. Используй Chrome или Edge.');
+      if (!('captureStream' in canvas)) throw new Error(t('videoTrimmer.notSupported'));
 
       let source: HTMLVideoElement | HTMLImageElement;
       let w: number, h: number;
@@ -219,11 +221,11 @@ export function VideoTrimmerModal({ file, onConfirm, onCancel }: Props) {
       const name = file.name.replace(/\.[^.]+$/, '') + '.webm';
       onConfirm(new File([blob], name, { type: 'video/webm' }));
     } catch (e: any) {
-      setError(e.message || 'Ошибка обрезки');
+      setError(e.message || t('videoTrimmer.trimError'));
     } finally {
       setTrimming(false);
     }
-  }, [file, isGif, startTime, endTime, onConfirm]);
+  }, [file, isGif, startTime, endTime, onConfirm, t]);
 
   const trimDuration  = endTime - startTime;
   const isValid       = trimDuration > 0.05 && trimDuration <= TRIM_MAX_DURATION;
@@ -237,7 +239,7 @@ export function VideoTrimmerModal({ file, onConfirm, onCancel }: Props) {
 
         {/* Header */}
         <div className="studioHeader">
-          <span className="studioTitle">Обрезка {isGif ? 'GIF' : 'видео'}</span>
+          <span className="studioTitle">{isGif ? t('videoTrimmer.titleGif') : t('videoTrimmer.titleVideo')}</span>
           <button className="studioClose" onClick={onCancel}>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
               <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
@@ -247,7 +249,7 @@ export function VideoTrimmerModal({ file, onConfirm, onCancel }: Props) {
 
         <div className="trimmerBody">
           <p className="studioHint">
-            Максимум {TRIM_MAX_DURATION}с. Перетащи маркеры на шкале для выбора фрагмента.
+            {t('videoTrimmer.hint', { max: TRIM_MAX_DURATION })}
           </p>
 
           {/* Preview */}
@@ -273,7 +275,7 @@ export function VideoTrimmerModal({ file, onConfirm, onCancel }: Props) {
             <span className="trimmerTimeLabel">{fmt(currentTime)}</span>
             <span className={`trimmerDuration ${trimDuration > TRIM_MAX_DURATION ? 'trimmerOver' : 'trimmerOk'}`}>
               {fmt(trimDuration)}
-              {trimDuration > TRIM_MAX_DURATION ? ` (макс. ${TRIM_MAX_DURATION}с)` : ''}
+              {trimDuration > TRIM_MAX_DURATION ? t('videoTrimmer.maxSuffix', { max: TRIM_MAX_DURATION }) : ''}
             </span>
             <span className="trimmerTimeLabel">{fmt(duration)}</span>
           </div>
@@ -300,7 +302,7 @@ export function VideoTrimmerModal({ file, onConfirm, onCancel }: Props) {
             <div className="trimmerHandle trimmerHandleIn"
               style={{ left: `${startPct}%` }}
               onPointerDown={e => { e.stopPropagation(); startDrag(e, 'start'); }}
-              title={`Начало: ${fmt(startTime)}`}>
+              title={t('videoTrimmer.startHandleTitle', { time: fmt(startTime) })}>
               <svg width="10" height="18" viewBox="0 0 10 18" fill="currentColor">
                 <path d="M10 0 L10 18 L0 9 Z"/>
               </svg>
@@ -310,7 +312,7 @@ export function VideoTrimmerModal({ file, onConfirm, onCancel }: Props) {
             <div className="trimmerHandle trimmerHandleOut"
               style={{ left: `${endPct}%` }}
               onPointerDown={e => { e.stopPropagation(); startDrag(e, 'end'); }}
-              title={`Конец: ${fmt(endTime)}`}>
+              title={t('videoTrimmer.endHandleTitle', { time: fmt(endTime) })}>
               <svg width="10" height="18" viewBox="0 0 10 18" fill="currentColor">
                 <path d="M0 0 L0 18 L10 9 Z"/>
               </svg>
@@ -332,7 +334,7 @@ export function VideoTrimmerModal({ file, onConfirm, onCancel }: Props) {
           {/* Fine-tune inputs */}
           <div className="trimmerInputRow">
             <label className="trimmerInputGroup">
-              <span>Начало</span>
+              <span>{t('videoTrimmer.startLabel')}</span>
               <input type="number" min={0} max={endTime - 0.05} step={0.05}
                 value={startTime.toFixed(2)}
                 className="trimmerInput"
@@ -345,7 +347,7 @@ export function VideoTrimmerModal({ file, onConfirm, onCancel }: Props) {
                 }} />
             </label>
             <label className="trimmerInputGroup">
-              <span>Конец</span>
+              <span>{t('videoTrimmer.endLabel')}</span>
               <input type="number" min={startTime + 0.05} max={duration} step={0.05}
                 value={endTime.toFixed(2)}
                 className="trimmerInput"
@@ -364,9 +366,9 @@ export function VideoTrimmerModal({ file, onConfirm, onCancel }: Props) {
           <canvas ref={canvasRef} style={{ display: 'none' }} />
 
           <div className="studioWizardFooter">
-            <button className="studioBtnSecondary" onClick={onCancel} disabled={trimming}>Отмена</button>
+            <button className="studioBtnSecondary" onClick={onCancel} disabled={trimming}>{t('common:cancel')}</button>
             <button className="studioBtnPrimary" onClick={handleTrim} disabled={!isValid || trimming}>
-              {trimming ? 'Обрезка…' : 'Применить'}
+              {trimming ? t('videoTrimmer.trimming') : t('chatBackground.apply')}
             </button>
           </div>
         </div>

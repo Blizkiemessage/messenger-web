@@ -8,6 +8,7 @@
  *   - Preview step: review/remove queued messages
  */
 import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useChatsStore } from '../../store/useChatsStore';
 import { useSearch } from '../../hooks/useSearch';
 import { forwardMessages as apiForward, createDirectChat, sendChatMessage } from '../../api/chats';
@@ -22,14 +23,15 @@ interface Props {
   onAddMore: () => void;
 }
 
-function attachmentLabel(m: Message): string {
+function attachmentLabel(m: Message, t: (k: string, o?: any) => string): string {
   if (!m.attachment_type) return '';
-  if (m.attachment_type === 'image') return '🖼 Изображение';
-  if (m.attachment_type === 'video') return '🎬 Видео';
-  return `📎 ${m.attachment_name || 'Файл'}`;
+  if (m.attachment_type === 'image') return t('forward.attachImage');
+  if (m.attachment_type === 'video') return t('forward.attachVideo');
+  return t('forward.attachFile', { name: m.attachment_name || t('collections.file') });
 }
 
 export function ForwardModal({ messages: initMessages, meId, onClose, onAddMore }: Props) {
+  const { t } = useTranslation('modals');
   const chats = useChatsStore(s => s.chats);
 
   const [step, setStep]                       = useState<'recipients' | 'preview'>('recipients');
@@ -88,11 +90,11 @@ export function ForwardModal({ messages: initMessages, meId, onClose, onAddMore 
       }
       onClose();
     } catch (e: any) {
-      setError(e?.message || 'Ошибка при пересылке');
+      setError(e?.message || t('forward.sendError'));
     } finally {
       setSending(false);
     }
-  }, [selectedTargets, forwardMsgs, caption, chats, onClose]);
+  }, [selectedTargets, forwardMsgs, caption, chats, onClose, t]);
 
   // ── Derived lists ─────────────────────────────────────────────────────────
   // Sorted by last message time (most recent first) — same order as sidebar
@@ -126,8 +128,8 @@ export function ForwardModal({ messages: initMessages, meId, onClose, onAddMore 
       <div className="modalOverlay" onClick={onClose}>
         <div className="modalCard fwdModal" onClick={e => e.stopPropagation()}>
           <div className="modalHeader">
-            <span className="modalTitle">Предпросмотр</span>
-            <button className="modalClose" onClick={onClose} title="Закрыть">
+            <span className="modalTitle">{t('forward.previewTitle')}</span>
+            <button className="modalClose" onClick={onClose} title={t('common:close')}>
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
                 <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
               </svg>
@@ -136,20 +138,20 @@ export function ForwardModal({ messages: initMessages, meId, onClose, onAddMore 
 
           <div className="fwdPreviewList">
             {forwardMsgs.length === 0 ? (
-              <div className="fwdPreviewEmpty">Нет сообщений для пересылки</div>
+              <div className="fwdPreviewEmpty">{t('forward.noMessages')}</div>
             ) : forwardMsgs.map(m => {
               const sender     = chats.flatMap(c => c.members).find(u => u.id === m.sender_id);
-              const senderName = sender?.display_name || sender?.username || 'Пользователь';
+              const senderName = sender?.display_name || sender?.username || t('forward.unknownUser');
               return (
                 <div key={m.id} className="fwdPreviewItem">
                   <div className="fwdPreviewItemInner">
                     <div className="fwdPreviewSender">{senderName}</div>
-                    <div className="fwdPreviewText">{m.text ? m.text : attachmentLabel(m)}</div>
+                    <div className="fwdPreviewText">{m.text ? m.text : attachmentLabel(m, t)}</div>
                   </div>
                   <button
                     className="fwdPreviewRemove"
                     onClick={() => removeMessage(m.id)}
-                    title="Убрать это сообщение"
+                    title={t('forward.removeMessageTitle')}
                   >
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
                       <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
@@ -165,16 +167,16 @@ export function ForwardModal({ messages: initMessages, meId, onClose, onAddMore 
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
                 <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
               </svg>
-              Добавить
+              {t('forward.addMore')}
             </button>
             <div className="fwdFooterRight">
-              <button className="fwdBtnGhost" onClick={onClose}>Отмена</button>
+              <button className="fwdBtnGhost" onClick={onClose}>{t('common:cancel')}</button>
               <button
                 className="fwdBtnPrimary"
                 onClick={() => setStep('recipients')}
                 disabled={forwardMsgs.length === 0}
               >
-                Сохранить
+                {t('common:save')}
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
                   <polyline points="9 18 15 12 9 6"/>
                 </svg>
@@ -193,8 +195,8 @@ export function ForwardModal({ messages: initMessages, meId, onClose, onAddMore 
 
         {/* Header */}
         <div className="modalHeader">
-          <span className="modalTitle">Переслать сообщения</span>
-          <button className="modalClose" onClick={onClose} title="Закрыть">
+          <span className="modalTitle">{t('forward.title')}</span>
+          <button className="modalClose" onClick={onClose} title={t('common:close')}>
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
               <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
             </svg>
@@ -208,7 +210,7 @@ export function ForwardModal({ messages: initMessages, meId, onClose, onAddMore 
               <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
               <circle cx="12" cy="12" r="3"/>
             </svg>
-            Предпросмотр
+            {t('forward.previewTitle')}
             <span className="fwdPreviewBadge">{forwardMsgs.length}</span>
           </button>
         </div>
@@ -223,12 +225,12 @@ export function ForwardModal({ messages: initMessages, meId, onClose, onAddMore 
             className="fwdSearchBarInput"
             value={query}
             onChange={e => setQuery(e.target.value)}
-            placeholder="Поиск по @username…"
+            placeholder={t('forward.searchPlaceholder')}
             autoComplete="off"
           />
           {searching && <span className="fwdSearchSpin">…</span>}
           {query && !searching && (
-            <button className="fwdSearchClear" onClick={() => setQuery('')} title="Очистить">
+            <button className="fwdSearchClear" onClick={() => setQuery('')} title={t('forward.clear')}>
               <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round">
                 <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
               </svg>
@@ -270,9 +272,9 @@ export function ForwardModal({ messages: initMessages, meId, onClose, onAddMore 
                       <div className="fwdItemInfo">
                         <div className="fwdItemName">{chatTitle(chat, meId)}</div>
                         {chat.type === 'group' && (
-                          <div className="fwdItemSub">{chat.members.length} участн.</div>
+                          <div className="fwdItemSub">{t('forward.membersAbbrev', { count: chat.members.length })}</div>
                         )}
-                        {isSaved && <div className="fwdItemSub">Ваши заметки</div>}
+                        {isSaved && <div className="fwdItemSub">{t('common:yourNotes')}</div>}
                         {chat.type === 'direct' && partner?.username && (
                           <div className="fwdItemSub">@{partner.username}</div>
                         )}
@@ -282,7 +284,7 @@ export function ForwardModal({ messages: initMessages, meId, onClose, onAddMore 
                 })}
               </div>
             ) : (
-              <div className="fwdNoResults">Нет доступных чатов</div>
+              <div className="fwdNoResults">{t('forward.noChatsAvailable')}</div>
             )
           ) : (
             /* Search results */
@@ -307,7 +309,7 @@ export function ForwardModal({ messages: initMessages, meId, onClose, onAddMore 
                 })}
               </div>
             ) : !searching ? (
-              <div className="fwdNoResults">Пользователи не найдены</div>
+              <div className="fwdNoResults">{t('addGroupMembers.noUsersFound')}</div>
             ) : null
           )}
         </div>
@@ -322,7 +324,7 @@ export function ForwardModal({ messages: initMessages, meId, onClose, onAddMore 
             className="fwdCaptionInput"
             value={caption}
             onChange={handleCaptionChange}
-            placeholder="Добавить комментарий…"
+            placeholder={t('forward.captionPlaceholder')}
             rows={1}
           />
         </div>
@@ -330,13 +332,13 @@ export function ForwardModal({ messages: initMessages, meId, onClose, onAddMore 
         {error && <div className="fwdError">{error}</div>}
 
         <div className="fwdFooter">
-          <button className="fwdBtnGhost" onClick={onClose}>Отмена</button>
+          <button className="fwdBtnGhost" onClick={onClose}>{t('common:cancel')}</button>
           <button
             className="fwdBtnPrimary"
             onClick={handleSend}
             disabled={selectedCount === 0 || forwardMsgs.length === 0 || sending}
           >
-            {sending ? 'Отправка…' : `Отправить${selectedCount > 0 ? ` (${selectedCount})` : ''}`}
+            {sending ? t('forward.sending') : (selectedCount > 0 ? t('forward.sendWithCount', { count: selectedCount }) : t('common:send'))}
             {!sending && (
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                 <line x1="22" y1="2" x2="11" y2="13"/>

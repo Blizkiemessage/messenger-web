@@ -10,6 +10,7 @@
  * через onImageClick.
  */
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   listCollections, createCollection, renameCollection, deleteCollection,
   getCollectionItems, addUploadedItem, removeCollectionItem,
@@ -20,11 +21,11 @@ import { useChatsStore } from '../../store/useChatsStore';
 import { useSessionStore } from '../../store/useSessionStore';
 import type { Chat } from '../../types';
 
-function formatFileSize(bytes: number | null | undefined): string {
+function formatFileSize(bytes: number | null | undefined, t: (k: string, o?: any) => string): string {
   if (!bytes) return '';
-  if (bytes < 1024)        return `${bytes} Б`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} КБ`;
-  return `${(bytes / (1024 * 1024)).toFixed(1)} МБ`;
+  if (bytes < 1024)        return t('collections.sizeBytes', { count: bytes });
+  if (bytes < 1024 * 1024) return t('collections.sizeKB', { count: (bytes / 1024).toFixed(1) });
+  return t('collections.sizeMB', { count: (bytes / (1024 * 1024)).toFixed(1) });
 }
 
 /** Может ли пользователь управлять коллекциями (как общий фон чата). */
@@ -48,6 +49,7 @@ interface Props {
 }
 
 export function CollectionsPanel({ chatId, onImageClick }: Props) {
+  const { t } = useTranslation('modals');
   const chat = useChatsStore(s => s.chats.find(c => c.id === chatId));
   const meId = useSessionStore(s => s.me?.id);
   const editable = canManage(chat, meId);
@@ -65,16 +67,16 @@ export function CollectionsPanel({ chatId, onImageClick }: Props) {
   const loadList = useCallback(async () => {
     setLoading(true); setError(null);
     try { setCollections(await listCollections(chatId)); }
-    catch { setError('Не удалось загрузить коллекции'); }
+    catch { setError(t('addToCollection.loadError')); }
     finally { setLoading(false); }
-  }, [chatId]);
+  }, [chatId, t]);
 
   const loadItems = useCallback(async (col: Collection) => {
     setLoading(true); setError(null);
     try { const r = await getCollectionItems(chatId, col.id); setItems(r.items); }
-    catch { setError('Не удалось загрузить файлы'); }
+    catch { setError(t('collections.loadItemsError')); }
     finally { setLoading(false); }
-  }, [chatId]);
+  }, [chatId, t]);
 
   useEffect(() => { if (!open) loadList(); }, [open, loadList]);
   useEffect(() => { if (open) loadItems(open); }, [open, loadItems]);
@@ -111,26 +113,26 @@ export function CollectionsPanel({ chatId, onImageClick }: Props) {
       const col = await createCollection(chatId, name);
       setCollections(prev => [col, ...prev]);
       setNewName(''); setCreating(false);
-    } catch { setError('Не удалось создать коллекцию'); }
+    } catch { setError(t('addToCollection.createError')); }
   }
 
   async function handleRename(col: Collection) {
-    const name = window.prompt('Новое название коллекции', col.name)?.trim();
+    const name = window.prompt(t('collections.renamePrompt'), col.name)?.trim();
     if (!name || name === col.name) return;
     try {
       await renameCollection(chatId, col.id, name);
       setCollections(prev => prev.map(c => c.id === col.id ? { ...c, name } : c));
       if (open?.id === col.id) setOpen({ ...open, name });
-    } catch { setError('Не удалось переименовать'); }
+    } catch { setError(t('collections.renameError')); }
   }
 
   async function handleDelete(col: Collection) {
-    if (!window.confirm(`Удалить коллекцию «${col.name}» и все её файлы?`)) return;
+    if (!window.confirm(t('collections.deleteConfirm', { name: col.name }))) return;
     try {
       await deleteCollection(chatId, col.id);
       setCollections(prev => prev.filter(c => c.id !== col.id));
       if (open?.id === col.id) setOpen(null);
-    } catch { setError('Не удалось удалить'); }
+    } catch { setError(t('collections.deleteError')); }
   }
 
   async function handleUpload(files: FileList | null) {
@@ -146,7 +148,7 @@ export function CollectionsPanel({ chatId, onImageClick }: Props) {
           attachment_name: res.name, attachment_size: res.size,
         });
         setItems(prev => [item, ...prev]);
-      } catch { setError(`Не удалось загрузить ${file.name}`); }
+      } catch { setError(t('collections.uploadError', { name: file.name })); }
     }
     setUploadPct(null);
     if (fileInput.current) fileInput.current.value = '';
@@ -154,11 +156,11 @@ export function CollectionsPanel({ chatId, onImageClick }: Props) {
 
   async function handleRemoveItem(item: CollectionItem) {
     if (!open) return;
-    if (!window.confirm('Убрать файл из коллекции?')) return;
+    if (!window.confirm(t('collections.removeItemConfirm'))) return;
     try {
       await removeCollectionItem(chatId, open.id, item.id);
       setItems(prev => prev.filter(i => i.id !== item.id));
-    } catch { setError('Не удалось убрать файл'); }
+    } catch { setError(t('collections.removeItemError')); }
   }
 
   // ── Детальный вид одной коллекции ─────────────────────────────────────────
@@ -166,20 +168,20 @@ export function CollectionsPanel({ chatId, onImageClick }: Props) {
     return (
       <div className="colPanel">
         <div className="colDetailHead">
-          <button className="colBack" onClick={() => setOpen(null)} title="Назад">‹ Папки</button>
+          <button className="colBack" onClick={() => setOpen(null)} title={t('common:back')}>‹ {t('confirm.folders')}</button>
           <span className="colDetailTitle">{open.name}</span>
           {editable && (
             <button className="colAddBtn" onClick={() => fileInput.current?.click()} disabled={uploadPct !== null}>
-              {uploadPct !== null ? `Загрузка… ${uploadPct}%` : '+ Файл'}
+              {uploadPct !== null ? t('collections.uploadingPercent', { pct: uploadPct }) : t('collections.addFile')}
             </button>
           )}
           <input ref={fileInput} type="file" multiple hidden onChange={e => handleUpload(e.target.files)} />
         </div>
         {error && <div className="colError">{error}</div>}
         {loading ? (
-          <div className="colEmpty">Загрузка…</div>
+          <div className="colEmpty">{t('common:loading')}</div>
         ) : items.length === 0 ? (
-          <div className="colEmpty">В этой папке пока нет файлов{editable ? ' — нажмите «+ Файл»' : ''}.</div>
+          <div className="colEmpty">{editable ? t('collections.emptyFolderEditable') : t('collections.emptyFolderPlain')}</div>
         ) : (
           <div className="colItemGrid">
             {items.map(item => (
@@ -194,14 +196,14 @@ export function CollectionsPanel({ chatId, onImageClick }: Props) {
                   </a>
                 ) : (
                   <a className="colFileCard" href={item.attachment_url} target="_blank" rel="noopener noreferrer"
-                    title={item.attachment_name || 'Файл'}>
+                    title={item.attachment_name || t('collections.file')}>
                     <span className="colFileIcon">📄</span>
-                    <span className="colFileName">{item.attachment_name || 'Файл'}</span>
-                    {item.attachment_size != null && <span className="colFileSize">{formatFileSize(item.attachment_size)}</span>}
+                    <span className="colFileName">{item.attachment_name || t('collections.file')}</span>
+                    {item.attachment_size != null && <span className="colFileSize">{formatFileSize(item.attachment_size, t)}</span>}
                   </a>
                 )}
                 {editable && (
-                  <button className="colItemRemove" title="Убрать" onClick={() => handleRemoveItem(item)}>×</button>
+                  <button className="colItemRemove" title={t('collections.removeItem')} onClick={() => handleRemoveItem(item)}>×</button>
                 )}
               </div>
             ))}
@@ -218,21 +220,21 @@ export function CollectionsPanel({ chatId, onImageClick }: Props) {
         <div className="colListHead">
           {creating ? (
             <form className="colCreateRow" onSubmit={e => { e.preventDefault(); handleCreate(); }}>
-              <input autoFocus className="colCreateInput" placeholder="Название коллекции"
+              <input autoFocus className="colCreateInput" placeholder={t('collections.createPlaceholder')}
                 value={newName} maxLength={80} onChange={e => setNewName(e.target.value)} />
-              <button type="submit" className="colAddBtn">Создать</button>
-              <button type="button" className="colBack" onClick={() => { setCreating(false); setNewName(''); }}>Отмена</button>
+              <button type="submit" className="colAddBtn">{t('common:create')}</button>
+              <button type="button" className="colBack" onClick={() => { setCreating(false); setNewName(''); }}>{t('common:cancel')}</button>
             </form>
           ) : (
-            <button className="colAddBtn" onClick={() => setCreating(true)}>+ Новая коллекция</button>
+            <button className="colAddBtn" onClick={() => setCreating(true)}>+ {t('addToCollection.newCollection')}</button>
           )}
         </div>
       )}
       {error && <div className="colError">{error}</div>}
       {loading ? (
-        <div className="colEmpty">Загрузка…</div>
+        <div className="colEmpty">{t('common:loading')}</div>
       ) : collections.length === 0 ? (
-        <div className="colEmpty">Коллекций пока нет.{editable ? ' Создайте папку для общих файлов чата — например «Конференция май 2026».' : ''}</div>
+        <div className="colEmpty">{t('collections.noCollectionsPlain')}{editable ? ` ${t('collections.noCollectionsHint')}` : ''}</div>
       ) : (
         <div className="colGrid">
           {collections.map(col => (
@@ -244,12 +246,12 @@ export function CollectionsPanel({ chatId, onImageClick }: Props) {
               </div>
               <div className="colCardBody">
                 <span className="colCardName" title={col.name}>{col.name}</span>
-                <span className="colCardCount">{col.item_count} файл.</span>
+                <span className="colCardCount">{t('collections.fileCount', { count: col.item_count })}</span>
               </div>
               {editable && (
                 <div className="colCardActions" onClick={e => e.stopPropagation()}>
-                  <button title="Переименовать" onClick={() => handleRename(col)}>✎</button>
-                  <button title="Удалить" onClick={() => handleDelete(col)}>🗑</button>
+                  <button title={t('common:rename')} onClick={() => handleRename(col)}>✎</button>
+                  <button title={t('common:delete')} onClick={() => handleDelete(col)}>🗑</button>
                 </div>
               )}
             </div>

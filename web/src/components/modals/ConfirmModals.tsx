@@ -5,6 +5,7 @@
  * ✅ ChatActionConfirmModal now shows admin-specific text when admin leaves a group.
  */
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { type Chat, type ChatFolder } from '../../types';
 import { ContextMenu } from '../ui/ContextMenu';
 
@@ -20,7 +21,7 @@ export function DeleteConfirmModal({
   onCancel: () => void;
   busy: boolean;
 }) {
-  const n = count === 1 ? 'сообщение' : `${count} сообщ.`;
+  const { t } = useTranslation('modals');
   const effectiveForEveryone = canDeleteForEveryone && forEveryone;
 
   return (
@@ -34,7 +35,7 @@ export function DeleteConfirmModal({
             <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
           </svg>
         </div>
-        <div className="confirmTitle">Удалить {n}?</div>
+        <div className="confirmTitle">{t('confirm.deleteTitle', { count })}</div>
 
         {/* Segmented scope toggle — only shown when user can delete for everyone */}
         {canDeleteForEveryone && (
@@ -44,32 +45,28 @@ export function DeleteConfirmModal({
               onClick={() => onToggle(false)}
               disabled={busy}
             >
-              У себя
+              {t('confirm.deleteScopeMine')}
             </button>
             <button
               className={`delToggleBtn${forEveryone ? ' delToggleActive' : ''}`}
               onClick={() => onToggle(true)}
               disabled={busy}
             >
-              У всех
+              {t('confirm.deleteScopeAll')}
             </button>
           </div>
         )}
 
         <div className="confirmText">
           {effectiveForEveryone
-            ? (count === 1
-                ? 'Сообщение исчезнет у всех участников чата.'
-                : `${count} сообщения исчезнут у всех участников чата.`)
-            : (count === 1
-                ? 'Сообщение исчезнет только у вас.'
-                : `${count} сообщения исчезнут только у вас.`)
-          }{' '}Действие нельзя отменить.
+            ? t('confirm.deleteTextEveryone', { count })
+            : t('confirm.deleteTextMine', { count })
+          }{' '}{t('confirm.cannotUndo')}
         </div>
 
         <div className="confirmBtns">
-          <button className="confirmCancel" onClick={onCancel} disabled={busy}>Отмена</button>
-          <button className="confirmDelete" onClick={onConfirm} disabled={busy}>{busy ? '…' : 'Удалить'}</button>
+          <button className="confirmCancel" onClick={onCancel} disabled={busy}>{t('common:cancel')}</button>
+          <button className="confirmDelete" onClick={onConfirm} disabled={busy}>{busy ? '…' : t('common:delete')}</button>
         </div>
       </div>
     </div>
@@ -81,22 +78,23 @@ export function DeleteConfirmModal({
 export function ChatActionConfirmModal({
   chat, meId, onConfirm, onCancel, busy,
 }: { chat: Chat; meId: string; onConfirm: () => void; onCancel: () => void; busy: boolean }) {
+  const { t } = useTranslation('modals');
   const isGroup = chat.type === 'group';
   const isAdmin = isGroup && chat.creator_id === meId;
 
   const title = !isGroup
-    ? 'Удалить чат?'
+    ? t('confirm.deleteChatTitle')
     : isAdmin
-      ? 'Закрыть группу?'
-      : 'Покинуть группу?';
+      ? t('confirm.closeGroupTitle')
+      : t('confirm.leaveGroupTitle');
 
   const description = !isGroup
-    ? 'Чат будет удалён для обоих участников. Действие нельзя отменить.'
+    ? t('confirm.deleteChatDesc')
     : isAdmin
-      ? `Вы — администратор группы «${chat.name || 'Группы'}». Покидая её, вы закроете группу для всех участников. Переписка сохранится, но отправка новых сообщений будет заблокирована.`
-      : `Вы покинете «${chat.name || 'Группу'}». Остальные участники увидят уведомление.`;
+      ? t('confirm.closeGroupDesc', { name: chat.name || t('confirm.groupFallbackGenitive') })
+      : t('confirm.leaveGroupDesc', { name: chat.name || t('confirm.groupFallbackAccusative') });
 
-  const confirmLabel = !isGroup ? 'Удалить' : isAdmin ? 'Закрыть группу' : 'Покинуть';
+  const confirmLabel = !isGroup ? t('common:delete') : isAdmin ? t('confirm.closeGroupConfirm') : t('confirm.leaveGroupConfirm');
 
   return (
     <div className="modalOverlay" onClick={e => e.target === e.currentTarget && onCancel()}>
@@ -131,7 +129,7 @@ export function ChatActionConfirmModal({
         <div className="confirmTitle">{title}</div>
         <div className="confirmText">{description}</div>
         <div className="confirmBtns">
-          <button className="confirmCancel" onClick={onCancel} disabled={busy}>Отмена</button>
+          <button className="confirmCancel" onClick={onCancel} disabled={busy}>{t('common:cancel')}</button>
           <button className="confirmDelete" onClick={onConfirm} disabled={busy}>
             {busy ? '…' : confirmLabel}
           </button>
@@ -152,6 +150,7 @@ export function ChatContextMenu({
   onAddToFolder: (folderId: number) => void;
   onRemoveFromFolder: (folderId: number) => void;
 }) {
+  const { t } = useTranslation('modals');
   const [showFolders, setShowFolders] = useState(false);
 
   return (
@@ -161,7 +160,7 @@ export function ChatContextMenu({
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
           <line x1="12" y1="17" x2="12" y2="22"/><path d="M5 17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a2 2 0 0 0 0-4H8a2 2 0 0 0 0 4h1v4.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24Z"/>
         </svg>
-        {chat.is_pinned ? 'Открепить' : 'Закрепить'}
+        {chat.is_pinned ? t('chat:header.unpin') : t('chat:header.pin')}
       </button>
 
       {/* Mute / Unmute */}
@@ -176,7 +175,7 @@ export function ChatContextMenu({
             <line x1="2" y1="2" x2="22" y2="22"/>
           </svg>
         )}
-        {chat.is_muted ? 'Включить уведомления' : 'Выключить уведомления'}
+        {chat.is_muted ? t('confirm.enableNotifications') : t('confirm.disableNotifications')}
       </button>
 
       {/* Folders submenu */}
@@ -189,7 +188,7 @@ export function ChatContextMenu({
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
             </svg>
-            Папки
+            {t('confirm.folders')}
             <svg className="ctxChevron" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" style={{ marginLeft: 'auto', transform: showFolders ? 'rotate(180deg)' : 'none', transition: 'transform .15s' }}>
               <polyline points="6 9 12 15 18 9"/>
             </svg>
@@ -234,7 +233,7 @@ export function ChatContextMenu({
             <path d="M10 11v6M14 11v6"/>
             <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
           </svg>
-          Удалить чат
+          {t('confirm.deleteChatBtn')}
         </button>
       ) : (
         <button className="ctxItem ctxItemDanger" onClick={() => { onClose(); onLeave(); }}>
@@ -243,7 +242,7 @@ export function ChatContextMenu({
             <polyline points="16 17 21 12 16 7"/>
             <line x1="21" y1="12" x2="9" y2="12"/>
           </svg>
-          Покинуть группу
+          {t('confirm.leaveGroupBtn')}
         </button>
       )}
     </ContextMenu>

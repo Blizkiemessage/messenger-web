@@ -4,9 +4,11 @@
  * Mounted unconditionally in App.tsx while logged in; fetches once on mount.
  */
 import { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { getUnacknowledgedWarnings, acknowledgeWarning, type Warning } from '../../api/users';
 
 export function WarningModal() {
+  const { t } = useTranslation('modals');
   const [warnings, setWarnings] = useState<Warning[]>([]);
   const [busy, setBusy] = useState(false);
 
@@ -39,11 +41,11 @@ export function WarningModal() {
             <line x1="12" y1="17" x2="12.01" y2="17" />
           </svg>
         </div>
-        <div className="confirmTitle">Предупреждение от администрации</div>
+        <div className="confirmTitle">{t('warning.title')}</div>
         <div className="confirmText">{current.message}</div>
         <div className="confirmBtns">
           <button className="psDeleteConfirmBtn" style={{ width: '100%' }} disabled={busy} onClick={handleAck}>
-            {busy ? '…' : 'Понятно'}
+            {busy ? '…' : t('warning.ack')}
           </button>
         </div>
       </div>

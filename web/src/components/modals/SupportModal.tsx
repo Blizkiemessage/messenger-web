@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { type User } from '../../types';
 import { sendSupportReport } from '../../api/support';
 
@@ -10,23 +11,24 @@ interface Props {
 type SupportType = 'bug' | 'feature';
 type Step = 0 | 1 | 2;
 
-const LABELS: Record<SupportType, string> = {
-  bug:     'Отчёт об ошибке',
-  feature: 'Предложение по развитию',
-};
-
 function draftKey(type: SupportType) {
   return `support_draft_${type}`;
 }
 
-function buildSubject(type: SupportType): string {
+function buildSubject(label: string, locale: string): string {
   const now = new Date();
-  const date = now.toLocaleDateString('ru-RU'); // dd.mm.yyyy
+  const date = now.toLocaleDateString(locale); // dd.mm.yyyy
   const time = now.toTimeString().slice(0, 8);   // hh:mm:ss
-  return `${LABELS[type]} ${date} ${time}`;
+  return `${label} ${date} ${time}`;
 }
 
 export function SupportModal({ me, onClose }: Props) {
+  const { t, i18n } = useTranslation('modals');
+  const locale = i18n.language === 'en' ? 'en-US' : 'ru-RU';
+  const LABELS: Record<SupportType, string> = {
+    bug:     t('support.typeBug'),
+    feature: t('support.typeFeature'),
+  };
   const [step, setStep] = useState<Step>(0);
   const [type, setType] = useState<SupportType | null>(null);
   const [subject, setSubject] = useState('');
@@ -51,9 +53,9 @@ export function SupportModal({ me, onClose }: Props) {
     }
   }, [description, step, type]);
 
-  function selectType(t: SupportType) {
-    setType(t);
-    setSubject(buildSubject(t));
+  function selectType(newType: SupportType) {
+    setType(newType);
+    setSubject(buildSubject(LABELS[newType], locale));
     setDescription('');
     setImage(null);
     setStep(1);
@@ -102,9 +104,9 @@ export function SupportModal({ me, onClose }: Props) {
                 <path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3z"/>
                 <path d="M3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z"/>
               </svg>
-              Техническая поддержка
+              {t('support.title')}
             </div>
-            <p className="supportSubtitle">Выберите тип обращения</p>
+            <p className="supportSubtitle">{t('support.subtitle')}</p>
             <div className="supportTypeGrid">
               <button className="supportTypeBtn" onClick={() => selectType('bug')}>
                 <span className="supportTypeBtnIcon">
@@ -122,8 +124,8 @@ export function SupportModal({ me, onClose }: Props) {
                     <path d="M17.2 17c2.1.1 3.8 1.9 3.8 4"/>
                   </svg>
                 </span>
-                <span className="supportTypeBtnLabel">Отчёт об ошибке</span>
-                <span className="supportTypeBtnDesc">Сообщите о баге или сбое</span>
+                <span className="supportTypeBtnLabel">{t('support.typeBug')}</span>
+                <span className="supportTypeBtnDesc">{t('support.bugDesc')}</span>
               </button>
 
               <button className="supportTypeBtn" onClick={() => selectType('feature')}>
@@ -134,12 +136,12 @@ export function SupportModal({ me, onClose }: Props) {
                     <path d="M12 16h.01"/>
                   </svg>
                 </span>
-                <span className="supportTypeBtnLabel">Предложение</span>
-                <span className="supportTypeBtnDesc">Идея по развитию</span>
+                <span className="supportTypeBtnLabel">{t('support.featureLabel')}</span>
+                <span className="supportTypeBtnDesc">{t('support.featureDesc')}</span>
               </button>
             </div>
 
-            <button className="supportCancelBtn" onClick={onClose}>Отмена</button>
+            <button className="supportCancelBtn" onClick={onClose}>{t('common:cancel')}</button>
           </>
         )}
 
@@ -175,12 +177,12 @@ export function SupportModal({ me, onClose }: Props) {
             {/* Description */}
             <div className="supportField">
               <label className="supportFieldLabel">
-                {type === 'bug' ? 'Опишите проблему' : 'Напишите ваше предложение'}
+                {type === 'bug' ? t('support.describeBug') : t('support.describeFeature')}
                 <span className="supportFieldRequired"> *</span>
               </label>
               <textarea
                 className="supportTextarea"
-                placeholder={type === 'bug' ? 'Что произошло? Как воспроизвести?' : 'Какую функцию вы хотели бы видеть?'}
+                placeholder={type === 'bug' ? t('support.bugPlaceholder') : t('support.featurePlaceholder')}
                 value={description}
                 onChange={e => setDescription(e.target.value)}
                 rows={5}
@@ -190,14 +192,14 @@ export function SupportModal({ me, onClose }: Props) {
             {/* Image attachment */}
             <div className="supportField">
               <label className="supportFieldLabel">
-                Прикрепить фото
-                <span className="supportFieldOptional"> (необязательно)</span>
+                {t('support.attachPhoto')}
+                <span className="supportFieldOptional"> ({t('createGroup.optional')})</span>
               </label>
               {image ? (
                 <div className="supportImagePreview">
                   <img src={URL.createObjectURL(image)} alt="preview" className="supportImageThumb" />
                   <span className="supportImageName">{image.name}</span>
-                  <button className="supportImageRemove" onClick={removeImage} title="Удалить">
+                  <button className="supportImageRemove" onClick={removeImage} title={t('common:delete')}>
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
                       <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
                     </svg>
@@ -217,14 +219,14 @@ export function SupportModal({ me, onClose }: Props) {
                     <circle cx="8.5" cy="8.5" r="1.5"/>
                     <polyline points="21 15 16 10 5 21"/>
                   </svg>
-                  <span>Выбрать изображение</span>
+                  <span>{t('support.chooseImage')}</span>
                 </label>
               )}
             </div>
 
             {/* Actions */}
             <div className="supportActions">
-              <button className="supportCancelBtn" onClick={goBack} disabled={sending}>Назад</button>
+              <button className="supportCancelBtn" onClick={goBack} disabled={sending}>{t('common:back')}</button>
               <button
                 className="supportSubmitBtn"
                 onClick={handleSubmit}
@@ -238,7 +240,7 @@ export function SupportModal({ me, onClose }: Props) {
                       <line x1="22" y1="2" x2="11" y2="13"/>
                       <polygon points="22 2 15 22 11 13 2 9 22 2"/>
                     </svg>
-                    Отправить
+                    {t('common:send')}
                   </>
                 )}
               </button>
@@ -263,22 +265,20 @@ export function SupportModal({ me, onClose }: Props) {
               </div>
 
               <div className="supportResultTitle">
-                {success ? 'Письмо успешно отправлено!' : 'Не удалось отправить письмо'}
+                {success ? t('support.sentSuccessTitle') : t('support.sentErrorTitle')}
               </div>
               <div className="supportResultDesc">
-                {success
-                  ? 'Благодарим за обращение в техническую поддержку. Наши специалисты рассмотрят ваше обращение в ближайшее время.'
-                  : 'Ваш текст сохранён в черновике — он появится при следующем открытии формы. Попробуйте отправить снова позже.'}
+                {success ? t('support.sentSuccessDesc') : t('support.sentErrorDesc')}
               </div>
             </div>
 
             <div className="supportActions" style={{ justifyContent: 'center' }}>
               {!success && (
                 <button className="supportCancelBtn" onClick={() => { setStep(1); setSending(false); }}>
-                  Попробовать снова
+                  {t('support.retryBtn')}
                 </button>
               )}
-              <button className="supportSubmitBtn" onClick={onClose}>Закрыть</button>
+              <button className="supportSubmitBtn" onClick={onClose}>{t('common:close')}</button>
             </div>
           </>
         )}

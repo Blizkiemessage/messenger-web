@@ -5,6 +5,7 @@
  * Each entry can be cancelled or edited (text + delivery time).
  */
 import { useEffect, useState, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import type { Message } from '../../types';
 import { fetchScheduledMessages, cancelScheduledMessage, updateScheduledMessage } from '../../api/chats';
 import { ScheduleDatePicker } from '../chat/ScheduleDatePicker';
@@ -14,23 +15,23 @@ interface Props {
   onClose: () => void;
 }
 
-function formatDeliverAt(ts: number): string {
-  return new Date(ts).toLocaleString('ru-RU', {
+function formatDeliverAt(ts: number, locale: string): string {
+  return new Date(ts).toLocaleString(locale, {
     day: '2-digit', month: '2-digit', year: 'numeric',
     hour: '2-digit', minute: '2-digit',
   });
 }
 
-function msgPreview(msg: Message): string {
+function msgPreview(msg: Message, t: (k: string, o?: any) => string): string {
   if (msg.text) return msg.text.length > 80 ? msg.text.slice(0, 80) + '…' : msg.text;
-  if (msg.attachment_type === 'sticker') return '🎨 Стикер';
-  if (msg.attachment_type?.startsWith('gif')) return '🎬 GIF';
-  if (msg.attachment_type === 'image') return '🖼 Фото';
-  if (msg.attachment_type === 'video') return '🎥 Видео';
-  if (msg.attachment_type === 'audio') return '🎵 Аудио';
-  if (msg.attachment_type === 'video_note') return '📹 Видеосообщение';
-  if (msg.attachment_name) return `📎 ${msg.attachment_name}`;
-  return '📎 Вложение';
+  if (msg.attachment_type === 'sticker') return t('scheduledMessages.previewSticker');
+  if (msg.attachment_type?.startsWith('gif')) return t('scheduledMessages.previewGif');
+  if (msg.attachment_type === 'image') return t('scheduledMessages.previewPhoto');
+  if (msg.attachment_type === 'video') return t('scheduledMessages.previewVideo');
+  if (msg.attachment_type === 'audio') return t('scheduledMessages.previewAudio');
+  if (msg.attachment_type === 'video_note') return t('scheduledMessages.previewVideoNote');
+  if (msg.attachment_name) return t('scheduledMessages.previewFile', { name: msg.attachment_name });
+  return t('scheduledMessages.previewAttachment');
 }
 
 /** Single message item — view or edit mode */
@@ -45,6 +46,8 @@ function ScheduledItem({
   onUpdated: (m: Message) => void;
   onRemoved: (id: string) => void;
 }) {
+  const { t, i18n } = useTranslation('modals');
+  const locale = i18n.language === 'en' ? 'en-US' : 'ru-RU';
   const [editing,       setEditing]       = useState(false);
   const [editText,      setEditText]      = useState(msg.text ?? '');
   const [editDeliverAt, setEditDeliverAt] = useState<number>(msg.deliver_at!);
@@ -79,7 +82,7 @@ function ScheduledItem({
       onUpdated(updated);
       setEditing(false);
     } catch (e: any) {
-      setError(e?.message ?? 'Ошибка сохранения');
+      setError(e?.message ?? t('scheduledMessages.saveError'));
     } finally {
       setSaving(false);
     }
@@ -91,7 +94,7 @@ function ScheduledItem({
       await cancelScheduledMessage(chatId, msg.id);
       onRemoved(msg.id);
     } catch {
-      setError('Не удалось отменить');
+      setError(t('scheduledMessages.cancelError'));
     } finally {
       setCancelling(false);
     }
@@ -107,11 +110,11 @@ function ScheduledItem({
           </svg>
         </div>
         <div className="smItemBody">
-          <div className="smItemPreview">{msgPreview(msg)}</div>
-          <div className="smItemTime">Отправится {formatDeliverAt(msg.deliver_at!)}</div>
+          <div className="smItemPreview">{msgPreview(msg, t)}</div>
+          <div className="smItemTime">{t('scheduledMessages.willSendAt', { date: formatDeliverAt(msg.deliver_at!, locale) })}</div>
         </div>
         {/* Edit button */}
-        <button className="smEditBtn" onClick={startEdit} title="Редактировать">
+        <button className="smEditBtn" onClick={startEdit} title={t('scheduledMessages.edit')}>
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
             <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
             <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
@@ -122,7 +125,7 @@ function ScheduledItem({
           className="smCancelBtn"
           onClick={handleCancel}
           disabled={cancelling}
-          title="Отменить отправку"
+          title={t('scheduledMessages.cancelSend')}
         >
           {cancelling
             ? <span style={{ fontSize: 12 }}>…</span>
@@ -149,25 +152,25 @@ function ScheduledItem({
         {/* Text field (only for text messages) */}
         {hasText && (
           <div className="smEditField">
-            <label className="smEditLabel">Текст сообщения</label>
+            <label className="smEditLabel">{t('scheduledMessages.messageTextLabel')}</label>
             <textarea
               className="smEditTextarea"
               value={editText}
               onChange={e => setEditText(e.target.value)}
               rows={3}
               maxLength={4000}
-              placeholder="Текст сообщения…"
+              placeholder={t('scheduledMessages.messageTextPlaceholder')}
             />
           </div>
         )}
         {/* Delivery time */}
         <div className="smEditField">
-          <label className="smEditLabel">Время отправки</label>
+          <label className="smEditLabel">{t('scheduledMessages.sendTimeLabel')}</label>
           <button className="smEditTimeBtn" onClick={() => setShowTimePicker(true)}>
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
               <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
             </svg>
-            {formatDeliverAt(editDeliverAt)}
+            {formatDeliverAt(editDeliverAt, locale)}
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
               <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
@@ -179,10 +182,10 @@ function ScheduledItem({
 
         <div className="smEditActions">
           <button className="smEditSaveBtn" onClick={save} disabled={saving || (hasText && !editText.trim())}>
-            {saving ? '…' : 'Сохранить'}
+            {saving ? '…' : t('common:save')}
           </button>
           <button className="smEditCancelBtn" onClick={cancelEdit} disabled={saving}>
-            Отмена
+            {t('common:cancel')}
           </button>
         </div>
       </div>
@@ -192,6 +195,7 @@ function ScheduledItem({
 
 /* ── Modal ──────────────────────────────────────────────────────────── */
 export function ScheduledMessagesModal({ chatId, onClose }: Props) {
+  const { t } = useTranslation('modals');
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading,  setLoading]  = useState(true);
   const [error,    setError]    = useState<string | null>(null);
@@ -201,11 +205,11 @@ export function ScheduledMessagesModal({ chatId, onClose }: Props) {
     try {
       setMessages(await fetchScheduledMessages(chatId));
     } catch {
-      setError('Не удалось загрузить запланированные сообщения');
+      setError(t('scheduledMessages.loadError'));
     } finally {
       setLoading(false);
     }
-  }, [chatId]);
+  }, [chatId, t]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -225,7 +229,7 @@ export function ScheduledMessagesModal({ chatId, onClose }: Props) {
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
             </svg>
-            Запланированные сообщения
+            {t('scheduledMessages.title')}
           </div>
           <button className="smCloseBtn" onClick={onClose}>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
@@ -235,7 +239,7 @@ export function ScheduledMessagesModal({ chatId, onClose }: Props) {
         </div>
 
         {loading ? (
-          <div className="smEmpty">Загрузка…</div>
+          <div className="smEmpty">{t('common:loading')}</div>
         ) : error ? (
           <div className="smEmpty smEmptyError">{error}</div>
         ) : messages.length === 0 ? (
@@ -243,7 +247,7 @@ export function ScheduledMessagesModal({ chatId, onClose }: Props) {
             <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" style={{ opacity: 0.3 }}>
               <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
             </svg>
-            <p>Нет запланированных сообщений</p>
+            <p>{t('scheduledMessages.noScheduled')}</p>
           </div>
         ) : (
           <div className="smList">

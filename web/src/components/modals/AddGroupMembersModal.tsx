@@ -5,6 +5,7 @@
  * Previously embedded inside GroupInfoModal — now a standalone component.
  */
 import { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { type Chat, type User } from '../../types';
 import { avatarLetter } from '../../utils/format';
 import { addGroupMember } from '../../api/chats';
@@ -17,6 +18,7 @@ interface Props {
 }
 
 export function AddGroupMembersModal({ chat, meId, onClose }: Props) {
+  const { t } = useTranslation('modals');
   const { query, setQuery, results: rawResults, searching } = useSearch();
   const [addingId, setAddingId] = useState<string | null>(null);
   const [addedIds, setAddedIds] = useState<Set<string>>(new Set());
@@ -43,7 +45,7 @@ export function AddGroupMembersModal({ chat, meId, onClose }: Props) {
       await addGroupMember(chat.id, u.id);
       setAddedIds(prev => new Set([...prev, u.id]));
     } catch (e: any) {
-      setError(e?.message ?? 'Ошибка добавления');
+      setError(e?.message ?? t('addGroupMembers.addError'));
     } finally {
       setAddingId(null);
     }
@@ -54,7 +56,7 @@ export function AddGroupMembersModal({ chat, meId, onClose }: Props) {
       onClick={e => e.target === e.currentTarget && onClose()}>
       <div className="modalCard">
         <div className="modalHeader">
-          <div className="modalTitle">Добавить участников</div>
+          <div className="modalTitle">{t('addGroupMembers.title')}</div>
           <button className="modalClose" onClick={onClose}>
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
               <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
@@ -74,7 +76,7 @@ export function AddGroupMembersModal({ chat, meId, onClose }: Props) {
                 className="modalSearchInput"
                 value={query}
                 onChange={e => setQuery(e.target.value)}
-                placeholder="Поиск по username…"
+                placeholder={t('addGroupMembers.searchPlaceholder')}
                 autoFocus
               />
               {searching && <span className="modalSearchSpin">…</span>}
@@ -96,7 +98,7 @@ export function AddGroupMembersModal({ chat, meId, onClose }: Props) {
                     className={`modalUserItem${isBlocked ? ' modalUserItemDisabled' : ''}`}
                     onClick={() => !isBlocked && !isAdded && handleAdd(u)}
                     disabled={isBlocked || isAdded || !!addingId}
-                    title={isBlocked ? 'Пользователь запретил добавление в группы' : undefined}
+                    title={isBlocked ? t('addGroupMembers.blockedTitle') : undefined}
                   >
                     <div className="modalUserAvatar">{avatarLetter(u.display_name || u.username || '')}</div>
                     <div className="modalUserInfo">
@@ -132,13 +134,13 @@ export function AddGroupMembersModal({ chat, meId, onClose }: Props) {
           )}
 
           {query.length >= 2 && !searching && results.length === 0 &&
-            <div className="modalEmpty">Пользователи не найдены</div>}
+            <div className="modalEmpty">{t('addGroupMembers.noUsersFound')}</div>}
           {query.length < 2 &&
-            <div className="modalEmpty">Введите имя или username для поиска</div>}
+            <div className="modalEmpty">{t('addGroupMembers.searchHint')}</div>}
         </div>
 
         <div className="modalFooter">
-          <button className="modalCreateBtn" onClick={onClose}>Готово</button>
+          <button className="modalCreateBtn" onClick={onClose}>{t('common:done')}</button>
         </div>
       </div>
     </div>

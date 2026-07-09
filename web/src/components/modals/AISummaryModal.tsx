@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { getChatSummary, type SummaryPeriod, type SummaryFormat, type SummaryResult } from '../../api/summary';
 
 interface Props {
@@ -7,24 +8,26 @@ interface Props {
   onClose: () => void;
 }
 
-const PERIOD_OPTIONS: { value: SummaryPeriod; label: string }[] = [
-  { value: 'unread', label: 'Новые сообщения'  },
-  { value: '1h',     label: 'За 1 час'         },
-  { value: '6h',     label: 'За 6 часов'       },
-  { value: '24h',    label: 'За сутки'         },
-  { value: '3d',     label: 'За 3 дня'         },
-  { value: '7d',     label: 'За неделю'        },
-  { value: '30d',    label: 'За месяц'         },
-  { value: 'all',    label: 'Все сообщения'    },
-];
-
-const FORMAT_OPTIONS: { value: SummaryFormat; label: string; hint: string }[] = [
-  { value: 'short',    label: 'Краткий',   hint: '2–3 предложения'    },
-  { value: 'normal',   label: 'Обычный',   hint: '4–6 предложений'    },
-  { value: 'detailed', label: 'Детальный', hint: 'По темам и пунктам' },
-];
-
 export function AISummaryModal({ chatId, chatTitle, onClose }: Props) {
+  const { t } = useTranslation('modals');
+
+  const PERIOD_OPTIONS: { value: SummaryPeriod; label: string }[] = [
+    { value: 'unread', label: t('aiSummary.periodUnread')  },
+    { value: '1h',     label: t('aiSummary.period1h')       },
+    { value: '6h',     label: t('aiSummary.period6h')       },
+    { value: '24h',    label: t('aiSummary.period24h')      },
+    { value: '3d',     label: t('aiSummary.period3d')       },
+    { value: '7d',     label: t('aiSummary.period7d')       },
+    { value: '30d',    label: t('aiSummary.period30d')      },
+    { value: 'all',    label: t('aiSummary.periodAll')      },
+  ];
+
+  const FORMAT_OPTIONS: { value: SummaryFormat; label: string; hint: string }[] = [
+    { value: 'short',    label: t('aiSummary.formatShort'),    hint: t('aiSummary.formatShortHint')    },
+    { value: 'normal',   label: t('aiSummary.formatNormal'),   hint: t('aiSummary.formatNormalHint')   },
+    { value: 'detailed', label: t('aiSummary.formatDetailed'), hint: t('aiSummary.formatDetailedHint') },
+  ];
+
   const [period, setPeriod]   = useState<SummaryPeriod>('unread');
   const [format, setFormat]   = useState<SummaryFormat>('normal');
   const [status, setStatus]   = useState<'idle' | 'loading' | 'ok' | 'error'>('idle');
@@ -40,7 +43,7 @@ export function AISummaryModal({ chatId, chatTitle, onClose }: Props) {
       setResult(r);
       setStatus('ok');
     } catch (e: any) {
-      setErrMsg(e?.response?.data?.error || e?.message || 'Неизвестная ошибка');
+      setErrMsg(e?.response?.data?.error || e?.message || t('aiSummary.unknownError'));
       setStatus('error');
     }
   }
@@ -62,9 +65,9 @@ export function AISummaryModal({ chatId, chatTitle, onClose }: Props) {
                 <line x1="12" y1="17" x2="12.01" y2="17"/>
               </svg>
             </span>
-            <span className="modalTitle">AI-сводка</span>
+            <span className="modalTitle">{t('aiSummary.title')}</span>
           </div>
-          <button className="modalClose" onClick={onClose} title="Закрыть">
+          <button className="modalClose" onClick={onClose} title={t('common:close')}>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
               <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
             </svg>
@@ -77,7 +80,7 @@ export function AISummaryModal({ chatId, chatTitle, onClose }: Props) {
 
           {/* Options */}
           <div className="aiSummarySection">
-            <div className="aiSummarySectionTitle">Период</div>
+            <div className="aiSummarySectionTitle">{t('aiSummary.periodTitle')}</div>
             <div className="aiSummaryChips">
               {PERIOD_OPTIONS.map(o => (
                 <button
@@ -93,7 +96,7 @@ export function AISummaryModal({ chatId, chatTitle, onClose }: Props) {
           </div>
 
           <div className="aiSummarySection">
-            <div className="aiSummarySectionTitle">Формат</div>
+            <div className="aiSummarySectionTitle">{t('aiSummary.formatTitle')}</div>
             <div className="aiSummaryFormatRow">
               {FORMAT_OPTIONS.map(o => (
                 <button
@@ -116,7 +119,7 @@ export function AISummaryModal({ chatId, chatTitle, onClose }: Props) {
           {status === 'loading' && (
             <div className="aiSummaryLoading">
               <div className="aiSummarySpinner"/>
-              <span>Анализирую переписку…</span>
+              <span>{t('aiSummary.analyzing')}</span>
             </div>
           )}
 
@@ -124,14 +127,14 @@ export function AISummaryModal({ chatId, chatTitle, onClose }: Props) {
           {status === 'ok' && result && (
             <div className="aiSummaryResult">
               <p className="aiSummaryText">
-                {result.summary || 'Нет сообщений для анализа в выбранном периоде.'}
+                {result.summary || t('aiSummary.noMessages')}
               </p>
               <div className="aiSummaryMeta">
                 <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
                   <circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/>
                 </svg>
-                <span>{result.messageCount ?? '?'} сообщ. · {periodLabel} · {formatLabel}</span>
-                {result.fromCache && <span className="aiSummaryCacheBadge">кеш</span>}
+                <span>{result.messageCount != null ? t('aiSummary.messageCount', { count: result.messageCount }) : t('aiSummary.messageCountUnknown')} · {periodLabel} · {formatLabel}</span>
+                {result.fromCache && <span className="aiSummaryCacheBadge">{t('aiSummary.cacheBadge')}</span>}
               </div>
             </div>
           )}
@@ -157,15 +160,15 @@ export function AISummaryModal({ chatId, chatTitle, onClose }: Props) {
                 <polyline points="23 4 23 10 17 10"/>
                 <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
               </svg>
-              Обновить
+              {t('aiSummary.refresh')}
             </button>
           )}
           {status !== 'loading' && (
             <button className="aiSummaryGenBtn" onClick={() => generate(period, format)}>
-              {status === 'idle' ? 'Сделать сводку' : 'Изменить'}
+              {status === 'idle' ? t('aiSummary.generate') : t('aiSummary.change')}
             </button>
           )}
-          <button className="aiSummaryCloseBtn" onClick={onClose}>Закрыть</button>
+          <button className="aiSummaryCloseBtn" onClick={onClose}>{t('common:close')}</button>
         </div>
       </div>
     </div>

@@ -4,6 +4,7 @@
  * Media / Files / Voice / Links are in ChatMediaModal (gallery button in header).
  */
 import { useEffect, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { type User } from '../../types';
 import { avatarLetter, formatBirthDate, formatLastSeen } from '../../utils/format';
 import { resolveUrl, PRESENCE_COLORS, getPresenceLabel, PRESENCE_EMOJI } from '../ui/Avatar';
@@ -19,6 +20,7 @@ interface Props {
 }
 
 export function UserProfileModal({ userId, onClose, onStartChat }: Props) {
+  const { t } = useTranslation('modals');
   const [user,       setUser]       = useState<User | null>(null);
   const [loading,    setLoading]    = useState(true);
   const [menuOpen,   setMenuOpen]   = useState(false);
@@ -47,7 +49,7 @@ export function UserProfileModal({ userId, onClose, onStartChat }: Props) {
     setError(null);
     getUserById(userId)
       .then(u => { setUser(u); setAliasInput(u.alias ?? ''); })
-      .catch(() => setError('Не удалось загрузить профиль'))
+      .catch(() => setError(t('userProfile.loadError')))
       .finally(() => setLoading(false));
   }, [userId]);
 
@@ -81,7 +83,7 @@ export function UserProfileModal({ userId, onClose, onStartChat }: Props) {
       const result = await blockUser(user.id);
       setUser(u => u ? { ...u, is_blocked: result.is_blocked } : u);
     } catch (e: any) {
-      setError(e?.message || 'Не удалось выполнить действие');
+      setError(e?.message || t('userProfile.actionError'));
     } finally {
       setBlockBusy(false);
     }
@@ -103,7 +105,7 @@ export function UserProfileModal({ userId, onClose, onStartChat }: Props) {
       setUser(u => u ? { ...u, alias: result.alias, display_name: result.alias } : u);
       setAliasOpen(false);
     } catch (e: any) {
-      setError(e?.message || 'Не удалось сохранить псевдоним');
+      setError(e?.message || t('userProfile.saveAliasError'));
     } finally {
       setAliasBusy(false);
     }
@@ -119,7 +121,7 @@ export function UserProfileModal({ userId, onClose, onStartChat }: Props) {
       setUser(fresh);
       setAliasInput('');
     } catch (e: any) {
-      setError(e?.message || 'Не удалось удалить псевдоним');
+      setError(e?.message || t('userProfile.deleteAliasError'));
     }
   };
 
@@ -136,7 +138,7 @@ export function UserProfileModal({ userId, onClose, onStartChat }: Props) {
             <button
               className={`upMenuBtn${menuOpen ? ' upMenuBtnActive' : ''}`}
               onClick={() => setMenuOpen(v => !v)}
-              title="Действия"
+              title={t('userProfile.actions')}
               disabled={blockBusy}
             >
               <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
@@ -155,14 +157,14 @@ export function UserProfileModal({ userId, onClose, onStartChat }: Props) {
                       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                         <circle cx="12" cy="12" r="10"/><polyline points="9 12 11 14 15 10"/>
                       </svg>
-                      Разблокировать
+                      {t('userProfile.unblock')}
                     </>
                   ) : (
                     <>
                       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                         <circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/>
                       </svg>
-                      Заблокировать
+                      {t('userProfile.block')}
                     </>
                   )}
                 </button>
@@ -172,7 +174,7 @@ export function UserProfileModal({ userId, onClose, onStartChat }: Props) {
                     <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/>
                     <line x1="4" y1="22" x2="4" y2="15"/>
                   </svg>
-                  Пожаловаться
+                  {t('common:report')}
                 </button>
 
                 <div className="ctxDivider" />
@@ -182,7 +184,7 @@ export function UserProfileModal({ userId, onClose, onStartChat }: Props) {
                     <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
                     <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
                   </svg>
-                  Переименовать
+                  {t('common:rename')}
                 </button>
               </div>
             )}
@@ -197,11 +199,11 @@ export function UserProfileModal({ userId, onClose, onStartChat }: Props) {
         </button>
 
         {loading ? (
-          <div className="upLoading">Загрузка…</div>
+          <div className="upLoading">{t('common:loading')}</div>
         ) : error && !user ? (
           <div className="upLoading">{error}</div>
         ) : !user ? (
-          <div className="upLoading">Пользователь не найден</div>
+          <div className="upLoading">{t('userProfile.userNotFound')}</div>
         ) : (
           <>
             {/* Header */}
@@ -232,7 +234,7 @@ export function UserProfileModal({ userId, onClose, onStartChat }: Props) {
                   <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
                     <circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/>
                   </svg>
-                  Заблокирован
+                  {t('userProfile.blocked')}
                 </div>
               )}
 
@@ -260,7 +262,7 @@ export function UserProfileModal({ userId, onClose, onStartChat }: Props) {
             {/* Alias edit dialog */}
             {aliasOpen && (
               <div className="upAliasDialog">
-                <p className="upAliasHint">Псевдоним виден только вам</p>
+                <p className="upAliasHint">{t('userProfile.aliasHint')}</p>
                 <input
                   ref={aliasInputRef}
                   className="upAliasInput"
@@ -270,15 +272,15 @@ export function UserProfileModal({ userId, onClose, onStartChat }: Props) {
                     if (e.key === 'Enter') handleSaveAlias();
                     if (e.key === 'Escape') setAliasOpen(false);
                   }}
-                  placeholder="Введите псевдоним..."
+                  placeholder={t('userProfile.aliasPlaceholder')}
                   maxLength={50}
                 />
                 <div className="upAliasActions">
                   <button className="upAliasSave" onClick={handleSaveAlias} disabled={aliasBusy || !aliasInput.trim()}>
-                    {aliasBusy ? 'Сохранение…' : 'Сохранить'}
+                    {aliasBusy ? t('userProfile.savingAlias') : t('common:save')}
                   </button>
                   <button className="upAliasCancel" onClick={() => setAliasOpen(false)}>
-                    Отмена
+                    {t('common:cancel')}
                   </button>
                 </div>
                 {user.alias && (
@@ -289,7 +291,7 @@ export function UserProfileModal({ userId, onClose, onStartChat }: Props) {
                       <path d="M10 11v6M14 11v6"/>
                       <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
                     </svg>
-                    Удалить псевдоним
+                    {t('userProfile.deleteAlias')}
                   </button>
                 )}
               </div>
@@ -307,7 +309,7 @@ export function UserProfileModal({ userId, onClose, onStartChat }: Props) {
                       </svg>
                     </span>
                     <div className="upInfoContent">
-                      <div className="upInfoLabel">Почта</div>
+                      <div className="upInfoLabel">{t('userProfile.email')}</div>
                       <div className="upInfoValue">{user.email}</div>
                     </div>
                   </div>
@@ -321,7 +323,7 @@ export function UserProfileModal({ userId, onClose, onStartChat }: Props) {
                       </svg>
                     </span>
                     <div className="upInfoContent">
-                      <div className="upInfoLabel">О себе</div>
+                      <div className="upInfoLabel">{t('userProfile.bio')}</div>
                       <div className="upInfoValue">{user.bio}</div>
                     </div>
                   </div>
@@ -336,7 +338,7 @@ export function UserProfileModal({ userId, onClose, onStartChat }: Props) {
                       </svg>
                     </span>
                     <div className="upInfoContent">
-                      <div className="upInfoLabel">Дата рождения</div>
+                      <div className="upInfoLabel">{t('userProfile.birthDate')}</div>
                       <div className="upInfoValue">{formatBirthDate(user.birth_date)}</div>
                     </div>
                   </div>
@@ -351,7 +353,7 @@ export function UserProfileModal({ userId, onClose, onStartChat }: Props) {
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
                     <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
                   </svg>
-                  Написать сообщение
+                  {t('userProfile.writeMessage')}
                 </button>
               </div>
             )}
@@ -361,7 +363,7 @@ export function UserProfileModal({ userId, onClose, onStartChat }: Props) {
     </div>
     {showReport && user && (
       <ReportModal
-        title="Пожаловаться на пользователя"
+        title={t('userProfile.reportUserTitle')}
         onClose={() => setShowReport(false)}
         onSubmit={reason => reportUser(user.id, reason)}
       />

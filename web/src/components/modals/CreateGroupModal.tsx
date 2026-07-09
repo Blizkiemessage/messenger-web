@@ -2,6 +2,7 @@
  * CreateGroupModal — now uses useSearch hook instead of inline debounce.
  */
 import { useState, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useShallow } from 'zustand/shallow';
 import { type User } from '../../types';
 import { avatarLetter } from '../../utils/format';
@@ -15,6 +16,7 @@ interface Props {
 }
 
 export function CreateGroupModal({ onClose }: Props) {
+  const { t } = useTranslation('modals');
   const me = useSessionStore(s => s.me)!;
   const contacts = useChatsStore(useShallow(s => selectContacts(s, me.id)));
 
@@ -41,8 +43,8 @@ export function CreateGroupModal({ onClose }: Props) {
   }
 
   async function handleCreate() {
-    if (!name.trim()) return setError('Введите название группы');
-    if (selected.length < 1) return setError('Добавьте хотя бы одного участника');
+    if (!name.trim()) return setError(t('createGroup.nameRequired'));
+    if (selected.length < 1) return setError(t('createGroup.memberRequired'));
     setBusy(true); setError(null);
     try {
       const chat = await createGroupChat({ name: name.trim(), description: description.trim() || undefined, memberIds: selected.map(u => u.id) });
@@ -52,7 +54,7 @@ export function CreateGroupModal({ onClose }: Props) {
       useChatsStore.getState().setActiveChatId(chat.id);
       onClose();
     } catch (e: any) {
-      setError(e?.message ?? 'Ошибка создания группы');
+      setError(e?.message ?? t('createGroup.createError'));
     } finally {
       setBusy(false);
     }
@@ -62,7 +64,7 @@ export function CreateGroupModal({ onClose }: Props) {
     <div className="modalOverlay" onClick={e => e.target === e.currentTarget && onClose()}>
       <div className="modalCard">
         <div className="modalHeader">
-          <div className="modalTitle">Новая группа</div>
+          <div className="modalTitle">{t('createGroup.title')}</div>
           <button className="modalClose" onClick={onClose}>
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
               <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
@@ -71,21 +73,21 @@ export function CreateGroupModal({ onClose }: Props) {
         </div>
         <div className="modalBody">
           <div className="modalField">
-            <label className="modalLabel">Название *</label>
-            <input className="modalInput" value={name} onChange={e => setName(e.target.value)} placeholder="Например: Команда разработки" autoFocus maxLength={64} />
+            <label className="modalLabel">{t('createGroup.nameLabel')} *</label>
+            <input className="modalInput" value={name} onChange={e => setName(e.target.value)} placeholder={t('createGroup.namePlaceholder')} autoFocus maxLength={64} />
           </div>
           <div className="modalField">
-            <label className="modalLabel">Описание <span className="modalOptional">(необязательно)</span></label>
-            <textarea className="modalTextarea" value={description} onChange={e => setDescription(e.target.value)} placeholder="О чём эта группа…" rows={2} maxLength={256} />
+            <label className="modalLabel">{t('createGroup.descriptionLabel')} <span className="modalOptional">({t('createGroup.optional')})</span></label>
+            <textarea className="modalTextarea" value={description} onChange={e => setDescription(e.target.value)} placeholder={t('createGroup.descriptionPlaceholder')} rows={2} maxLength={256} />
           </div>
           <div className="modalField">
-            <label className="modalLabel">Участники</label>
+            <label className="modalLabel">{t('createGroup.membersLabel')}</label>
             <div className="modalSearch">
               <svg width="14" height="14" viewBox="0 0 20 20" fill="none" style={{ color: 'var(--muted)', flexShrink: 0 }}>
                 <circle cx="8.5" cy="8.5" r="5.5" stroke="currentColor" strokeWidth="1.7"/>
                 <path d="M13.5 13.5L17 17" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"/>
               </svg>
-              <input className="modalSearchInput" value={query} onChange={e => setQuery(e.target.value)} placeholder="Поиск по username…" />
+              <input className="modalSearchInput" value={query} onChange={e => setQuery(e.target.value)} placeholder={t('addGroupMembers.searchPlaceholder')} />
               {searching && <span className="modalSearchSpin">…</span>}
             </div>
           </div>
@@ -106,13 +108,13 @@ export function CreateGroupModal({ onClose }: Props) {
 
           {displayList.length > 0 && (
             <div className="modalUserList">
-              <div className="modalListLabel">{query.length >= 2 ? 'Результаты поиска' : 'Из личных чатов'}</div>
+              <div className="modalListLabel">{query.length >= 2 ? t('createGroup.searchResults') : t('createGroup.fromDirectChats')}</div>
               {displayList.map(u => {
                 const isBlocked = !!u.no_group_add;
                 return (
                   <button key={u.id} className={`modalUserItem${isBlocked ? ' modalUserItemDisabled' : ''}`}
                     onClick={() => !isBlocked && toggleUser(u)}
-                    title={isBlocked ? 'Пользователь запретил добавление в группы' : undefined}
+                    title={isBlocked ? t('addGroupMembers.blockedTitle') : undefined}
                     disabled={isBlocked}>
                     <div className="modalUserAvatar">{avatarLetter(u.display_name || u.username || '')}</div>
                     <div className="modalUserInfo">
@@ -138,13 +140,13 @@ export function CreateGroupModal({ onClose }: Props) {
               })}
             </div>
           )}
-          {query.length >= 2 && !searching && searchResults.length === 0 && <div className="modalEmpty">Пользователи не найдены</div>}
+          {query.length >= 2 && !searching && searchResults.length === 0 && <div className="modalEmpty">{t('addGroupMembers.noUsersFound')}</div>}
         </div>
         {error && <div className="modalError">{error}</div>}
         <div className="modalFooter">
-          <button className="modalCancelBtn" onClick={onClose}>Отмена</button>
+          <button className="modalCancelBtn" onClick={onClose}>{t('common:cancel')}</button>
           <button className="modalCreateBtn" onClick={handleCreate} disabled={busy || !name.trim() || selected.length === 0}>
-            {busy ? '…' : `Создать${selected.length > 0 ? ` (${selected.length + 1})` : ''}`}
+            {busy ? '…' : (selected.length > 0 ? t('createGroup.createWithCount', { count: selected.length + 1 }) : t('common:create'))}
           </button>
         </div>
       </div>

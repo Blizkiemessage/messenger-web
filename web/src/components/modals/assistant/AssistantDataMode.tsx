@@ -12,6 +12,7 @@
  *   - включён → диалог с источниками + редактор настроек по кнопке.
  */
 import { useEffect, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useChatsStore } from '../../../store/useChatsStore';
 import { useSessionStore } from '../../../store/useSessionStore';
 import { useDeepLinkStore } from '../../../store/useDeepLinkStore';
@@ -31,14 +32,14 @@ type Thread =
   | { role: 'thinking' }
   | { role: 'answer'; answer: DataAnswer };
 
-const EXAMPLES = [
-  'Когда у меня ближайшая встреча?',
-  'Что просили купить?',
-  'Когда день рождения у мамы?',
-  'О чём договаривались по поездке?',
-];
-
 export function AssistantDataMode({ onClose }: Props) {
+  const { t } = useTranslation('modals');
+  const EXAMPLES = [
+    t('assistantData.example1'),
+    t('assistantData.example2'),
+    t('assistantData.example3'),
+    t('assistantData.example4'),
+  ];
   const open = useDeepLinkStore(s => s.open);
   const setShowSupport = useAppStore(s => s.setShowSupport);
   const me = useSessionStore(s => s.me);
@@ -120,7 +121,7 @@ export function AssistantDataMode({ onClose }: Props) {
     } catch (e: unknown) {
       const msg =
         (e as { response?: { data?: { error?: string } } })?.response?.data?.error ||
-        'Не удалось получить ответ. Попробуйте позже.';
+        t('assistantData.askError');
       setThread(t => [...t.slice(0, -1), { role: 'answer', answer: { reply: msg, covered: false, sources: [], mode: 'none' } }]);
     } finally { setBusy(false); }
   }
@@ -151,10 +152,9 @@ export function AssistantDataMode({ onClose }: Props) {
     return (
       <div className="asstDataState">
         <div className="asstDataIcon" aria-hidden>🧠</div>
-        <h3>Ассистент по данным пока недоступен</h3>
+        <h3>{t('assistantData.unavailableTitle')}</h3>
         <p className="asstDataMuted">
-          Эта функция ещё не подключена на сервере. Загляните позже — мы готовим
-          приватного помощника, который найдёт ответы прямо в ваших чатах.
+          {t('assistantData.unavailableDesc')}
         </p>
       </div>
     );
@@ -164,15 +164,13 @@ export function AssistantDataMode({ onClose }: Props) {
     return (
       <div className="asstDataState">
         <div className="asstDataIcon" aria-hidden>✨</div>
-        <h3>Ваш приватный «второй мозг»</h3>
+        <h3>{t('assistantData.paywallTitle')}</h3>
         <p className="asstDataMuted">
-          Спросите — и помощник найдёт ответ в ваших переписках: когда встреча,
-          что просили купить, когда у близких день рождения. Каждый ответ — со
-          ссылкой на сообщение-источник, без выдумок.
+          {t('assistantData.paywallDesc')}
         </p>
-        <div className="asstDataLockBadge">Доступно в подписке Blizkie+</div>
+        <div className="asstDataLockBadge">{t('assistantData.paywallBadge')}</div>
         <button className="asstActionBtn asstActionPrimary" onClick={() => { setShowSupport(true); onClose(); }}>
-          Узнать о подписке
+          {t('assistantData.learnMore')}
         </button>
       </div>
     );
@@ -188,10 +186,9 @@ export function AssistantDataMode({ onClose }: Props) {
           {firstTime && (
             <div className="asstDataConsentHead">
               <div className="asstDataIcon" aria-hidden>🧠</div>
-              <h3>Включить ассистента по данным</h3>
+              <h3>{t('assistantData.consentTitle')}</h3>
               <p className="asstDataMuted">
-                Помощник будет искать ответы в ваших чатах и профилях близких. Вы
-                управляете тем, что ему доступно.
+                {t('assistantData.consentDesc')}
               </p>
             </div>
           )}
@@ -199,17 +196,17 @@ export function AssistantDataMode({ onClose }: Props) {
           {/* Структурные данные — всегда доступны, объясняем */}
           <div className="asstDataRow asstDataRowStatic">
             <div>
-              <div className="asstDataRowTitle">Структурные данные</div>
-              <div className="asstDataRowSub">Дни рождения и события из профилей — всегда без чтения переписки.</div>
+              <div className="asstDataRowTitle">{t('assistantData.structuralDataTitle')}</div>
+              <div className="asstDataRowSub">{t('assistantData.structuralDataSub')}</div>
             </div>
-            <span className="asstDataAlways">Включено</span>
+            <span className="asstDataAlways">{t('assistantData.alwaysOn')}</span>
           </div>
 
           {/* Чтение сообщений */}
           <div className="asstDataRow">
             <div>
-              <div className="asstDataRowTitle">Чтение сообщений</div>
-              <div className="asstDataRowSub">Разрешить искать ответы в тексте переписки выбранных чатов.</div>
+              <div className="asstDataRowTitle">{t('assistantData.readMessagesTitle')}</div>
+              <div className="asstDataRowSub">{t('assistantData.readMessagesSub')}</div>
             </div>
             <Toggle value={readMessages} onChange={setReadMessages} />
           </div>
@@ -219,8 +216,8 @@ export function AssistantDataMode({ onClose }: Props) {
             <div className="asstDataScope">
               <div className="asstDataRow">
                 <div>
-                  <div className="asstDataRowTitle">Все чаты</div>
-                  <div className="asstDataRowSub">Анализировать любой ваш чат.</div>
+                  <div className="asstDataRowTitle">{t('assistantData.allChatsTitle')}</div>
+                  <div className="asstDataRowSub">{t('assistantData.allChatsSub')}</div>
                 </div>
                 <Toggle value={scopeAll} onChange={setScopeAll} />
               </div>
@@ -228,16 +225,16 @@ export function AssistantDataMode({ onClose }: Props) {
               {!scopeAll && (
                 <div className="asstDataChatList">
                   <div className="asstDataChatListHead">
-                    <span>Выберите чаты ({allow.size})</span>
+                    <span>{t('assistantData.selectChats', { count: allow.size })}</span>
                     <button
                       className="asstDataLinkBtn"
                       onClick={() => setAllow(new Set(realChats.map(c => c.id)))}
                     >
-                      Выбрать все
+                      {t('assistantData.selectAll')}
                     </button>
                   </div>
                   {realChats.length === 0 && (
-                    <div className="asstDataRowSub">У вас пока нет чатов для анализа.</div>
+                    <div className="asstDataRowSub">{t('assistantData.noChatsToAnalyze')}</div>
                   )}
                   {realChats.map(c => (
                     <label key={c.id} className="asstDataChatItem">
@@ -260,9 +257,7 @@ export function AssistantDataMode({ onClose }: Props) {
               <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
             </svg>
             <span>
-              Чтобы понять переписку, выбранные сообщения отправляются на сервер
-              ИИ и расшифровываются только в памяти — мы не храним их и не
-              сохраняем ответы. Доступ можно отключить в любой момент.
+              {t('assistantData.privacyNote')}
             </span>
           </div>
         </div>
@@ -270,15 +265,15 @@ export function AssistantDataMode({ onClose }: Props) {
         <div className="asstDataSettingsFooter">
           {firstTime ? (
             <button className="asstActionBtn asstActionPrimary asstDataWide" disabled={saving} onClick={() => saveSettings(true)}>
-              {saving ? 'Включаем…' : 'Включить ассистента'}
+              {saving ? t('assistantData.enabling') : t('assistantData.enableAssistant')}
             </button>
           ) : (
             <>
               <button className="asstActionBtn asstDataDanger" disabled={saving} onClick={disable}>
-                Выключить
+                {t('assistantData.disable')}
               </button>
               <button className="asstActionBtn asstActionPrimary" disabled={saving} onClick={() => saveSettings(true)}>
-                {saving ? 'Сохраняем…' : 'Сохранить'}
+                {saving ? t('assistantData.saving') : t('common:save')}
               </button>
             </>
           )}
@@ -290,10 +285,10 @@ export function AssistantDataMode({ onClose }: Props) {
   // ── Основной диалог ────────────────────────────────────────────────────────
 
   const scopeText = status.scopeAll
-    ? 'все чаты'
+    ? t('assistantData.scopeAllChats')
     : status.readMessages
-      ? `${status.allowChats.length} ${plural(status.allowChats.length, 'чат', 'чата', 'чатов')}`
-      : 'только структурные данные';
+      ? t('assistantData.chatsCount', { count: status.allowChats.length })
+      : t('assistantData.scopeStructuralOnly');
 
   return (
     <div className="asstDataMain">
@@ -302,16 +297,16 @@ export function AssistantDataMode({ onClose }: Props) {
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
             <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
           </svg>
-          Доступ: {scopeText}
+          {t('assistantData.accessLabel', { scope: scopeText })}
         </span>
-        <button className="asstDataLinkBtn" onClick={() => setShowSettings(true)}>Настроить</button>
+        <button className="asstDataLinkBtn" onClick={() => setShowSettings(true)}>{t('assistantData.configure')}</button>
       </div>
 
       <div className="asstDataThread">
         {thread.length === 0 && (
           <div className="asstDataEmpty">
             <div className="asstDataIcon" aria-hidden>🧠</div>
-            <p>Спросите что-нибудь о ваших чатах. Я отвечу кратко и дам ссылку на источник.</p>
+            <p>{t('assistantData.askAnythingPrompt')}</p>
             <div className="asstChips">
               {EXAMPLES.map(ex => (
                 <button key={ex} className="asstChip" onClick={() => ask(ex)}>{ex}</button>
@@ -344,7 +339,7 @@ export function AssistantDataMode({ onClose }: Props) {
                 <div className="asstAnswerBody">{renderMarkdown(answer.reply)}</div>
                 {answer.sources.length > 0 && (
                   <div className="asstDataSources">
-                    <div className="asstDataSourcesLabel">Источники</div>
+                    <div className="asstDataSourcesLabel">{t('assistantData.sourcesLabel')}</div>
                     {answer.sources.map((s, i) => (
                       <button key={i} className="asstDataSource" onClick={() => openSource(s)}>
                         <span className="asstDataSourceLabel">
@@ -367,11 +362,11 @@ export function AssistantDataMode({ onClose }: Props) {
       >
         <input
           className="asstInput"
-          placeholder="Спросите о ваших чатах…"
+          placeholder={t('assistantData.inputPlaceholder')}
           value={query}
           onChange={e => setQuery(e.target.value)}
         />
-        <button className="asstSend" type="submit" disabled={!query.trim() || busy} title="Спросить">
+        <button className="asstSend" type="submit" disabled={!query.trim() || busy} title={t('assistant.ask')}>
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
             <line x1="22" y1="2" x2="11" y2="13" /><polygon points="22 2 15 22 11 13 2 9 22 2" />
           </svg>
@@ -379,11 +374,4 @@ export function AssistantDataMode({ onClose }: Props) {
       </form>
     </div>
   );
-}
-
-function plural(n: number, one: string, few: string, many: string): string {
-  const m10 = n % 10, m100 = n % 100;
-  if (m10 === 1 && m100 !== 11) return one;
-  if (m10 >= 2 && m10 <= 4 && (m100 < 10 || m100 >= 20)) return few;
-  return many;
 }

@@ -3,6 +3,7 @@
  * Media / Files / Voice / Links are in ChatMediaModal (gallery button in header).
  */
 import { useState, useEffect, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import { type Chat, type User, type ModeratorPermissions } from '../../types';
 import { avatarLetter } from '../../utils/format';
 import { Avatar } from '../ui/Avatar';
@@ -12,11 +13,13 @@ import { Portal } from '../ui/Portal';
 import client from '../../api/client';
 import { setMemberRole as setMemberRoleApi, setMemberPermissions as setMemberPermissionsApi } from '../../api/chats';
 
-const PERMISSION_LABELS: { key: keyof ModeratorPermissions; label: string; hint: string }[] = [
-  { key: 'edit_info',       label: 'Редактировать группу', hint: 'имя, описание, аватар и фон чата' },
-  { key: 'delete_messages', label: 'Удалять сообщения',    hint: 'удалять чужие сообщения' },
-  { key: 'manage_members',  label: 'Управлять участниками', hint: 'добавлять и удалять участников' },
-];
+function getPermissionLabels(t: (k: string) => string): { key: keyof ModeratorPermissions; label: string; hint: string }[] {
+  return [
+    { key: 'edit_info',       label: t('groupInfo.permEditInfoLabel'),      hint: t('groupInfo.permEditInfoHint') },
+    { key: 'delete_messages', label: t('groupInfo.permDeleteMsgsLabel'),    hint: t('groupInfo.permDeleteMsgsHint') },
+    { key: 'manage_members',  label: t('groupInfo.permManageMembersLabel'), hint: t('groupInfo.permManageMembersHint') },
+  ];
+}
 const DEFAULT_MOD_PERMS: ModeratorPermissions = { edit_info: false, delete_messages: true, manage_members: true };
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -44,6 +47,8 @@ export function GroupInfoModal({
   chat, onClose, onViewUser, meId,
   onUpdateChat, onRemoveMember, onCloseGroup, onTransferAdmin, onUpdateAvatar,
 }: Props) {
+  const { t } = useTranslation('modals');
+  const PERMISSION_LABELS = getPermissionLabels(t);
   const myRole           = chat.members.find(m => m.id === meId)?.role ?? 'member';
   const isAdmin          = myRole === 'admin';
   const isModerator      = myRole === 'moderator';
@@ -114,10 +119,10 @@ export function GroupInfoModal({
   // ── Handlers ──────────────────────────────────────────────────────────────
 
   async function handleSaveEdit() {
-    if (!editName.trim()) { setEditError('Введите название группы'); return; }
+    if (!editName.trim()) { setEditError(t('groupInfo.nameRequired')); return; }
     setEditBusy(true); setEditError(null);
     try { await onUpdateChat(editName.trim(), editDesc.trim()); setEditing(false); }
-    catch (e: any) { setEditError(e?.message ?? 'Ошибка'); }
+    catch (e: any) { setEditError(e?.message ?? t('common:error')); }
     finally { setEditBusy(false); }
   }
 
@@ -154,7 +159,7 @@ export function GroupInfoModal({
     if (!transferTarget) return;
     setTransferBusy(true); setTransferError(null);
     try { await onTransferAdmin(transferTarget.id); setShowTransferModal(false); setShowDeleteDialog(false); onClose(); }
-    catch (e: any) { setTransferError(e?.message ?? 'Ошибка при передаче прав'); }
+    catch (e: any) { setTransferError(e?.message ?? t('groupInfo.transferError')); }
     finally { setTransferBusy(false); }
   }
 
@@ -208,7 +213,7 @@ export function GroupInfoModal({
               >
                 {chat.avatar_url
                   ? <img src={chat.avatar_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 'inherit' }} />
-                  : <span className="upAvatarLetter">{avatarLetter(chat.name || 'Г')}</span>
+                  : <span className="upAvatarLetter">{avatarLetter(chat.name || t('common:groupFallback'))}</span>
                 }
                 {isAdmin && (
                   <div className="giAvatarOverlay">
@@ -225,29 +230,29 @@ export function GroupInfoModal({
             {editing ? (
               <div className="giEditForm" style={{ width: '100%', marginTop: 8 }}>
                 <input className="giEditInput" value={editName} onChange={e => setEditName(e.target.value)}
-                  placeholder="Название группы" maxLength={64} autoFocus />
+                  placeholder={t('createGroup.namePlaceholder')} maxLength={64} autoFocus />
                 <div className="giEditTextareaWrap">
                   <textarea className="giEditTextarea" value={editDesc}
                     onChange={e => setEditDesc(e.target.value.slice(0, DESC_MAX))}
-                    placeholder="Описание группы (необязательно)" rows={3} maxLength={DESC_MAX} />
+                    placeholder={t('groupInfo.descPlaceholder')} rows={3} maxLength={DESC_MAX} />
                   <span className={`giCharCounter${editDesc.length >= DESC_MAX ? ' giCharCounterMax' : ''}`}>
                     {editDesc.length}/{DESC_MAX}
                   </span>
                 </div>
                 {editError && <div className="giEditError">{editError}</div>}
                 <div className="giEditBtns">
-                  <button className="giEditCancelBtn" onClick={() => { setEditing(false); setEditError(null); }}>Отмена</button>
+                  <button className="giEditCancelBtn" onClick={() => { setEditing(false); setEditError(null); }}>{t('common:cancel')}</button>
                   <button className="giEditSaveBtn" onClick={handleSaveEdit} disabled={editBusy || !editName.trim()}>
-                    {editBusy ? '…' : 'Сохранить'}
+                    {editBusy ? '…' : t('common:save')}
                   </button>
                 </div>
               </div>
             ) : (
               <>
                 <div className="giNameRow">
-                  <div className="upName">{chat.name || 'Группа'}</div>
+                  <div className="upName">{chat.name || t('common:groupFallback')}</div>
                   {isAdmin && !isGroupClosed && (
-                    <button className="giEditBtn" onClick={() => setEditing(true)} title="Редактировать">
+                    <button className="giEditBtn" onClick={() => setEditing(true)} title={t('common:edit')}>
                       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
                         <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
                         <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
@@ -256,13 +261,13 @@ export function GroupInfoModal({
                   )}
                 </div>
                 <div className="upUsername">
-                  {chat.members.length} участников
+                  {t('common:membersCount', { count: chat.members.length })}
                   {isGroupClosed && (
                     <span className="giClosedBadge">
                       <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
                         <rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>
                       </svg>
-                      Закрыта
+                      {t('groupInfo.closedBadge')}
                     </span>
                   )}
                 </div>
@@ -282,11 +287,11 @@ export function GroupInfoModal({
                   </svg>
                 </span>
                 <div className="upInfoContent">
-                  <div className="upInfoLabel">Описание группы</div>
+                  <div className="upInfoLabel">{t('groupInfo.descriptionLabel')}</div>
                   <div className="upInfoValue">{descShown}</div>
                   {descNeedsExpand && (
                     <button className="giDescToggle" onClick={() => setDescExpanded(v => !v)}>
-                      {descExpanded ? 'Свернуть' : 'Подробнее'}
+                      {descExpanded ? t('groupInfo.collapse') : t('groupInfo.expand')}
                       <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"
                         style={{ transform: descExpanded ? 'rotate(180deg)' : 'none', transition: 'transform .2s' }}>
                         <polyline points="6 9 12 15 18 9"/>
@@ -308,7 +313,7 @@ export function GroupInfoModal({
                   <circle cx="9" cy="7" r="4"/>
                   <line x1="19" y1="8" x2="19" y2="14"/><line x1="22" y1="11" x2="16" y2="11"/>
                 </svg>
-                Добавить участников
+                {t('addGroupMembers.title')}
               </button>
             )}
             <div className="giMemberList">
@@ -333,9 +338,9 @@ export function GroupInfoModal({
                     {m.username && <div className="giMemberSub">@{m.username}</div>}
                   </div>
                   <div className="giBadges">
-                    {m.id === meId             && <span className="giYouBadge">Вы</span>}
-                    {targetRole === 'admin'     && <span className="giAdminBadge">Администратор</span>}
-                    {targetRole === 'moderator' && <span className="giModeratorBadge">Модератор</span>}
+                    {m.id === meId             && <span className="giYouBadge">{t('groupInfo.youBadge')}</span>}
+                    {targetRole === 'admin'     && <span className="giAdminBadge">{t('groupInfo.adminBadge')}</span>}
+                    {targetRole === 'moderator' && <span className="giModeratorBadge">{t('groupInfo.moderatorBadge')}</span>}
                   </div>
                 </button>
                 );
@@ -350,7 +355,7 @@ export function GroupInfoModal({
                     <path d="M10 11v6M14 11v6"/>
                     <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
                   </svg>
-                  Удалить группу
+                  {t('groupInfo.deleteGroupBtn')}
                 </button>
               </div>
             )}
@@ -373,7 +378,7 @@ export function GroupInfoModal({
                   <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
                   <line x1="4" y1="4" x2="20" y2="20"/>
                 </svg>
-                Снять роль модератора
+                {t('groupInfo.revokeModerator')}
               </button>
             ) : null
           )}
@@ -385,7 +390,7 @@ export function GroupInfoModal({
                 <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/>
                 <circle cx="12" cy="12" r="3"/>
               </svg>
-              Настроить права
+              {t('groupInfo.configurePerms')}
             </button>
           )}
           {isAdmin && (
@@ -395,7 +400,7 @@ export function GroupInfoModal({
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
                   <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
                 </svg>
-                Назначить модератором
+                {t('groupInfo.assignModerator')}
               </button>
             )
           )}
@@ -406,7 +411,7 @@ export function GroupInfoModal({
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
                 <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
               </svg>
-              Сделать администратором
+              {t('groupInfo.makeAdmin')}
             </button>
           )}
           {/* Admin/moderator: remove member */}
@@ -416,7 +421,7 @@ export function GroupInfoModal({
               <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/>
               <circle cx="9" cy="7" r="4"/><line x1="22" y1="11" x2="16" y2="11"/>
             </svg>
-            Удалить участника
+            {t('groupInfo.removeMemberBtn')}
           </button>
         </ContextMenu>
       )}
@@ -430,14 +435,14 @@ export function GroupInfoModal({
                 <circle cx="9" cy="7" r="4"/><line x1="22" y1="11" x2="16" y2="11"/>
               </svg>
             </div>
-            <div className="confirmTitle">Удалить участника?</div>
+            <div className="confirmTitle">{t('groupInfo.removeMemberTitle')}</div>
             <div className="confirmText">
-              {removeConfirm.display_name || removeConfirm.username} будет удалён(а) из группы.
+              {t('groupInfo.removeMemberText', { name: removeConfirm.display_name || removeConfirm.username })}
             </div>
             <div className="confirmBtns">
-              <button className="confirmCancel" onClick={() => setRemoveConfirm(null)} disabled={removeBusy}>Отмена</button>
+              <button className="confirmCancel" onClick={() => setRemoveConfirm(null)} disabled={removeBusy}>{t('common:cancel')}</button>
               <button className="confirmDelete" onClick={handleRemoveConfirm} disabled={removeBusy}>
-                {removeBusy ? '…' : 'Удалить'}
+                {removeBusy ? '…' : t('common:delete')}
               </button>
             </div>
           </div>
@@ -452,15 +457,14 @@ export function GroupInfoModal({
                 <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
               </svg>
             </div>
-            <div className="confirmTitle">Передать права?</div>
+            <div className="confirmTitle">{t('groupInfo.transferTitle')}</div>
             <div className="confirmText">
-              <strong>{makeAdminTarget.display_name || makeAdminTarget.username}</strong> станет новым администратором группы.
-              Вы потеряете права администратора.
+              <strong>{makeAdminTarget.display_name || makeAdminTarget.username}</strong>{t('groupInfo.transferTextSuffix')}
             </div>
             <div className="confirmBtns">
-              <button className="confirmCancel" onClick={() => setMakeAdminTarget(null)} disabled={makeAdminBusy}>Отмена</button>
+              <button className="confirmCancel" onClick={() => setMakeAdminTarget(null)} disabled={makeAdminBusy}>{t('common:cancel')}</button>
               <button className="confirmAdmin" onClick={handleMakeAdminFromCtx} disabled={makeAdminBusy}>
-                {makeAdminBusy ? '…' : 'Передать'}
+                {makeAdminBusy ? '…' : t('groupInfo.transfer')}
               </button>
             </div>
           </div>
@@ -476,19 +480,19 @@ export function GroupInfoModal({
               </svg>
             </div>
             <div className="confirmTitle">
-              {modRoleTarget.action === 'assign' ? 'Назначить модератором?' : 'Снять роль модератора?'}
+              {modRoleTarget.action === 'assign' ? t('groupInfo.assignModTitle') : t('groupInfo.revokeModTitle')}
             </div>
             <div className="confirmText">
               {modRoleTarget.action === 'assign'
-                ? <><strong>{modRoleTarget.user.display_name || modRoleTarget.user.username}</strong> получит права модератора: добавлять участников, удалять рядовых участников и закреплять сообщения.</>
-                : <><strong>{modRoleTarget.user.display_name || modRoleTarget.user.username}</strong> потеряет права модератора и станет обычным участником.</>
+                ? <><strong>{modRoleTarget.user.display_name || modRoleTarget.user.username}</strong>{t('groupInfo.assignModTextSuffix')}</>
+                : <><strong>{modRoleTarget.user.display_name || modRoleTarget.user.username}</strong>{t('groupInfo.revokeModTextSuffix')}</>
               }
             </div>
             <div className="confirmBtns">
-              <button className="confirmCancel" onClick={() => setModRoleTarget(null)} disabled={modRoleBusy}>Отмена</button>
+              <button className="confirmCancel" onClick={() => setModRoleTarget(null)} disabled={modRoleBusy}>{t('common:cancel')}</button>
               <button className="confirmAdmin" style={{ background: 'rgba(251,191,36,.15)', color: '#fbbf24', border: '1px solid rgba(251,191,36,.3)' }}
                 onClick={handleModRole} disabled={modRoleBusy}>
-                {modRoleBusy ? '…' : modRoleTarget.action === 'assign' ? 'Назначить' : 'Снять'}
+                {modRoleBusy ? '…' : modRoleTarget.action === 'assign' ? t('groupInfo.assign') : t('groupInfo.revoke')}
               </button>
             </div>
           </div>
@@ -511,8 +515,8 @@ export function GroupInfoModal({
                 <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
               </svg>
             </div>
-            <div className="giDeleteDialogTitle">Удалить группу</div>
-            <div className="giDeleteDialogSubtitle">Выберите действие перед удалением</div>
+            <div className="giDeleteDialogTitle">{t('groupInfo.deleteGroupBtn')}</div>
+            <div className="giDeleteDialogSubtitle">{t('groupInfo.deleteDialogSubtitle')}</div>
 
             <button className="giDeleteOption giDeleteOptionSafe"
               onClick={() => { setShowDeleteDialog(false); setShowTransferModal(true); }}>
@@ -522,8 +526,8 @@ export function GroupInfoModal({
                 </svg>
               </div>
               <div className="giDeleteOptionText">
-                <div className="giDeleteOptionTitle">Передать права администратора</div>
-                <div className="giDeleteOptionDesc">Группа продолжит работу под управлением другого участника</div>
+                <div className="giDeleteOptionTitle">{t('groupInfo.transferModalTitle')}</div>
+                <div className="giDeleteOptionDesc">{t('groupInfo.transferOptionDesc')}</div>
               </div>
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
                 <polyline points="9 18 15 12 9 6"/>
@@ -539,8 +543,8 @@ export function GroupInfoModal({
                 </svg>
               </div>
               <div className="giDeleteOptionText">
-                <div className="giDeleteOptionTitle">Закрыть группу</div>
-                <div className="giDeleteOptionDesc">Переписка будет заблокирована для всех участников</div>
+                <div className="giDeleteOptionTitle">{t('groupInfo.closeGroupOptionTitle')}</div>
+                <div className="giDeleteOptionDesc">{t('groupInfo.closeOptionDesc')}</div>
               </div>
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
                 <polyline points="9 18 15 12 9 6"/>
@@ -559,14 +563,14 @@ export function GroupInfoModal({
                 <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
               </svg>
             </div>
-            <div className="confirmTitle">Закрыть группу?</div>
+            <div className="confirmTitle">{t('groupInfo.closeConfirmTitle')}</div>
             <div className="confirmText">
-              Все участники увидят историю переписки, но не смогут отправлять новые сообщения. Действие нельзя отменить.
+              {t('groupInfo.closeConfirmText')}
             </div>
             <div className="confirmBtns">
-              <button className="confirmCancel" onClick={() => setShowCloseConfirm(false)} disabled={closeBusy}>Отмена</button>
+              <button className="confirmCancel" onClick={() => setShowCloseConfirm(false)} disabled={closeBusy}>{t('common:cancel')}</button>
               <button className="confirmDelete" onClick={handleCloseGroup} disabled={closeBusy}>
-                {closeBusy ? '…' : 'Закрыть группу'}
+                {closeBusy ? '…' : t('groupInfo.closeGroupOptionTitle')}
               </button>
             </div>
           </div>
@@ -581,11 +585,11 @@ export function GroupInfoModal({
                 <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
               </svg>
             </button>
-            <div className="giTransferTitle">Передать права администратора</div>
-            <div className="giTransferSubtitle">Выберите нового администратора группы</div>
+            <div className="giTransferTitle">{t('groupInfo.transferModalTitle')}</div>
+            <div className="giTransferSubtitle">{t('groupInfo.transferModalSubtitle')}</div>
             <div className="giTransferList">
               {transferCandidates.length === 0 ? (
-                <div className="giTransferEmpty">Нет других участников для передачи прав</div>
+                <div className="giTransferEmpty">{t('groupInfo.noOtherMembers')}</div>
               ) : (
                 transferCandidates.map(m => (
                   <button key={m.id}
@@ -612,9 +616,9 @@ export function GroupInfoModal({
             <div className="giTransferBtns">
               <button className="giEditCancelBtn"
                 onClick={() => { setShowTransferModal(false); setTransferTarget(null); setTransferError(null); }}
-                disabled={transferBusy}>Отмена</button>
+                disabled={transferBusy}>{t('common:cancel')}</button>
               <button className="giEditSaveBtn" onClick={handleTransferAdmin} disabled={transferBusy || !transferTarget}>
-                {transferBusy ? '…' : 'Передать'}
+                {transferBusy ? '…' : t('groupInfo.transfer')}
               </button>
             </div>
           </div>
@@ -629,9 +633,9 @@ export function GroupInfoModal({
       {permTarget && (
         <div className="giConfirmOverlay" onClick={e => e.target === e.currentTarget && !permBusy && setPermTarget(null)}>
           <div className="giConfirmCard">
-            <div className="giConfirmTitle">Права модератора</div>
+            <div className="giConfirmTitle">{t('groupInfo.permDialogTitle')}</div>
             <div className="giConfirmText">
-              <strong>{permTarget.display_name || permTarget.username}</strong> — выберите, что разрешено.
+              <strong>{permTarget.display_name || permTarget.username}</strong>{t('groupInfo.permDialogTextSuffix')}
             </div>
             <div className="giPermList">
               {PERMISSION_LABELS.map(({ key, label, hint }) => (
@@ -653,9 +657,9 @@ export function GroupInfoModal({
               ))}
             </div>
             <div className="giTransferBtns">
-              <button className="giEditCancelBtn" onClick={() => setPermTarget(null)} disabled={permBusy}>Отмена</button>
+              <button className="giEditCancelBtn" onClick={() => setPermTarget(null)} disabled={permBusy}>{t('common:cancel')}</button>
               <button className="giEditSaveBtn" onClick={handleSavePerms} disabled={permBusy}>
-                {permBusy ? '…' : 'Сохранить'}
+                {permBusy ? '…' : t('common:save')}
               </button>
             </div>
           </div>

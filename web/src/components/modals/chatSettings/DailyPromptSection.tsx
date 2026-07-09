@@ -6,13 +6,14 @@
  * Без права управления (canManage=false) контролы только для чтения.
  */
 import { useEffect, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { type Chat } from '../../../types';
 import { Toggle } from '../../ui/Toggle';
 import {
   getDailyPrompt, updateDailyPrompt, addDailyQuestion, deleteDailyQuestion, askDailyNow,
   type DailyPromptConfig, type DailyPromptBank, type CustomQuestion, type ScheduleType, type OrderMode,
 } from '../../../api/dailyPrompts';
-import { minutesToHHMM, hhmmToMinutes, WEEKDAYS, timezoneOptions } from './helpers';
+import { minutesToHHMM, hhmmToMinutes, getWeekdays, timezoneOptions } from './helpers';
 
 interface Props { chat: Chat; meId: string; onOpenArchive?: () => void; }
 
@@ -34,6 +35,9 @@ function toDraft(c: DailyPromptConfig): Draft {
 }
 
 export function DailyPromptSection({ chat, meId: _meId, onOpenArchive }: Props) {
+  const { t, i18n } = useTranslation('modals');
+  const locale = i18n.language === 'en' ? 'en-US' : 'ru-RU';
+  const weekdays = useMemo(() => getWeekdays(locale), [locale]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [canManage, setCanManage] = useState(false);
@@ -64,7 +68,7 @@ export function DailyPromptSection({ chat, meId: _meId, onOpenArchive }: Props) 
         setStreak(data.streak);
         setCanManage(data.canManage);
       } catch (e: any) {
-        if (alive) setError(e?.message || 'Не удалось загрузить настройки');
+        if (alive) setError(e?.message || t('dailyPromptSection.loadError'));
       } finally {
         if (alive) setLoading(false);
       }
@@ -124,7 +128,7 @@ export function DailyPromptSection({ chat, meId: _meId, onOpenArchive }: Props) 
       setInitial(JSON.stringify(d));
       setSavedFlash(true);
     } catch (e: any) {
-      setError(e?.message || 'Не удалось сохранить');
+      setError(e?.message || t('dailyPromptSection.saveError'));
     } finally {
       setSaving(false);
     }
@@ -139,7 +143,7 @@ export function DailyPromptSection({ chat, meId: _meId, onOpenArchive }: Props) 
       setQuestions(list => [...list, q]);
       setNewQuestion('');
     } catch (e: any) {
-      setError(e?.message || 'Не удалось добавить вопрос');
+      setError(e?.message || t('dailyPromptSection.addQuestionError'));
     } finally {
       setQBusy(false);
     }
@@ -150,7 +154,7 @@ export function DailyPromptSection({ chat, meId: _meId, onOpenArchive }: Props) 
       await deleteDailyQuestion(chat.id, id);
       setQuestions(list => list.filter(q => q.id !== id));
     } catch (e: any) {
-      setError(e?.message || 'Не удалось удалить вопрос');
+      setError(e?.message || t('dailyPromptSection.removeQuestionError'));
     }
   }
 
@@ -159,14 +163,14 @@ export function DailyPromptSection({ chat, meId: _meId, onOpenArchive }: Props) 
     try {
       await askDailyNow(chat.id);
     } catch (e: any) {
-      setError(e?.message || 'Не удалось задать вопрос');
+      setError(e?.message || t('dailyPromptSection.askError'));
     } finally {
       setAsking(false);
     }
   }
 
-  if (loading) return <div className="dpLoading">Загрузка…</div>;
-  if (!draft) return <div className="dpError">{error || 'Ошибка'}</div>;
+  if (loading) return <div className="dpLoading">{t('dailyPromptSection.loading')}</div>;
+  if (!draft) return <div className="dpError">{error || t('common:error')}</div>;
 
   const ro = !canManage; // read-only
   const hasSource =
@@ -178,22 +182,22 @@ export function DailyPromptSection({ chat, meId: _meId, onOpenArchive }: Props) 
       <div className="dpIntro">
         <div className="dpIntroIcon">🌙</div>
         <div className="dpIntroText">
-          <div className="dpIntroTitle">Вопрос дня</div>
+          <div className="dpIntroTitle">{t('dailyPromptSection.title')}</div>
           <div className="dpIntroHint">
-            Каждый день в чат приходит тёплый вопрос — общий ритуал, на который каждый отвечает текстом, голосом, кружком или фото.
+            {t('dailyPromptSection.intro')}
           </div>
         </div>
-        {streak > 0 && <div className="dpStreak" title="Дней подряд с ответами">🔥 {streak}</div>}
+        {streak > 0 && <div className="dpStreak" title={t('dailyPromptSection.streakTitle')}>🔥 {streak}</div>}
       </div>
 
       {ro && (
-        <div className="dpReadonlyBanner">Настройки управляются администратором чата. Вы можете отвечать на вопросы.</div>
+        <div className="dpReadonlyBanner">{t('dailyPromptSection.readonlyBanner')}</div>
       )}
 
       <div className="dpMasterRow">
         <div className="dpMasterText">
-          <div className="dpMasterLabel">Включить «Вопрос дня»</div>
-          <div className="dpMasterSub">{draft.enabled ? 'Вопросы приходят по расписанию' : 'Сейчас выключено'}</div>
+          <div className="dpMasterLabel">{t('dailyPromptSection.enableLabel')}</div>
+          <div className="dpMasterSub">{draft.enabled ? t('dailyPromptSection.enabledSub') : t('dailyPromptSection.disabledSub')}</div>
         </div>
         <Toggle value={draft.enabled} onChange={v => patch({ enabled: v })} disabled={ro} />
       </div>
@@ -202,31 +206,35 @@ export function DailyPromptSection({ chat, meId: _meId, onOpenArchive }: Props) 
         <>
           {/* Время и пояс */}
           <div className="dpGroup">
-            <div className="dpGroupTitle">Когда присылать</div>
+            <div className="dpGroupTitle">{t('dailyPromptSection.whenGroupTitle')}</div>
             <div className="dpRow">
-              <label className="dpFieldLabel">Время</label>
+              <label className="dpFieldLabel">{t('dailyPromptSection.timeLabel')}</label>
               <input type="time" className="dpTimeInput" value={minutesToHHMM(draft.send_time)}
                 disabled={ro} onChange={e => patch({ send_time: hhmmToMinutes(e.target.value) })} />
             </div>
             <div className="dpRow">
-              <label className="dpFieldLabel">Часовой пояс</label>
+              <label className="dpFieldLabel">{t('dailyPromptSection.timezoneLabel')}</label>
               <select className="dpSelect" value={draft.timezone} disabled={ro}
                 onChange={e => patch({ timezone: e.target.value })}>
-                {timezoneOptions(draft.timezone).map(tz => (
+                {timezoneOptions(draft.timezone, locale).map(tz => (
                   <option key={tz.value} value={tz.value}>{tz.label}</option>
                 ))}
               </select>
             </div>
             <div className="dpSeg">
-              {([['daily', 'Каждый день'], ['weekdays', 'По будням'], ['weekly', 'По дням']] as [ScheduleType, string][]).map(([t, label]) => (
-                <button key={t} type="button" disabled={ro}
-                  className={`dpSegBtn${draft.schedule.type === t ? ' active' : ''}`}
-                  onClick={() => patchSchedule(t)}>{label}</button>
+              {([
+                ['daily', t('dailyPromptSection.scheduleDaily')],
+                ['weekdays', t('dailyPromptSection.scheduleWeekdays')],
+                ['weekly', t('dailyPromptSection.scheduleWeekly')],
+              ] as [ScheduleType, string][]).map(([type, label]) => (
+                <button key={type} type="button" disabled={ro}
+                  className={`dpSegBtn${draft.schedule.type === type ? ' active' : ''}`}
+                  onClick={() => patchSchedule(type)}>{label}</button>
               ))}
             </div>
             {draft.schedule.type === 'weekly' && (
               <div className="dpWeekdays">
-                {WEEKDAYS.map(w => (
+                {weekdays.map(w => (
                   <button key={w.value} type="button" disabled={ro}
                     className={`dpDayChip${(draft.schedule.days ?? []).includes(w.value) ? ' active' : ''}`}
                     onClick={() => toggleWeekday(w.value)}>{w.short}</button>
@@ -237,12 +245,12 @@ export function DailyPromptSection({ chat, meId: _meId, onOpenArchive }: Props) 
 
           {/* Источник вопросов */}
           <div className="dpGroup">
-            <div className="dpGroupTitle">Откуда брать вопросы</div>
+            <div className="dpGroupTitle">{t('dailyPromptSection.sourceGroupTitle')}</div>
 
             <div className="dpMasterRow dpSub">
               <div className="dpMasterText">
-                <div className="dpMasterLabel">Готовые подборки</div>
-                <div className="dpMasterSub">Тематические вопросы из встроенных банков</div>
+                <div className="dpMasterLabel">{t('dailyPromptSection.builtinLabel')}</div>
+                <div className="dpMasterSub">{t('dailyPromptSection.builtinSub')}</div>
               </div>
               <Toggle value={draft.source.use_builtin} disabled={ro}
                 onChange={v => patch({ source: { ...draft.source, use_builtin: v } })} />
@@ -261,31 +269,31 @@ export function DailyPromptSection({ chat, meId: _meId, onOpenArchive }: Props) 
 
             <div className="dpMasterRow dpSub">
               <div className="dpMasterText">
-                <div className="dpMasterLabel">Свои вопросы</div>
-                <div className="dpMasterSub">Добавьте вопросы специально для вашего чата</div>
+                <div className="dpMasterLabel">{t('dailyPromptSection.customLabel')}</div>
+                <div className="dpMasterSub">{t('dailyPromptSection.customSub')}</div>
               </div>
               <Toggle value={draft.source.use_custom} disabled={ro}
                 onChange={v => patch({ source: { ...draft.source, use_custom: v } })} />
             </div>
             {draft.source.use_custom && (
               <div className="dpQuestions">
-                {questions.length === 0 && <div className="dpQEmpty">Пока нет своих вопросов</div>}
+                {questions.length === 0 && <div className="dpQEmpty">{t('dailyPromptSection.noCustomQuestions')}</div>}
                 {questions.map(q => (
                   <div key={q.id} className="dpQItem">
                     <span className="dpQText">{q.text}</span>
                     {!ro && (
-                      <button className="dpQDel" title="Удалить" onClick={() => removeQuestion(q.id)}>✕</button>
+                      <button className="dpQDel" title={t('dailyPromptSection.deleteQuestion')} onClick={() => removeQuestion(q.id)}>✕</button>
                     )}
                   </div>
                 ))}
                 {!ro && (
                   <div className="dpQAdd">
-                    <input className="dpQInput" placeholder="Новый вопрос…" value={newQuestion}
+                    <input className="dpQInput" placeholder={t('dailyPromptSection.newQuestionPlaceholder')} value={newQuestion}
                       maxLength={300}
                       onChange={e => setNewQuestion(e.target.value)}
                       onKeyDown={e => { if (e.key === 'Enter') addQuestion(); }} />
                     <button className="dpQAddBtn" disabled={qBusy || !newQuestion.trim()} onClick={addQuestion}>
-                      {qBusy ? '…' : 'Добавить'}
+                      {qBusy ? '…' : t('dailyPromptSection.add')}
                     </button>
                   </div>
                 )}
@@ -293,15 +301,18 @@ export function DailyPromptSection({ chat, meId: _meId, onOpenArchive }: Props) 
             )}
 
             <div className="dpSeg dpOrderSeg">
-              {([['shuffle', 'Вперемешку'], ['sequential', 'По порядку']] as [OrderMode, string][]).map(([t, label]) => (
-                <button key={t} type="button" disabled={ro}
-                  className={`dpSegBtn${draft.order_mode === t ? ' active' : ''}`}
-                  onClick={() => patch({ order_mode: t })}>{label}</button>
+              {([
+                ['shuffle', t('dailyPromptSection.orderShuffle')],
+                ['sequential', t('dailyPromptSection.orderSequential')],
+              ] as [OrderMode, string][]).map(([mode, label]) => (
+                <button key={mode} type="button" disabled={ro}
+                  className={`dpSegBtn${draft.order_mode === mode ? ' active' : ''}`}
+                  onClick={() => patch({ order_mode: mode })}>{label}</button>
               ))}
             </div>
 
             {!hasSource && (
-              <div className="dpWarn">Выберите хотя бы одну подборку или добавьте свой вопрос — иначе присылать будет нечего.</div>
+              <div className="dpWarn">{t('dailyPromptSection.noSourceWarning')}</div>
             )}
           </div>
 
@@ -309,14 +320,14 @@ export function DailyPromptSection({ chat, meId: _meId, onOpenArchive }: Props) 
           <div className="dpGroup">
             <div className="dpMasterRow">
               <div className="dpMasterText">
-                <div className="dpMasterLabel">Push-уведомление</div>
-                <div className="dpMasterSub">Напоминать о новом вопросе</div>
+                <div className="dpMasterLabel">{t('dailyPromptSection.pushLabel')}</div>
+                <div className="dpMasterSub">{t('dailyPromptSection.pushSub')}</div>
               </div>
               <Toggle value={draft.push_enabled} disabled={ro}
                 onChange={v => patch({ push_enabled: v })} />
             </div>
             {draft.push_enabled && (
-              <input className="dpQInput dpPushInput" placeholder="🌙 Вопрос дня" maxLength={120}
+              <input className="dpQInput dpPushInput" placeholder={t('dailyPromptSection.pushPlaceholder')} maxLength={120}
                 disabled={ro} value={draft.push_text ?? ''}
                 onChange={e => patch({ push_text: e.target.value })} />
             )}
@@ -325,11 +336,11 @@ export function DailyPromptSection({ chat, meId: _meId, onOpenArchive }: Props) 
           {/* Действия */}
           {!ro && (
             <div className="dpActions">
-              <button className="dpAskNow" onClick={askNow} disabled={asking || !hasSource} title="Задать вопрос прямо сейчас">
-                {asking ? '…' : 'Задать сейчас'}
+              <button className="dpAskNow" onClick={askNow} disabled={asking || !hasSource} title={t('dailyPromptSection.askNowTitle')}>
+                {asking ? '…' : t('dailyPromptSection.askNow')}
               </button>
               {onOpenArchive && (
-                <button className="dpArchiveBtn" onClick={onOpenArchive}>Архив вопросов</button>
+                <button className="dpArchiveBtn" onClick={onOpenArchive}>{t('dailyPromptSection.archive')}</button>
               )}
             </div>
           )}
@@ -338,7 +349,7 @@ export function DailyPromptSection({ chat, meId: _meId, onOpenArchive }: Props) 
 
       {ro && onOpenArchive && (
         <div className="dpActions">
-          <button className="dpArchiveBtn" onClick={onOpenArchive}>Архив вопросов</button>
+          <button className="dpArchiveBtn" onClick={onOpenArchive}>{t('dailyPromptSection.archive')}</button>
         </div>
       )}
 
@@ -346,10 +357,10 @@ export function DailyPromptSection({ chat, meId: _meId, onOpenArchive }: Props) 
 
       {!ro && (
         <div className="dpFooter">
-          {savedFlash && !dirty && <span className="dpSaved">Сохранено ✓</span>}
-          {dirty && <span className="dpDirty">● не сохранено</span>}
+          {savedFlash && !dirty && <span className="dpSaved">{t('dailyPromptSection.saved')}</span>}
+          {dirty && <span className="dpDirty">{t('dailyPromptSection.unsaved')}</span>}
           <button className="dpSaveBtn" onClick={save} disabled={!dirty || saving}>
-            {saving ? '…' : 'Сохранить'}
+            {saving ? '…' : t('dailyPromptSection.save')}
           </button>
         </div>
       )}
