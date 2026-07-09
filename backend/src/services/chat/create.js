@@ -7,28 +7,26 @@ const { getDb } = require('../../config/database');
 const { encrypt } = require('../../crypto/aes');
 const { getChatById } = require('./queries');
 
-// Приветственные сообщения «Избранного» — обычные (не системные) сообщения от
-// самого пользователя, с кликабельными deep-link'ами (`blz:` рендерится в markdown).
-const SAVED_WELCOME = [
-  '👋 Это ваше «Избранное» — личное пространство только для вас: сохраняйте заметки, ссылки, файлы и идеи.',
-  'С чего начать в Blizkie:\n- [Пригласить близких](blz:invite)\n- [Найти друзей](blz:find-friends)\n- [Создать группу](blz:create-group)\n- [Настроить внешний вид](blz:appearance)',
-  '🌙 В любом чате можно включить «Вопрос дня», поменять фон, отправлять голосовые, видео-кружки и отложенные сообщения. Приятного общения! 💜',
-];
+// Фолбэк-текст приветственной карточки «Избранного» — виден только там, где
+// attachment_type не распознан (админ-панель/очень старый кэш фронта); сама
+// карточка (см. WelcomeGuideCard.tsx) полностью переведена через i18n и не
+// зависит от этой строки.
+const WELCOME_GUIDE_FALLBACK_TEXT = '👋 Добро пожаловать в «Избранное»';
 
 /**
- * Засеять приветственные сообщения в только что созданный saved-чат.
+ * Засеять приветственную карточку в только что созданный saved-чат.
+ * Карточка — системное сообщение (is_system=1) с attachment_type='welcome_guide':
+ * контент рендерится компонентом WelcomeGuideCard целиком через i18n (переводится
+ * на язык UI), а не хранится литеральным текстом в ciphertext (как раньше).
  * Вызывается один раз — из ветки создания getOrCreateSavedChat (идемпотентно).
  * Экспортируется отдельно для тестируемости.
  */
 function seedSavedWelcome(db, chatId, userId, baseTime = Date.now()) {
-  const stmt = db.prepare(
-    `INSERT INTO messages (id, chat_id, sender_id, ciphertext, iv, auth_tag, created_at, is_system, is_delivered)
-     VALUES (?, ?, ?, ?, ?, ?, ?, 0, 1)`
-  );
-  SAVED_WELCOME.forEach((text, i) => {
-    const { ciphertext, iv, authTag } = encrypt(text);
-    stmt.run([uuidv4(), chatId, userId, ciphertext, iv, authTag, baseTime + i]);
-  });
+  const { ciphertext, iv, authTag } = encrypt(WELCOME_GUIDE_FALLBACK_TEXT);
+  db.prepare(
+    `INSERT INTO messages (id, chat_id, sender_id, ciphertext, iv, auth_tag, created_at, is_system, is_delivered, attachment_type, attachment_meta)
+     VALUES (?, ?, ?, ?, ?, ?, ?, 1, 1, 'welcome_guide', ?)`
+  ).run([uuidv4(), chatId, userId, ciphertext, iv, authTag, baseTime, JSON.stringify({ kind: 'welcome_guide' })]);
 }
 
 function createGroupChat(name, creatorId, memberIds, description) {

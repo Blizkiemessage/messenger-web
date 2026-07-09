@@ -1310,14 +1310,16 @@ describe('invite tokens (этап B)', () => {
 describe('saved chat welcome seed', () => {
   const { seedSavedWelcome } = require('../src/services/chat/create');
 
-  test('seedSavedWelcome вставляет приветственные сообщения (не системные, расшифровываются, с deep-link)', () => {
+  test('seedSavedWelcome вставляет одну карточку welcome_guide (системную, переводится на фронте по attachment_meta)', () => {
     seedSavedWelcome(db, 'chat-saved-seed', 'alice', NOW);
     const rows = db.prepare('SELECT * FROM messages WHERE chat_id = ? ORDER BY created_at ASC').all('chat-saved-seed');
-    assert.ok(rows.length >= 3);
-    assert.ok(rows.every(r => r.is_system === 0 && r.sender_id === 'alice' && r.is_delivered === 1));
-    const texts = rows.map(r => decrypt({ ciphertext: r.ciphertext, iv: r.iv, authTag: r.auth_tag }));
-    assert.ok(texts.some(t => t.includes('Избранное')));
-    assert.ok(texts.some(t => t.includes('blz:invite')));
+    assert.equal(rows.length, 1);
+    const [row] = rows;
+    assert.equal(row.is_system, 1);
+    assert.equal(row.sender_id, 'alice');
+    assert.equal(row.is_delivered, 1);
+    assert.equal(row.attachment_type, 'welcome_guide');
+    assert.deepEqual(JSON.parse(row.attachment_meta), { kind: 'welcome_guide' });
   });
 });
 

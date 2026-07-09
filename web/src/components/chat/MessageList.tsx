@@ -10,6 +10,8 @@ import { type Message, type Chat, type MessageReaction } from '../../types';
 import { dayKey, formatDateSeparator } from '../../utils/format';
 import { MessageBubble } from './MessageBubble';
 import { DailyPromptCard } from './DailyPromptCard';
+import { WelcomeGuideCard } from './WelcomeGuideCard';
+import { renderSystemEventText } from './systemEvent';
 import { Portal } from '../ui/Portal';
 const EmojiPicker = lazy(() => import('../ui/EmojiPicker').then(m => ({ default: m.EmojiPicker })));
 import { MessageReadersModal } from './MessageReadersModal';
@@ -406,11 +408,25 @@ export function MessageList({
           );
         }
 
+        if (m.is_system && m.attachment_type === 'welcome_guide') {
+          return (
+            <div key={m.id} data-msg-id={m.id}>
+              {dateDivider}
+              <div className="dpCardRow">
+                <WelcomeGuideCard />
+              </div>
+            </div>
+          );
+        }
+
         if (m.is_system) {
+          const systemText = m.attachment_type === 'system_event'
+            ? renderSystemEventText(t, m.attachment_meta, m.text || '')
+            : m.text;
           return (
             <div key={m.id}>
               {dateDivider}
-              <div className="msgSystem"><span>{m.text}</span></div>
+              <div className="msgSystem"><span>{systemText}</span></div>
             </div>
           );
         }

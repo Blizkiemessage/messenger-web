@@ -382,7 +382,11 @@ router.patch('/:id/avatar', async (req, res, next) => {
 
     // Send system message to group
     const { saveMessage } = require('../services/messageService');
-    const sysMsg = saveMessage(req.params.id, req.userId, 'Администратор изменил(а) фото группы', {}, true);
+    const { systemEventAttachment } = require('../utils/systemEvents');
+    const sysMsg = saveMessage(
+      req.params.id, req.userId, 'Администратор изменил(а) фото группы',
+      systemEventAttachment('avatar_changed'), true
+    );
 
     const io = req.app.get('io');
     if (io) {

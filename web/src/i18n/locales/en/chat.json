@@ -310,6 +310,29 @@
     "sendFailed": "Couldn't send",
     "deleteFailed": "Couldn't delete"
   },
+  "systemEvent": {
+    "roleLabel": {
+      "moderator": "Moderator",
+      "admin": "Admin"
+    },
+    "memberRemoved": "{{actorLabel}} removed {{targetName}} from the group",
+    "groupClosed": "The admin closed the group",
+    "memberLeft": "{{userName}} left the chat",
+    "adminTransferred": "New group admin — {{newAdminName}}",
+    "rolePromoted": "{{targetName}} was made a moderator",
+    "roleDemoted": "{{targetName}} is no longer a moderator",
+    "avatarChanged": "The admin changed the group photo"
+  },
+  "welcomeGuide": {
+    "title": "👋 This is your Saved Messages",
+    "intro": "A private space just for you — save notes, links, files, and ideas.",
+    "gettingStarted": "Getting started with Blizkie",
+    "ctaInvite": "Invite family & friends",
+    "ctaFindFriends": "Find friends",
+    "ctaCreateGroup": "Create a group",
+    "ctaAppearance": "Customize appearance",
+    "tip": "🌙 In any chat you can turn on the Daily Prompt, change the background, send voice messages, video notes, and scheduled messages. Enjoy chatting! 💜"
+  },
   "sharedBgPrompt": {
     "updatedDirect": "The other person updated the chat background",
     "updatedGroup": "Chat background updated for everyone",

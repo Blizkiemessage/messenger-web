@@ -318,6 +318,29 @@
     "sendFailed": "Не удалось отправить",
     "deleteFailed": "Не удалось удалить"
   },
+  "systemEvent": {
+    "roleLabel": {
+      "moderator": "Модератор",
+      "admin": "Администратор"
+    },
+    "memberRemoved": "{{actorLabel}} удалил(а) {{targetName}} из группы",
+    "groupClosed": "Администратор удалил(а) группу",
+    "memberLeft": "{{userName}} покинул(а) чат",
+    "adminTransferred": "Новый администратор группы — {{newAdminName}}",
+    "rolePromoted": "{{targetName}} назначен(а) модератором",
+    "roleDemoted": "{{targetName}} больше не является модератором",
+    "avatarChanged": "Администратор изменил(а) фото группы"
+  },
+  "welcomeGuide": {
+    "title": "👋 Это ваше «Избранное»",
+    "intro": "Личное пространство только для вас: сохраняйте заметки, ссылки, файлы и идеи.",
+    "gettingStarted": "С чего начать в Blizkie",
+    "ctaInvite": "Пригласить близких",
+    "ctaFindFriends": "Найти друзей",
+    "ctaCreateGroup": "Создать группу",
+    "ctaAppearance": "Настроить внешний вид",
+    "tip": "🌙 В любом чате можно включить «Вопрос дня», поменять фон, отправлять голосовые, видео-кружки и отложенные сообщения. Приятного общения! 💜"
+  },
   "sharedBgPrompt": {
     "updatedDirect": "Собеседник обновил фон чата",
     "updatedGroup": "Фон чата обновлён для всех",

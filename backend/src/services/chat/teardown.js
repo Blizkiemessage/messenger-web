@@ -7,6 +7,7 @@ const { getDb } = require('../../config/database');
 const { deleteManyFromS3 } = require('../../utils/s3Delete');
 const { saveMessage } = require('../messageService');
 const { DELETED_ACCOUNT_USER_ID } = require('../userService');
+const { systemEventAttachment } = require('../../utils/systemEvents');
 
 function deleteDirectChat(chatId, userId) {
   const db = getDb();
@@ -97,7 +98,9 @@ function deleteAccount(userId) {
           db.prepare('UPDATE chats SET is_closed = 1 WHERE id = ?').run(chatId);
         }
 
-        const sysMsg = saveMessage(chatId, userId, msgText, {}, true);
+        const eventKind = creator_id === userId ? 'group_closed' : 'member_left';
+        const eventParams = creator_id === userId ? {} : { userName };
+        const sysMsg = saveMessage(chatId, userId, msgText, systemEventAttachment(eventKind, eventParams), true);
         groupNotifications.push({ chatId, sysMsg, remainingUserIds: remaining, closed: creator_id === userId });
       }
 

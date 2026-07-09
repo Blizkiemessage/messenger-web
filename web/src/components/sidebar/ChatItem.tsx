@@ -62,6 +62,10 @@ function LastMessagePreview({ msg, typingPreview }: {
     return <span className="ciPreview">{t('chatItem.dailyPrompt')}</span>;
   }
 
+  if (msg.attachment_type === 'welcome_guide') {
+    return <span className="ciPreview">{t('chatItem.welcomeGuide')}</span>;
+  }
+
   if (isSticker) {
     const url = resolveUrl(msg.attachment_url) ?? msg.attachment_url ?? '';
     return (

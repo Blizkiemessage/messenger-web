@@ -8,6 +8,7 @@ const { deleteFromS3 } = require('../../utils/s3Delete');
 const { saveMessage } = require('../messageService');
 const { getMemberPermissions, sanitizePermissions } = require('../chatPermissions');
 const { getChatById } = require('./queries');
+const { systemEventAttachment } = require('../../utils/systemEvents');
 
 function markChatAsRead(chatId, userId, readUntil) {
   const db = getDb();
@@ -92,8 +93,12 @@ function removeChatMember(chatId, requesterId, targetUserId) {
   const updatedChat = getChatById(chatId, requesterId);
   const remaining = db.prepare('SELECT user_id FROM chat_members WHERE chat_id = ?').all(chatId).map(r => r.user_id);
 
+  const actorRole = requesterMember.role === 'moderator' ? 'moderator' : 'admin';
   const actorLabel = requesterMember.role === 'moderator' ? 'Модератор' : 'Администратор';
-  const sysMsg = saveMessage(chatId, requesterId, `${actorLabel} удалил(а) ${targetName} из группы`, {}, true);
+  const sysMsg = saveMessage(
+    chatId, requesterId, `${actorLabel} удалил(а) ${targetName} из группы`,
+    systemEventAttachment('member_removed', { actorRole, targetName }), true
+  );
 
   return { updatedChat, sysMsg, remaining };
 }
@@ -119,7 +124,7 @@ function leaveGroup(chatId, userId) {
   // ✅ Admin leaving → close the group instead
   if (chat.creator_id === userId) {
     db.prepare('UPDATE chats SET is_closed = 1 WHERE id = ?').run(chatId);
-    const sysMsg = saveMessage(chatId, userId, 'Администратор удалил(а) группу', {}, true);
+    const sysMsg = saveMessage(chatId, userId, 'Администратор удалил(а) группу', systemEventAttachment('group_closed'), true);
     const allMembers = db
       .prepare('SELECT user_id FROM chat_members WHERE chat_id = ?')
       .all(chatId)
@@ -139,7 +144,7 @@ function leaveGroup(chatId, userId) {
 
   let sysMsg = null;
   if (remaining.length > 0) {
-    sysMsg = saveMessage(chatId, userId, `${userName} покинул(а) чат`, {}, true);
+    sysMsg = saveMessage(chatId, userId, `${userName} покинул(а) чат`, systemEventAttachment('member_left', { userName }), true);
   }
 
   return { sysMsg, remaining: remaining.map(r => r.user_id), closed: false };
@@ -164,7 +169,7 @@ function closeGroup(chatId, requesterId) {
   }
 
   db.prepare('UPDATE chats SET is_closed = 1 WHERE id = ?').run(chatId);
-  const sysMsg = saveMessage(chatId, requesterId, 'Администратор удалил(а) группу', {}, true);
+  const sysMsg = saveMessage(chatId, requesterId, 'Администратор удалил(а) группу', systemEventAttachment('group_closed'), true);
   const allMembers = db
     .prepare('SELECT user_id FROM chat_members WHERE chat_id = ?')
     .all(chatId)
@@ -204,7 +209,10 @@ function transferAdmin(chatId, requesterId, newAdminId) {
   db.prepare('UPDATE chats SET creator_id = ? WHERE id = ?').run([newAdminId, chatId]);
   db.prepare('UPDATE chat_members SET role = ? WHERE chat_id = ? AND user_id = ?').run(['admin', chatId, newAdminId]);
   db.prepare('UPDATE chat_members SET role = ? WHERE chat_id = ? AND user_id = ?').run(['member', chatId, requesterId]);
-  const sysMsg = saveMessage(chatId, requesterId, `Новый администратор группы — ${newAdminName}`, {}, true);
+  const sysMsg = saveMessage(
+    chatId, requesterId, `Новый администратор группы — ${newAdminName}`,
+    systemEventAttachment('admin_transferred', { newAdminName }), true
+  );
 
   const allMembers = db
     .prepare('SELECT user_id FROM chat_members WHERE chat_id = ?')
@@ -279,7 +287,8 @@ function setMemberRole(chatId, requesterId, targetUserId, newRole) {
   const msgText = newRole === 'moderator'
     ? `${targetName} назначен(а) модератором`
     : `${targetName} больше не является модератором`;
-  const sysMsg = saveMessage(chatId, requesterId, msgText, {}, true);
+  const eventKind = newRole === 'moderator' ? 'role_promoted' : 'role_demoted';
+  const sysMsg = saveMessage(chatId, requesterId, msgText, systemEventAttachment(eventKind, { targetName }), true);
 
   const updatedChat = getChatById(chatId, requesterId);
   return { updatedChat, sysMsg };

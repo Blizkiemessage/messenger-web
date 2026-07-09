@@ -675,6 +675,28 @@
 .dpCardCount { font-size: 12.5px; color: var(--muted); }
 .dpCardCta { font-size: 13px; font-weight: 700; color: var(--accent); }
 
+/* ─── Карточка приветствия «Избранного» ─────────────────────────────────────── */
+.wgCard {
+  width: min(460px, 92%);
+  display: flex; flex-direction: column; gap: 10px;
+  padding: 16px 18px; border-radius: 16px;
+  background: linear-gradient(150deg, color-mix(in srgb, var(--accent) 22%, var(--card)) 0%, var(--card) 75%);
+  border: 1px solid var(--accent-border);
+  box-shadow: var(--glow);
+}
+.wgCardTitle { font-size: 16px; font-weight: 700; color: var(--text); }
+.wgCardIntro { font-size: 14px; line-height: 1.45; color: var(--text); }
+.wgCardLabel { font-size: 11px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--accent); margin-top: 2px; }
+.wgCardCtas { display: flex; flex-wrap: wrap; gap: 8px; }
+.wgCardCta {
+  padding: 8px 14px; border-radius: 10px;
+  background: var(--panel); border: 1px solid var(--border); color: var(--text);
+  font-size: 13px; font-weight: 600; cursor: pointer;
+  transition: border-color .15s ease, transform .15s ease;
+}
+.wgCardCta:hover { border-color: var(--accent-border); transform: translateY(-1px); }
+.wgCardTip { font-size: 13px; line-height: 1.45; color: var(--muted); }
+
 /* ─── Тред / архив «Вопроса дня» ────────────────────────────────────────────── */
 .dpThreadCard {
   width: min(560px, 100%); max-height: 88vh;
