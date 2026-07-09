@@ -480,3 +480,4 @@ router.get('/:chatId/messages/:msgId/readers', async (req, res, next) => {
 });
 
 module.exports = router;
+module.exports.attachmentExceedsLimit = attachmentExceedsLimit; // exported for unit tests

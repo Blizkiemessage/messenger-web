@@ -666,6 +666,71 @@ tests/smoke.test.js"` в `backend/package.json`, возможно потребу
 поменять на glob-паттерн типа `tests/**/*.test.js`); фронт имеет ≥1 рабочий
 тест-раннер и покрытие ключевых чистых функций/сторов.
 
+**✅ РЕАЛИЗОВАНО (2026-07-09) — пункты 1-3 (backend: звонки/push/upload).
+Пункт 4 (frontend-инфраструктура) уже был закрыт ранее сессией i18n
+(2026-07-08, vitest + @testing-library/react) — статус выше в этом разделе
+устарел, не был обновлён тогда. Пункт 5 (E2E/Playwright) не начат.**
+`node --test` действительно умеет несколько файлов сразу (просто перечислить
+через пробел) — glob не понадобился; `"test"` в `backend/package.json`
+теперь `node --test tests/smoke.test.js tests/i18n.test.js tests/calls.test.js
+tests/push.test.js tests/upload.test.js`. Все новые тесты гоняют РЕАЛЬНЫЙ
+код (не заглушки бизнес-логики) — мокается только сетевой край (AWS SDK,
+`web-push`), по установленному в `smoke.test.js` паттерну инъекции в
+`require.cache` до подключения тестируемых модулей.
+
+- **`tests/calls.test.js` (6 тестов).** Поднимает настоящий `socket.io`-сервер
+  (`initSocket`) на эфемерном порту и реальные `socket.io-client`-подключения
+  (тот же приём, что использовался вручную в throwaway-скриптах сессий
+  2026-06-27/2026-07-08 — теперь автоматизирован). Покрыто: полный цикл
+  invite→accept→connected→end (событие + запись в `calls` с верным
+  `status/duration`, и что слот `activeCalls` освобождается — повторный
+  invite между той же парой проходит); таймаут недозвона; `already_in_call`
+  (вызывающий уже в звонке); `call:busy` (принимающий уже в звонке);
+  `not_member` (принимающий не в чате); `rate_limited` (6-я попытка за минуту).
+  Таймаут недозвона был захардкожен как `90_000` — вынесен в
+  `CALL_MISSED_TIMEOUT_MS` (env, дефолт тот же 90000мс, по образцу уже
+  существующего `CALL_SHUTDOWN_GRACE_MS` из §7), тест выставляет 250мс —
+  иначе пришлось бы реально ждать 90 секунд. Заодно найден и исправлен
+  мелкий баг: при таймауте недозвона `saveCallRecord` вызывался без
+  `endedAt`/`duration` → в БД писался `duration: NULL`, хотя по сокету
+  клиентам уходило `duration: 0` (несостыковка между тем, что видит клиент,
+  и тем, что хранится в истории звонков) — теперь оба пути передают `0`.
+- **`tests/push.test.js` (6 тестов).** `buildBody()` (RU/EN тексты) уже был
+  покрыт в `i18n.test.js` — здесь тестируется логика ВОКРУГ него:
+  `fireAndForgetPush` (шлёт только офлайн и НЕ замьюченным участникам,
+  собирает тело пуша один раз на каждый встретившийся язык получателей,
+  удаляет подписку из `push_subscriptions` при ответе 410 от `sendPush`) и
+  `sendCallPush` (фан-аут на ВСЕ подписки принимающего, локализованные
+  заголовок/текст по его языку, no-op без подписок). `utils/webPush`
+  замокан (`sendPush` — функция-шпион, без реальных сетевых вызовов).
+- **`tests/upload.test.js` (14 тестов).** AWS SDK (`@aws-sdk/client-s3`,
+  `s3-request-presigner`, `s3-presigned-post`) замокан классами-заглушками
+  через `require.cache` — реальный код `routes/upload.js`, `utils/s3Sign.js`
+  и `routes/messages.js` выполняется как есть, только сетевой вызов к S3
+  подменён. Покрыто: прямая загрузка `POST /upload` (сжатие картинки в
+  WebP, `PutObjectCommand` с верными `Bucket/ContentType/ContentDisposition`,
+  отказ на недопустимый MIME до обращения к S3, требование авторизации);
+  `POST /upload/presign` — ветка PUT (дефолт: `inline` для медиа,
+  `attachment` с именем файла для документов, 400 на превышение
+  `MAX_PRESIGN_SIZE`/запрещённый MIME) и ветка POST
+  (`UPLOAD_PRESIGN_POST=true`: `createPresignedPost` вызывается с условием
+  `content-length-range` — тест переключает флаг через `delete
+  require.cache[...]` + повторный `require`, поскольку `useS3`/
+  `USE_PRESIGN_POST` вычисляются один раз при загрузке модуля); `utils/
+  s3Sign.headObjectSize` (успех, HEAD упал → fail-open `null`, URL не из
+  нашего бакета → `null` без обращения к S3); `routes/messages.js`'s
+  `attachmentExceedsLimit` (реальная проверка размера при отправке
+  сообщения — экспортирована из роута как `module.exports.
+  attachmentExceedsLimit`, по образцу уже существующего экспорта
+  `safeServeOverrides` из `s3Sign.js` «exported for unit tests»): превышение
+  лимита → `true` + вызывается `deleteFromS3` на осиротевший объект, в
+  пределах лимита → `false`, HEAD упал → `false` (fail-open, транзиентный
+  сбой S3 не должен блокировать отправку).
+
+Полный набор бэкенд-тестов: 173 → **199**, все зелёные (`cd backend && npm
+test`). Фронт не трогали в этой сессии (кроме `docs/STORE_LAUNCH_TZ.md` и
+`CLAUDE.md`) — сборка не гоняна, в этом не было необходимости.
+
 ---
 
 ## 11. [P1] Резервный TURN-провайдер для звонков

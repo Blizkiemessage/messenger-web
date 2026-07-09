@@ -66,6 +66,11 @@ const callRateTracker = new Map();
 const CALL_RATE_MAX    = 5;
 const CALL_RATE_WINDOW = 60_000; // 1 minute
 
+// Server-side safety timeout: force-end a call that never reaches 'connected'.
+// Configurable via env (like CALL_SHUTDOWN_GRACE_MS) so tests don't have to
+// wait the real 90 s to exercise the missed-call path.
+const CALL_MISSED_TIMEOUT_MS = Number(process.env.CALL_MISSED_TIMEOUT_MS) || 90_000;
+
 function isCallRateLimited(userId) {
   const now    = Date.now();
   const record = callRateTracker.get(userId);
@@ -331,11 +336,11 @@ function initSocket(httpServer) {
           if (!call) return; // already ended normally
           if (call.startedAt) return; // call connected — let it run
           activeCalls.delete(callId);
-          saveCallRecord(callId, call, 'missed');
+          saveCallRecord(callId, call, 'missed', Date.now(), 0);
           io.to(`user:${call.callerId}`).emit('call:ended', { callId, duration: 0 });
           io.to(`user:${call.calleeId}`).emit('call:ended', { callId, duration: 0 });
-          console.log(`[Call] timeout (90 s) id=${callId} — ended as missed`);
-        }, 90_000);
+          console.log(`[Call] timeout (${CALL_MISSED_TIMEOUT_MS}ms) id=${callId} — ended as missed`);
+        }, CALL_MISSED_TIMEOUT_MS);
 
         activeCalls.set(callId, {
           callerId: userId, calleeId, chatId,
