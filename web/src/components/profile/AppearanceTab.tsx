@@ -4,15 +4,19 @@
  * Changes are previewed live but only persisted on "Сохранить".
  */
 import { useState, useCallback } from 'react';
-import { ACCENT_PRESETS, DEFAULT_ACCENT, applyAccentCss, applyAccent, loadUserAccent } from '../../utils/accent';
+import { useTranslation } from 'react-i18next';
+import { getAccentPresets, DEFAULT_ACCENT, applyAccentCss, applyAccent, loadUserAccent } from '../../utils/accent';
 import {
-  APP_BG_PRESETS, DEFAULT_APP_BG, type AppBg,
+  getAppBgPresets, DEFAULT_APP_BG, type AppBg,
   applyAppBgCss, applyAppBg, loadUserAppBg, cssForAppBg, isSameAppBg, parseAppBg,
 } from '../../utils/appBackground';
 import { useSessionStore } from '../../store/useSessionStore';
 import { updateMe } from '../../api/users';
 
 export function AppearanceTab() {
+  const { t } = useTranslation('settings');
+  const ACCENT_PRESETS = getAccentPresets(t);
+  const APP_BG_PRESETS = getAppBgPresets(t);
   const me = useSessionStore(s => s.me)!;
   const sessionUpdateMe = useSessionStore(s => s.updateMe);
   const [current, setCurrent] = useState<string>(() => me.accent_color || loadUserAccent(me.id));
@@ -82,30 +86,29 @@ export function AppearanceTab() {
   return (
     <div className="psBody">
       <div className="apSection">
-        <div className="apSectionTitle">Цветовая схема</div>
+        <div className="apSectionTitle">{t('appearance.colorSchemeTitle')}</div>
         <div className="apSectionSub">
-          Выберите акцентный цвет. Нажмите «Сохранить» — цвет привяжется к вашему аккаунту
-          и будет применяться при каждом входе.
+          {t('appearance.colorSchemeDesc')}
         </div>
       </div>
 
       {/* Live preview */}
       <div className="apPreview">
-        <div className="apPreviewLabel">Предпросмотр</div>
+        <div className="apPreviewLabel">{t('appearance.previewLabel')}</div>
         <div className="apPreviewRow">
-          <button className="apPreviewBtn" style={{ background: current }}>Кнопка</button>
+          <button className="apPreviewBtn" style={{ background: current }}>{t('appearance.previewButton')}</button>
           <div className="apPreviewBadge" style={{ background: `${current}26`, color: current, border: `1px solid ${current}59` }}>
-            Метка
+            {t('appearance.previewBadge')}
           </div>
           <div className="apPreviewInput" style={{ borderColor: current, boxShadow: `0 0 0 3px ${current}20` }}>
-            Поле ввода
+            {t('appearance.previewInput')}
           </div>
         </div>
       </div>
 
       {/* Presets */}
       <div className="apSection">
-        <div className="apSectionTitle">Готовые цвета</div>
+        <div className="apSectionTitle">{t('appearance.readyColorsTitle')}</div>
         <div className="apPresets">
           {ACCENT_PRESETS.map(p => (
             <button
@@ -127,7 +130,7 @@ export function AppearanceTab() {
 
       {/* Custom picker */}
       <div className="apSection">
-        <div className="apSectionTitle">Свой цвет</div>
+        <div className="apSectionTitle">{t('appearance.customColorTitle')}</div>
         <label className="apColorPickerLabel">
           <span className="apColorSwatch" style={{ background: current }} />
           <span className="apColorHex">{current.toUpperCase()}</span>
@@ -142,10 +145,9 @@ export function AppearanceTab() {
 
       {/* App background */}
       <div className="apSection">
-        <div className="apSectionTitle">Фон приложения</div>
+        <div className="apSectionTitle">{t('appearance.appBgTitle')}</div>
         <div className="apSectionSub">
-          Сплошной цвет или градиент вместо стандартной «авроры». Скоро можно будет
-          задавать свой фон для каждого чата отдельно.
+          {t('appearance.appBgDesc')}
         </div>
         <div className="apBgPresets">
           {APP_BG_PRESETS.map(p => {
@@ -174,11 +176,11 @@ export function AppearanceTab() {
             <button
               className={`apBgModeTab${bgCurrent.type === 'solid' ? ' active' : ''}`}
               onClick={() => handleBgCustom({ type: 'solid' })}
-            >Цвет</button>
+            >{t('modals:chatBackground.color')}</button>
             <button
               className={`apBgModeTab${bgCurrent.type === 'gradient' ? ' active' : ''}`}
               onClick={() => handleBgCustom({ type: 'gradient' })}
-            >Градиент</button>
+            >{t('modals:chatBackground.gradient')}</button>
           </div>
           {bgCurrent.type !== 'aurora' && (
             <div className="apBgPickers">
@@ -202,7 +204,7 @@ export function AppearanceTab() {
                       onChange={e => handleBgCustom({ c2: e.target.value })}
                     />
                   </label>
-                  <label className="apBgAngleRow" title="Угол градиента">
+                  <label className="apBgAngleRow" title={t('modals:chatBackground.gradientAngle')}>
                     <input
                       type="range" min={0} max={360} step={5}
                       value={bgCurrent.angle ?? 160}
@@ -226,7 +228,7 @@ export function AppearanceTab() {
               <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
               <path d="M3 3v5h5"/>
             </svg>
-            Сбросить
+            {t('appearance.resetBtn')}
           </button>
         )}
         <button
@@ -235,8 +237,8 @@ export function AppearanceTab() {
           disabled={!isUnsaved && !justSaved}
         >
           {justSaved
-            ? <><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><polyline points="20 6 9 17 4 12"/></svg> Сохранено</>
-            : 'Сохранить'
+            ? <><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><polyline points="20 6 9 17 4 12"/></svg> {t('appearance.savedBtn')}</>
+            : t('common:save')
           }
         </button>
       </div>

@@ -6,6 +6,7 @@
  */
 
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { type User } from '../../types';
 import { PasswordInput } from '../ui/PasswordInput';
 import { authSetPassword } from '../../api/auth';
@@ -18,6 +19,7 @@ interface Props {
 }
 
 export function PasswordTab({ me, onUpdate }: Props) {
+  const { t } = useTranslation('settings');
   const [pwCurrent, setPwCurrent] = useState('');
   const [pwNew, setPwNew] = useState('');
   const [pwConfirm, setPwConfirm] = useState('');
@@ -33,10 +35,10 @@ export function PasswordTab({ me, onUpdate }: Props) {
     setError(null); setOk(false);
     if (!pwStrong) return setError(
       !pwLongEnough
-        ? 'Пароль: минимум 8 символов'
-        : 'Пароль должен содержать хотя бы одну цифру или спецсимвол'
+        ? t('password.minLengthError')
+        : t('password.digitOrSpecialError')
     );
-    if (pwNew !== pwConfirm) return setError('Пароли не совпадают');
+    if (pwNew !== pwConfirm) return setError(t('auth:register.passwordMismatch'));
     setBusy(true);
     try {
       await authSetPassword(pwNew, me.has_password ? pwCurrent : undefined);
@@ -45,7 +47,7 @@ export function PasswordTab({ me, onUpdate }: Props) {
       setOk(true);
       setTimeout(() => setOk(false), 2500);
     } catch (e: any) {
-      setError(e?.message ?? 'Ошибка');
+      setError(e?.message ?? t('common:error'));
     } finally {
       setBusy(false);
     }
@@ -54,44 +56,44 @@ export function PasswordTab({ me, onUpdate }: Props) {
   return (
     <div className="psBody">
       <div className="psPassStatus">
-        <span className="psLabel" style={{ marginBottom: 0 }}>Статус пароля</span>
+        <span className="psLabel" style={{ marginBottom: 0 }}>{t('password.statusLabel')}</span>
         <span className={`ppBadge ${me.has_password ? 'has' : 'none'}`}>
-          {me.has_password ? '✓ Установлен' : '✗ Не задан'}
+          {me.has_password ? `✓ ${t('password.statusSet')}` : `✗ ${t('password.statusNotSet')}`}
         </span>
       </div>
 
       {me.has_password && (
         <div className="psField">
-          <label className="psLabel">Текущий пароль</label>
-          <PasswordInput value={pwCurrent} onChange={setPwCurrent} placeholder="Текущий пароль" className="psInput" wrapClass="psInputWrap" eyeClass="psEye" />
+          <label className="psLabel">{t('password.currentPassword')}</label>
+          <PasswordInput value={pwCurrent} onChange={setPwCurrent} placeholder={t('password.currentPassword')} className="psInput" wrapClass="psInputWrap" eyeClass="psEye" />
         </div>
       )}
 
       <div className="psField">
-        <label className="psLabel">Новый пароль</label>
-        <PasswordInput value={pwNew} onChange={setPwNew} placeholder="Минимум 8 символов" className="psInput" wrapClass="psInputWrap" eyeClass="psEye" />
+        <label className="psLabel">{t('password.newPassword')}</label>
+        <PasswordInput value={pwNew} onChange={setPwNew} placeholder={t('auth:register.passwordMinLength')} className="psInput" wrapClass="psInputWrap" eyeClass="psEye" />
         {pwNew.length > 0 && (
           <div className="pwStrength pwStrengthPs">
             <span className={pwLongEnough ? 'pwReqOk' : 'pwReqNo'}>
-              {pwLongEnough ? '✓' : '✗'} Минимум 8 символов
+              {pwLongEnough ? '✓' : '✗'} {t('auth:register.passwordMinLength')}
             </span>
             <span className={pwHasDigitOrSpecial ? 'pwReqOk' : 'pwReqNo'}>
-              {pwHasDigitOrSpecial ? '✓' : '✗'} Цифра или спецсимвол
+              {pwHasDigitOrSpecial ? '✓' : '✗'} {t('auth:register.passwordDigitOrSpecial')}
             </span>
           </div>
         )}
       </div>
 
       <div className="psField">
-        <label className="psLabel">Повторите пароль</label>
-        <PasswordInput value={pwConfirm} onChange={setPwConfirm} placeholder="Повторите пароль" className="psInput" wrapClass="psInputWrap" eyeClass="psEye" />
+        <label className="psLabel">{t('auth:register.confirmPassword')}</label>
+        <PasswordInput value={pwConfirm} onChange={setPwConfirm} placeholder={t('auth:register.confirmPasswordPlaceholder')} className="psInput" wrapClass="psInputWrap" eyeClass="psEye" />
       </div>
 
       {error && <div className="psError">{error}</div>}
-      {ok && <div className="psOk">✓ Пароль успешно обновлён</div>}
+      {ok && <div className="psOk">✓ {t('password.updateSuccess')}</div>}
 
       <button className="psSaveBtn" onClick={onSave} disabled={busy}>
-        {busy ? '…' : me.has_password ? 'Сменить пароль' : 'Установить пароль'}
+        {busy ? '…' : me.has_password ? t('password.changeBtn') : t('password.setBtn')}
       </button>
     </div>
   );

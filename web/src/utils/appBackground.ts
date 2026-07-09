@@ -23,17 +23,20 @@ export interface AppBg {
 
 export const DEFAULT_APP_BG: AppBg = { type: 'aurora' };
 
-export const APP_BG_PRESETS: { label: string; bg: AppBg }[] = [
-  { label: 'Аврора (по умолчанию)', bg: { type: 'aurora' } },
-  { label: 'Полночь',          bg: { type: 'solid',    c1: '#0b0911' } },
-  { label: 'Уголь',            bg: { type: 'solid',    c1: '#101418' } },
-  { label: 'Глубина',          bg: { type: 'gradient', c1: '#0c1222', c2: '#1b2a4a', angle: 160 } },
-  { label: 'Закат',            bg: { type: 'gradient', c1: '#2d1b4e', c2: '#7c2d5e', angle: 160 } },
-  { label: 'Северное сияние',  bg: { type: 'gradient', c1: '#071a14', c2: '#103c4a', angle: 200 } },
-  { label: 'Розовый рассвет',  bg: { type: 'gradient', c1: '#ffd9e8', c2: '#ffeedd', angle: 160 } },
-  { label: 'Лаванда',          bg: { type: 'gradient', c1: '#e8e2ff', c2: '#f6e9f5', angle: 160 } },
-  { label: 'Мята',             bg: { type: 'gradient', c1: '#dcf5ea', c2: '#e8f4ff', angle: 160 } },
-];
+/** Локализованные пресеты фона приложения (label требует i18n.t). */
+export function getAppBgPresets(t: (k: string) => string): { label: string; bg: AppBg }[] {
+  return [
+    { label: t('appearance.bgAurora'),   bg: { type: 'aurora' } },
+    { label: t('appearance.bgMidnight'), bg: { type: 'solid',    c1: '#0b0911' } },
+    { label: t('appearance.bgCharcoal'), bg: { type: 'solid',    c1: '#101418' } },
+    { label: t('appearance.bgDepth'),    bg: { type: 'gradient', c1: '#0c1222', c2: '#1b2a4a', angle: 160 } },
+    { label: t('appearance.bgSunset'),   bg: { type: 'gradient', c1: '#2d1b4e', c2: '#7c2d5e', angle: 160 } },
+    { label: t('appearance.bgNorthernLights'), bg: { type: 'gradient', c1: '#071a14', c2: '#103c4a', angle: 200 } },
+    { label: t('appearance.bgPinkDawn'), bg: { type: 'gradient', c1: '#ffd9e8', c2: '#ffeedd', angle: 160 } },
+    { label: t('appearance.bgLavender'), bg: { type: 'gradient', c1: '#e8e2ff', c2: '#f6e9f5', angle: 160 } },
+    { label: t('appearance.bgMint'),     bg: { type: 'gradient', c1: '#dcf5ea', c2: '#e8f4ff', angle: 160 } },
+  ];
+}
 
 /** CSS-значение background для AppBg; null = дефолтная аврора из app.css */
 export function cssForAppBg(bg: AppBg): string | null {

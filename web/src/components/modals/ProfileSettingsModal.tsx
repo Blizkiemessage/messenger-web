@@ -1,4 +1,5 @@
 import { useState, type ReactNode } from 'react';
+import { useTranslation } from 'react-i18next';
 import { type User } from '../../types';
 import { avatarLetter } from '../../utils/format';
 import { resolveUrl }   from '../ui/Avatar';
@@ -35,13 +36,14 @@ interface MenuSection {
 
 // Монохромные иконки (в цвет текста, без рамок/фона); сгруппированы по секциям.
 // Пункт «Профиль» убран из списка — его роль выполняет карточка аккаунта сверху.
-const MENU_SECTIONS: MenuSection[] = [
+function getMenuSections(t: (k: string) => string): MenuSection[] {
+  return [
   {
-    title: 'Аккаунт и безопасность',
+    title: t('profileModal.sectionAccountSecurity'),
     items: [
       {
         id: 'privacy',
-        label: 'Конфиденциальность',
+        label: t('profileModal.tabPrivacy'),
         icon: (
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
@@ -50,7 +52,7 @@ const MENU_SECTIONS: MenuSection[] = [
       },
       {
         id: 'password',
-        label: 'Пароль и безопасность',
+        label: t('profileModal.tabPassword'),
         icon: (
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
@@ -60,7 +62,7 @@ const MENU_SECTIONS: MenuSection[] = [
       },
       {
         id: 'permissions',
-        label: 'Разрешения',
+        label: t('profileModal.tabPermissions'),
         icon: (
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
@@ -73,11 +75,11 @@ const MENU_SECTIONS: MenuSection[] = [
     ],
   },
   {
-    title: 'Приложение',
+    title: t('profileModal.sectionApp'),
     items: [
       {
         id: 'appearance',
-        label: 'Внешний вид',
+        label: t('profileModal.tabAppearance'),
         icon: (
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <circle cx="12" cy="12" r="10"/>
@@ -89,7 +91,7 @@ const MENU_SECTIONS: MenuSection[] = [
       },
       {
         id: 'sessions',
-        label: 'Сессии',
+        label: t('profileModal.tabSessions'),
         icon: (
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <rect x="2" y="3" width="20" height="14" rx="2" ry="2"/>
@@ -99,7 +101,7 @@ const MENU_SECTIONS: MenuSection[] = [
       },
       {
         id: 'export',
-        label: 'Мои данные',
+        label: t('profileModal.tabExport'),
         icon: (
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
@@ -111,11 +113,11 @@ const MENU_SECTIONS: MenuSection[] = [
     ],
   },
   {
-    title: 'Документы',
+    title: t('profileModal.sectionDocuments'),
     items: [
       {
         id: 'documents',
-        label: 'Политика и условия использования',
+        label: t('profileModal.tabDocumentsFull'),
         icon: (
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
@@ -128,20 +130,26 @@ const MENU_SECTIONS: MenuSection[] = [
       },
     ],
   },
-];
+  ];
+}
 
-const TAB_LABELS: Record<Tab, string> = {
-  profile:     'Профиль',
-  password:    'Пароль и безопасность',
-  privacy:     'Конфиденциальность',
-  appearance:  'Внешний вид',
-  sessions:    'Сессии',
-  permissions: 'Разрешения',
-  export:      'Мои данные',
-  documents:   'Документы',
-};
+function getTabLabels(t: (k: string) => string): Record<Tab, string> {
+  return {
+    profile:     t('profileModal.tabProfile'),
+    password:    t('profileModal.tabPassword'),
+    privacy:     t('profileModal.tabPrivacy'),
+    appearance:  t('profileModal.tabAppearance'),
+    sessions:    t('profileModal.tabSessions'),
+    permissions: t('profileModal.tabPermissions'),
+    export:      t('profileModal.tabExport'),
+    documents:   t('profileModal.tabDocuments'),
+  };
+}
 
 export function ProfileSettingsModal({ me, onClose, onUpdate, onDeleteAccount, initialTab }: Props) {
+  const { t } = useTranslation('settings');
+  const MENU_SECTIONS = getMenuSections(t);
+  const TAB_LABELS = getTabLabels(t);
   const [tab, setTab] = useState<Tab | null>(initialTab ?? null);
 
   const [showDeleteConfirm,  setShowDeleteConfirm]  = useState(false);
@@ -182,7 +190,7 @@ export function ProfileSettingsModal({ me, onClose, onUpdate, onDeleteAccount, i
       await onDeleteAccount(deletePassword, me.totp_enabled ? deleteCode.trim() : undefined);
     } catch (e) {
       setDeleting(false);
-      setDeleteError(e instanceof Error ? e.message : 'Ошибка при удалении. Попробуйте снова.');
+      setDeleteError(e instanceof Error ? e.message : t('profileModal.deleteError'));
     }
   }
 
@@ -196,14 +204,14 @@ export function ProfileSettingsModal({ me, onClose, onUpdate, onDeleteAccount, i
         {/* ── Header ───────────────────────────────────────────────────────── */}
         <div className="psHeader">
           {tab !== null ? (
-            <button className="psBackBtn" onClick={() => setTab(null)} title="Назад">
+            <button className="psBackBtn" onClick={() => setTab(null)} title={t('common:back')}>
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                 <line x1="19" y1="12" x2="5" y2="12"/>
                 <polyline points="12 19 5 12 12 5"/>
               </svg>
             </button>
           ) : (
-            <div className="psTitle">Настройки</div>
+            <div className="psTitle">{t('profileModal.title')}</div>
           )}
           {tab !== null && <div className="psTitle">{TAB_LABELS[tab]}</div>}
           <button className="modalClose" onClick={onClose}>
@@ -263,7 +271,7 @@ export function ProfileSettingsModal({ me, onClose, onUpdate, onDeleteAccount, i
                       <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
                     </svg>
                   </span>
-                  <span className="psRowLabel">Удалить аккаунт</span>
+                  <span className="psRowLabel">{t('profileModal.deleteAccountBtn')}</span>
                   <svg className="psHubChevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                     <polyline points="9 18 15 12 9 6"/>
                   </svg>
@@ -297,14 +305,13 @@ export function ProfileSettingsModal({ me, onClose, onUpdate, onDeleteAccount, i
                 <line x1="12" y1="16" x2="12.01" y2="16"/>
               </svg>
             </div>
-            <div className="confirmTitle">Удалить аккаунт?</div>
+            <div className="confirmTitle">{t('profileModal.deleteConfirmTitle')}</div>
             <div className="confirmText">
-              Это действие необратимо. Все ваши личные чаты будут удалены, вы покинете все группы,
-              а ваш никнейм освободится.
+              {t('profileModal.deleteConfirmText')}
             </div>
             <div className="confirmBtns">
-              <button className="psDeleteCancelBtn" onClick={cancelDelete}>Отмена</button>
-              <button className="psDeleteConfirmBtn" onClick={proceedToPasswordStep}>Продолжить</button>
+              <button className="psDeleteCancelBtn" onClick={cancelDelete}>{t('common:cancel')}</button>
+              <button className="psDeleteConfirmBtn" onClick={proceedToPasswordStep}>{t('profileModal.continueBtn')}</button>
             </div>
           </div>
         </div>
@@ -323,16 +330,16 @@ export function ProfileSettingsModal({ me, onClose, onUpdate, onDeleteAccount, i
                 <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
               </svg>
             </div>
-            <div className="confirmTitle">Подтвердите удаление</div>
+            <div className="confirmTitle">{t('profileModal.confirmDeletionTitle')}</div>
             <div className="confirmText" style={{ marginBottom: 0 }}>
-              Введите пароль от аккаунта <strong>@{me.username}</strong> для подтверждения
+              {t('profileModal.confirmDeletionTextPrefix')} <strong>@{me.username}</strong> {t('profileModal.confirmDeletionTextSuffix')}
             </div>
             <input
               className="authInput"
               type="password"
               value={deletePassword}
               onChange={e => { setDeletePassword(e.target.value); setDeleteError(null); }}
-              placeholder="Пароль"
+              placeholder={t('profileModal.passwordPlaceholder')}
               autoFocus
               disabled={deleting}
               onKeyDown={e => { if (e.key === 'Enter' && !deleting) confirmDeleteWithPassword(); }}
@@ -342,20 +349,20 @@ export function ProfileSettingsModal({ me, onClose, onUpdate, onDeleteAccount, i
                 className="authInput"
                 value={deleteCode}
                 onChange={e => { setDeleteCode(e.target.value); setDeleteError(null); }}
-                placeholder="Код 2FA или резервный код"
+                placeholder={t('profileModal.twoFaCodePlaceholder')}
                 disabled={deleting}
                 onKeyDown={e => { if (e.key === 'Enter' && !deleting) confirmDeleteWithPassword(); }}
               />
             )}
             {deleteError && <div className="authError">{deleteError}</div>}
             <div className="confirmBtns">
-              <button className="psDeleteCancelBtn" onClick={cancelDelete} disabled={deleting}>Отмена</button>
+              <button className="psDeleteCancelBtn" onClick={cancelDelete} disabled={deleting}>{t('common:cancel')}</button>
               <button
                 className="psDeleteConfirmBtn"
                 disabled={deleting || !deletePassword || (me.totp_enabled && !deleteCode.trim())}
                 onClick={confirmDeleteWithPassword}
               >
-                {deleting ? '…' : 'Удалить навсегда'}
+                {deleting ? '…' : t('profileModal.deleteForeverBtn')}
               </button>
             </div>
           </div>

@@ -8,19 +8,22 @@
 
 export const DEFAULT_ACCENT = '#8e75f2';
 
-export const ACCENT_PRESETS = [
-  { label: 'Аврора (по умолчанию)', value: '#8e75f2' },
-  { label: 'Синий',                value: '#2f81f7' },
-  { label: 'Индиго',               value: '#6366f1' },
-  { label: 'Фиолетовый',           value: '#a855f7' },
-  { label: 'Розовый',              value: '#ec4899' },
-  { label: 'Красный',              value: '#ef4444' },
-  { label: 'Оранжевый',            value: '#f97316' },
-  { label: 'Жёлтый',              value: '#eab308' },
-  { label: 'Зелёный',              value: '#22c55e' },
-  { label: 'Бирюзовый',            value: '#14b8a6' },
-  { label: 'Голубой',              value: '#38bdf8' },
-];
+/** Локализованные пресеты акцентного цвета (label требует i18n.t). */
+export function getAccentPresets(t: (k: string) => string): { label: string; value: string }[] {
+  return [
+    { label: t('appearance.accentAurora'),   value: '#8e75f2' },
+    { label: t('appearance.accentBlue'),     value: '#2f81f7' },
+    { label: t('appearance.accentIndigo'),   value: '#6366f1' },
+    { label: t('appearance.accentPurple'),   value: '#a855f7' },
+    { label: t('appearance.accentPink'),     value: '#ec4899' },
+    { label: t('appearance.accentRed'),      value: '#ef4444' },
+    { label: t('appearance.accentOrange'),   value: '#f97316' },
+    { label: t('appearance.accentYellow'),   value: '#eab308' },
+    { label: t('appearance.accentGreen'),    value: '#22c55e' },
+    { label: t('appearance.accentTeal'),     value: '#14b8a6' },
+    { label: t('appearance.accentSkyBlue'),  value: '#38bdf8' },
+  ];
+}
 
 function storageKey(userId: string) {
   return `blizkie.accent.${userId}`;

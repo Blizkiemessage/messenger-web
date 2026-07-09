@@ -5,6 +5,7 @@
  * прямо внутри модалки — не нужно покидать приложение, чтобы их прочитать.
  */
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { LEGAL_LAST_UPDATED, PRIVACY_SECTIONS, TERMS_SECTIONS } from '../legal/legalContent';
 
 type Doc = 'privacy' | 'terms';
@@ -24,6 +25,7 @@ const STYLES = `
 `;
 
 export function DocumentsTab() {
+  const { t } = useTranslation('settings');
   const [doc, setDoc] = useState<Doc>('privacy');
   const sections = doc === 'privacy' ? PRIVACY_SECTIONS : TERMS_SECTIONS;
 
@@ -31,19 +33,18 @@ export function DocumentsTab() {
     <div className="permTab">
       <style>{STYLES}</style>
       <p className="permTabHint">
-        Политика конфиденциальности и условия использования доступны здесь в любой момент —
-        не нужно их искать отдельно.
+        {t('documents.hint')}
       </p>
 
       <div className="docsTabs">
         <button className={`docsTab${doc === 'privacy' ? ' active' : ''}`} onClick={() => setDoc('privacy')}>
-          Конфиденциальность
+          {t('documents.privacy')}
         </button>
         <button className={`docsTab${doc === 'terms' ? ' active' : ''}`} onClick={() => setDoc('terms')}>
-          Условия использования
+          {t('documents.terms')}
         </button>
       </div>
-      <div className="docsUpdated">Действует с {LEGAL_LAST_UPDATED}</div>
+      <div className="docsUpdated">{t('documents.effectiveFrom', { date: LEGAL_LAST_UPDATED })}</div>
 
       {sections.map(s => (
         <div className="docsSection" key={s.title}>

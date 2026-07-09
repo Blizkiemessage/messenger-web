@@ -1,14 +1,17 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   listPasskeys, passkeyRegister, renamePasskey, deletePasskey,
   isWebAuthnSupported, type PasskeyCredential,
 } from '../../api/webauthn';
 
-function fmtDate(ms: number) {
-  return new Date(ms).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' });
+function fmtDate(ms: number, locale: string) {
+  return new Date(ms).toLocaleDateString(locale, { day: 'numeric', month: 'long', year: 'numeric' });
 }
 
 export function PasskeysSection() {
+  const { t, i18n } = useTranslation('settings');
+  const locale = i18n.language === 'en' ? 'en-US' : 'ru-RU';
   const [creds,       setCreds]       = useState<PasskeyCredential[]>([]);
   const [loading,     setLoading]     = useState(true);
   const [adding,      setAdding]      = useState(false);
@@ -32,15 +35,15 @@ export function PasskeysSection() {
     setAdding(true);
     setAddError(null);
     try {
-      const name = `Устройство ${new Date().toLocaleDateString('ru-RU')}`;
+      const name = t('passkeys.defaultDeviceName', { date: new Date().toLocaleDateString(locale) });
       await passkeyRegister(name);
       await load();
     } catch (e: any) {
       const msg = e?.message ?? '';
       if (msg.toLowerCase().includes('cancel') || msg.toLowerCase().includes('abort') || msg.toLowerCase().includes('not allowed')) {
-        setAddError('Добавление отменено');
+        setAddError(t('passkeys.addCancelled'));
       } else {
-        setAddError(e?.response?.data?.error ?? msg ?? 'Ошибка добавления ключа');
+        setAddError(e?.response?.data?.error ?? msg ?? t('passkeys.addError'));
       }
     } finally {
       setAdding(false);
@@ -53,7 +56,7 @@ export function PasskeysSection() {
       setCreds(prev => prev.map(c => c.id === id ? { ...c, device_name: editName.trim() || null } : c));
       setEditingId(null);
     } catch (e: any) {
-      setAddError(e?.response?.data?.error ?? 'Ошибка переименования');
+      setAddError(e?.response?.data?.error ?? t('passkeys.renameError'));
     }
   }
 
@@ -63,7 +66,7 @@ export function PasskeysSection() {
       await deletePasskey(id);
       setCreds(prev => prev.filter(c => c.id !== id));
     } catch (e: any) {
-      setAddError(e?.response?.data?.error ?? 'Ошибка удаления');
+      setAddError(e?.response?.data?.error ?? t('passkeys.deleteError'));
     } finally {
       setDeletingId(null);
     }
@@ -72,7 +75,7 @@ export function PasskeysSection() {
   if (!supported) {
     return (
       <div style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.6 }}>
-        Ваш браузер не поддерживает ключи доступа (WebAuthn). Попробуйте Chrome, Safari или Edge.
+        {t('passkeys.unsupported')}
       </div>
     );
   }
@@ -80,13 +83,13 @@ export function PasskeysSection() {
   return (
     <div className="passkeysSection">
       <div style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.6, marginBottom: 12 }}>
-        Ключи доступа позволяют входить без пароля с помощью биометрии или PIN-кода устройства.
+        {t('passkeys.description')}
       </div>
 
       {loading ? (
-        <div className="passkeysLoading">Загрузка…</div>
+        <div className="passkeysLoading">{t('common:loading')}</div>
       ) : creds.length === 0 ? (
-        <div className="passkeysEmpty">Ключей доступа ещё нет</div>
+        <div className="passkeysEmpty">{t('passkeys.empty')}</div>
       ) : (
         <div className="passkeysList">
           {creds.map(c => (
@@ -113,13 +116,13 @@ export function PasskeysSection() {
                 ) : (
                   <span
                     className="passkeyName"
-                    title="Нажмите, чтобы переименовать"
+                    title={t('passkeys.clickToRename')}
                     onClick={() => { setEditingId(c.id); setEditName(c.device_name ?? ''); }}
                   >
-                    {c.device_name || 'Ключ доступа'}
+                    {c.device_name || t('passkeys.fallbackName')}
                   </span>
                 )}
-                <span className="passkeyDate">{fmtDate(c.created_at)}</span>
+                <span className="passkeyDate">{fmtDate(c.created_at, locale)}</span>
               </div>
               {editingId === c.id ? (
                 <div className="passkeyActions">
@@ -131,7 +134,7 @@ export function PasskeysSection() {
                   className="passkeyDeleteBtn"
                   onClick={() => removePasskey(c.id)}
                   disabled={deletingId === c.id}
-                  title="Удалить ключ"
+                  title={t('passkeys.deleteTitle')}
                 >
                   {deletingId === c.id ? '…' : (
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
@@ -160,7 +163,7 @@ export function PasskeysSection() {
                  strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ marginRight: 6 }}>
               <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
             </svg>
-            Добавить ключ доступа
+            {t('passkeys.addBtn')}
           </>
         )}
       </button>

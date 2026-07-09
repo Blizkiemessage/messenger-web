@@ -1,16 +1,17 @@
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { downloadMyData } from '../../api/export';
 
 type Status = 'idle' | 'loading' | 'done' | 'rate-limited' | 'error';
 
-const CONTENTS = [
-  { label: 'Профиль',          desc: 'Имя, email, дата регистрации' },
-  { label: 'Сообщения',        desc: 'Все ваши чаты с расшифрованным текстом' },
-  { label: 'Список друзей',    desc: 'Ваши контакты и дата добавления' },
-  { label: 'История сессий',   desc: 'Устройства и IP-адреса входов' },
-];
-
 export function ExportDataTab() {
+  const { t } = useTranslation('settings');
+  const CONTENTS = [
+    { label: t('exportData.contentProfile'),  desc: t('exportData.contentProfileDesc') },
+    { label: t('exportData.contentMessages'), desc: t('exportData.contentMessagesDesc') },
+    { label: t('exportData.contentFriends'),  desc: t('exportData.contentFriendsDesc') },
+    { label: t('exportData.contentSessions'), desc: t('exportData.contentSessionsDesc') },
+  ];
   const [status, setStatus] = useState<Status>('idle');
 
   async function handleExport() {
@@ -27,8 +28,7 @@ export function ExportDataTab() {
   return (
     <div className="permTab">
       <p className="permTabHint">
-        В соответствии с GDPR вы вправе получить копию всех ваших данных.
-        Архив создаётся в реальном времени и сразу скачивается на устройство.
+        {t('exportData.hint')}
       </p>
 
       {/* What's included */}
@@ -57,7 +57,7 @@ export function ExportDataTab() {
                strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
             <polyline points="20 6 9 17 4 12"/>
           </svg>
-          Архив скачан. Следующий экспорт доступен через час.
+          {t('exportData.archiveReady')}
         </div>
       )}
       {status === 'rate-limited' && (
@@ -68,7 +68,7 @@ export function ExportDataTab() {
             <line x1="12" y1="8" x2="12" y2="12"/>
             <line x1="12" y1="16" x2="12.01" y2="16"/>
           </svg>
-          Лимит исчерпан. Экспорт доступен раз в час — попробуйте позже.
+          {t('exportData.rateLimited')}
         </div>
       )}
       {status === 'error' && (
@@ -79,7 +79,7 @@ export function ExportDataTab() {
             <line x1="15" y1="9" x2="9" y2="15"/>
             <line x1="9" y1="9" x2="15" y2="15"/>
           </svg>
-          Ошибка при создании архива. Попробуйте ещё раз.
+          {t('exportData.createError')}
         </div>
       )}
 
@@ -92,7 +92,7 @@ export function ExportDataTab() {
         {status === 'loading' ? (
           <>
             <span className="exportBtnSpinner" aria-hidden="true" />
-            Создаём архив…
+            {t('exportData.creating')}
           </>
         ) : (
           <>
@@ -102,13 +102,13 @@ export function ExportDataTab() {
               <polyline points="7 10 12 15 17 10"/>
               <line x1="12" y1="15" x2="12" y2="3"/>
             </svg>
-            Скачать мои данные
+            {t('exportData.downloadBtn')}
           </>
         )}
       </button>
 
       <p className="exportNote">
-        Формат: ZIP-архив с JSON-файлами. Лимит: 1 экспорт в час.
+        {t('exportData.formatNote')}
       </p>
     </div>
   );

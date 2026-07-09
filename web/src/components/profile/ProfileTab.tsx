@@ -4,6 +4,7 @@
  * ✅ Added: Email section with change/link flow (OTP) and hide toggle.
  */
 import { useState, useRef, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import { type User } from '../../types';
 import { avatarLetter } from '../../utils/format';
 import { resolveUrl } from '../ui/Avatar';
@@ -19,6 +20,7 @@ interface Props {
 }
 
 export function ProfileTab({ me, onUpdate }: Props) {
+  const { t } = useTranslation('settings');
   const [displayName, setDisplayName] = useState(me.display_name ?? '');
   const [username,    setUsername]    = useState(me.username    ?? '');
   const [bio,         setBio]         = useState(me.bio         ?? '');
@@ -98,7 +100,7 @@ export function ProfileTab({ me, onUpdate }: Props) {
       setOk(true);
       setTimeout(() => setOk(false), 2500);
     } catch (e: any) {
-      setError(e?.message ?? 'Ошибка сохранения');
+      setError(e?.message ?? t('profile.saveError'));
     } finally {
       setBusy(false);
     }
@@ -107,7 +109,7 @@ export function ProfileTab({ me, onUpdate }: Props) {
   const onRequestEmailChange = useCallback(async () => {
     const trimmed = newEmail.trim();
     if (!trimmed || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)) {
-      setEmailError('Введите корректный email');
+      setEmailError(t('auth:register.emailHint'));
       return;
     }
     setEmailError(null);
@@ -117,11 +119,11 @@ export function ProfileTab({ me, onUpdate }: Props) {
       setPendingEmail(res.email);
       setEmailStep('otp');
     } catch (e: any) {
-      setEmailError(e?.message ?? 'Ошибка отправки кода');
+      setEmailError(e?.message ?? t('profile.sendCodeError'));
     } finally {
       setEmailBusy(false);
     }
-  }, [newEmail]);
+  }, [newEmail, t]);
 
   const onVerifyEmailChange = useCallback(async () => {
     if (emailOtp.length !== 6) return;
@@ -135,12 +137,12 @@ export function ProfileTab({ me, onUpdate }: Props) {
       setNewEmail('');
       setEmailOtp('');
     } catch (e: any) {
-      setEmailError(e?.message ?? 'Неверный код');
+      setEmailError(e?.message ?? t('auth:register.otpInvalid'));
       setEmailOtp('');
     } finally {
       setEmailBusy(false);
     }
-  }, [emailOtp, pendingEmail, onUpdate]);
+  }, [emailOtp, pendingEmail, onUpdate, t]);
 
   function closeEmailModal() {
     setEmailStep('idle');
@@ -156,7 +158,7 @@ export function ProfileTab({ me, onUpdate }: Props) {
         <div
           className="psAvatarWrap"
           onClick={() => fileRef.current?.click()}
-          title="Изменить фото"
+          title={t('profile.changePhotoTitle')}
         >
           {avatarPreview
             ? <img src={avatarPreview} alt="" className="psAvatarImg" />
@@ -169,7 +171,7 @@ export function ProfileTab({ me, onUpdate }: Props) {
             </svg>
           </div>
         </div>
-        <div className="psAvatarHint">Нажмите чтобы изменить фото</div>
+        <div className="psAvatarHint">{t('profile.clickToChangePhoto')}</div>
 
         {hasAvatar && (
           <button className="psAvatarResetBtn" onClick={handleResetAvatar}>
@@ -179,7 +181,7 @@ export function ProfileTab({ me, onUpdate }: Props) {
               <path d="M10 11v6M14 11v6"/>
               <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
             </svg>
-            Сбросить фото
+            {t('profile.resetPhotoBtn')}
           </button>
         )}
 
@@ -194,12 +196,12 @@ export function ProfileTab({ me, onUpdate }: Props) {
 
       {/* Fields */}
       <div className="psField">
-        <label className="psLabel">Имя</label>
+        <label className="psLabel">{t('profile.nameLabel')}</label>
         <input
           className="psInput"
           value={displayName}
           onChange={e => setDisplayName(e.target.value)}
-          placeholder="Как вас зовут"
+          placeholder={t('profile.namePlaceholder')}
           maxLength={64}
         />
       </div>
@@ -221,44 +223,44 @@ export function ProfileTab({ me, onUpdate }: Props) {
 
       {/* Email */}
       <div className="psField">
-        <label className="psLabel">Почта</label>
+        <label className="psLabel">{t('profile.emailLabel')}</label>
         {currentEmail ? (
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <span className="psInput" style={{ flex: 1, color: 'var(--text)', cursor: 'default', userSelect: 'text' }}>
               {currentEmail}
             </span>
             <span style={{ fontSize: 12, color: '#22c55e', fontWeight: 600, whiteSpace: 'nowrap' }}>
-              ✓ Подтверждена
+              ✓ {t('profile.emailConfirmed')}
             </span>
           </div>
         ) : (
           <div className="psInput" style={{ color: 'var(--muted)', cursor: 'default' }}>
-            Не привязана
+            {t('profile.emailNotLinked')}
           </div>
         )}
         <button
           style={{ alignSelf: 'flex-start', marginTop: 2, background: 'none', border: 'none', padding: 0, fontSize: 13, color: 'var(--accent)', cursor: 'pointer', fontWeight: 500 }}
           onClick={() => { setEmailStep('input'); setEmailError(null); setNewEmail(''); }}
         >
-          {currentEmail ? 'Сменить почту' : 'Привязать почту'}
+          {currentEmail ? t('profile.changeEmailBtn') : t('profile.linkEmailBtn')}
         </button>
         {currentEmail && (
           <label className="psPrivacyLabel">
             <input type="checkbox" className="psCheckbox" checked={hideEmail}
               onChange={e => setHideEmail(e.target.checked)} />
-            Скрыть от других пользователей
+            {t('profile.hideFromOthers')}
           </label>
         )}
       </div>
 
       <div className="psField">
-        <label className="psLabel">О себе</label>
+        <label className="psLabel">{t('profile.bioLabel')}</label>
         <div className="psTextareaWrap">
           <textarea
             className="psTextarea"
             value={bio}
             onChange={e => setBio(e.target.value.slice(0, BIO_MAX))}
-            placeholder="Расскажите о себе…"
+            placeholder={t('profile.bioPlaceholder')}
             rows={3}
             maxLength={BIO_MAX}
           />
@@ -269,25 +271,25 @@ export function ProfileTab({ me, onUpdate }: Props) {
         <label className="psPrivacyLabel">
           <input type="checkbox" className="psCheckbox" checked={hideBio}
             onChange={e => setHideBio(e.target.checked)} />
-          Скрыть от других пользователей
+          {t('profile.hideFromOthers')}
         </label>
       </div>
 
       <div className="psField">
-        <label className="psLabel">Дата рождения</label>
+        <label className="psLabel">{t('profile.birthDateLabel')}</label>
         <input type="date" className="psInput" value={birthDate}
           onChange={e => setBirthDate(e.target.value)} />
         <label className="psPrivacyLabel">
           <input type="checkbox" className="psCheckbox" checked={hideBirth}
             onChange={e => setHideBirth(e.target.checked)} />
-          Скрыть от других пользователей
+          {t('profile.hideFromOthers')}
         </label>
       </div>
 
       {error && <div className="psError">{error}</div>}
-      {ok    && <div className="psOk">✓ Профиль сохранён</div>}
+      {ok    && <div className="psOk">✓ {t('profile.profileSaved')}</div>}
       <button className="psSaveBtn" onClick={onSave} disabled={busy}>
-        {busy ? '…' : 'Сохранить изменения'}
+        {busy ? '…' : t('profile.saveChangesBtn')}
       </button>
 
       {/* Email input modal */}
@@ -297,13 +299,13 @@ export function ProfileTab({ me, onUpdate }: Props) {
             <div className="confirmCard" style={{ width: 'min(400px, 100%)', display: 'flex', flexDirection: 'column', gap: '14px' }}>
               <div>
                 <div style={{ fontSize: 18, fontWeight: 700, marginBottom: 8 }}>
-                  {currentEmail ? 'Сменить почту' : 'Привязать почту'}
+                  {currentEmail ? t('profile.changeEmailBtn') : t('profile.linkEmailBtn')}
                 </div>
                 <p style={{ fontSize: 14, color: 'var(--muted)', margin: 0, lineHeight: 1.5 }}>
-                  Введите новый email — на него придёт код подтверждения
+                  {t('profile.newEmailHint')}
                 </p>
               </div>
-              <div className="authLabel">Новый email</div>
+              <div className="authLabel">{t('profile.newEmailLabel')}</div>
               <input
                 className="authInput"
                 type="email"
@@ -319,10 +321,10 @@ export function ProfileTab({ me, onUpdate }: Props) {
                 disabled={!newEmail.trim() || emailBusy}
                 onClick={onRequestEmailChange}
               >
-                {emailBusy ? '…' : 'Отправить код'}
+                {emailBusy ? '…' : t('profile.sendCodeBtn')}
               </button>
               <div className="authSwitchRow">
-                <button className="authSwitchLink" onClick={closeEmailModal}>Отмена</button>
+                <button className="authSwitchLink" onClick={closeEmailModal}>{t('common:cancel')}</button>
               </div>
             </div>
           </div>
@@ -335,12 +337,12 @@ export function ProfileTab({ me, onUpdate }: Props) {
           <div className="modalOverlay">
             <div className="confirmCard" style={{ width: 'min(400px, 100%)', display: 'flex', flexDirection: 'column', gap: '14px' }}>
               <div>
-                <div style={{ fontSize: 18, fontWeight: 700, marginBottom: 8 }}>Подтверждение email</div>
+                <div style={{ fontSize: 18, fontWeight: 700, marginBottom: 8 }}>{t('auth:register.otpTitle')}</div>
                 <p style={{ fontSize: 14, color: 'var(--muted)', margin: 0, lineHeight: 1.5 }}>
-                  На вашу почту <strong>{pendingEmail}</strong> выслан разовый код подтверждения
+                  {t('auth:register.otpSentToPrefix')} <strong>{pendingEmail}</strong> {t('auth:register.otpSentToSuffix')}
                 </p>
               </div>
-              <div className="authLabel">Код из письма</div>
+              <div className="authLabel">{t('auth:register.otpCodeLabel')}</div>
               <input
                 className="authInput"
                 value={emailOtp}
@@ -356,11 +358,11 @@ export function ProfileTab({ me, onUpdate }: Props) {
                 disabled={emailOtp.length !== 6 || emailBusy}
                 onClick={onVerifyEmailChange}
               >
-                {emailBusy ? '…' : 'Подтвердить'}
+                {emailBusy ? '…' : t('auth:register.otpConfirm')}
               </button>
               <div className="authSwitchRow">
                 <button className="authSwitchLink" onClick={() => { setEmailStep('input'); setEmailOtp(''); setEmailError(null); }}>
-                  Изменить email
+                  {t('profile.changeEmailLink')}
                 </button>
               </div>
             </div>

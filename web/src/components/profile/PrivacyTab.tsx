@@ -3,6 +3,7 @@
  * ✅ Added: hide_avatar toggle with exceptions picker.
  */
 import { useState, useCallback, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { type User } from '../../types';
 import { Toggle } from '../ui/Toggle';
 import { Avatar } from '../ui/Avatar';
@@ -14,6 +15,7 @@ interface Props {
 }
 
 export function PrivacyTab({ me, onUpdate }: Props) {
+  const { t } = useTranslation('settings');
   // ── Group add privacy ──────────────────────────────────────────────────────
   const [noGroupAdd, setNoGroupAdd] = useState(me.no_group_add ?? false);
 
@@ -88,12 +90,12 @@ export function PrivacyTab({ me, onUpdate }: Props) {
 
       {/* ── Last seen section ── */}
       <div className="psPrivacySection">
-        <div className="psPrivacyTitle">Время посещения</div>
-        <div className="psPrivacyDesc">Управляйте тем, кто видит время вашего последнего входа.</div>
+        <div className="psPrivacyTitle">{t('privacy.lastSeenTitle')}</div>
+        <div className="psPrivacyDesc">{t('privacy.lastSeenDesc')}</div>
         <label className="psPrivacyRow">
           <div className="psPrivacyRowText">
-            <div className="psPrivacyRowLabel">Скрывать время последнего захода</div>
-            <div className="psPrivacyRowSub">Другие пользователи увидят "не в сети" вместо точного времени</div>
+            <div className="psPrivacyRowLabel">{t('privacy.hideLastSeenLabel')}</div>
+            <div className="psPrivacyRowSub">{t('privacy.hideLastSeenSub')}</div>
           </div>
           <Toggle value={hideLastSeen} onChange={setHideLastSeen} />
         </label>
@@ -101,12 +103,12 @@ export function PrivacyTab({ me, onUpdate }: Props) {
 
       {/* ── Groups section ── */}
       <div className="psPrivacySection">
-        <div className="psPrivacyTitle">Группы</div>
-        <div className="psPrivacyDesc">Управляйте тем, кто может добавлять вас в групповые чаты.</div>
+        <div className="psPrivacyTitle">{t('privacy.groupsTitle')}</div>
+        <div className="psPrivacyDesc">{t('privacy.groupsDesc')}</div>
         <label className="psPrivacyRow">
           <div className="psPrivacyRowText">
-            <div className="psPrivacyRowLabel">Запретить добавление в группы</div>
-            <div className="psPrivacyRowSub">Никто не сможет добавить вас в групповой чат без вашего согласия</div>
+            <div className="psPrivacyRowLabel">{t('privacy.noGroupAddLabel')}</div>
+            <div className="psPrivacyRowSub">{t('privacy.noGroupAddSub')}</div>
           </div>
           <Toggle value={noGroupAdd} onChange={setNoGroupAdd} />
         </label>
@@ -114,16 +116,16 @@ export function PrivacyTab({ me, onUpdate }: Props) {
 
       {/* ── Avatar privacy section ── */}
       <div className="psPrivacySection">
-        <div className="psPrivacyTitle">Фото профиля</div>
+        <div className="psPrivacyTitle">{t('privacy.avatarTitle')}</div>
         <div className="psPrivacyDesc">
-          Управляйте тем, кто видит вашу аватарку в чатах, в списке контактов и в профиле.
+          {t('privacy.avatarDesc')}
         </div>
 
         <label className="psPrivacyRow">
           <div className="psPrivacyRowText">
-            <div className="psPrivacyRowLabel">Скрыть фото профиля</div>
+            <div className="psPrivacyRowLabel">{t('privacy.hideAvatarLabel')}</div>
             <div className="psPrivacyRowSub">
-              Ваша аватарка будет видна только вам. Остальные увидят букву-заглушку.
+              {t('privacy.hideAvatarSub')}
             </div>
           </div>
           <Toggle value={hideAvatar} onChange={setHideAvatar} />
@@ -132,7 +134,7 @@ export function PrivacyTab({ me, onUpdate }: Props) {
         {/* ── Exceptions picker — only visible when hiding is enabled ── */}
         {hideAvatar && (
           <div className="psExceptionsWrap">
-            <div className="psExceptionsLabel">Исключения — видят вашу аватарку</div>
+            <div className="psExceptionsLabel">{t('privacy.exceptionsLabel')}</div>
 
             {/* Selected exceptions as removable tags */}
             {exceptions.length > 0 && (
@@ -144,7 +146,7 @@ export function PrivacyTab({ me, onUpdate }: Props) {
                     <button
                       className="psExceptionTagRemove"
                       onClick={() => removeException(u.id)}
-                      title="Удалить из исключений"
+                      title={t('privacy.removeExceptionTitle')}
                     >
                       <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round">
                         <line x1="18" y1="6" x2="6" y2="18"/>
@@ -161,17 +163,17 @@ export function PrivacyTab({ me, onUpdate }: Props) {
               className="psExceptionsSearch"
               value={searchQ}
               onChange={e => setSearchQ(e.target.value)}
-              placeholder="Найти пользователя…"
+              placeholder={t('privacy.searchPlaceholder')}
             />
 
             {/* Search results */}
             {searchQ.length >= 2 && (
               <div className="psExceptionsList">
                 {searching && (
-                  <div className="psExceptionsEmpty">Поиск…</div>
+                  <div className="psExceptionsEmpty">{t('privacy.searching')}</div>
                 )}
                 {!searching && searchRes.length === 0 && (
-                  <div className="psExceptionsEmpty">Пользователи не найдены</div>
+                  <div className="psExceptionsEmpty">{t('modals:addGroupMembers.noUsersFound')}</div>
                 )}
                 {!searching && searchRes.map(u => (
                   <button
@@ -202,16 +204,16 @@ export function PrivacyTab({ me, onUpdate }: Props) {
 
             {exceptions.length === 0 && searchQ.length < 2 && (
               <div className="psExceptionsEmpty">
-                Начните вводить имя пользователя, чтобы добавить исключение
+                {t('privacy.exceptionsHint')}
               </div>
             )}
           </div>
         )}
       </div>
 
-      {ok && <div className="psOk">✓ Настройки сохранены</div>}
+      {ok && <div className="psOk">✓ {t('privacy.saved')}</div>}
       <button className="psSaveBtn" onClick={onSave} disabled={busy}>
-        {busy ? '…' : 'Сохранить'}
+        {busy ? '…' : t('common:save')}
       </button>
     </div>
   );

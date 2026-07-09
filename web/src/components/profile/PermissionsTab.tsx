@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, type ReactNode } from 'react';
+import { useTranslation } from 'react-i18next';
 import { registerPush, hasActivePushSubscription } from '../../utils/push';
 
 type PermState = 'granted' | 'denied' | 'prompt' | 'unsupported';
@@ -26,13 +27,15 @@ function usePermission(name: PermissionName | null): PermState {
 }
 
 function StateBadge({ state }: { state: PermState }) {
-  if (state === 'granted')     return <span className="permBadge permBadgeGranted">Разрешено</span>;
-  if (state === 'denied')      return <span className="permBadge permBadgeDenied">Запрещено</span>;
-  if (state === 'unsupported') return <span className="permBadge permBadgeUnknown">Недоступно</span>;
-  return <span className="permBadge permBadgePrompt">Не запрошено</span>;
+  const { t } = useTranslation('settings');
+  if (state === 'granted')     return <span className="permBadge permBadgeGranted">{t('permissions.granted')}</span>;
+  if (state === 'denied')      return <span className="permBadge permBadgeDenied">{t('permissions.denied')}</span>;
+  if (state === 'unsupported') return <span className="permBadge permBadgeUnknown">{t('permissions.unsupported')}</span>;
+  return <span className="permBadge permBadgePrompt">{t('permissions.notRequested')}</span>;
 }
 
 export function PermissionsTab() {
+  const { t } = useTranslation('settings');
   const cameraState  = usePermission('camera' as PermissionName);
   const micState     = usePermission('microphone' as PermissionName);
   const notifState   = usePermission(
@@ -61,9 +64,9 @@ export function PermissionsTab() {
     setNotifErr(null);
     const result = await registerPush();
     setPushSubscribed(result.ok);
-    if (!result.ok) setNotifErr('Не удалось подключить push-уведомления. Попробуйте ещё раз.');
+    if (!result.ok) setNotifErr(t('permissions.pushConnectError'));
     setReconnecting(false);
-  }, []);
+  }, [t]);
 
   const requestCamera = useCallback(async () => {
     setCameraErr(null);
@@ -71,9 +74,9 @@ export function PermissionsTab() {
       const stream = await navigator.mediaDevices.getUserMedia({ video: true });
       stream.getTracks().forEach(t => t.stop());
     } catch (e: any) {
-      setCameraErr('Браузер заблокировал доступ. Разрешите вручную в настройках браузера.');
+      setCameraErr(t('permissions.blockedByBrowser'));
     }
-  }, []);
+  }, [t]);
 
   const requestMic = useCallback(async () => {
     setMicErr(null);
@@ -81,23 +84,24 @@ export function PermissionsTab() {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       stream.getTracks().forEach(t => t.stop());
     } catch {
-      setMicErr('Браузер заблокировал доступ. Разрешите вручную в настройках браузера.');
+      setMicErr(t('permissions.blockedByBrowser'));
     }
-  }, []);
+  }, [t]);
 
   const requestNotif = useCallback(async () => {
     setNotifErr(null);
     try {
       const result = await Notification.requestPermission();
       if (result === 'denied') {
-        setNotifErr('Браузер заблокировал уведомления. Разрешите вручную в настройках браузера.');
+        setNotifErr(t('permissions.notificationsBlocked'));
       }
     } catch {
-      setNotifErr('Не удалось запросить разрешение.');
+      setNotifErr(t('permissions.requestFailed'));
     }
-  }, []);
+  }, [t]);
 
   const items: Array<{
+    id: 'camera' | 'microphone' | 'notifications';
     label: string;
     description: string;
     state: PermState;
@@ -106,8 +110,9 @@ export function PermissionsTab() {
     icon: ReactNode;
   }> = [
     {
-      label: 'Камера',
-      description: 'Требуется для съёмки фото и видео через встроенную камеру.',
+      id: 'camera',
+      label: t('permissions.camera'),
+      description: t('permissions.cameraDesc'),
       state: cameraState,
       err: cameraErr,
       onRequest: cameraState === 'denied' ? null : requestCamera,
@@ -119,8 +124,9 @@ export function PermissionsTab() {
       ),
     },
     {
-      label: 'Микрофон',
-      description: 'Требуется для записи голосовых сообщений и видео со звуком.',
+      id: 'microphone',
+      label: t('permissions.microphone'),
+      description: t('permissions.microphoneDesc'),
       state: micState,
       err: micErr,
       onRequest: micState === 'denied' ? null : requestMic,
@@ -134,8 +140,9 @@ export function PermissionsTab() {
       ),
     },
     {
-      label: 'Уведомления',
-      description: 'Позволяет получать push-уведомления о новых сообщениях.',
+      id: 'notifications',
+      label: t('permissions.notifications'),
+      description: t('permissions.notificationsDesc'),
       state: notifState,
       err: notifErr,
       onRequest: notifState === 'denied' ? null
@@ -153,8 +160,7 @@ export function PermissionsTab() {
   return (
     <div className="permTab">
       <p className="permTabHint">
-        Управляйте разрешениями, которые сайт использует для работы функций.
-        Если разрешение заблокировано браузером, измените его вручную в настройках браузера (иконка замка в адресной строке).
+        {t('permissions.hint')}
       </p>
 
       <div className="permList">
@@ -170,23 +176,23 @@ export function PermissionsTab() {
               {item.err && <div className="permErr">{item.err}</div>}
               {item.state === 'denied' && !item.err && (
                 <div className="permErr">
-                  Заблокировано браузером. Нажмите на иконку замка в адресной строке, чтобы изменить.
+                  {t('permissions.blockedByBrowserShort')}
                 </div>
               )}
               {/* Permission can be "granted" while the push subscription itself died in the
                   background (common on iOS Safari) — surface that separately from the OS-level state. */}
-              {item.label === 'Уведомления' && notifState === 'granted' && pushSubscribed === false && !notifErr && (
-                <div className="permErr">Уведомления не подключены. Возможно, подписка устарела.</div>
+              {item.id === 'notifications' && notifState === 'granted' && pushSubscribed === false && !notifErr && (
+                <div className="permErr">{t('permissions.pushNotConnected')}</div>
               )}
             </div>
             {item.onRequest && item.state !== 'granted' && item.state !== 'unsupported' && (
               <button className="permRequestBtn" onClick={item.onRequest}>
-                Разрешить
+                {t('permissions.allowBtn')}
               </button>
             )}
-            {item.label === 'Уведомления' && notifState === 'granted' && pushSubscribed === false && (
+            {item.id === 'notifications' && notifState === 'granted' && pushSubscribed === false && (
               <button className="permRequestBtn" onClick={reconnectPush} disabled={reconnecting}>
-                {reconnecting ? '…' : 'Переподключить'}
+                {reconnecting ? '…' : t('permissions.reconnectBtn')}
               </button>
             )}
           </div>
