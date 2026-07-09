@@ -3,7 +3,9 @@ import { useTranslation } from 'react-i18next';
 import { type User } from '../../types';
 import { type InviteInviter } from '../../api/invites';
 import { type Theme } from '../../utils/theme';
+import { setLocale, type Locale } from '../../i18n';
 import { ThemeIcon } from '../ui/icons/ThemeIcon';
+import { LangFlag } from '../ui/LangFlag';
 import { LogoIcon } from '../ui/icons/LogoIcon';
 import { LoginForm } from './LoginForm';
 import { RegisterForm } from './RegisterForm';
@@ -36,7 +38,9 @@ interface Props {
 }
 
 export function AuthScreen({ theme, onThemeToggle, onAuthenticated, invitedBy }: Props) {
-  const { t } = useTranslation('auth');
+  const { t, i18n } = useTranslation('auth');
+  const locale = (i18n.language === 'en' ? 'en' : 'ru') as Locale;
+  const nextLocale: Locale = locale === 'ru' ? 'en' : 'ru';
   const viewTitles: Record<AuthView, string> = {
     tabs:   t('welcomeTitle'),
     forgot: t('forgotTitle'),
@@ -69,6 +73,14 @@ export function AuthScreen({ theme, onThemeToggle, onAuthenticated, invitedBy }:
     <div className="authWrap">
       <button className="authThemeBtn" onClick={onThemeToggle}>
         <ThemeIcon theme={theme} />
+      </button>
+      <button
+        className="authLangBtn"
+        onClick={() => setLocale(nextLocale)}
+        aria-label={t(`settings:language${nextLocale === 'en' ? 'English' : 'Russian'}`)}
+        title={t(`settings:language${nextLocale === 'en' ? 'English' : 'Russian'}`)}
+      >
+        <LangFlag locale={nextLocale} className="authLangFlag" />
       </button>
       {invitedBy && (
         <div className="authInviteBanner">
