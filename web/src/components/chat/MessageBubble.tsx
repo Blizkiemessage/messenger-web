@@ -12,6 +12,7 @@
  *    backend instead of the frontend (Vercel SPA rewrite).
  */
 import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import { getLinkPreview, type LinkPreview } from '../../api/linkPreview';
 import { type Message, type User } from '../../types';
 import { formatTime } from '../../utils/format';
@@ -70,6 +71,7 @@ export function MessageBubble({
   activeVideoNoteId, onVideoNoteActivate, onVideoNoteEnded, onStickerPackClick,
   onRetry,
 }: Props) {
+  const { t } = useTranslation(['chat', 'nav']);
   const hasAttachment = !!m.attachment_url;
   const isImage     = m.attachment_type === 'image';
   const isVideo     = m.attachment_type === 'video';
@@ -88,8 +90,8 @@ export function MessageBubble({
 
   // Display name used in the mini player bar
   const playerSenderName = isOwn
-    ? 'Вы'
-    : (sender?.display_name ?? sender?.username ?? 'Пользователь');
+    ? t('chat:bubble.you')
+    : (sender?.display_name ?? sender?.username ?? t('nav:common.defaultUser'));
 
   // Link preview
   const firstUrl = useMemo(() => extractFirstUrl(m.text), [m.text]);
@@ -143,7 +145,7 @@ export function MessageBubble({
       ].filter(Boolean).join(' ')}>
         {/* ✅ Pin indicator — thumbtack icon */}
         {m.is_pinned && !isSelected && (
-          <div className="msgPinBadge" title="Закреплённое сообщение">
+          <div className="msgPinBadge" title={t('chat:bubble.pinnedMessage')}>
             <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor" stroke="none">
               <path d="M16 3a1 1 0 0 0-1 1v1H9V4a1 1 0 0 0-2 0v1a3 3 0 0 0-3 3v1l2 2v4H4a1 1 0 0 0 0 2h7v3a1 1 0 0 0 2 0v-3h7a1 1 0 0 0 0-2h-2v-4l2-2V8a3 3 0 0 0-3-3V4a1 1 0 0 0-1-1z"/>
             </svg>
@@ -160,7 +162,7 @@ export function MessageBubble({
         {showName && (
           <button className="bubbleSenderName"
                   onClick={e => { e.stopPropagation(); onViewUser(m.sender_id); }}>
-            {sender?.display_name || sender?.username || 'Пользователь'}
+            {sender?.display_name || sender?.username || t('nav:common.defaultUser')}
           </button>
         )}
 
@@ -175,7 +177,7 @@ export function MessageBubble({
                 className="bubbleReplySender"
                 onClick={e => { e.stopPropagation(); onViewUser(m.reply!.sender_id!); }}
               >
-                {m.reply.sender_username || 'Пользователь'}
+                {m.reply.sender_username || t('nav:common.defaultUser')}
               </button>
             )}
             <div className="bubbleReplyText">
@@ -191,7 +193,7 @@ export function MessageBubble({
               <polyline points="15 17 20 12 15 7"/>
               <path d="M4 18v-2a4 4 0 0 1 4-4h12"/>
             </svg>
-            <span>Переслано от </span>
+            <span>{t('chat:bubble.forwardedFrom')} </span>
             <button
               className="bubbleForwardedName"
               onClick={e => {
@@ -201,7 +203,7 @@ export function MessageBubble({
                 }
               }}
             >
-              {m.forwarded_from_username || 'Пользователь'}
+              {m.forwarded_from_username || t('nav:common.defaultUser')}
             </button>
           </div>
         )}
@@ -327,13 +329,13 @@ export function MessageBubble({
               />
             )}
             <div className="bubbleMeta">
-              {m.edited_at && <span className="bubbleEdited">(изм.)</span>}
+              {m.edited_at && <span className="bubbleEdited">{t('chat:bubble.edited')}</span>}
               <span className="bubbleTime">{formatTime(m.created_at)}</span>
               {isOwn && isGroup && onViewReaders && (
                 <button
                   className="bubbleReadersBtn"
                   onClick={e => { e.stopPropagation(); onViewReaders(); }}
-                  title="Кто прочитал"
+                  title={t('chat:bubble.whoRead')}
                 >
                   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>

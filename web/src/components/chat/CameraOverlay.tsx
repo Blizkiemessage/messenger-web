@@ -9,6 +9,7 @@
  */
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
+import { useTranslation } from 'react-i18next';
 
 // ── Inline video preview player (for captured clip before sending) ─────────────
 function CapturedVideoPreview({ url }: { url: string }) {
@@ -54,6 +55,7 @@ function fmt(sec: number): string {
 }
 
 export function CameraOverlay({ onCapture, onClose }: Props) {
+  const { t } = useTranslation('chat');
   const videoRef    = useRef<HTMLVideoElement>(null);
   const streamRef   = useRef<MediaStream | null>(null);
   const recorderRef = useRef<MediaRecorder | null>(null);
@@ -95,11 +97,11 @@ export function CameraOverlay({ onCapture, onClose }: Props) {
         setHasMultipleCams(devices.filter(d => d.kind === 'videoinput').length > 1);
       } catch { /* ignore */ }
     } catch {
-      setError('Нет доступа к камере. Проверьте разрешения браузера.');
+      setError(t('camera.noAccess'));
     } finally {
       setStarting(false);
     }
-  }, [stopStream]);
+  }, [stopStream, t]);
 
   // Mount: start camera
   useEffect(() => {
@@ -208,7 +210,7 @@ export function CameraOverlay({ onCapture, onClose }: Props) {
     return createPortal(
       <div className="cameraOverlay">
         <div className="cameraCapturePreview">
-          <button className="cameraCloseBtn" onClick={handleClose} title="Закрыть">
+          <button className="cameraCloseBtn" onClick={handleClose} title={t('header.close')}>
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
               <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
             </svg>
@@ -217,33 +219,33 @@ export function CameraOverlay({ onCapture, onClose }: Props) {
           {captured.isVideo ? (
             <CapturedVideoPreview url={captured.url} />
           ) : (
-            <img className="cameraCaptureMedia" src={captured.url} alt="Снимок" />
+            <img className="cameraCaptureMedia" src={captured.url} alt={t('camera.snapshotAlt')} />
           )}
 
           <div className="cameraCaptureBar">
             <input
               ref={captionRef}
               className="cameraCaptionInput"
-              placeholder="Добавить подпись…"
+              placeholder={t('composer.addCaptionPlaceholder')}
               value={caption}
               onChange={e => setCaption(e.target.value)}
               onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); } }}
               maxLength={1000}
             />
             <div className="cameraCaptureRowBtns">
-              <button className="cameraRetakeBtn" onClick={retake} title="Переснять">
+              <button className="cameraRetakeBtn" onClick={retake} title={t('camera.retake')}>
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
                   <line x1="19" y1="12" x2="5" y2="12"/>
                   <polyline points="12 19 5 12 12 5"/>
                 </svg>
-                Переснять
+                {t('camera.retake')}
               </button>
-              <button className="cameraSendBtn" onClick={handleSend} title="Отправить">
+              <button className="cameraSendBtn" onClick={handleSend} title={t('composer.send')}>
                 <svg viewBox="0 0 24 24" fill="none" width="18" height="18">
                   <path d="M22 2L11 13" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"/>
                   <path d="M22 2L15 22L11 13L2 9L22 2Z" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"/>
                 </svg>
-                Отправить
+                {t('composer.send')}
               </button>
             </div>
           </div>
@@ -259,7 +261,7 @@ export function CameraOverlay({ onCapture, onClose }: Props) {
       <div className="cameraViewfinder">
         {/* Top bar */}
         <div className="cameraTopBar">
-          <button className="cameraCloseBtn" onClick={handleClose} title="Закрыть">
+          <button className="cameraCloseBtn" onClick={handleClose} title={t('header.close')}>
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
               <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
             </svg>
@@ -274,7 +276,7 @@ export function CameraOverlay({ onCapture, onClose }: Props) {
 
           {/* Flip button top-right */}
           {hasMultipleCams && (
-            <button className="cameraFlipBtn" onClick={switchCamera} title="Переключить камеру" disabled={recording}>
+            <button className="cameraFlipBtn" onClick={switchCamera} title={t('composer.flipCamera')} disabled={recording}>
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M1 4v6h6"/>
                 <path d="M23 20v-6h-6"/>
@@ -313,11 +315,11 @@ export function CameraOverlay({ onCapture, onClose }: Props) {
               <button
                 className={`cameraModeBtn${mode === 'photo' ? ' active' : ''}`}
                 onClick={() => switchMode('photo')}
-              >Фото</button>
+              >{t('camera.photoTab')}</button>
               <button
                 className={`cameraModeBtn${mode === 'video' ? ' active' : ''}`}
                 onClick={() => switchMode('video')}
-              >Видео</button>
+              >{t('camera.videoTab')}</button>
             </div>
           )}
 
@@ -332,12 +334,12 @@ export function CameraOverlay({ onCapture, onClose }: Props) {
                 className="cameraShutterBtn"
                 onClick={takePhoto}
                 disabled={!!error || starting}
-                title="Сделать снимок"
+                title={t('camera.takeSnapshot')}
               >
                 <span className="cameraShutterInner" />
               </button>
             ) : recording ? (
-              <button className="cameraStopBtn" onClick={stopRecording} title="Остановить запись">
+              <button className="cameraStopBtn" onClick={stopRecording} title={t('camera.stopRecording')}>
                 <span className="cameraStopRect" />
               </button>
             ) : (
@@ -345,7 +347,7 @@ export function CameraOverlay({ onCapture, onClose }: Props) {
                 className="cameraRecordBtn"
                 onClick={startRecording}
                 disabled={!!error || starting}
-                title="Начать запись"
+                title={t('camera.startRecording')}
               >
                 <span className="cameraRecordInner" />
               </button>
@@ -354,7 +356,7 @@ export function CameraOverlay({ onCapture, onClose }: Props) {
             {/* Right: flip camera button (mobile convenience) */}
             <div className="cameraShutterSide">
               {hasMultipleCams && !recording && (
-                <button className="cameraFlipBtnSmall" onClick={switchCamera} title="Переключить камеру">
+                <button className="cameraFlipBtnSmall" onClick={switchCamera} title={t('composer.flipCamera')}>
                   <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <path d="M1 4v6h6"/>
                     <path d="M23 20v-6h-6"/>

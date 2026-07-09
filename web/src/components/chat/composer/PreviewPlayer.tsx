@@ -4,9 +4,11 @@
  * state; receives the recorded blob, duration and waveform bars as props.
  */
 import { useState, useRef, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { fmt } from './helpers';
 
 export function PreviewPlayer({ blob, duration, waveform }: { blob: Blob; duration: number; waveform: number[] }) {
+  const { t } = useTranslation('chat');
   const audioRef  = useRef<HTMLAudioElement>(null);
   const trackRef  = useRef<HTMLDivElement>(null);
   const urlRef    = useRef<string>('');
@@ -46,7 +48,7 @@ export function PreviewPlayer({ blob, duration, waveform }: { blob: Blob; durati
       <audio ref={audioRef} preload="auto"
         onTimeUpdate={e => setCurrent(e.currentTarget.currentTime)}
         onEnded={() => { setPlaying(false); setCurrent(0); }} />
-      <button className="voicePreviewPlayBtn" onClick={toggle} title={playing ? 'Пауза' : 'Воспроизвести'}>
+      <button className="voicePreviewPlayBtn" onClick={toggle} title={playing ? t('media.pause') : t('media.play')}>
         {playing ? (
           <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor">
             <rect x="5" y="4" width="4" height="16" rx="1"/>

@@ -2,11 +2,13 @@
  * messageBubble/QuotedText.tsx — reply-quote text with a "показать больше" expander.
  */
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 
 export function QuotedText({ text }: { text: string | null | undefined }) {
+  const { t } = useTranslation('chat');
   const [expanded, setExpanded] = useState(false);
   const LIMIT = 120;
-  if (!text) return <span className="bubbleReplyNoText">Медиафайл</span>;
+  if (!text) return <span className="bubbleReplyNoText">{t('replyBar.mediaFile')}</span>;
   if (text.length <= LIMIT || expanded) return <span>{text}</span>;
   return (
     <>
@@ -15,7 +17,7 @@ export function QuotedText({ text }: { text: string | null | undefined }) {
         className="bubbleReplyExpand"
         onClick={e => { e.stopPropagation(); setExpanded(true); }}
       >
-        показать больше
+        {t('bubble.showMore')}
       </button>
     </>
   );

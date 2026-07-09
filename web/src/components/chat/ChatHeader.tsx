@@ -4,6 +4,7 @@
  */
 import { useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
+import { useTranslation } from 'react-i18next';
 import { type Chat } from '../../types';
 import { chatTitle, chatSubtitle, avatarLetter, formatLastSeen } from '../../utils/format';
 import { Avatar, resolveUrl, getPresenceLabel, PRESENCE_EMOJI } from '../ui/Avatar';
@@ -62,6 +63,7 @@ export function ChatHeader({
   typingText, onOpenMedia, onAudioCall, onVideoCall, onOpenNotes, onOpenSummary, onOpenSettings,
   onToggleInfo, infoActive,
 }: Props) {
+  const { t } = useTranslation(['chat', 'common']);
   const setActiveChatId = useChatsStore(s => s.setActiveChatId);
   const setShowAssistant = useAppStore(s => s.setShowAssistant);
   const onlineUsers = useChatsStore(s => s.onlineUsers);
@@ -122,30 +124,30 @@ export function ChatHeader({
         </button>
         <div className="selInfo">
           <span className="selCount">{selectedCount}</span>
-          <span className="selLabel">{selectedCount === 1 ? 'сообщение выбрано' : 'сообщения выбраны'}</span>
+          <span className="selLabel">{t('chat:header.messagesSelected', { count: selectedCount })}</span>
         </div>
         <div className="selActions">
-          <button className="selForwardBtn" onClick={onForwardSelected} title="Переслать">
+          <button className="selForwardBtn" onClick={onForwardSelected} title={t('chat:header.forward')}>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <polyline points="15 17 20 12 15 7"/>
               <path d="M4 18v-2a4 4 0 0 1 4-4h12"/>
             </svg>
-            Переслать
+            {t('chat:header.forward')}
           </button>
           {allSelectedPinned ? (
-            <button className="selPinBtn" onClick={onUnpinSelected} title="Открепить">
+            <button className="selPinBtn" onClick={onUnpinSelected} title={t('chat:header.unpin')}>
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <line x1="2" y1="2" x2="22" y2="22"/>
                 <path d="M12 17v5M9 9H4l3-3 4 1M15 15l4-4-1-4 3-3v5"/>
               </svg>
-              Открепить
+              {t('chat:header.unpin')}
             </button>
           ) : (
-            <button className="selPinBtn" onClick={onPinSelected} title="Закрепить">
+            <button className="selPinBtn" onClick={onPinSelected} title={t('chat:header.pin')}>
               <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" stroke="none">
                 <path d="M16 3a1 1 0 0 0-1 1v1H9V4a1 1 0 0 0-2 0v1a3 3 0 0 0-3 3v1l2 2v4H4a1 1 0 0 0 0 2h7v3a1 1 0 0 0 2 0v-3h7a1 1 0 0 0 0-2h-2v-4l2-2V8a3 3 0 0 0-3-3V4a1 1 0 0 0-1-1z"/>
               </svg>
-              Закрепить
+              {t('chat:header.pin')}
             </button>
           )}
           <button className="selDeleteBtn" onClick={onDeleteSelected}>
@@ -155,7 +157,7 @@ export function ChatHeader({
               <path d="M10 11v6M14 11v6"/>
               <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
             </svg>
-            Удалить
+            {t('common:delete')}
           </button>
         </div>
       </div>
@@ -165,7 +167,7 @@ export function ChatHeader({
   return (
     <div className={`chatHeaderWrap${searchOpen ? ' searchOpen' : ''}`}>
       <div className="chatHeader">
-        <button className="mobileBackBtn" onClick={() => setActiveChatId(null)} title="Назад">
+        <button className="mobileBackBtn" onClick={() => setActiveChatId(null)} title={t('chat:header.back')}>
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
             <polyline points="15 18 9 12 15 6"/>
           </svg>
@@ -198,7 +200,7 @@ export function ChatHeader({
           <div className="chHeaderInfo">
             <div className="chName">{chatTitle(chat, meId)}</div>
             {isSaved ? (
-              <div className="chSub">Ваши заметки</div>
+              <div className="chSub">{t('common:yourNotes')}</div>
             ) : typingText ? (
               <div className="chSub chSubTyping">{typingText}</div>
             ) : partnerPresence ? (
@@ -234,7 +236,7 @@ export function ChatHeader({
             ref={callBtnRef}
             className={`chSearchToggle${callMenuPos ? ' active' : ''}`}
             onClick={() => callMenuPos ? setCallMenuPos(null) : openCallMenu()}
-            title="Позвонить"
+            title={t('chat:header.call')}
           >
             <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12 19.79 19.79 0 0 1 1.61 3.4 2 2 0 0 1 3.6 1.24h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L7.91 8.77a16 16 0 0 0 6.29 6.29l.95-.95a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/>
@@ -247,7 +249,7 @@ export function ChatHeader({
           <button
             className={`chSearchToggle chInfoToggle${infoActive ? ' active' : ''}`}
             onClick={onToggleInfo}
-            title="Информация о чате"
+            title={t('chat:header.chatInfo')}
           >
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <rect x="3" y="3" width="18" height="18" rx="2" />
@@ -261,7 +263,7 @@ export function ChatHeader({
           ref={moreBtnRef}
           className={`chSearchToggle${moreMenuPos ? ' active' : ''}`}
           onClick={() => moreMenuPos ? setMoreMenuPos(null) : openMoreMenu()}
-          title="Ещё"
+          title={t('chat:header.more')}
         >
           <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" stroke="none">
             <circle cx="12" cy="5" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="12" cy="19" r="1.5"/>
@@ -280,7 +282,7 @@ export function ChatHeader({
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12 19.79 19.79 0 0 1 1.61 3.4 2 2 0 0 1 3.6 1.24h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L7.91 8.77a16 16 0 0 0 6.29 6.29l.95-.95a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/>
                 </svg>
-                Аудиозвонок
+                {t('chat:header.audioCall')}
               </button>
             )}
             {onVideoCall && (
@@ -289,7 +291,7 @@ export function ChatHeader({
                   <polygon points="23 7 16 12 23 17 23 7"/>
                   <rect x="1" y="5" width="15" height="14" rx="2" ry="2"/>
                 </svg>
-                Видеозвонок
+                {t('chat:header.videoCall')}
               </button>
             )}
           </div>,
@@ -308,20 +310,20 @@ export function ChatHeader({
                 <circle cx="8.5" cy="8.5" r="1.5"/>
                 <polyline points="21 15 16 10 5 21"/>
               </svg>
-              Галерея
+              {t('chat:header.gallery')}
             </button>
             <button className="chHeaderDropItem" onMouseDown={e => e.stopPropagation()} onClick={() => { setMoreMenuPos(null); onToggleSearch(); }}>
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
                 <circle cx="11" cy="11" r="8"/>
                 <line x1="21" y1="21" x2="16.65" y2="16.65"/>
               </svg>
-              Поиск
+              {t('chat:header.search')}
             </button>
             <button className="chHeaderDropItem" onMouseDown={e => e.stopPropagation()} onClick={() => { setMoreMenuPos(null); onTogglePinned(); }}>
               <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" stroke="none">
                 <path d="M16 3a1 1 0 0 0-1 1v1H9V4a1 1 0 0 0-2 0v1a3 3 0 0 0-3 3v1l2 2v4H4a1 1 0 0 0 0 2h7v3a1 1 0 0 0 2 0v-3h7a1 1 0 0 0 0-2h-2v-4l2-2V8a3 3 0 0 0-3-3V4a1 1 0 0 0-1-1z"/>
               </svg>
-              Закреплённые{pinnedCount > 0 && <span className="chDropPinBadge">{pinnedCount}</span>}
+              {t('chat:header.pinnedMessages')}{pinnedCount > 0 && <span className="chDropPinBadge">{pinnedCount}</span>}
             </button>
             {onOpenNotes && (
               <button className="chHeaderDropItem" onMouseDown={e => e.stopPropagation()} onClick={() => { setMoreMenuPos(null); onOpenNotes(); }}>
@@ -332,7 +334,7 @@ export function ChatHeader({
                   <line x1="16" y1="17" x2="8" y2="17"/>
                   <polyline points="10 9 9 9 8 9"/>
                 </svg>
-                Заметки
+                {t('chat:header.notes')}
               </button>
             )}
             {onOpenSummary && (
@@ -341,7 +343,7 @@ export function ChatHeader({
                   <circle cx="12" cy="12" r="10"/>
                   <path d="M12 6v6l4 2"/>
                 </svg>
-                AI-сводка
+                {t('chat:header.aiSummary')}
               </button>
             )}
             {onOpenSettings && (
@@ -350,7 +352,7 @@ export function ChatHeader({
                   <circle cx="12" cy="12" r="3"/>
                   <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
                 </svg>
-                Настройки чата
+                {t('chat:header.chatSettings')}
               </button>
             )}
           </div>,
@@ -367,26 +369,26 @@ export function ChatHeader({
             </svg>
             <input
               className="chSearchInput"
-              placeholder="Найти сообщение…"
+              placeholder={t('chat:header.searchPlaceholder')}
               value={searchQuery}
               onChange={e => onSearchChange(e.target.value)}
               autoFocus
             />
             {searchQuery && (
               <span className="chSearchCount">
-                {searchTotal === 0 ? 'Не найдено' : `${searchCurrent + 1} / ${searchTotal}`}
+                {searchTotal === 0 ? t('chat:header.notFound') : `${searchCurrent + 1} / ${searchTotal}`}
               </span>
             )}
           </div>
           <div className="chSearchActions">
             {searchTotal > 0 && (
               <>
-                <button className="chSearchNav" onClick={onSearchPrev} title="Предыдущее">
+                <button className="chSearchNav" onClick={onSearchPrev} title={t('chat:header.previous')}>
                   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
                     <polyline points="18 15 12 9 6 15"/>
                   </svg>
                 </button>
-                <button className="chSearchNav" onClick={onSearchNext} title="Следующее">
+                <button className="chSearchNav" onClick={onSearchNext} title={t('chat:header.next')}>
                   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
                     <polyline points="6 9 12 15 18 9"/>
                   </svg>
@@ -394,7 +396,7 @@ export function ChatHeader({
               </>
             )}
             {searchQuery && (
-              <button className="chSearchReset" onClick={() => onSearchChange('')}>Сброс</button>
+              <button className="chSearchReset" onClick={() => onSearchChange('')}>{t('chat:header.resetShort')}</button>
             )}
             <button className="chSearchClose" onClick={onSearchClose}>
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
@@ -413,20 +415,20 @@ export function ChatHeader({
             </svg>
           </div>
           <div className="chPinBarLabel">
-            Закреплённое <span className="chPinBarCount">{pinnedIndex + 1} / {pinnedCount}</span>
+            {t('chat:header.pinnedLabel')} <span className="chPinBarCount">{pinnedIndex + 1} / {pinnedCount}</span>
           </div>
           <div className="chPinBarActions">
-            <button className="chSearchNav" onClick={onPinnedPrev} title="Предыдущее">
+            <button className="chSearchNav" onClick={onPinnedPrev} title={t('chat:header.previous')}>
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
                 <polyline points="15 18 9 12 15 6"/>
               </svg>
             </button>
-            <button className="chSearchNav" onClick={onPinnedNext} title="Следующее">
+            <button className="chSearchNav" onClick={onPinnedNext} title={t('chat:header.next')}>
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
                 <polyline points="9 18 15 12 9 6"/>
               </svg>
             </button>
-            <button className="chSearchClose" onClick={onTogglePinned} title="Закрыть">
+            <button className="chSearchClose" onClick={onTogglePinned} title={t('chat:header.close')}>
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
                 <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
               </svg>

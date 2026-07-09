@@ -7,6 +7,7 @@
  */
 import { useState, useRef, useEffect, useCallback, lazy, Suspense } from 'react';
 import { createPortal } from 'react-dom';
+import { useTranslation } from 'react-i18next';
 import { uploadFile } from '../../api/upload';
 import type { UploadResult } from '../../api/upload';
 import { type User } from '../../types';
@@ -54,6 +55,7 @@ const LOCK_THRESHOLD = 60;
 // ── Component ─────────────────────────────────────────────────────────────────
 
 export function Composer({ value, onChange, onSend, onSendAttachment, externalFiles, onExternalFileConsumed, disabled, isGroup, onOpenPollCreator, onSendGif, onSendSticker, onOpenStudio, onTypingStart, onTypingStop, editingMessageId, onCancelEdit, members, blockedByThem, partnerName, onOpenSchedule, onOpenScheduledList }: Props) {
+  const { t } = useTranslation('chat');
   // Multi-file staging
   const [stagedFiles,  setStagedFiles]  = useState<File[]>([]);
   const [thumbUrls,    setThumbUrls]    = useState<(string | null)[]>([]);
@@ -246,11 +248,11 @@ export function Composer({ value, onChange, onSend, onSendAttachment, externalFi
       };
       await onSendAttachment(enriched, c);
     } catch (e: any) {
-      if (e?.message !== 'Загрузка отменена') { setUploadErr(e?.message ?? 'Ошибка загрузки'); setProgresses([0]); }
+      if (e?.message !== t('upload.cancelled')) { setUploadErr(e?.message ?? t('composer.uploadError')); setProgresses([0]); }
     } finally {
       setUploading(false); cancelRefs.current = [];
     }
-  }, [uploading, onSendAttachment]);
+  }, [uploading, onSendAttachment, t]);
 
   const handleSendFiles = useCallback(async () => {
     if (stagedFiles.length === 0 || uploading) return;
@@ -279,11 +281,11 @@ export function Composer({ value, onChange, onSend, onSendAttachment, externalFi
       }
       clearStage();
     } catch (e: any) {
-      if (e?.message !== 'Загрузка отменена') { setUploadErr(e?.message ?? 'Ошибка загрузки'); }
+      if (e?.message !== t('upload.cancelled')) { setUploadErr(e?.message ?? t('composer.uploadError')); }
     } finally {
       setUploading(false); cancelRefs.current = [];
     }
-  }, [stagedFiles, caption, uploading, onSendAttachment, clearStage]);
+  }, [stagedFiles, caption, uploading, onSendAttachment, clearStage, t]);
 
   // ── Recording mode: audio | video ─────────────────────────────────────────
   const [recordMode, setRecordMode] = useState<'audio' | 'video'>('audio');
@@ -742,7 +744,7 @@ export function Composer({ value, onChange, onSend, onSendAttachment, externalFi
           <circle cx="12" cy="12" r="10"/>
           <line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/>
         </svg>
-        <span>Пользователь {partnerName || 'пользователь'} вас заблокировал</span>
+        <span>{t('composer.blockedByPartner', { name: partnerName || t('composer.blockedByPartnerFallback') })}</span>
       </div>
     );
   }
@@ -768,25 +770,25 @@ export function Composer({ value, onChange, onSend, onSendAttachment, externalFi
           {/* Header row */}
           <div className="fileStagingHeader">
             <span className="fileStagingCount">
-              {stagedFiles.length} {stagedFiles.length === 1 ? 'файл' : stagedFiles.length < 5 ? 'файла' : 'файлов'}
+              {stagedFiles.length} {t('composer.filesCount', { count: stagedFiles.length })}
               {stagedFiles.length > 10 && (
-                <span className="fileStagingBatchHint"> · отправится {Math.ceil(stagedFiles.length / 10)} сообщениями</span>
+                <span className="fileStagingBatchHint"> {t('composer.batchHint', { count: Math.ceil(stagedFiles.length / 10) })}</span>
               )}
             </span>
             {uploading ? (
-              <button className="fileStagingCancel" onClick={handleCancelUpload} title="Отменить">
+              <button className="fileStagingCancel" onClick={handleCancelUpload} title={t('common:cancel')}>
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
                   <rect x="3" y="3" width="18" height="18" rx="3"/>
                   <line x1="9" y1="9" x2="15" y2="15"/><line x1="15" y1="9" x2="9" y2="15"/>
                 </svg>
-                Отмена
+                {t('common:cancel')}
               </button>
             ) : (
-              <button className="fileStagingRemove" onClick={clearStage} title="Убрать все">
+              <button className="fileStagingRemove" onClick={clearStage} title={t('composer.removeAll')}>
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
                   <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
                 </svg>
-                Убрать все
+                {t('composer.removeAll')}
               </button>
             )}
           </div>
@@ -811,7 +813,7 @@ export function Composer({ value, onChange, onSend, onSendAttachment, externalFi
                   </div>
                 )}
                 {!uploading && (
-                  <button className="fileStagingMultiRemove" onClick={() => removeFile(idx)} title="Убрать">
+                  <button className="fileStagingMultiRemove" onClick={() => removeFile(idx)} title={t('composer.remove')}>
                     <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round">
                       <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
                     </svg>
@@ -822,7 +824,7 @@ export function Composer({ value, onChange, onSend, onSendAttachment, externalFi
             ))}
             {/* Add more button */}
             {!uploading && (
-              <button className="fileStagingAddMore" onClick={() => fileInputRef.current?.click()} title="Добавить ещё">
+              <button className="fileStagingAddMore" onClick={() => fileInputRef.current?.click()} title={t('composer.addMore')}>
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
                   <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
                 </svg>
@@ -840,7 +842,7 @@ export function Composer({ value, onChange, onSend, onSendAttachment, externalFi
           )}
           <div className="fileCaptionRow">
             <input ref={captionInputRef} className="fileCaptionInput" value={caption}
-              onChange={e => setCaption(e.target.value)} placeholder="Добавить подпись…"
+              onChange={e => setCaption(e.target.value)} placeholder={t('composer.addCaptionPlaceholder')}
               disabled={uploading} maxLength={1000}
               onKeyDown={e => {
                 if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSendFiles(); }
@@ -850,7 +852,7 @@ export function Composer({ value, onChange, onSend, onSendAttachment, externalFi
               className="fileCaptionSendBtn"
               onClick={handleSendFiles}
               disabled={uploading}
-              title="Отправить"
+              title={t('composer.send')}
             >
               {uploading ? (
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" className="composerSpinner">
@@ -871,21 +873,21 @@ export function Composer({ value, onChange, onSend, onSendAttachment, externalFi
       {voiceState === 'preview' && voiceBlob && (
         <div className="voicePreviewCard">
           <div className="voicePreviewCardTop">
-            <span className="voicePreviewLabel">Голосовое сообщение</span>
+            <span className="voicePreviewLabel">{t('composer.voiceMessage')}</span>
             <span className="voicePreviewDurLabel">{fmt(previewSecs)}</span>
           </div>
           <PreviewPlayer blob={voiceBlob} duration={previewSecs} waveform={voiceWaveform} />
           <div className="voicePreviewCardActions">
-            <button className="voicePreviewDeleteBtn" onClick={cancelVoice} title="Удалить">
+            <button className="voicePreviewDeleteBtn" onClick={cancelVoice} title={t('common:delete')}>
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <polyline points="3 6 5 6 21 6"/>
                 <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
                 <path d="M10 11v6M14 11v6"/>
                 <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
               </svg>
-              Удалить
+              {t('common:delete')}
             </button>
-            <button className="voicePreviewSendBtn" onClick={sendVoice} disabled={voiceSending} title="Отправить">
+            <button className="voicePreviewSendBtn" onClick={sendVoice} disabled={voiceSending} title={t('composer.send')}>
               {voiceSending ? (
                 <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" className="composerSpinner">
                   <path d="M21 12a9 9 0 1 1-6.219-8.56"/>
@@ -896,7 +898,7 @@ export function Composer({ value, onChange, onSend, onSendAttachment, externalFi
                     <path d="M22 2L11 13" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
                     <path d="M22 2L15 22L11 13L2 9L22 2Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
                   </svg>
-                  Отправить
+                  {t('composer.send')}
                 </>
               )}
             </button>
@@ -908,7 +910,7 @@ export function Composer({ value, onChange, onSend, onSendAttachment, externalFi
       {videoState === 'preview' && videoPreviewUrl && (
         <div className="videoNotePreviewCard">
           <div className="videoNotePreviewCardTop">
-            <span className="voicePreviewLabel">Видеосообщение</span>
+            <span className="voicePreviewLabel">{t('composer.videoMessage')}</span>
             <span className="voicePreviewDurLabel">{fmt(videoPreviewSecs)}</span>
           </div>
           <div className="videoNotePreviewVideoWrap" onClick={() => {
@@ -935,16 +937,16 @@ export function Composer({ value, onChange, onSend, onSendAttachment, externalFi
             )}
           </div>
           <div className="voicePreviewCardActions">
-            <button className="voicePreviewDeleteBtn" onClick={cancelVideo} title="Удалить">
+            <button className="voicePreviewDeleteBtn" onClick={cancelVideo} title={t('common:delete')}>
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <polyline points="3 6 5 6 21 6"/>
                 <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
                 <path d="M10 11v6M14 11v6"/>
                 <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
               </svg>
-              Удалить
+              {t('common:delete')}
             </button>
-            <button className="voicePreviewSendBtn" onClick={sendVideo} disabled={videoSending} title="Отправить">
+            <button className="voicePreviewSendBtn" onClick={sendVideo} disabled={videoSending} title={t('composer.send')}>
               {videoSending ? (
                 <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" className="composerSpinner">
                   <path d="M21 12a9 9 0 1 1-6.219-8.56"/>
@@ -955,7 +957,7 @@ export function Composer({ value, onChange, onSend, onSendAttachment, externalFi
                     <path d="M22 2L11 13" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
                     <path d="M22 2L15 22L11 13L2 9L22 2Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
                   </svg>
-                  Отправить
+                  {t('composer.send')}
                 </>
               )}
             </button>
@@ -984,7 +986,7 @@ export function Composer({ value, onChange, onSend, onSendAttachment, externalFi
               <span>{fmt(videoRecSeconds)}</span>
             </div>
             {/* Flip camera — top-right of circle */}
-            <button className="videoNoteFlipBtn" onClick={flipVideoCamera} title="Переключить камеру">
+            <button className="videoNoteFlipBtn" onClick={flipVideoCamera} title={t('composer.flipCamera')}>
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M1 4v6h6"/>
                 <path d="M23 20v-6h-6"/>
@@ -997,7 +999,7 @@ export function Composer({ value, onChange, onSend, onSendAttachment, externalFi
               <button
                 className="videoNoteModalSendBtn"
                 onClick={stopVideoRecording}
-                title="Готово — перейти к предпросмотру"
+                title={t('composer.doneToPreview')}
               >
                 <svg viewBox="0 0 24 24" fill="none" width="22" height="22">
                   <path d="M22 2L11 13" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"/>
@@ -1007,7 +1009,7 @@ export function Composer({ value, onChange, onSend, onSendAttachment, externalFi
               </button>
             ) : (
               <div className="videoNoteModalHint">
-                Отпустите для завершения · Потяните вверх для фиксации
+                {t('composer.releaseToFinishHint')}
               </div>
             )}
           </div>
@@ -1040,8 +1042,8 @@ export function Composer({ value, onChange, onSend, onSendAttachment, externalFi
             <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
             <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
           </svg>
-          <span>Редактирование</span>
-          <button className="editingBannerClose" onClick={onCancelEdit} title="Отменить редактирование">
+          <span>{t('composer.editing')}</span>
+          <button className="editingBannerClose" onClick={onCancelEdit} title={t('composer.cancelEditing')}>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
               <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
             </svg>
@@ -1055,7 +1057,7 @@ export function Composer({ value, onChange, onSend, onSendAttachment, externalFi
           {voiceState === 'recording' ? (
             /* Voice recording mode: minimal — trash | big timer + dot | mic-stop */
             <div className="voiceRecordingBar">
-              <button className="voiceRecCancelBtn" onClick={cancelVoice} title="Отменить">
+              <button className="voiceRecCancelBtn" onClick={cancelVoice} title={t('common:cancel')}>
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <polyline points="3 6 5 6 21 6"/>
                   <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
@@ -1067,12 +1069,12 @@ export function Composer({ value, onChange, onSend, onSendAttachment, externalFi
                 <span className="voiceRecDot" />
                 <span className="voiceRecTimer">{fmt(recSeconds)}</span>
               </div>
-              <span className="voiceRecHint">{locked ? '🔒 Зафиксировано' : 'Потяните вверх для фиксации'}</span>
+              <span className="voiceRecHint">{locked ? t('composer.locked') : t('composer.pullUpToLock')}</span>
             </div>
           ) : videoState === 'recording' ? (
             /* Video recording mode: minimal bar below circular viewfinder */
             <div className="voiceRecordingBar">
-              <button className="voiceRecCancelBtn" onClick={cancelVideo} title="Отменить">
+              <button className="voiceRecCancelBtn" onClick={cancelVideo} title={t('common:cancel')}>
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <polyline points="3 6 5 6 21 6"/>
                   <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
@@ -1084,7 +1086,7 @@ export function Composer({ value, onChange, onSend, onSendAttachment, externalFi
                 <span className="voiceRecDot voiceRecDotVideo" />
                 <span className="voiceRecTimer">{fmt(videoRecSeconds)}</span>
               </div>
-              <span className="voiceRecHint">{videoLocked ? '🔒 Зафиксировано' : 'Потяните вверх для фиксации'}</span>
+              <span className="voiceRecHint">{videoLocked ? t('composer.locked') : t('composer.pullUpToLock')}</span>
             </div>
           ) : (
             <>
@@ -1092,7 +1094,7 @@ export function Composer({ value, onChange, onSend, onSendAttachment, externalFi
                 <button
                   className={`composerAttach${isFileMode || attachMenuOpen ? ' composerAttachActive' : ''}`}
                   onClick={() => { if (!uploading) setAttachMenuOpen(v => !v); }}
-                  title="Прикрепить" disabled={uploading}
+                  title={t('composer.attach')} disabled={uploading}
                 >
                   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
@@ -1104,21 +1106,21 @@ export function Composer({ value, onChange, onSend, onSendAttachment, externalFi
                       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                         <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/>
                       </svg>
-                      Файлы и медиа
+                      {t('composer.filesAndMedia')}
                     </button>
                     <button className="composerAttachMenuItem" onClick={() => { setAttachMenuOpen(false); setCameraOpen(true); }}>
                       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                         <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
                         <circle cx="12" cy="13" r="4"/>
                       </svg>
-                      Камера
+                      {t('composer.camera')}
                     </button>
                     {isGroup && onOpenPollCreator && (
                       <button className="composerAttachMenuItem" onClick={() => { setAttachMenuOpen(false); onOpenPollCreator(); }}>
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                           <rect x="3" y="3" width="18" height="18" rx="2"/><line x1="8" y1="12" x2="16" y2="12"/><line x1="8" y1="8" x2="11" y2="8"/><line x1="8" y1="16" x2="14" y2="16"/>
                         </svg>
-                        Опрос
+                        {t('composer.poll')}
                       </button>
                     )}
                   </div>
@@ -1130,7 +1132,7 @@ export function Composer({ value, onChange, onSend, onSendAttachment, externalFi
                   contentEditable={!isFileMode && !disabled ? 'true' : 'false'}
                   suppressContentEditableWarning
                   className="composerInput"
-                  data-placeholder={uploading ? `Загрузка…` : isFileMode ? 'Файлы готовы к отправке' : 'Сообщение…'}
+                  data-placeholder={uploading ? t('composer.uploading') : isFileMode ? t('composer.filesReadyPlaceholder') : t('composer.messagePlaceholder')}
                   dir="auto"
                   onContextMenu={e => e.preventDefault()}
                   onInput={() => {
@@ -1228,7 +1230,7 @@ export function Composer({ value, onChange, onSend, onSendAttachment, externalFi
                   <button
                     className={`composerEmojiBtn${emojiOpen ? ' active' : ''}`}
                     onClick={() => setEmojiOpen(v => !v)}
-                    title="Эмодзи"
+                    title={t('composer.emoji')}
                     tabIndex={-1}
                   >
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
@@ -1265,7 +1267,7 @@ export function Composer({ value, onChange, onSend, onSendAttachment, externalFi
             <button
               className="composerScheduleBtn"
               onClick={onOpenSchedule}
-              title="Запланировать отправку"
+              title={t('composer.scheduleSend')}
               tabIndex={-1}
             >
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -1280,7 +1282,7 @@ export function Composer({ value, onChange, onSend, onSendAttachment, externalFi
             <button
               className="composerScheduledListBtn"
               onClick={onOpenScheduledList}
-              title="Запланированные сообщения"
+              title={t('composer.scheduledMessages')}
               tabIndex={-1}
             >
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -1301,7 +1303,7 @@ export function Composer({ value, onChange, onSend, onSendAttachment, externalFi
                     <line x1="12" y1="8" x2="12" y2="12"/>
                     <line x1="12" y1="16" x2="12.01" y2="16"/>
                   </svg>
-                  Доступ к микрофону запрещён
+                  {t('composer.micDenied')}
                 </div>
               )}
               {/* Voice lock track */}
@@ -1322,7 +1324,7 @@ export function Composer({ value, onChange, onSend, onSendAttachment, externalFi
                 </div>
               )}
               {voiceState === 'recording' && locked && (
-                <div className="voiceLockedBadge" onClick={stopRecording} title="Нажмите для завершения">
+                <div className="voiceLockedBadge" onClick={stopRecording} title={t('composer.clickToFinish')}>
                   <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
                     <path d="M18 8h-1V6A5 5 0 0 0 7 6v2H6a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V10a2 2 0 0 0-2-2zm-6 9a2 2 0 1 1 0-4 2 2 0 0 1 0 4zm3.1-9H8.9V6a3.1 3.1 0 1 1 6.2 0v2z"/>
                   </svg>
@@ -1346,7 +1348,7 @@ export function Composer({ value, onChange, onSend, onSendAttachment, externalFi
                 </div>
               )}
               {videoState === 'recording' && videoLocked && (
-                <div className="voiceLockedBadge" onClick={stopVideoRecording} title="Нажмите для завершения">
+                <div className="voiceLockedBadge" onClick={stopVideoRecording} title={t('composer.clickToFinish')}>
                   <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
                     <path d="M18 8h-1V6A5 5 0 0 0 7 6v2H6a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V10a2 2 0 0 0-2-2zm-6 9a2 2 0 1 1 0-4 2 2 0 0 1 0 4zm3.1-9H8.9V6a3.1 3.1 0 1 1 6.2 0v2z"/>
                   </svg>
@@ -1358,7 +1360,7 @@ export function Composer({ value, onChange, onSend, onSendAttachment, externalFi
                 <button
                   className="composerMic composerMicSend"
                   onClick={isFileMode ? () => handleSendFiles() : () => { if (value.trim()) onSend(); }}
-                  title="Отправить"
+                  title={t('composer.send')}
                 >
                   {uploading ? (
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" className="composerSpinner">
@@ -1387,10 +1389,10 @@ export function Composer({ value, onChange, onSend, onSendAttachment, externalFi
                     onPointerUp={onMicUp}
                     onPointerCancel={onMicUp}
                     title={
-                      voiceState === 'recording' ? (locked ? 'Нажмите для остановки' : 'Отпустите или потяните вверх') :
-                      videoState === 'recording' ? (videoLocked ? 'Нажмите для остановки' : 'Отпустите или потяните вверх') :
-                      recordMode === 'video' ? 'Зажмите для видеосообщения · Нажмите для смены режима' :
-                      'Зажмите для записи · Нажмите для видео'
+                      voiceState === 'recording' ? (locked ? t('composer.clickToStop') : t('composer.releaseOrPullUp')) :
+                      videoState === 'recording' ? (videoLocked ? t('composer.clickToStop') : t('composer.releaseOrPullUp')) :
+                      recordMode === 'video' ? t('composer.holdForVideoNote') :
+                      t('composer.holdToRecordHint')
                     }
                   >
                     {(voiceState === 'recording' && locked) || (videoState === 'recording' && videoLocked) ? (

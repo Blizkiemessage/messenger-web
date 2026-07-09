@@ -4,7 +4,8 @@
  * Beautiful custom calendar + HH:MM time picker (Telegram-style).
  * No native datetime-local input — full custom rendering.
  */
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 
 interface Props {
   onConfirm: (deliverAt: number) => void;
@@ -13,11 +14,21 @@ interface Props {
   initialDeliverAt?: number;
 }
 
-const MONTH_NAMES = [
-  'Январь','Февраль','Март','Апрель','Май','Июнь',
-  'Июль','Август','Сентябрь','Октябрь','Ноябрь','Декабрь',
-];
-const DOW = ['Пн','Вт','Ср','Чт','Пт','Сб','Вс'];
+function capitalize(s: string): string {
+  return s.charAt(0).toUpperCase() + s.slice(1);
+}
+
+/** Localized standalone (nominative) month names, Jan..Dec */
+function getMonthNames(locale: string): string[] {
+  return Array.from({ length: 12 }, (_, i) =>
+    capitalize(new Date(2000, i, 1).toLocaleDateString(locale, { month: 'long' })));
+}
+
+/** Localized short weekday names, Monday-first */
+function getDowNames(locale: string): string[] {
+  return Array.from({ length: 7 }, (_, i) =>
+    capitalize(new Date(2024, 0, 1 + i).toLocaleDateString(locale, { weekday: 'short' })));
+}
 
 /** Return 0-based weekday where Monday = 0 */
 function mondayBasedDow(d: Date): number {
@@ -102,6 +113,10 @@ function SpinInput({ value, min, max, onChange, wrap = true }: SpinProps) {
 
 /* ── Main component ─────────────────────────────────────────────────── */
 export function ScheduleDatePicker({ onConfirm, onClose, initialDeliverAt }: Props) {
+  const { t, i18n } = useTranslation('chat');
+  const locale = i18n.language === 'en' ? 'en-US' : 'ru-RU';
+  const monthNames = useMemo(() => getMonthNames(locale), [locale]);
+  const dowNames   = useMemo(() => getDowNames(locale), [locale]);
   const now = new Date();
 
   // Start with tomorrow 09:00, or the existing scheduled time in edit mode
@@ -149,7 +164,7 @@ export function ScheduleDatePicker({ onConfirm, onClose, initialDeliverAt }: Pro
     const target = new Date(selDate);
     target.setHours(hours, minutes, 0, 0);
     if (target.getTime() <= Date.now() + 30_000) {
-      setError('Выберите время хотя бы на 1 минуту вперёд');
+      setError(t('schedulePicker.minTimeError'));
       return;
     }
     onConfirm(target.getTime());
@@ -163,7 +178,7 @@ export function ScheduleDatePicker({ onConfirm, onClose, initialDeliverAt }: Pro
   }, [onClose]);
 
   // ── Format selected date for the summary line ──
-  const selLabel = selDate.toLocaleDateString('ru-RU', {
+  const selLabel = selDate.toLocaleDateString(locale, {
     day: 'numeric', month: 'long', year: 'numeric',
   });
 
@@ -177,9 +192,9 @@ export function ScheduleDatePicker({ onConfirm, onClose, initialDeliverAt }: Pro
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
               <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
             </svg>
-            Запланировать сообщение
+            {t('schedulePicker.title')}
           </span>
-          <button className="sdpClose" onClick={onClose} title="Закрыть">
+          <button className="sdpClose" onClick={onClose} title={t('header.close')}>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
               <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
             </svg>
@@ -190,15 +205,15 @@ export function ScheduleDatePicker({ onConfirm, onClose, initialDeliverAt }: Pro
         <div className="sdpCalendar">
           {/* Month nav */}
           <div className="sdpMonthNav">
-            <button className="sdpMonthBtn" onClick={prevMonth} title="Предыдущий месяц">
+            <button className="sdpMonthBtn" onClick={prevMonth} title={t('schedulePicker.prevMonth')}>
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
                 <polyline points="15 18 9 12 15 6"/>
               </svg>
             </button>
             <span className="sdpMonthLabel">
-              {MONTH_NAMES[viewMonth]} {viewYear}
+              {monthNames[viewMonth]} {viewYear}
             </span>
-            <button className="sdpMonthBtn" onClick={nextMonth} title="Следующий месяц">
+            <button className="sdpMonthBtn" onClick={nextMonth} title={t('schedulePicker.nextMonth')}>
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
                 <polyline points="9 18 15 12 9 6"/>
               </svg>
@@ -207,7 +222,7 @@ export function ScheduleDatePicker({ onConfirm, onClose, initialDeliverAt }: Pro
 
           {/* Day-of-week headers */}
           <div className="sdpDowRow">
-            {DOW.map(d => (
+            {dowNames.map(d => (
               <span key={d} className="sdpDowCell">{d}</span>
             ))}
           </div>
@@ -239,7 +254,7 @@ export function ScheduleDatePicker({ onConfirm, onClose, initialDeliverAt }: Pro
 
         {/* ── Time picker ── */}
         <div className="sdpTimePicker">
-          <div className="sdpTimeLabel">Время отправки</div>
+          <div className="sdpTimeLabel">{t('schedulePicker.sendTime')}</div>
           <div className="sdpTimeInputs">
             <SpinInput value={hours}   min={0} max={23} onChange={h => { setHours(h);   setError(null); }} />
             <span className="sdpTimeSep">:</span>
@@ -252,7 +267,7 @@ export function ScheduleDatePicker({ onConfirm, onClose, initialDeliverAt }: Pro
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
             <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
           </svg>
-          Отправится {selLabel} в {String(hours).padStart(2,'0')}:{String(minutes).padStart(2,'0')}
+          {t('schedulePicker.willSendAt', { date: selLabel, time: `${String(hours).padStart(2,'0')}:${String(minutes).padStart(2,'0')}` })}
         </div>
 
         {error && <div className="sdpError">{error}</div>}
@@ -260,9 +275,9 @@ export function ScheduleDatePicker({ onConfirm, onClose, initialDeliverAt }: Pro
         {/* ── Actions ── */}
         <div className="sdpActions">
           <button className="sdpConfirm" onClick={handleConfirm}>
-            Запланировать
+            {t('schedulePicker.confirm')}
           </button>
-          <button className="sdpCancel" onClick={onClose}>Отмена</button>
+          <button className="sdpCancel" onClick={onClose}>{t('schedulePicker.cancel')}</button>
         </div>
 
       </div>

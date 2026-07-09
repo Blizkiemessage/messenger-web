@@ -11,6 +11,7 @@
  * поменяют ещё раз — плашка появится снова под новую метку времени.
  */
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { type Chat } from '../../types';
 import { cssForChatBg, parseChatBg, sharedChatBgIsNewer } from '../../utils/appBackground';
 import { setChatBackground } from '../../api/chats';
@@ -26,6 +27,7 @@ function writeDismissed(map: Record<string, number>) {
 }
 
 export function SharedBgPrompt({ chat }: { chat: Chat }) {
+  const { t } = useTranslation('chat');
   const [busy, setBusy] = useState(false);
   const [hidden, setHidden] = useState(false);
 
@@ -62,12 +64,12 @@ export function SharedBgPrompt({ chat }: { chat: Chat }) {
     <div className="sbgPrompt" role="status">
       <span className="sbgPromptSwatch" style={sharedCss ? { background: sharedCss } : undefined} aria-hidden />
       <span className="sbgPromptText">
-        {chat.type === 'direct' ? 'Собеседник обновил фон чата' : 'Фон чата обновлён для всех'}
+        {chat.type === 'direct' ? t('sharedBgPrompt.updatedDirect') : t('sharedBgPrompt.updatedGroup')}
       </span>
       <button className="sbgPromptApply" onClick={apply} disabled={busy}>
-        {busy ? '…' : 'Применить'}
+        {busy ? '…' : t('sharedBgPrompt.apply')}
       </button>
-      <button className="sbgPromptClose" onClick={keepMine} disabled={busy} title="Оставить мой фон" aria-label="Оставить мой фон">✕</button>
+      <button className="sbgPromptClose" onClick={keepMine} disabled={busy} title={t('sharedBgPrompt.keepMine')} aria-label={t('sharedBgPrompt.keepMine')}>✕</button>
     </div>
   );
 }

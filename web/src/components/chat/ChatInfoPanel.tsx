@@ -13,6 +13,7 @@
  * На мобильном (≤700px) панель не рендерится: там остаются прежние модалки.
  */
 import { useEffect, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { type Chat } from '../../types';
 import { type InfoPanelSection } from '../../store/useAppStore';
 import { chatTitle, chatSubtitle, avatarLetter, formatLastSeen } from '../../utils/format';
@@ -48,6 +49,7 @@ export function ChatInfoPanel({
   chat, meId, onClose, onViewUser, onOpenGroupInfo, onToggleSearch,
   onOpenNotes, onOpenSummary, onOpenDaily, section, onSectionConsumed,
 }: Props) {
+  const { t } = useTranslation('chat');
   const isGroup = chat.type === 'group';
   const onlineUsers = useChatsStore(s => s.onlineUsers);
   const partner = !isGroup ? chat.members.find(m => m.id !== meId) ?? null : null;
@@ -98,9 +100,9 @@ export function ChatInfoPanel({
   }
 
   return (
-    <aside className="chatInfoPanel" aria-label="Информация о чате">
+    <aside className="chatInfoPanel" aria-label={t('infoPanel.aria')}>
       {/* Кнопка свернуть панель */}
-      <button className="cipCollapse" onClick={onClose} title="Скрыть панель" aria-label="Скрыть панель">
+      <button className="cipCollapse" onClick={onClose} title={t('infoPanel.hidePanel')} aria-label={t('infoPanel.hidePanel')}>
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
           <polyline points="9 18 15 12 9 6" />
         </svg>
@@ -112,7 +114,7 @@ export function ChatInfoPanel({
           <button
             className="cipAvatar"
             onClick={() => { if (isGroup) onOpenGroupInfo(); else if (partner) onViewUser(partner.id); }}
-            title={isGroup ? 'Информация о группе' : 'Профиль собеседника'}
+            title={isGroup ? t('infoPanel.groupInfo') : t('infoPanel.partnerProfile')}
           >
             {resolveUrl(avatarUser?.avatar_url) ? (
               <Avatar user={avatarUser} size={92} radius={28} presenceStatus={partnerPresence} />
@@ -144,7 +146,7 @@ export function ChatInfoPanel({
                 </svg>
               )}
             </span>
-            <span className="cipActionLabel">{isGroup ? 'Участники' : 'Профиль'}</span>
+            <span className="cipActionLabel">{isGroup ? t('infoPanel.members') : t('infoPanel.profile')}</span>
           </button>
 
           <button className={`cipAction${chat.is_muted ? ' active' : ''}`} onClick={handleMute} disabled={muteBusy}>
@@ -163,7 +165,7 @@ export function ChatInfoPanel({
                 </svg>
               )}
             </span>
-            <span className="cipActionLabel">{chat.is_muted ? 'Звук' : 'Без звука'}</span>
+            <span className="cipActionLabel">{chat.is_muted ? t('infoPanel.soundOn') : t('infoPanel.soundOff')}</span>
           </button>
 
           <button className="cipAction" onClick={onToggleSearch}>
@@ -172,14 +174,14 @@ export function ChatInfoPanel({
                 <circle cx="11" cy="11" r="7" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
               </svg>
             </span>
-            <span className="cipActionLabel">Поиск</span>
+            <span className="cipActionLabel">{t('infoPanel.search')}</span>
           </button>
         </div>
 
         {/* ── Настроить чат (фон) ─────────────────────────────────────── */}
         <div className="cipSection" ref={customizeRef}>
           <button className="cipSectionHead" onClick={() => setCustomizeOpen(v => !v)}>
-            <span className="cipSectionTitle">Настроить чат</span>
+            <span className="cipSectionTitle">{t('infoPanel.customizeChat')}</span>
             <Chevron open={customizeOpen} />
           </button>
           {customizeOpen && (
@@ -192,7 +194,7 @@ export function ChatInfoPanel({
         {/* ── Медиа, файлы и ссылки ───────────────────────────────────── */}
         <div className="cipSection" ref={mediaRef}>
           <button className="cipSectionHead" onClick={() => setMediaOpen(v => !v)}>
-            <span className="cipSectionTitle">Медиа, файлы и ссылки</span>
+            <span className="cipSectionTitle">{t('infoPanel.mediaFilesLinks')}</span>
             <Chevron open={mediaOpen} />
           </button>
           {mediaOpen && (
@@ -211,7 +213,7 @@ export function ChatInfoPanel({
                 <line x1="16" y1="13" x2="8" y2="13" /><line x1="16" y1="17" x2="8" y2="17" />
               </svg>
             </span>
-            <span className="cipLinkLabel">Заметки чата</span>
+            <span className="cipLinkLabel">{t('infoPanel.chatNotes')}</span>
             <svg className="cipLinkChevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round"><polyline points="9 18 15 12 9 6" /></svg>
           </button>
 
@@ -221,7 +223,7 @@ export function ChatInfoPanel({
                 <circle cx="12" cy="12" r="10" /><path d="M12 6v6l4 2" />
               </svg>
             </span>
-            <span className="cipLinkLabel">AI-сводка</span>
+            <span className="cipLinkLabel">{t('infoPanel.aiSummary')}</span>
             <svg className="cipLinkChevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round"><polyline points="9 18 15 12 9 6" /></svg>
           </button>
 
@@ -231,7 +233,7 @@ export function ChatInfoPanel({
                 <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
               </svg>
             </span>
-            <span className="cipLinkLabel">Вопрос дня</span>
+            <span className="cipLinkLabel">{t('infoPanel.dailyPrompt')}</span>
             <svg className="cipLinkChevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round"><polyline points="9 18 15 12 9 6" /></svg>
           </button>
         </div>

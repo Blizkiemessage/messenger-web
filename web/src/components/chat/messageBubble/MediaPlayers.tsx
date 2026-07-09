@@ -3,6 +3,7 @@
  *   VideoNotePlayer (circular, Telegram-style) and AudioPlayer (voice messages)
  */
 import { useState, useRef, useEffect, useMemo, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import { formatTime } from '../../../utils/format';
 import { MsgStatus } from '../../ui/icons/MsgStatus';
 import { useMediaPlayer } from '../../../contexts/MediaPlayerContext';
@@ -30,6 +31,7 @@ export function VideoNotePlayer({
   isError?: boolean;
   onRetry?: () => void;
 }) {
+  const { t } = useTranslation('chat');
   const videoRef    = useRef<HTMLVideoElement>(null);
   const msgRef      = useRef<HTMLDivElement>(null);   // root div for coordinate base
   const draggingRef = useRef(false);
@@ -158,7 +160,7 @@ export function VideoNotePlayer({
     <div ref={msgRef}
          className={`videoNoteMsg${isActive ? ' videoNoteActive' : ''}`}
          onClick={toggle}
-         title={playing ? 'Пауза' : 'Воспроизвести'}>
+         title={playing ? t('media.pause') : t('media.play')}>
       <video
         ref={videoRef}
         src={blobUrl ?? url}
@@ -253,6 +255,7 @@ export function VideoNotePlayer({
 export function AudioPlayer({
   url, isOwn, isRead, sendTime, msgId, senderName, initialDuration, waveformStr, isPending, isError, onRetry,
 }: { url: string; isOwn: boolean; isRead: boolean; sendTime: number; msgId: string; senderName: string; initialDuration?: number; waveformStr?: string | null; isPending?: boolean; isError?: boolean; onRetry?: () => void }) {
+  const { t } = useTranslation('chat');
   const audioRef    = useRef<HTMLAudioElement>(null);
   const trackRef    = useRef<HTMLDivElement>(null);
   const draggingRef = useRef(false);
@@ -378,7 +381,7 @@ export function AudioPlayer({
       />
 
       {/* Play / Pause / Loading button */}
-      <button className="voiceMsgPlay" onClick={toggle} aria-label={downloading ? 'Загрузка…' : playing ? 'Пауза' : 'Воспроизвести'} disabled={downloading}>
+      <button className="voiceMsgPlay" onClick={toggle} aria-label={downloading ? t('common:loading') : playing ? t('media.pause') : t('media.play')} disabled={downloading}>
         {downloading ? (
           <svg className="voiceMsgSpinner" viewBox="0 0 24 24" fill="none" width="16" height="16">
             <circle cx="12" cy="12" r="9" strokeWidth="2.5" stroke="currentColor" strokeOpacity="0.25" />
@@ -412,7 +415,7 @@ export function AudioPlayer({
           role="slider"
           aria-valuemin={0} aria-valuemax={100}
           aria-valuenow={Math.round(progress * 100)}
-          aria-label="Перемотка"
+          aria-label={t('media.seek')}
         >
           {waveform ? (
             <div className={`voiceWaveformBars${isOwn ? ' voiceWaveformBarsOwn' : ''}`}>

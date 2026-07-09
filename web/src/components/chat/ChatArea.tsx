@@ -3,6 +3,7 @@
  * ✅ Added: pin/unpin messages, pin navigation, long message auto-split.
  */
 import { useState, useCallback, useRef, useEffect, useLayoutEffect, lazy, Suspense } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useDraftStore } from '../../store/useDraftStore';
 import { useChatsStore, selectActiveChat } from '../../store/useChatsStore';
 import { useSessionStore } from '../../store/useSessionStore';
@@ -48,6 +49,7 @@ import { useDragDrop } from './chatArea/useDragDrop';
 import { usePinnedMessages } from './chatArea/usePinnedMessages';
 
 export function ChatArea() {
+  const { t } = useTranslation(['chat', 'nav', 'common']);
   const me              = useSessionStore(s => s.me)!;
   const activeChat      = useChatsStore(selectActiveChat);
   const messages        = useChatsStore(s => s.messages);
@@ -272,14 +274,14 @@ export function ChatArea() {
   // ── Reply handlers ────────────────────────────────────────────────────────
   const handleReply = useCallback((msg: Message, selectedText: string) => {
     const sender = activeChat?.members.find(m => m.id === msg.sender_id);
-    const senderName = sender?.display_name || sender?.username || 'Пользователь';
+    const senderName = sender?.display_name || sender?.username || t('nav:common.defaultUser');
     setReplyTo({
       messageId: msg.id,
       senderId: msg.sender_id,
       senderName,
       quotedText: selectedText || msg.text || '',
     });
-  }, [activeChat]);
+  }, [activeChat, t]);
 
   const handleCancelReply = useCallback(() => setReplyTo(null), []);
 
@@ -586,9 +588,9 @@ export function ChatArea() {
     if (others.length === 1) {
       const member = activeChat.members.find(m => m.id === others[0]);
       const name = member?.display_name || member?.username || null;
-      return name ? `${name} печатает` : 'Печатает';
+      return name ? t('nav:chatList.typingNamed', { name }) : t('nav:chatList.typingGeneric');
     }
-    return `${others.length} пользователя печатают`;
+    return t('nav:chatList.typingMultiple', { count: others.length });
   })();
 
   if (!activeChat) return <EmptyState />;
@@ -629,8 +631,8 @@ export function ChatArea() {
                 <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/>
               </svg>
             </div>
-            <div className="dropOverlayTitle">Перетащите файл сюда</div>
-            <div className="dropOverlaySub">Файл будет прикреплён к сообщению</div>
+            <div className="dropOverlayTitle">{t('chat:area.dragDropTitle')}</div>
+            <div className="dropOverlaySub">{t('chat:area.dragDropSub')}</div>
           </div>
         </div>
       )}
@@ -643,7 +645,7 @@ export function ChatArea() {
               <polyline points="15 17 20 12 15 7"/>
               <path d="M4 18v-2a4 4 0 0 1 4-4h12"/>
             </svg>
-            <span>Выбрано {forwardingIds?.length ?? 0} сообщ. — выберите ещё или нажмите «Готово»</span>
+            <span>{t('chat:area.selectedCountBanner', { count: forwardingIds?.length ?? 0 })}</span>
           </div>
           <div className="fwdAddMoreRight">
             <button className="fwdAddMoreDone" onClick={() => {
@@ -653,10 +655,10 @@ export function ChatArea() {
               clearSelection();
               setShowForwardModal(true);
             }}>
-              Готово ({selectedIds.size})
+              {t('chat:area.done', { count: selectedIds.size })}
             </button>
             <button className="fwdAddMoreCancel" onClick={() => { setForwardingIds(null); clearSelection(); }}>
-              Отмена
+              {t('common:cancel')}
             </button>
           </div>
         </div>
@@ -791,7 +793,7 @@ export function ChatArea() {
         <button
           className="scrollToBottomBtn"
           onClick={() => scrollToBottomFnRef.current?.()}
-          title="Перейти к последним сообщениям"
+          title={t('chat:area.scrollToBottom')}
         >
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
             <polyline points="6 9 12 15 18 9"/>
@@ -806,7 +808,7 @@ export function ChatArea() {
             <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
             <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
           </svg>
-          <span>Группа закрыта — отправка сообщений недоступна</span>
+          <span>{t('chat:area.groupClosedBanner')}</span>
         </div>
       ) : (
         <>
@@ -824,7 +826,7 @@ export function ChatArea() {
                 <circle cx="12" cy="12" r="4"/>
                 <path d="M16 8v5a3 3 0 0 0 6 0v-1a10 10 0 1 0-3.92 7.94"/>
               </svg>
-              <span>Вас упомянули — нажмите, чтобы перейти</span>
+              <span>{t('chat:area.mentionedBanner')}</span>
               <button className="mentionBannerClose" onClick={e => { e.stopPropagation(); setMentionBannerId(null); }}>
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
                   <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
@@ -890,7 +892,7 @@ export function ChatArea() {
       {/* Пожаловаться на сообщение */}
       {reportMsg && activeChat && (
         <ReportModal
-          title="Пожаловаться на сообщение"
+          title={t('chat:area.reportMessageTitle')}
           onClose={() => setReportMsg(null)}
           onSubmit={reason => apiReportMessage(activeChat.id, reportMsg.id, reason)}
         />
@@ -941,7 +943,7 @@ export function ChatArea() {
       {showSummary && activeChat && (
         <AISummaryModal
           chatId={activeChat.id}
-          chatTitle={activeChat.type === 'group' ? (activeChat.name ?? 'Группа') : (activeChat.members.find(m => m.id !== me.id)?.display_name || activeChat.members.find(m => m.id !== me.id)?.username || 'Чат')}
+          chatTitle={activeChat.type === 'group' ? (activeChat.name ?? t('common:groupFallback')) : (activeChat.members.find(m => m.id !== me.id)?.display_name || activeChat.members.find(m => m.id !== me.id)?.username || t('common:dialogFallback'))}
           onClose={() => setShowSummary(false)}
         />
       )}

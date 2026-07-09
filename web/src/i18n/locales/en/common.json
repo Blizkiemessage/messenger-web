@@ -37,5 +37,12 @@
   "membersCount_other": "{{count}} members",
   "presenceFree": "Free",
   "presenceBusy": "Busy",
-  "presenceDnd": "Do not disturb"
+  "presenceDnd": "Do not disturb",
+  "today": "Today",
+  "yesterday": "Yesterday",
+  "justNow": "just now",
+  "minutesAgo": "last seen {{count}} min ago",
+  "wasOnlineAt": "last seen at {{time}}",
+  "wasOnlineYesterdayAt": "last seen yesterday at {{time}}",
+  "wasOnlineOn": "last seen {{date}} at {{time}}"
 }

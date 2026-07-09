@@ -5,6 +5,7 @@
  * ✅ Explicit background colors as fallback for CSS var(--card).
  */
 import { useRef, useEffect, useLayoutEffect, useState, useCallback, lazy, Suspense } from 'react';
+import { useTranslation } from 'react-i18next';
 import { type Message, type Chat, type MessageReaction } from '../../types';
 import { dayKey, formatDateSeparator } from '../../utils/format';
 import { MessageBubble } from './MessageBubble';
@@ -85,6 +86,7 @@ export function MessageList({
   onVote, onRetract, onViewVoters, onEdit, meUsername, unreadCount, onMarkRead,
   onAtBottomChange, onScrollToBottomRef, onRetryMessage, onOpenDailyPrompt,
 }: Props) {
+  const { t } = useTranslation(['chat', 'common']);
   const bottomRef      = useRef<HTMLDivElement | null>(null);
   const matchRef       = useRef<HTMLDivElement | null>(null);
   const pinnedRef      = useRef<HTMLDivElement | null>(null);
@@ -368,11 +370,11 @@ export function MessageList({
       <div className={`msgsFloatingDate${floatingVisible && floatingDate ? ' msgsFloatingDateShow' : ''}`} aria-hidden>
         {floatingDate && <span className="msgDatePill msgDatePillFloat">{floatingDate}</span>}
       </div>
-      {loadingMore && <div className="msgsLoadingMore">Загрузка истории…</div>}
+      {loadingMore && <div className="msgsLoadingMore">{t('chat:messageList.loadingHistory')}</div>}
       {!hasMoreMessages && messages.length > 0 && (
-        <div className="msgsBeginning">— начало истории переписки —</div>
+        <div className="msgsBeginning">{t('chat:messageList.beginningOfHistory')}</div>
       )}
-      {loadingMessages && <div className="msgHint">Загрузка…</div>}
+      {loadingMessages && <div className="msgHint">{t('common:loading')}</div>}
 
       {messages.map((m, idx) => {
         const isOwn        = m.sender_id === meId;
@@ -509,7 +511,7 @@ export function MessageList({
                   <polyline points="9 17 4 12 9 7"/>
                   <path d="M20 18v-2a4 4 0 0 0-4-4H4"/>
                 </svg>
-                Ответить
+                {t('chat:messageList.reply')}
               </button>
             )}
 
@@ -529,7 +531,7 @@ export function MessageList({
                   <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
                   <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
                 </svg>
-                Копировать текст
+                {t('chat:messageList.copyText')}
               </button>
             )}
 
@@ -543,7 +545,7 @@ export function MessageList({
                   <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
                   <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
                 </svg>
-                Редактировать
+                {t('common:edit')}
               </button>
             )}
 
@@ -562,7 +564,7 @@ export function MessageList({
                   <line x1="9" y1="9" x2="9.01" y2="9"/>
                   <line x1="15" y1="9" x2="15.01" y2="9"/>
                 </svg>
-                Поставить реакцию
+                {t('chat:messageList.addReaction')}
               </button>
             )}</>); })()}
 
@@ -576,7 +578,7 @@ export function MessageList({
                   <polyline points="15 17 20 12 15 7"/>
                   <path d="M4 18v-2a4 4 0 0 1 4-4h12"/>
                 </svg>
-                Переслать
+                {t('chat:header.forward')}
               </button>
             )}
 
@@ -590,7 +592,7 @@ export function MessageList({
                   <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/>
                   <line x1="4" y1="22" x2="4" y2="15"/>
                 </svg>
-                Пожаловаться
+                {t('common:report')}
               </button>
             )}
 
@@ -604,7 +606,7 @@ export function MessageList({
                   <path d="M4 20h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.93a2 2 0 0 1-1.66-.9l-.82-1.2A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13c0 1.1.9 2 2 2Z"/>
                   <line x1="12" y1="11" x2="12" y2="17"/><line x1="9" y1="14" x2="15" y2="14"/>
                 </svg>
-                В коллекцию
+                {t('chat:messageList.addToCollection')}
               </button>
             )}
 
@@ -618,7 +620,7 @@ export function MessageList({
                   <line x1="2" y1="2" x2="22" y2="22"/>
                   <path d="M12 17v5M9 9H4l3-3 4 1M15 15l4-4-1-4 3-3v5"/>
                 </svg>
-                Открепить
+                {t('chat:header.unpin')}
               </button>
             ) : (
               <button
@@ -628,7 +630,7 @@ export function MessageList({
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" stroke="none">
                   <path d="M16 3a1 1 0 0 0-1 1v1H9V4a1 1 0 0 0-2 0v1a3 3 0 0 0-3 3v1l2 2v4H4a1 1 0 0 0 0 2h7v3a1 1 0 0 0 2 0v-3h7a1 1 0 0 0 0-2h-2v-4l2-2V8a3 3 0 0 0-3-3V4a1 1 0 0 0-1-1z"/>
                 </svg>
-                Закрепить
+                {t('chat:header.pin')}
               </button>
             )}
 
@@ -641,7 +643,7 @@ export function MessageList({
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-5.05"/>
                 </svg>
-                Переголосовать
+                {t('chat:messageList.retractVote')}
               </button>
             )}
 
@@ -657,7 +659,7 @@ export function MessageList({
                   <path d="M10 11v6M14 11v6"/>
                   <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
                 </svg>
-                Удалить
+                {t('common:delete')}
               </button>
             )}
           </div>

@@ -14,6 +14,7 @@
  *   the progress bar, scrubbing and time display all work for audio too.
  */
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useMediaPlayer } from '../../contexts/MediaPlayerContext';
 
 // ── helpers ───────────────────────────────────────────────────────────────────
@@ -28,6 +29,7 @@ function fmtT(s: number): string {
 // ── component ─────────────────────────────────────────────────────────────────
 
 export function MiniPlayer() {
+  const { t } = useTranslation('chat');
   const { activeMedia, mediaElRef, activeDuration, deactivate } = useMediaPlayer();
 
   const [current,  setCurrent]  = useState(0);
@@ -147,14 +149,14 @@ export function MiniPlayer() {
   const isAudio  = activeMedia.type === 'audio';
 
   return (
-    <div className="miniPlayer" role="region" aria-label="Мини-плеер">
+    <div className="miniPlayer" role="region" aria-label={t('miniPlayer.aria')}>
 
       {/* ── Left: jump-to-message button ── */}
       <button
         className="miniPlayerJumpBtn"
         onClick={jumpToMessage}
-        title="Перейти к сообщению"
-        aria-label="Перейти к сообщению"
+        title={t('miniPlayer.goToMessage')}
+        aria-label={t('miniPlayer.goToMessage')}
       >
         <svg width="17" height="17" viewBox="0 0 24 24" fill="none"
              stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -172,7 +174,7 @@ export function MiniPlayer() {
       <div className="miniPlayerInfo">
         <span className="miniPlayerSender">{activeMedia.senderName}</span>
         <span className="miniPlayerType">
-          {isAudio ? 'Голосовое' : 'Видеосообщение'}
+          {isAudio ? t('miniPlayer.voice') : t('miniPlayer.videoNote')}
         </span>
       </div>
 
@@ -180,8 +182,8 @@ export function MiniPlayer() {
       <button
         className="miniPlayerSkip"
         onClick={() => seekBy(-15)}
-        title="Назад 15 секунд"
-        aria-label="Назад 15 секунд"
+        title={t('miniPlayer.back15')}
+        aria-label={t('miniPlayer.back15')}
       >
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
              stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
@@ -194,7 +196,7 @@ export function MiniPlayer() {
       <button
         className="miniPlayerPlayBtn"
         onClick={togglePlay}
-        aria-label={playing ? 'Пауза' : 'Воспроизвести'}
+        aria-label={playing ? t('media.pause') : t('media.play')}
       >
         {playing ? (
           <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor">
@@ -212,8 +214,8 @@ export function MiniPlayer() {
       <button
         className="miniPlayerSkip"
         onClick={() => seekBy(15)}
-        title="Вперёд 15 секунд"
-        aria-label="Вперёд 15 секунд"
+        title={t('miniPlayer.forward15')}
+        aria-label={t('miniPlayer.forward15')}
       >
         <span>15</span>
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
@@ -235,7 +237,7 @@ export function MiniPlayer() {
         aria-valuemin={0}
         aria-valuemax={100}
         aria-valuenow={Math.round(progress * 100)}
-        aria-label="Перемотка"
+        aria-label={t('media.seek')}
       >
         <div className="miniPlayerTrackBg">
           <div className="miniPlayerTrackFill" style={{ width: `${progress * 100}%` }} />
@@ -252,8 +254,8 @@ export function MiniPlayer() {
       <button
         className="miniPlayerClose"
         onClick={() => deactivate()}
-        aria-label="Закрыть плеер"
-        title="Закрыть"
+        aria-label={t('miniPlayer.closePlayer')}
+        title={t('header.close')}
       >
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none"
              stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">

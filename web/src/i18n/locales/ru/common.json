@@ -37,5 +37,12 @@
   "membersCount_other": "{{count}} участников",
   "presenceFree": "Свободен",
   "presenceBusy": "Занят",
-  "presenceDnd": "Не беспокоить"
+  "presenceDnd": "Не беспокоить",
+  "today": "Сегодня",
+  "yesterday": "Вчера",
+  "justNow": "только что",
+  "minutesAgo": "был(а) {{count}} мин. назад",
+  "wasOnlineAt": "был(а) в {{time}}",
+  "wasOnlineYesterdayAt": "был(а) вчера в {{time}}",
+  "wasOnlineOn": "был(а) {{date}} в {{time}}"
 }

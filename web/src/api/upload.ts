@@ -10,6 +10,7 @@
  * and the old multipart POST /upload flow is used instead.
  */
 import client from './client';
+import i18n from '../i18n';
 
 export interface UploadResult {
   url:       string;
@@ -212,7 +213,7 @@ export function uploadFile(
       }
     }
 
-    if (controller.signal.aborted) throw new Error('Загрузка отменена');
+    if (controller.signal.aborted) throw new Error(i18n.t('chat:upload.cancelled'));
 
     // Upload to S3 via XHR (fetch API doesn't support upload progress).
     // Presigned POST (size-bound policy) when the server provides form fields,
@@ -221,14 +222,14 @@ export function uploadFile(
       const xhr = new XMLHttpRequest();
       controller.signal.addEventListener('abort', () => {
         xhr.abort();
-        reject(new Error('Загрузка отменена'));
+        reject(new Error(i18n.t('chat:upload.cancelled')));
       });
       xhr.upload.onprogress = e => { if (e.total) onProgress(Math.round(e.loaded / e.total * 100)); };
       xhr.onload = () => {
         if (xhr.status >= 200 && xhr.status < 300) resolve();
-        else reject(new Error(`Ошибка загрузки (${xhr.status})`));
+        else reject(new Error(i18n.t('chat:upload.errorStatus', { status: xhr.status })));
       };
-      xhr.onerror = () => reject(new Error('Ошибка сети при загрузке файла. Проверьте CORS в настройках бакета.'));
+      xhr.onerror = () => reject(new Error(i18n.t('chat:upload.networkError')));
 
       if (presign.method === 'POST') {
         // Multipart POST: all policy fields first, object Content-Type/Disposition
@@ -256,7 +257,7 @@ export function uploadFile(
 
     return { url: fileUrl, type, name: file.name, size: blob.size };
   })().catch(err => {
-    if (controller.signal.aborted) throw new Error('Загрузка отменена');
+    if (controller.signal.aborted) throw new Error(i18n.t('chat:upload.cancelled'));
     throw err;
   });
 
