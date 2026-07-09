@@ -44,5 +44,11 @@
   "minutesAgo": "last seen {{count}} min ago",
   "wasOnlineAt": "last seen at {{time}}",
   "wasOnlineYesterdayAt": "last seen yesterday at {{time}}",
-  "wasOnlineOn": "last seen {{date}} at {{time}}"
+  "wasOnlineOn": "last seen {{date}} at {{time}}",
+  "shareAppText": "Let's chat on Blizkie — a warm messenger for the people close to you",
+  "errorBoundaryText": "The app ran into an unexpected error. Try reloading the page — that usually helps. If the problem keeps happening, let us know.",
+  "contactSupport": "Contact support",
+  "reload": "Reload",
+  "emojiPlaceholder": "[emoji]",
+  "hiddenTextPlaceholder": "[ hidden text ]"
 }

@@ -10,6 +10,7 @@
     "endedBusy": "User is busy",
     "endedFailed": "Connection error",
     "endedServerRestart": "The server is updating — please call back",
+    "endingSoonFallback": "The server is restarting — the call will end soon.",
     "endedGeneric": "Call ended",
     "statusCalling": "Calling…",
     "statusConnecting": "Connecting…",

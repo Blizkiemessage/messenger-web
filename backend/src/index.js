@@ -231,8 +231,6 @@ let isShuttingDown = false;
 // and a moment to notice before the hard disconnect. Comfortably under
 // Docker/Amvera's default SIGTERM→SIGKILL grace period (10s).
 const CALL_SHUTDOWN_GRACE_MS = Number(process.env.CALL_SHUTDOWN_GRACE_MS) || 4000;
-const CALL_SHUTDOWN_MESSAGE =
-  'Сервер обновляется, звонок сейчас завершится — просто перезвоните ещё раз через минуту.';
 
 function finishShutdown() {
   // ── 1. Kick all Socket.IO clients immediately ────────────────────────────
@@ -267,7 +265,7 @@ function shutdown(signal) {
       '[shutdown]',
       `${activeCallsCount} active call(s) — warning participants, waiting ${CALL_SHUTDOWN_GRACE_MS}ms before disconnect`,
     );
-    try { io.notifyCallsEndingSoon(CALL_SHUTDOWN_MESSAGE); } catch { /* ignore */ }
+    try { io.notifyCallsEndingSoon(); } catch { /* ignore */ }
     setTimeout(finishShutdown, CALL_SHUTDOWN_GRACE_MS);
   } else {
     finishShutdown();

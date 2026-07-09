@@ -44,5 +44,11 @@
   "minutesAgo": "был(а) {{count}} мин. назад",
   "wasOnlineAt": "был(а) в {{time}}",
   "wasOnlineYesterdayAt": "был(а) вчера в {{time}}",
-  "wasOnlineOn": "был(а) {{date}} в {{time}}"
+  "wasOnlineOn": "был(а) {{date}} в {{time}}",
+  "shareAppText": "Давай общаться в Blizkie — тёплый мессенджер для близких",
+  "errorBoundaryText": "Приложение столкнулось с неожиданной ошибкой. Попробуйте перезагрузить страницу — обычно это помогает. Если проблема повторяется, напишите нам.",
+  "contactSupport": "Написать в поддержку",
+  "reload": "Перезагрузить",
+  "emojiPlaceholder": "[эмодзи]",
+  "hiddenTextPlaceholder": "[ скрытый текст ]"
 }

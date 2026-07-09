@@ -12,6 +12,7 @@
  * Реестр расширяемый: новый экран = новый вариант в DeepLinkAction + ветка в
  * соответствующем раннере. Незнакомое действие безопасно игнорируется.
  */
+import i18n from './i18n';
 
 export type DeepLinkAction =
   // ── глобальные ──
@@ -85,7 +86,7 @@ export async function shareApp(): Promise<'shared' | 'copied' | 'failed'> {
     if (navigator.share) {
       await navigator.share({
         title: 'Blizkie',
-        text: 'Давай общаться в Blizkie — тёплый мессенджер для близких',
+        text: i18n.t('common:shareAppText'),
         url,
       });
       return 'shared';

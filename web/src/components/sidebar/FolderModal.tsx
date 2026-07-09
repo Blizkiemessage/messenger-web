@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import { type ChatFolder } from '../../types';
 
 const EMOJI_OPTIONS = ['📁', '⭐', '💼', '🏠', '❤️', '🔥', '🎮', '📚', '🎵', '💡', '🌍', '👥', '🔔', '✅', '🚀'];
@@ -11,6 +12,7 @@ interface Props {
 }
 
 export function FolderModal({ folder, onSave, onDelete, onClose }: Props) {
+  const { t } = useTranslation('nav');
   const [name, setName] = useState(folder?.name ?? '');
   const [emoji, setEmoji] = useState(folder?.emoji ?? '📁');
   const [busy, setBusy] = useState(false);
@@ -53,7 +55,7 @@ export function FolderModal({ folder, onSave, onDelete, onClose }: Props) {
       <div className="folderModalCard">
         <div className="folderModalHeader">
           <span className="folderModalTitle">
-            {folder ? 'Редактировать папку' : 'Новая папка'}
+            {folder ? t('folderModal.editTitle') : t('folderModal.newTitle')}
           </span>
           <button className="folderModalClose" onClick={onClose}>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
@@ -84,7 +86,7 @@ export function FolderModal({ folder, onSave, onDelete, onClose }: Props) {
             value={name}
             onChange={e => setName(e.target.value)}
             onKeyDown={onKey}
-            placeholder="Название папки…"
+            placeholder={t('folderModal.namePlaceholder')}
             maxLength={64}
           />
         </div>
@@ -93,18 +95,18 @@ export function FolderModal({ folder, onSave, onDelete, onClose }: Props) {
           {folder && onDelete && (
             deleteConfirm ? (
               <button className="folderBtnDanger" onClick={handleDelete} disabled={busy}>
-                {busy ? '…' : 'Удалить?'}
+                {busy ? '…' : t('folderModal.confirmDelete')}
               </button>
             ) : (
               <button className="folderBtnDanger" onClick={() => setDeleteConfirm(true)}>
-                Удалить
+                {t('common:delete')}
               </button>
             )
           )}
           <div style={{ flex: 1 }} />
-          <button className="folderBtnCancel" onClick={onClose} disabled={busy}>Отмена</button>
+          <button className="folderBtnCancel" onClick={onClose} disabled={busy}>{t('common:cancel')}</button>
           <button className="folderBtnSave" onClick={handleSave} disabled={!name.trim() || busy}>
-            {busy ? '…' : folder ? 'Сохранить' : 'Создать'}
+            {busy ? '…' : folder ? t('folderModal.save') : t('common:create')}
           </button>
         </div>
       </div>

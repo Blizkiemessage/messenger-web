@@ -4,6 +4,7 @@
  * with their avatar, name, @username, and read time + date.
  */
 import { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { getMessageReaders, type MessageReader } from '../../api/messages';
 import { Avatar } from '../ui/Avatar';
 import { type MessageReaction } from '../../types';
@@ -15,19 +16,19 @@ interface Props {
   onClose: () => void;
 }
 
-function formatReadAt(ts: number): { time: string; date: string | null } {
+function formatReadAt(ts: number, t: (k: string) => string, locale: string): { time: string; date: string | null } {
   const d   = new Date(ts);
   const now = new Date();
-  const time = d.toLocaleTimeString('ru', { hour: '2-digit', minute: '2-digit' });
+  const time = d.toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' });
 
   if (d.toDateString() === now.toDateString()) return { time, date: null };
 
   const yesterday = new Date(now);
   yesterday.setDate(now.getDate() - 1);
-  if (d.toDateString() === yesterday.toDateString()) return { time, date: 'вчера' };
+  if (d.toDateString() === yesterday.toDateString()) return { time, date: t('common:yesterday') };
 
   const sameYear = d.getFullYear() === now.getFullYear();
-  const date = d.toLocaleDateString('ru', {
+  const date = d.toLocaleDateString(locale, {
     day: 'numeric',
     month: 'short',
     ...(sameYear ? {} : { year: 'numeric' }),
@@ -36,6 +37,8 @@ function formatReadAt(ts: number): { time: string; date: string | null } {
 }
 
 export function MessageReadersModal({ chatId, msgId, reactions, onClose }: Props) {
+  const { t, i18n } = useTranslation('chat');
+  const locale = i18n.language === 'en' ? 'en-US' : 'ru-RU';
   const [readers, setReaders] = useState<MessageReader[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -55,11 +58,11 @@ export function MessageReadersModal({ chatId, msgId, reactions, onClose }: Props
       <div className="modalCard readersModal" onClick={e => e.stopPropagation()}>
         <div className="modalHeader">
           <span className="modalTitle">
-            {loading ? 'Прочитали…' : readers.length === 0
-              ? 'Никто не прочитал'
-              : `Прочитали (${readers.length})`}
+            {loading ? t('messageReaders.loading') : readers.length === 0
+              ? t('messageReaders.noneRead')
+              : t('messageReaders.readCount', { count: readers.length })}
           </span>
-          <button className="modalClose" onClick={onClose} title="Закрыть">
+          <button className="modalClose" onClick={onClose} title={t('common:close')}>
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
               <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
             </svg>
@@ -79,17 +82,17 @@ export function MessageReadersModal({ chatId, msgId, reactions, onClose }: Props
                 <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
                 <circle cx="12" cy="12" r="3"/>
               </svg>
-              <span>Сообщение ещё не прочитано</span>
+              <span>{t('messageReaders.notReadYet')}</span>
             </div>
           )}
 
           {!loading && readers.map(({ user, read_at }) => {
-            const { time, date } = formatReadAt(read_at);
+            const { time, date } = formatReadAt(read_at, t, locale);
             return (
               <div key={user.id} className="readerItem">
                 <Avatar user={user} size={40} radius={12} />
                 <div className="readerInfo">
-                  <div className="readerName">{user.display_name || user.username || 'Пользователь'}</div>
+                  <div className="readerName">{user.display_name || user.username || t('modals:forward.unknownUser')}</div>
                   {user.username && (
                     <div className="readerUsername">@{user.username}</div>
                   )}

@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { EyeIcon } from './icons/EyeIcon';
+import i18n from '../../i18n';
 
 export function PasswordInput({
   value,
@@ -28,7 +29,7 @@ export function PasswordInput({
         className={className}
         value={value}
         onChange={e => onChange(e.target.value)}
-        placeholder={placeholder ?? 'Пароль'}
+        placeholder={placeholder ?? i18n.t('auth:login.password')}
         autoComplete="current-password"
         onKeyDown={onKeyDown}
         onFocus={onFocus}

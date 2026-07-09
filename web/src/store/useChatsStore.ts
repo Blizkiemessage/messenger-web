@@ -16,6 +16,7 @@
 import { create } from 'zustand';
 import { type Chat, type Message } from '../types';
 import { getChats } from '../api/chats';
+import i18n from '../i18n';
 
 // 'all' | 'groups' | 'direct' | 'folder:<id>'
 export type ChatFilter = string;
@@ -428,7 +429,7 @@ export const useChatsStore = create<ChatsState>((set) => ({
         set({ loadingChats: false });
         return;
       }
-      set({ dataError: e?.message ?? 'Не удалось загрузить чаты', loadingChats: false });
+      set({ dataError: e?.message ?? i18n.t('nav:chatList.loadFailed'), loadingChats: false });
     }
   },
 }));

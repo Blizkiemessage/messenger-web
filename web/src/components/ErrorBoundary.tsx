@@ -1,4 +1,5 @@
 import { Component, type ErrorInfo, type ReactNode } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useAppStore } from '../store/useAppStore';
 
 interface Props {
@@ -38,6 +39,7 @@ export class ErrorBoundary extends Component<Props, State> {
 }
 
 function DefaultFallback() {
+  const { t } = useTranslation('common');
   return (
     <div className="modalOverlay" style={{ zIndex: 20000 }}>
       <div className="confirmCard">
@@ -48,17 +50,16 @@ function DefaultFallback() {
             <line x1="12" y1="16" x2="12.01" y2="16" />
           </svg>
         </div>
-        <div className="confirmTitle">Что-то пошло не так</div>
+        <div className="confirmTitle">{t('errorGeneric')}</div>
         <div className="confirmText">
-          Приложение столкнулось с неожиданной ошибкой. Попробуйте перезагрузить
-          страницу — обычно это помогает. Если проблема повторяется, напишите нам.
+          {t('errorBoundaryText')}
         </div>
         <div className="confirmBtns">
           <button className="psDeleteCancelBtn" onClick={() => useAppStore.getState().setShowSupport(true)}>
-            Написать в поддержку
+            {t('contactSupport')}
           </button>
           <button className="psDeleteConfirmBtn" onClick={() => window.location.reload()}>
-            Перезагрузить
+            {t('reload')}
           </button>
         </div>
       </div>

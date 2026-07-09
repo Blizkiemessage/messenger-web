@@ -107,7 +107,9 @@
     "forwardedFrom": "Переслано от",
     "edited": "(изм.)",
     "whoRead": "Кто прочитал",
-    "showMore": "показать больше"
+    "showMore": "показать больше",
+    "sendErrorTitle": "Ошибка отправки. Нажмите, чтобы повторить",
+    "sendErrorAria": "Ошибка отправки"
   },
   "media": {
     "removeReaction": "Убрать реакцию",
@@ -266,6 +268,12 @@
     "noInstalledPacks": "Нет установленных паков.",
     "createInStudioCta": "Создай свой в Студии →",
     "findPublicPacksCta": "Найти публичные паки →"
+  },
+  "messageReaders": {
+    "loading": "Прочитали…",
+    "noneRead": "Никто не прочитал",
+    "readCount": "Прочитали ({{count}})",
+    "notReadYet": "Сообщение ещё не прочитано"
   },
   "emojiPackSection": {
     "searchPacksPlaceholder": "Поиск паков…",

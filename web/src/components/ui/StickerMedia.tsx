@@ -8,6 +8,7 @@
  * backend origin prepended automatically.
  */
 import { resolveUrl } from './Avatar';
+import i18n from '../../i18n';
 
 const VIDEO_RE = /\.(webm|mp4|mov|avi|mpeg|3gp)(\?|#|$)/i;
 /** GIF, APNG and animated WebP must be loaded eagerly; lazy loading inside
@@ -32,7 +33,8 @@ interface Props {
   loading?: 'lazy' | 'eager';
 }
 
-export function StickerMedia({ fileUrl, thumbUrl, alt = 'Стикер', className, loading = 'eager' }: Props) {
+export function StickerMedia({ fileUrl, thumbUrl, alt, className, loading = 'eager' }: Props) {
+  const resolvedAlt = alt ?? i18n.t('chat:sticker.altText');
   const src      = resolveUrl(fileUrl)  ?? fileUrl;
   const fallback = thumbUrl ? (resolveUrl(thumbUrl) ?? thumbUrl) : undefined;
   // Animated images (GIF/APNG) must always be loaded eagerly — inside overflow-scroll
@@ -58,7 +60,7 @@ export function StickerMedia({ fileUrl, thumbUrl, alt = 'Стикер', classNam
   return (
     <img
       src={src}
-      alt={alt}
+      alt={resolvedAlt}
       className={className}
       loading={effectiveLoading}
       onError={e => {

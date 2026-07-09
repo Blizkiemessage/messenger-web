@@ -20,6 +20,7 @@ const { saveMessage, deliverPendingMessages } = require('../services/messageServ
 const { deliverDueDailyPrompts } = require('../services/dailyPromptService');
 const { corsOriginCallback } = require('../utils/corsOrigin');
 const { clearExpiredPresenceStatuses } = require('../services/userService');
+const { t, resolveLang } = require('../i18n');
 
 // Track active socket count per user: userId → number.
 // A user is online as long as count > 0; goes offline only when the last socket disconnects.
@@ -504,10 +505,17 @@ function initSocket(httpServer) {
   // silently.
   io.getActiveCallsCount = () => activeCalls.size;
 
-  io.notifyCallsEndingSoon = (message) => {
+  // Each participant gets the message in THEIR OWN language (users.language) —
+  // a graceful-shutdown warning is still a broadcast to everyone currently on a
+  // call, so it can't assume a single shared language like a normal 1:1 emit.
+  io.notifyCallsEndingSoon = () => {
+    const db = getDb();
     for (const [callId, call] of activeCalls) {
-      io.to(`user:${call.callerId}`).emit('call:ending-soon', { callId, message });
-      io.to(`user:${call.calleeId}`).emit('call:ending-soon', { callId, message });
+      for (const userId of [call.callerId, call.calleeId]) {
+        const row = db.prepare('SELECT language FROM users WHERE id = ?').get(userId);
+        const message = t(resolveLang(row?.language), 'call.endingSoon');
+        io.to(`user:${userId}`).emit('call:ending-soon', { callId, message });
+      }
     }
   };
 

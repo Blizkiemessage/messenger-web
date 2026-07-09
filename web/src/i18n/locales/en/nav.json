@@ -26,6 +26,13 @@
     "direct": "Direct",
     "groups": "Groups"
   },
+  "folderModal": {
+    "editTitle": "Edit folder",
+    "newTitle": "New folder",
+    "namePlaceholder": "Folder name…",
+    "confirmDelete": "Delete?",
+    "save": "Save"
+  },
   "chatList": {
     "loading": "Loading…",
     "noGroups": "No groups",
@@ -37,7 +44,8 @@
     "typingMultiple_one": "{{count}} person is typing",
     "typingMultiple_few": "{{count}} people are typing",
     "typingMultiple_many": "{{count}} people are typing",
-    "typingMultiple_other": "{{count}} people are typing"
+    "typingMultiple_other": "{{count}} people are typing",
+    "loadFailed": "Couldn't load chats"
   },
   "chatItem": {
     "noMessages": "No messages",

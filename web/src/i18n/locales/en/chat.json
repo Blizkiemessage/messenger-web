@@ -107,7 +107,9 @@
     "forwardedFrom": "Forwarded from",
     "edited": "(edited)",
     "whoRead": "Who read this",
-    "showMore": "show more"
+    "showMore": "show more",
+    "sendErrorTitle": "Failed to send. Tap to retry",
+    "sendErrorAria": "Send failed"
   },
   "media": {
     "removeReaction": "Remove reaction",
@@ -262,6 +264,12 @@
     "noInstalledPacks": "No packs installed.",
     "createInStudioCta": "Create your own in the Studio →",
     "findPublicPacksCta": "Find public packs →"
+  },
+  "messageReaders": {
+    "loading": "Read by…",
+    "noneRead": "No one has read it",
+    "readCount": "Read by ({{count}})",
+    "notReadYet": "This message hasn't been read yet"
   },
   "emojiPackSection": {
     "searchPacksPlaceholder": "Search packs…",

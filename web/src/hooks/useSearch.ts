@@ -12,6 +12,7 @@
 import { useState, useEffect } from 'react';
 import { type User } from '../types';
 import { searchUsers } from '../api/users';
+import i18n from '../i18n';
 
 interface UseSearchOptions {
   /** Debounce delay in ms. Default: 350 */
@@ -37,7 +38,7 @@ export function useSearch(opts: UseSearchOptions = {}) {
       try {
         setResults(await searchUsers(query));
       } catch (e: any) {
-        setError(e?.message ?? 'Ошибка поиска');
+        setError(e?.message ?? i18n.t('common:errorGeneric'));
       } finally {
         setSearching(false);
       }

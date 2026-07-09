@@ -4,6 +4,7 @@
  * Supports both standard emoji and custom emoji packs (Этап 8).
  */
 import { useEffect, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Portal } from './Portal';
 import { useStickerStore } from '../../store/useStickerStore';
 import { PackCover } from './PackCover';
@@ -18,6 +19,7 @@ interface Props {
 }
 
 export function EmojiPicker({ x, y, onPick, onClose }: Props) {
+  const { t } = useTranslation('chat');
   const ref  = useRef<HTMLDivElement>(null);
   const [tab, setTab] = useState<'standard' | 'custom'>('standard');
 
@@ -74,13 +76,13 @@ export function EmojiPicker({ x, y, onPick, onClose }: Props) {
             className={`emojiPickerTabBtn${tab === 'standard' ? ' active' : ''}`}
             onClick={() => setTab('standard')}
           >
-            Стандарт
+            {t('emojiPanel.subStandard')}
           </button>
           <button
             className={`emojiPickerTabBtn${tab === 'custom' ? ' active' : ''}`}
             onClick={() => setTab('custom')}
           >
-            Кастомные
+            {t('emojiPanel.subCustom')}
           </button>
         </div>
 
@@ -104,7 +106,7 @@ export function EmojiPicker({ x, y, onPick, onClose }: Props) {
         {tab === 'custom' && (
           <div className="emojiPickerCustom">
             {emojiPacks.length === 0 ? (
-              <div className="emojiPickerCustomEmpty">Нет паков</div>
+              <div className="emojiPickerCustomEmpty">{t('emojiPackSection.noPacksInstalled')}</div>
             ) : (
               <>
                 {/* Pack icon strip */}
@@ -131,7 +133,7 @@ export function EmojiPicker({ x, y, onPick, onClose }: Props) {
                     <button
                       key={item.id}
                       className="emojiPickerCustomBtn"
-                      title={item.emoji_hint || item.keywords?.[0] || 'эмодзи'}
+                      title={item.emoji_hint || item.keywords?.[0] || t('emojiPackSection.emojiAlt')}
                       onClick={() => {
                         onPick(`:${item.pack_id}:${item.id}:`);
                         onClose();

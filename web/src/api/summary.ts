@@ -1,4 +1,5 @@
 import client from './client';
+import i18n from '../i18n';
 
 export type SummaryPeriod = 'all' | '1h' | '6h' | '24h' | '3d' | '7d' | '30d' | 'unread';
 export type SummaryFormat = 'short' | 'normal' | 'detailed';
@@ -20,7 +21,7 @@ export async function getChatSummary(
   });
   // Guard: if server returned error JSON ({error:...}) with 200, surface it
   if (!data || typeof (data as any).summary !== 'string') {
-    const msg = (data as any)?.error || `Неожиданный ответ: ${JSON.stringify(data)}`;
+    const msg = (data as any)?.error || `${i18n.t('modals:aiSummary.unknownError')}: ${JSON.stringify(data)}`;
     throw new Error(msg);
   }
   return data;

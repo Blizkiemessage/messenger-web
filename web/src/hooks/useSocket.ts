@@ -14,6 +14,7 @@ import { useCallStore } from '../store/useCallStore';
 import { webrtcManager } from '../services/webrtcManager';
 import { registerPush, hasActivePushSubscription } from '../utils/push';
 import { useNotesStore } from '../store/useNotesStore';
+import i18n from '../i18n';
 
 let _markReadTimer: ReturnType<typeof setTimeout> | null = null;
 let _pendingReadUntil: number | undefined = undefined;
@@ -331,7 +332,7 @@ export function useSocket() {
     const onCallEndingSoon = ({ callId, message }: { callId: string; message?: string }) => {
       const callStore = useCallStore.getState();
       if (callStore.callId !== callId) return;
-      callStore.setEndingSoonMessage(message || 'Сервер обновляется — звонок скоро завершится.');
+      callStore.setEndingSoonMessage(message || i18n.t('calls:overlay.endingSoonFallback'));
     };
 
     const onCallBusy = ({ callId }: { callId: string }) => {

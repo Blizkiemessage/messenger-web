@@ -55,6 +55,9 @@ const DICTS = {
       incomingCall: 'Входящий звонок',
       callerIsCalling: '{{callerName}} звонит…',
     },
+    call: {
+      endingSoon: 'Сервер обновляется, звонок сейчас завершится — просто перезвоните ещё раз через минуту.',
+    },
   },
   en: {
     otp: {
@@ -96,6 +99,9 @@ const DICTS = {
       incomingVideoCall: 'Incoming video call',
       incomingCall: 'Incoming call',
       callerIsCalling: '{{callerName}} is calling…',
+    },
+    call: {
+      endingSoon: "The server is restarting and the call is about to end — just call back again in a minute.",
     },
   },
 };

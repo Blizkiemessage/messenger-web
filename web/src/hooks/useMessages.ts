@@ -10,6 +10,7 @@ import { joinChat, setActiveChat } from '../socket/socketClient';
 import { useSessionStore } from '../store/useSessionStore';
 import { useChatsStore } from '../store/useChatsStore';
 import { useAppStore } from '../store/useAppStore';
+import i18n from '../i18n';
 
 export function useMessages() {
   const me = useSessionStore(s => s.me);
@@ -31,7 +32,7 @@ export function useMessages() {
         useChatsStore.getState().setMessages(msgs);
         // Read marking is driven by scroll position in MessageList — not auto-marked here
       })
-      .catch((e: any) => useChatsStore.getState().setDataError(e?.message ?? 'Ошибка загрузки сообщений'))
+      .catch((e: any) => useChatsStore.getState().setDataError(e?.message ?? i18n.t('common:errorGeneric')))
       .finally(() => useChatsStore.getState().setLoadingMessages(false));
 
 
@@ -44,7 +45,7 @@ export function useMessages() {
     try {
       await sendChatMessage(chatId, { text: text.trim() });
     } catch (e: any) {
-      useChatsStore.getState().setDataError(e?.message ?? 'Ошибка отправки');
+      useChatsStore.getState().setDataError(e?.message ?? i18n.t('common:errorGeneric'));
     }
   }, []);
 
@@ -59,7 +60,7 @@ export function useMessages() {
       useChatsStore.getState().clearSelection();
       useAppStore.getState().setShowDeleteConfirm(false);
     } catch (e: any) {
-      useChatsStore.getState().setDataError(e?.message ?? 'Ошибка удаления');
+      useChatsStore.getState().setDataError(e?.message ?? i18n.t('common:errorGeneric'));
     } finally {
       useAppStore.getState().setDeleteBusy(false);
     }

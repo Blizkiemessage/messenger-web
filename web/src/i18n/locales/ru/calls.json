@@ -10,6 +10,7 @@
     "endedBusy": "Пользователь занят",
     "endedFailed": "Ошибка соединения",
     "endedServerRestart": "Сервер обновляется — перезвоните",
+    "endingSoonFallback": "Сервер обновляется — звонок скоро завершится.",
     "endedGeneric": "Звонок завершён",
     "statusCalling": "Звоним…",
     "statusConnecting": "Соединение…",

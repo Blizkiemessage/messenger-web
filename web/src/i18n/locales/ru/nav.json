@@ -26,6 +26,13 @@
     "direct": "Личные",
     "groups": "Группы"
   },
+  "folderModal": {
+    "editTitle": "Редактировать папку",
+    "newTitle": "Новая папка",
+    "namePlaceholder": "Название папки…",
+    "confirmDelete": "Удалить?",
+    "save": "Сохранить"
+  },
   "chatList": {
     "loading": "Загрузка…",
     "noGroups": "Нет групп",
@@ -37,7 +44,8 @@
     "typingMultiple_one": "{{count}} пользователь печатает",
     "typingMultiple_few": "{{count}} пользователя печатают",
     "typingMultiple_many": "{{count}} пользователей печатают",
-    "typingMultiple_other": "{{count}} пользователей печатают"
+    "typingMultiple_other": "{{count}} пользователей печатают",
+    "loadFailed": "Не удалось загрузить чаты"
   },
   "chatItem": {
     "noMessages": "Нет сообщений",

@@ -10,6 +10,7 @@ import { type ReactNode, Fragment } from 'react';
 import type { User } from '../types';
 import { useDeepLinkStore } from '../store/useDeepLinkStore';
 import { parseDeepLink } from '../deeplinks';
+import i18n from '../i18n';
 
 export interface MdOptions {
   term?:           string;
@@ -186,10 +187,10 @@ export function stripPreview(
           const item = packItems[packId]?.find(it => it.id === itemId);
           if (item?.emoji_hint) return item.emoji_hint;
         }
-        return '[эмодзи]';
+        return i18n.t('common:emojiPlaceholder');
       },
-    ) // :packId:itemId: → emoji_hint or [эмодзи]
-    .replace(/\|\|([^|]*)\|\|/g, '[ скрытый текст ]')  // spoilers → placeholder
+    ) // :packId:itemId: → emoji_hint or the localized emoji placeholder
+    .replace(/\|\|([^|]*)\|\|/g, () => i18n.t('common:hiddenTextPlaceholder'))  // spoilers → placeholder
     .replace(/\*\*([^*]*)\*\*/g, '$1')                   // **bold** → bold
     .replace(/_([^_]+)_/g, '$1')                          // _italic_ → italic
     .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')              // [text](url) → text
