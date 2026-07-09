@@ -1,0 +1,133 @@
+{
+  "lastUpdated": "July 4, 2026",
+  "backToApp": "Back to Blizkie",
+  "operatorName": "Daniil Kaan Keshetash",
+  "privacyTitle": "Privacy Policy",
+  "termsTitle": "Terms of Use",
+  "privacy": {
+    "s1": {
+      "title": "1. Who we are",
+      "p1": "Blizkie (\"my close ones\", \"the service\", \"we\") is a messenger for talking with family and close friends. The service is developed and administered by a private individual:",
+      "p3": "As of the publication of this document, the service is operated by a private individual, without a registered separate legal entity or sole proprietorship.",
+      "p4Prefix": "For any questions about personal data, write to ",
+      "p4Suffix": "."
+    },
+    "s2": {
+      "title": "2. What data we collect",
+      "li1": "At registration: username, email, password (stored not in plain text, but as a bcrypt hash).",
+      "li2": "Optionally in your profile: display name, avatar, \"about me\" status, birth date (you can hide it from other users with a separate setting).",
+      "li3": "Conversation content: text messages, voice and video messages, files and images, reactions, polls, chat notes.",
+      "li4": "Technical session data: IP address and device/browser type — needed to protect your account (list of active sessions, detecting a suspicious login).",
+      "li5": "Activity status (\"online\" / \"last seen recently\"), whether the user is currently typing.",
+      "li6": "Push subscription (a technical device identifier for delivering notifications), if you've allowed notifications."
+    },
+    "s3": {
+      "title": "3. Message encryption — the honest details",
+      "p1": "Message text, voice and video messages are stored on the server in encrypted form (AES-256-GCM). This protects the data if the database or a backup is compromised — the files by themselves are useless without the encryption key.",
+      "p2Bold": "Important: this is not end-to-end encryption.",
+      "p2Rest": " The encryption key is held on the server, not only on the devices of the people chatting — technically, we are able to decrypt a message. We do not do this in normal operation and do not read user conversations out of curiosity or for analytics. The one exception is described in section 6 (report moderation)."
+    },
+    "s4": {
+      "title": "4. Who we share data with",
+      "intro": "We do not sell user data. The following processors are used to run the service:",
+      "li1": "**Yandex Cloud (Object Storage)** — storage of media files (images, video, voice messages, documents) and encrypted database backups.",
+      "li2": "**Email provider (SMTP)** — sending emails: email confirmation codes, password recovery, support requests.",
+      "li3": "**Groq** — a third-party LLM processor for the app's AI assistants. The in-app help assistant only receives your question. The assistant for your chat data is a separate, fully opt-in feature (disabled by default, enabled manually by you) — only once enabled does it pass the model the portion of your conversations needed to answer.",
+      "li4": "**Giphy** — GIF search; search queries go to the Giphy API the same way they would in any other app's GIF search."
+    },
+    "s5": {
+      "title": "5. Cookies and tokens",
+      "p1": "Signing in uses a secure (httpOnly) session cookie and/or an authorization token stored on your device. They're only used so the service knows you're signed in to your account — we don't use advertising or tracking cookies."
+    },
+    "s6": {
+      "title": "6. Moderation and report handling",
+      "p1": "In the app you can report a message or a user's profile. We're upfront about how such a report is handled: to determine whether it's justified, an administrator may see the decrypted text of the specific message that was reported — only that message, and only as part of reviewing that particular report. Every such review is logged in an audit trail.",
+      "p2": "Based on the review, a user may be sent a warning (in-app and by email), or, for a serious or repeat violation, the account may be banned. The Terms of Use (\"Moderation\" section) describe this in more detail."
+    },
+    "s7": {
+      "title": "7. Push notifications",
+      "p1": "If you've allowed notifications, we store a technical browser subscription identifier (push endpoint) to deliver notifications about new messages and incoming calls. You can turn off notifications in your browser settings or in the app at any time."
+    },
+    "s8": {
+      "title": "8. Retention periods and deletion",
+      "p1": "You can delete your account yourself in settings (confirmed with your password, and a two-factor authentication code if it's enabled). The account is deleted immediately.",
+      "p2": "Conversations you had in group chats remain visible to the other members (as in any messenger) — but authorship of your messages in that history transfers to a technical system profile, \"Deleted account\", which isn't tied to your personal data. Content inherited by that profile is automatically and permanently deleted after 180 days, so it doesn't accumulate indefinitely.",
+      "p3": "Database backups are stored encrypted (AES-256-GCM) and rotated automatically."
+    },
+    "s9": {
+      "title": "9. Your rights",
+      "li1": "Export your data — profile settings has a function to download your data as an archive.",
+      "li2": "Delete your account yourself, without contacting support.",
+      "li3": "Change or hide individual profile fields (for example, your birth date).",
+      "li4Prefix": "Reach out with a question or a request to delete/clarify your data at ",
+      "li4Suffix": "."
+    },
+    "s10": {
+      "title": "10. Age",
+      "p1": "The service is intended for users aged 16 and older. We deliberately do not collect data from users younger than that without a parent's or legal guardian's consent."
+    },
+    "s11": {
+      "title": "11. Changes to this policy",
+      "p1": "If we make a material change to how we handle data, we'll update this page and note the new revision date at the top of the document."
+    }
+  },
+  "terms": {
+    "s1": {
+      "title": "1. Acceptance of terms",
+      "p1": "By registering with Blizkie (\"my close ones\", \"the service\"), you confirm that you've read and agree to these Terms of Use and the Privacy Policy. If you don't agree, don't use the service."
+    },
+    "s2": {
+      "title": "2. Age restrictions",
+      "p1": "The service can be used by people aged 16 and up. If you're between 13 and 16, using the service is only allowed with a parent's or legal guardian's consent."
+    },
+    "s3": {
+      "title": "3. Registration and account",
+      "li1": "You agree to provide a genuine email address and not to impersonate another person.",
+      "li2": "You're responsible for keeping your password and account access secure.",
+      "li3": "One person, one account; an account may not be transferred to a third party."
+    },
+    "s4": {
+      "title": "4. Rules of use",
+      "intro": "When using the service, you may not:",
+      "li1": "send spam or mass unsolicited messages;",
+      "li2": "threaten, harass, or abuse other users;",
+      "li3": "distribute illegal content (including material that violates Russian Federation law);",
+      "li4": "impersonate another person or organization;",
+      "li5": "attempt to gain unauthorized access to other users' accounts or to the service's infrastructure."
+    },
+    "s5": {
+      "title": "5. Moderation: reports, warnings, bans",
+      "p1": "A message or a user's profile can be reported right in the app. Reports are reviewed within a reasonable time (typically within 48 hours).",
+      "p2": "Exactly how a report is reviewed is described honestly in the Privacy Policy (\"Moderation and report handling\" section). Based on the review, we may:",
+      "li1": "dismiss the report if the violation isn't confirmed;",
+      "li2": "send the user a warning;",
+      "li3": "ban the offending account — temporarily or indefinitely, depending on the severity of the violation.",
+      "p3": "You can also block any user yourself so they can't message you — this doesn't require filing a report."
+    },
+    "s6": {
+      "title": "6. Your content",
+      "p1": "You retain all rights to the messages, files, and other content you send through the service. You grant us only a technical license to store, transmit, and process that content to the extent needed to run the service (delivering messages, displaying attachments, backups)."
+    },
+    "s7": {
+      "title": "7. Disclaimer of warranties and limitation of liability",
+      "p1": "The service is provided \"as is\". We strive to keep it running reliably, but we don't guarantee the service will be available and error-free 100% of the time. To the extent permitted by Russian Federation law, we aren't liable for indirect losses arising from the service's temporary unavailability or the actions of third parties."
+    },
+    "s8": {
+      "title": "8. Termination",
+      "p1": "You can delete your account at any time in the app's settings. We may suspend or terminate access to an account for violating these terms (see the \"Moderation\" section)."
+    },
+    "s9": {
+      "title": "9. Changes to these terms",
+      "p1": "We may update these terms as the service evolves. The current version is always available at this address; for material changes, the revision date at the top of the document will be updated."
+    },
+    "s10": {
+      "title": "10. Governing law",
+      "p1": "These terms are governed by the law of the Russian Federation."
+    },
+    "s11": {
+      "title": "11. Contact",
+      "p1Prefix": "Questions about these terms — at ",
+      "p1Suffix": "."
+    }
+  }
+}

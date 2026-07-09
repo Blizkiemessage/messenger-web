@@ -6,7 +6,7 @@
  */
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { LEGAL_LAST_UPDATED, PRIVACY_SECTIONS, TERMS_SECTIONS } from '../legal/legalContent';
+import { getPrivacySections, getTermsSections } from '../legal/legalContent';
 
 type Doc = 'privacy' | 'terms';
 
@@ -27,7 +27,7 @@ const STYLES = `
 export function DocumentsTab() {
   const { t } = useTranslation('settings');
   const [doc, setDoc] = useState<Doc>('privacy');
-  const sections = doc === 'privacy' ? PRIVACY_SECTIONS : TERMS_SECTIONS;
+  const sections = doc === 'privacy' ? getPrivacySections(t) : getTermsSections(t);
 
   return (
     <div className="permTab">
@@ -44,7 +44,7 @@ export function DocumentsTab() {
           {t('documents.terms')}
         </button>
       </div>
-      <div className="docsUpdated">{t('documents.effectiveFrom', { date: LEGAL_LAST_UPDATED })}</div>
+      <div className="docsUpdated">{t('documents.effectiveFrom', { date: t('legal:lastUpdated') })}</div>
 
       {sections.map(s => (
         <div className="docsSection" key={s.title}>

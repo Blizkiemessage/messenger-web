@@ -5,8 +5,12 @@
  * ДО рендера <App/>, минуя весь auth-флоу.
  */
 import '../../app.css'; // токены (--bg/--text/--accent/...) + шрифт Manrope
+import '../../i18n'; // сайд-эффект: регистрирует глобальный i18next-инстанс —
+// эта страница рендерится ДО <App/> (main.tsx), где обычно и происходит первый
+// импорт i18n; без явного импорта здесь useTranslation() не найдёт инстанс.
 
-import { LEGAL_LAST_UPDATED, PRIVACY_SECTIONS, TERMS_SECTIONS } from './legalContent';
+import { useTranslation } from 'react-i18next';
+import { getPrivacySections, getTermsSections } from './legalContent';
 
 const STYLES = `
   .legalPage { min-height: 100%; display: flex; justify-content: center;
@@ -38,8 +42,9 @@ interface Props {
 }
 
 export function LegalPage({ page }: Props) {
-  const sections = page === 'privacy' ? PRIVACY_SECTIONS : TERMS_SECTIONS;
-  const title = page === 'privacy' ? 'Политика конфиденциальности' : 'Условия использования';
+  const { t } = useTranslation('legal');
+  const sections = page === 'privacy' ? getPrivacySections(t) : getTermsSections(t);
+  const title = page === 'privacy' ? t('privacyTitle') : t('termsTitle');
 
   return (
     <div className="legalPage">
@@ -49,16 +54,16 @@ export function LegalPage({ page }: Props) {
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
             <line x1="19" y1="12" x2="5" y2="12" /><polyline points="12 19 5 12 12 5" />
           </svg>
-          Вернуться в Blizkie
+          {t('backToApp')}
         </a>
 
         <div className="legalTabs">
-          <a className={`legalTab${page === 'privacy' ? ' active' : ''}`} href="/privacy">Конфиденциальность</a>
-          <a className={`legalTab${page === 'terms' ? ' active' : ''}`} href="/terms">Условия использования</a>
+          <a className={`legalTab${page === 'privacy' ? ' active' : ''}`} href="/privacy">{t('privacyTitle')}</a>
+          <a className={`legalTab${page === 'terms' ? ' active' : ''}`} href="/terms">{t('termsTitle')}</a>
         </div>
 
         <div className="legalTitle">{title}</div>
-        <div className="legalUpdated">Действует с {LEGAL_LAST_UPDATED}</div>
+        <div className="legalUpdated">{t('settings:documents.effectiveFrom', { date: t('lastUpdated') })}</div>
 
         {sections.map(s => (
           <div className="legalSection" key={s.title}>
