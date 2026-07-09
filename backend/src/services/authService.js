@@ -315,7 +315,8 @@ async function initiateEmailChange(userId, newEmail) {
      VALUES (?, ?, ?, ?, 0, ?, ?)`
   ).run([otpId, cleanEmail, codeHash, now + 10 * 60 * 1000, now, meta]);
 
-  await sendOtpEmail(cleanEmail, otp);
+  const requester = db.prepare('SELECT language FROM users WHERE id = ?').get(userId);
+  await sendOtpEmail(cleanEmail, otp, requester?.language);
 
   return { email: cleanEmail };
 }
@@ -379,7 +380,7 @@ async function initiateForgotPassword(email) {
     throw Object.assign(new Error('Введите корректный email'), { status: 400 });
   }
 
-  const user = db.prepare('SELECT id FROM users WHERE email = ?').get(cleanEmail);
+  const user = db.prepare('SELECT id, language FROM users WHERE email = ?').get(cleanEmail);
   if (!user) {
     // Silently succeed — do not reveal whether the email is registered
     return { sent: true };
@@ -404,7 +405,7 @@ async function initiateForgotPassword(email) {
   const appUrl = (process.env.APP_URL || 'http://localhost:5173').replace(/\/$/, '');
   const resetUrl = `${appUrl}/?rid=${otpId}&tok=${rawToken}`;
 
-  await sendPasswordResetEmail(cleanEmail, resetUrl);
+  await sendPasswordResetEmail(cleanEmail, resetUrl, user.language);
   return { sent: true };
 }
 

@@ -107,14 +107,14 @@ router.post('/users/:id/unban', (req, res, next) => {
 router.post('/users/:id/warn', async (req, res, next) => {
   try {
     const db = getDb();
-    const target = db.prepare('SELECT username, email FROM users WHERE id = ?').get(req.params.id);
+    const target = db.prepare('SELECT username, email, language FROM users WHERE id = ?').get(req.params.id);
     if (!target) return res.status(404).json({ error: 'User not found' });
 
     const warning = warnUser(req.params.id, req.body?.message, req.userId, req.body?.reportId);
 
     if (target.email) {
       try {
-        await sendModerationWarningEmail({ to: target.email, username: target.username, message: warning.message });
+        await sendModerationWarningEmail({ to: target.email, username: target.username, message: warning.message, lang: target.language });
       } catch (emailErr) {
         // Warning is already recorded + visible in-app — email is best-effort
         console.error('[Moderation] Failed to send warning email:', emailErr.message);

@@ -1,40 +1,47 @@
 const { getDb } = require('../config/database');
 const { sendPush } = require('../utils/webPush');
 const logger = require('../utils/logger');
+const { t, resolveLang } = require('../i18n');
 
 const CUSTOM_EMOJI_RE = /:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}:/gi;
 
 /**
- * Build a human-readable notification body from message data.
+ * Build a human-readable notification body from message data, localized for
+ * the given recipient language.
  * Resolves :packId:itemId: custom emoji to their emoji_hint from the DB.
  */
-function buildBody(db, { text, attachment_type, attachment_meta }) {
+function buildBody(db, { text, attachment_type, attachment_meta }, lang = 'ru') {
   // Sticker → look up emoji_hint or fallback icon
   if (attachment_type === 'sticker') {
     try {
       const meta = JSON.parse(attachment_meta || '{}');
       if (meta.itemId) {
         const item = db.prepare('SELECT emoji_hint FROM sticker_pack_items WHERE id = ?').get(meta.itemId);
-        if (item?.emoji_hint) return `${item.emoji_hint} Стикер`;
+        if (item?.emoji_hint) return t(lang, 'push.sticker', { emoji: item.emoji_hint });
       }
     } catch { /* ignore bad json */ }
-    return '🎭 Стикер';
+    return t(lang, 'push.stickerFallback');
   }
+
+  // «Вопрос дня» без кастомного push-текста (cfgRow.push_text) — язык получателя
+  // неизвестен на момент создания карточки (общий broadcast чата), поэтому
+  // дефолтный текст выбирается здесь, за получателя, а не в dailyPromptService.
+  if (!text && attachment_type === 'daily_prompt') return t(lang, 'push.dailyPromptDefault');
 
   // Other non-text attachments
   if (!text && attachment_type) {
     const icons = {
-      image:      '📷 Фото',
-      video:      '🎥 Видео',
-      video_note: '🎥 Видеосообщение',
-      audio:      '🎵 Аудио',
-      gif_tenor:  '🎞 GIF',
-      gif_custom: '🎞 GIF',
+      image:      t(lang, 'push.image'),
+      video:      t(lang, 'push.video'),
+      video_note: t(lang, 'push.videoNote'),
+      audio:      t(lang, 'push.audio'),
+      gif_tenor:  t(lang, 'push.gif'),
+      gif_custom: t(lang, 'push.gif'),
     };
-    return icons[attachment_type] || '📎 Вложение';
+    return icons[attachment_type] || t(lang, 'push.attachment');
   }
 
-  if (!text) return '📎 Вложение';
+  if (!text) return t(lang, 'push.attachment');
 
   // Resolve :packId:itemId: → emoji_hint in text
   CUSTOM_EMOJI_RE.lastIndex = 0;
@@ -43,8 +50,8 @@ function buildBody(db, { text, attachment_type, attachment_meta }) {
       const inner = match.slice(1, -1);               // "packId:itemId"
       const itemId = inner.slice(inner.indexOf(':') + 1);
       const row = db.prepare('SELECT emoji_hint FROM sticker_pack_items WHERE id = ?').get(itemId);
-      return row?.emoji_hint || '😊';
-    } catch { return '😊'; }
+      return row?.emoji_hint || t(lang, 'push.customEmojiFallback');
+    } catch { return t(lang, 'push.customEmojiFallback'); }
   });
 
   return resolved.slice(0, 120);
@@ -92,19 +99,26 @@ function fireAndForgetPush(chatId, senderId, msgData, io) {
       const sender = db
         .prepare('SELECT display_name, username FROM users WHERE id = ?')
         .get(senderId);
-      const senderName = sender?.display_name || sender?.username || 'Новое сообщение';
+      const senderName = sender?.display_name || sender?.username || null;
 
-      // 4. Build notification payload
-      const body = buildBody(db, msgData);
-      const payload = { title: senderName, body, chatId };
-
-      // 5. Load subscriptions and send
+      // 4. Load subscriptions + each recipient's language (per-recipient, since
+      // this fans out to potentially several offline members of the chat at once).
       const placeholders = eligibleIds.map(() => '?').join(',');
       const subs = db
-        .prepare(`SELECT id, endpoint, p256dh, auth_key FROM push_subscriptions WHERE user_id IN (${placeholders})`)
+        .prepare(`
+          SELECT ps.id, ps.endpoint, ps.p256dh, ps.auth_key, u.language
+          FROM push_subscriptions ps
+          JOIN users u ON u.id = ps.user_id
+          WHERE ps.user_id IN (${placeholders})
+        `)
         .all(eligibleIds);
 
+      // 5. Build one payload per distinct recipient language, then send.
+      const bodyByLang = {};
       for (const sub of subs) {
+        const lang = resolveLang(sub.language);
+        if (!(lang in bodyByLang)) bodyByLang[lang] = buildBody(db, msgData, lang);
+        const payload = { title: senderName || t(lang, 'push.newMessageFallback'), body: bodyByLang[lang], chatId };
         const subscription = {
           endpoint: sub.endpoint,
           keys: { p256dh: sub.p256dh, auth: sub.auth_key },
@@ -137,10 +151,12 @@ function sendCallPush(calleeId, { callId, callType, callerName, chatId }) {
         .all(calleeId);
       if (subs.length === 0) return;
 
+      const callee = db.prepare('SELECT language FROM users WHERE id = ?').get(calleeId);
+      const lang = resolveLang(callee?.language);
       const payload = {
         type: 'call',
-        title: callType === 'video' ? 'Входящий видеозвонок' : 'Входящий звонок',
-        body: `${callerName} звонит…`,
+        title: callType === 'video' ? t(lang, 'push.incomingVideoCall') : t(lang, 'push.incomingCall'),
+        body: t(lang, 'push.callerIsCalling', { callerName }),
         callId, chatId, callType,
       };
 
@@ -155,4 +171,4 @@ function sendCallPush(calleeId, { callId, callType, callerName, chatId }) {
   });
 }
 
-module.exports = { fireAndForgetPush, sendCallPush };
+module.exports = { fireAndForgetPush, sendCallPush, buildBody };

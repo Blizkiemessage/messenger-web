@@ -300,7 +300,9 @@ function createInstanceTx(db, cfgRow, picked, dateKey) {
     daily_prompt: { instance_id: instanceId, category: picked.category, answer_count: 0 },
   };
   const members = db.prepare('SELECT user_id FROM chat_members WHERE chat_id = ?').all(cfgRow.chat_id);
-  return { message, members, push: { enabled: !!cfgRow.push_enabled, text: cfgRow.push_text || '🌙 Вопрос дня' } };
+  // push.text: null → per-recipient localized default (pushService.buildBody
+  // picks it per-language, since members here may prefer different languages).
+  return { message, members, push: { enabled: !!cfgRow.push_enabled, text: cfgRow.push_text || null } };
 }
 
 // ── Воркер доставки ────────────────────────────────────────────────────────────
