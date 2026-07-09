@@ -8,6 +8,7 @@
  */
 import { useEffect } from 'react';
 import { createPortal } from 'react-dom';
+import { useTranslation } from 'react-i18next';
 import { useCallStore } from '../../store/useCallStore';
 import { emitCallAccept, emitCallReject } from '../../socket/socketClient';
 import { Avatar } from '../ui/Avatar';
@@ -18,6 +19,7 @@ const ICON_CALL = 'M6.62 10.79c1.44 2.83 3.76 5.15 6.59 6.59l2.2-2.2c.27-.27.67-
 const ICON_VIDEO = 'M17 10.5V7c0-.55-.45-1-1-1H4c-.55 0-1 .45-1 1v10c0 .55.45 1 1 1h12c.55 0 1-.45 1-1v-3.5l4 4v-11l-4 4z';
 
 export function IncomingCallModal() {
+  const { t } = useTranslation('calls');
   const status   = useCallStore(s => s.status);
   const callId   = useCallStore(s => s.callId);
   const callType = useCallStore(s => s.callType);
@@ -51,7 +53,7 @@ export function IncomingCallModal() {
 
   if (status !== 'incoming' || !peerInfo) return null;
 
-  const callerName = peerInfo.display_name || peerInfo.username || 'Пользователь';
+  const callerName = peerInfo.display_name || peerInfo.username || t('modals:forward.unknownUser');
 
   function accept() {
     if (!callId) return;
@@ -65,7 +67,7 @@ export function IncomingCallModal() {
   }
 
   return createPortal(
-    <div className="incCallOverlay" role="dialog" aria-modal="true" aria-label="Входящий звонок">
+    <div className="incCallOverlay" role="dialog" aria-modal="true" aria-label={t('incoming.ariaLabel')}>
       <div className="incCallCard">
         <div className="incCallAvatarWrap">
           <span className="incCallPulse" aria-hidden="true" />
@@ -75,24 +77,24 @@ export function IncomingCallModal() {
 
         <div className="incCallName">{callerName}</div>
         <div className="incCallLabel">
-          {callType === 'video' ? 'Входящий видеозвонок' : 'Входящий аудиозвонок'}
+          {callType === 'video' ? t('incoming.incomingVideoCall') : t('incoming.incomingAudioCall')}
         </div>
 
         <div className="incCallActions">
           <div className="incCallBtnCol">
-            <button className="incCallBtn incCallReject" onClick={reject} aria-label="Отклонить" type="button">
+            <button className="incCallBtn incCallReject" onClick={reject} aria-label={t('incoming.reject')} type="button">
               <svg viewBox="0 0 24 24" width="30" height="30" fill="currentColor"><path d={ICON_CALL_END} /></svg>
             </button>
-            <span className="incCallBtnLabel">Отклонить</span>
+            <span className="incCallBtnLabel">{t('incoming.reject')}</span>
           </div>
 
           <div className="incCallBtnCol">
-            <button className="incCallBtn incCallAccept" onClick={accept} aria-label="Принять" type="button">
+            <button className="incCallBtn incCallAccept" onClick={accept} aria-label={t('incoming.accept')} type="button">
               <svg viewBox="0 0 24 24" width="30" height="30" fill="currentColor">
                 <path d={callType === 'video' ? ICON_VIDEO : ICON_CALL} />
               </svg>
             </button>
-            <span className="incCallBtnLabel">Принять</span>
+            <span className="incCallBtnLabel">{t('incoming.accept')}</span>
           </div>
         </div>
       </div>

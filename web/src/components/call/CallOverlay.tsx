@@ -2,6 +2,7 @@
  * CallOverlay — E3: Full-screen overlay shown during an active call.
  */
 import { useEffect, useRef, useCallback, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useCallStore } from '../../store/useCallStore';
 import { webrtcManager } from '../../services/webrtcManager';
 import { Avatar } from '../ui/Avatar';
@@ -14,6 +15,7 @@ function detectDeviceType(device: MediaDeviceInfo): AudioOutputType {
     return 'bluetooth';
   if (l.includes('headphone') || l.includes('headset') || l.includes('wired'))
     return 'headphones';
+  // 'громк' matches Russian-OS-reported device labels (e.g. "громкоговоритель") — not app UI text, not translated.
   if (l.includes('speaker') || l.includes('speakerphone') || l.includes('громк'))
     return 'speaker';
   if (l.includes('earpiece') || l.includes('receiver') || l.includes('earphone'))
@@ -53,6 +55,7 @@ function AudioDeviceIcon({ type, size = 20 }: { type: AudioOutputType; size?: nu
 }
 
 export function CallOverlay() {
+  const { t } = useTranslation('calls');
   const status         = useCallStore(s => s.status);
   const callId         = useCallStore(s => s.callId);
   const callType       = useCallStore(s => s.callType);
@@ -162,19 +165,19 @@ export function CallOverlay() {
   function getDeviceLabel(device: MediaDeviceInfo, index: number): string {
     if (device.label) return device.label;
     const id = device.deviceId.toLowerCase();
-    if (id === 'default' || id === 'communications') return 'Телефон (наушник)';
-    if (id.includes('speaker')) return 'Громкоговоритель';
+    if (id === 'default' || id === 'communications') return t('overlay.deviceEarpiece');
+    if (id.includes('speaker')) return t('overlay.deviceSpeaker');
     if (id.includes('bluetooth')) return 'Bluetooth';
-    return `Устройство ${index + 1}`;
+    return t('overlay.deviceFallback', { index: index + 1 });
   }
 
   const currentDevice   = audioDevices.find(d => d.deviceId === currentSinkId);
   const currentDevType  = detectDeviceType(currentDevice ?? ({ label: '', deviceId: currentSinkId } as any));
   const isSpeakerActive = currentDevType === 'speaker';
   const audioLabel =
-    currentDevType === 'earpiece'   ? 'Телефон' :
+    currentDevType === 'earpiece'   ? t('overlay.audioEarpiece') :
     currentDevType === 'bluetooth'  ? 'Bluetooth' :
-    currentDevType === 'headphones' ? 'Наушники' : 'Динамик';
+    currentDevType === 'headphones' ? t('overlay.audioHeadphones') : t('overlay.audioSpeaker');
 
   // ── Call controls ──────────────────────────────────────────────────────
   const handleEnd         = useCallback(() => { if (callId) webrtcManager.hangup(callId, true); }, [callId]);
@@ -183,7 +186,7 @@ export function CallOverlay() {
 
   if (status === 'idle' || status === 'incoming') return null;
 
-  const peerName = peerInfo?.display_name || peerInfo?.username || 'Пользователь';
+  const peerName = peerInfo?.display_name || peerInfo?.username || t('modals:forward.unknownUser');
 
   function formatDuration(s: number): string {
     const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), sec = s % 60;
@@ -192,15 +195,15 @@ export function CallOverlay() {
   }
 
   const endedText =
-    endReason === 'rejected'       ? 'Звонок отклонён' :
-    endReason === 'busy'           ? 'Пользователь занят' :
-    endReason === 'failed'         ? 'Ошибка соединения' :
-    endReason === 'server-restart' ? 'Сервер обновляется — перезвоните' :
-    'Звонок завершён';
+    endReason === 'rejected'       ? t('overlay.endedRejected') :
+    endReason === 'busy'           ? t('overlay.endedBusy') :
+    endReason === 'failed'         ? t('overlay.endedFailed') :
+    endReason === 'server-restart' ? t('overlay.endedServerRestart') :
+    t('overlay.endedGeneric');
 
   const statusText =
-    status === 'calling'    ? 'Звоним…' :
-    status === 'connecting' ? 'Соединение…' :
+    status === 'calling'    ? t('overlay.statusCalling') :
+    status === 'connecting' ? t('overlay.statusConnecting') :
     status === 'active'     ? formatDuration(elapsedSeconds) :
     status === 'ended'      ? endedText : '';
 
@@ -263,7 +266,7 @@ export function CallOverlay() {
                 <button
                   className={`callControlBtn${isSpeakerActive ? ' active' : ''}`}
                   onClick={handleAudioOutputClick}
-                  title="Аудиовыход">
+                  title={t('overlay.audioOutputTitle')}>
                   <AudioDeviceIcon type={currentDevType} />
                 </button>
               </div>
@@ -276,7 +279,7 @@ export function CallOverlay() {
             <button
               className={`callControlBtn${isMuted ? ' active' : ''}`}
               onClick={handleToggleMute}
-              title={isMuted ? 'Включить микрофон' : 'Отключить микрофон'}>
+              title={isMuted ? t('overlay.micOn') : t('overlay.micOff')}>
               {isMuted ? (
                 <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <line x1="1" y1="1" x2="23" y2="23"/>
@@ -294,7 +297,7 @@ export function CallOverlay() {
                 </svg>
               )}
             </button>
-            <span className="callControlLabel">{isMuted ? 'Вкл. микр.' : 'Выкл. микр.'}</span>
+            <span className="callControlLabel">{isMuted ? t('overlay.micOnLabel') : t('overlay.micOffLabel')}</span>
           </div>
 
           {/* ── Video toggle ──────────────────────────────────────── */}
@@ -303,7 +306,7 @@ export function CallOverlay() {
               <button
                 className={`callControlBtn${isVideoOff ? ' active' : ''}`}
                 onClick={handleToggleVideo}
-                title={isVideoOff ? 'Включить камеру' : 'Выключить камеру'}>
+                title={isVideoOff ? t('overlay.cameraOn') : t('overlay.cameraOff')}>
                 {isVideoOff ? (
                   <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <path d="M16 16v1a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h2m5.66 0H14a2 2 0 0 1 2 2v3.34l1 1L23 7v10"/>
@@ -316,13 +319,13 @@ export function CallOverlay() {
                   </svg>
                 )}
               </button>
-              <span className="callControlLabel">{isVideoOff ? 'Вкл. камеру' : 'Выкл. камеру'}</span>
+              <span className="callControlLabel">{isVideoOff ? t('overlay.cameraOnLabel') : t('overlay.cameraOffLabel')}</span>
             </div>
           )}
 
           {/* ── End call ──────────────────────────────────────────── */}
           <div className="callControlItem">
-            <button className="callControlBtn callControlEnd" onClick={handleEnd} title="Завершить звонок">
+            <button className="callControlBtn callControlEnd" onClick={handleEnd} title={t('overlay.endCallTitle')}>
               {/* Phone rotated down — same style as incoming-call decline button */}
               <svg width="24" height="24" viewBox="0 0 24 24"
                    style={{ overflow: 'visible' }}
@@ -332,7 +335,7 @@ export function CallOverlay() {
                       d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12 19.79 19.79 0 0 1 1.61 3.4 2 2 0 0 1 3.6 1.24h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L7.91 8.77a16 16 0 0 0 6.29 6.29l.95-.95a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/>
               </svg>
             </button>
-            <span className="callControlLabel callControlEndLabel">Завершить</span>
+            <span className="callControlLabel callControlEndLabel">{t('overlay.endLabel')}</span>
           </div>
 
         </div>

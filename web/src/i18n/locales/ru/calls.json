@@ -1,0 +1,45 @@
+{
+  "overlay": {
+    "deviceEarpiece": "Телефон (наушник)",
+    "deviceSpeaker": "Громкоговоритель",
+    "deviceFallback": "Устройство {{index}}",
+    "audioEarpiece": "Телефон",
+    "audioHeadphones": "Наушники",
+    "audioSpeaker": "Динамик",
+    "endedRejected": "Звонок отклонён",
+    "endedBusy": "Пользователь занят",
+    "endedFailed": "Ошибка соединения",
+    "endedServerRestart": "Сервер обновляется — перезвоните",
+    "endedGeneric": "Звонок завершён",
+    "statusCalling": "Звоним…",
+    "statusConnecting": "Соединение…",
+    "audioOutputTitle": "Аудиовыход",
+    "micOn": "Включить микрофон",
+    "micOff": "Отключить микрофон",
+    "micOnLabel": "Вкл. микр.",
+    "micOffLabel": "Выкл. микр.",
+    "cameraOn": "Включить камеру",
+    "cameraOff": "Выключить камеру",
+    "cameraOnLabel": "Вкл. камеру",
+    "cameraOffLabel": "Выкл. камеру",
+    "endCallTitle": "Завершить звонок",
+    "endLabel": "Завершить"
+  },
+  "history": {
+    "rejectedIncoming": "Вы отклонили",
+    "rejectedOutgoing": "Отклонён",
+    "missedIncoming": "Пропущенный",
+    "missedOutgoing": "Не ответил(а)",
+    "genericCall": "Звонок",
+    "emptyTitle": "История звонков",
+    "emptySub": "Здесь появятся ваши звонки",
+    "callBackTitle": "Перезвонить"
+  },
+  "incoming": {
+    "ariaLabel": "Входящий звонок",
+    "incomingVideoCall": "Входящий видеозвонок",
+    "incomingAudioCall": "Входящий аудиозвонок",
+    "reject": "Отклонить",
+    "accept": "Принять"
+  }
+}

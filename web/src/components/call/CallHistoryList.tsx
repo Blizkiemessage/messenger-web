@@ -9,6 +9,7 @@
  * чатов — единый вид без дублирования стилей.
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { getGlobalCallHistory } from '../../api/calls';
 import { createDirectChat } from '../../api/chats';
 import type { GlobalCallHistoryEntry } from '../../types';
@@ -57,21 +58,22 @@ function DirectionIcon({ direction, missed }: { direction: 'incoming' | 'outgoin
   );
 }
 
-function getStatusText(entry: GlobalCallHistoryEntry): { text: string; missed: boolean } {
+function getStatusText(entry: GlobalCallHistoryEntry, t: (k: string) => string): { text: string; missed: boolean } {
   if (entry.status === 'rejected') {
     return entry.direction === 'incoming'
-      ? { text: 'Вы отклонили', missed: false }
-      : { text: 'Отклонён', missed: false };
+      ? { text: t('history.rejectedIncoming'), missed: false }
+      : { text: t('history.rejectedOutgoing'), missed: false };
   }
   if (entry.status === 'missed') {
     return entry.direction === 'incoming'
-      ? { text: 'Пропущенный', missed: true }
-      : { text: 'Не ответил(а)', missed: false };
+      ? { text: t('history.missedIncoming'), missed: true }
+      : { text: t('history.missedOutgoing'), missed: false };
   }
-  return { text: entry.duration ? formatDuration(entry.duration) : 'Звонок', missed: false };
+  return { text: entry.duration ? formatDuration(entry.duration) : t('history.genericCall'), missed: false };
 }
 
 export function CallHistoryList() {
+  const { t } = useTranslation('calls');
   const [calls, setCalls] = useState<GlobalCallHistoryEntry[] | null>(null);
   const [loadingMore, setLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(true);
@@ -125,15 +127,15 @@ export function CallHistoryList() {
   }
 
   if (calls === null) {
-    return <div className="callHistoryLoading">Загрузка…</div>;
+    return <div className="callHistoryLoading">{t('common:loading')}</div>;
   }
 
   if (calls.length === 0) {
     return (
       <div className="callHistoryEmpty">
         <div className="callHistoryEmptyIcon"><PhoneIcon size={32} /></div>
-        <div className="callHistoryEmptyTitle">История звонков</div>
-        <div className="callHistoryEmptySub">Здесь появятся ваши звонки</div>
+        <div className="callHistoryEmptyTitle">{t('history.emptyTitle')}</div>
+        <div className="callHistoryEmptySub">{t('history.emptySub')}</div>
       </div>
     );
   }
@@ -145,8 +147,8 @@ export function CallHistoryList() {
         const day = dayKey(entry.createdAt);
         const showHeader = day !== lastDay;
         lastDay = day;
-        const { text, missed } = getStatusText(entry);
-        const name = entry.otherUser.display_name || entry.otherUser.username || 'Пользователь';
+        const { text, missed } = getStatusText(entry, t);
+        const name = entry.otherUser.display_name || entry.otherUser.username || t('modals:forward.unknownUser');
         return (
           <div key={entry.id}>
             {showHeader && <div className="callHistoryDayHeader">{formatDateSeparator(entry.createdAt)}</div>}
@@ -169,7 +171,7 @@ export function CallHistoryList() {
                   <button
                     className="callHistoryCallBackBtn"
                     onClick={e => callBack(e, entry)}
-                    title="Перезвонить"
+                    title={t('history.callBackTitle')}
                   >
                     {entry.callType === 'video' ? <VideoIcon /> : <PhoneIcon />}
                   </button>
@@ -179,7 +181,7 @@ export function CallHistoryList() {
           </div>
         );
       })}
-      {loadingMore && <div className="callHistoryLoadingMore">Загрузка…</div>}
+      {loadingMore && <div className="callHistoryLoadingMore">{t('common:loading')}</div>}
     </div>
   );
 }

@@ -1,0 +1,45 @@
+{
+  "overlay": {
+    "deviceEarpiece": "Phone (earpiece)",
+    "deviceSpeaker": "Speaker",
+    "deviceFallback": "Device {{index}}",
+    "audioEarpiece": "Phone",
+    "audioHeadphones": "Headphones",
+    "audioSpeaker": "Speaker",
+    "endedRejected": "Call declined",
+    "endedBusy": "User is busy",
+    "endedFailed": "Connection error",
+    "endedServerRestart": "The server is updating — please call back",
+    "endedGeneric": "Call ended",
+    "statusCalling": "Calling…",
+    "statusConnecting": "Connecting…",
+    "audioOutputTitle": "Audio output",
+    "micOn": "Turn on microphone",
+    "micOff": "Turn off microphone",
+    "micOnLabel": "Mic on",
+    "micOffLabel": "Mic off",
+    "cameraOn": "Turn on camera",
+    "cameraOff": "Turn off camera",
+    "cameraOnLabel": "Camera on",
+    "cameraOffLabel": "Camera off",
+    "endCallTitle": "End call",
+    "endLabel": "End"
+  },
+  "history": {
+    "rejectedIncoming": "You declined",
+    "rejectedOutgoing": "Declined",
+    "missedIncoming": "Missed",
+    "missedOutgoing": "No answer",
+    "genericCall": "Call",
+    "emptyTitle": "Call history",
+    "emptySub": "Your calls will show up here",
+    "callBackTitle": "Call back"
+  },
+  "incoming": {
+    "ariaLabel": "Incoming call",
+    "incomingVideoCall": "Incoming video call",
+    "incomingAudioCall": "Incoming audio call",
+    "reject": "Decline",
+    "accept": "Accept"
+  }
+}

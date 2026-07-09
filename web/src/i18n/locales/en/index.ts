@@ -4,5 +4,6 @@ import auth from './auth.json';
 import nav from './nav.json';
 import chat from './chat.json';
 import modals from './modals.json';
+import calls from './calls.json';
 
-export default { common, settings, auth, nav, chat, modals };
+export default { common, settings, auth, nav, chat, modals, calls };
