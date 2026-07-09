@@ -9,7 +9,7 @@
  * v1 — детерминированный FAQ (`assistant/faq.ts`), без ИИ и без backend.
  * Каркас диалога переиспользуем для будущего ассистента по данным (Этап D).
  */
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useDeepLinkStore } from '../../store/useDeepLinkStore';
 import { useAppStore } from '../../store/useAppStore';
@@ -17,7 +17,7 @@ import { renderMarkdown } from '../../utils/markdown';
 import { getAssistantStatus, askAssistant } from '../../api/assistant';
 import { AssistantDataMode } from './assistant/AssistantDataMode';
 import {
-  FAQ, TOP_INTENTS, CATEGORY_META, ASSISTANT_KB,
+  getFaq, getTopIntents, getCategoryMeta, getAssistantKb,
   searchFaqScored, getIntentById, FAQ_SCORE_STRONG,
   type FaqIntent, type FaqAction, type FaqCategory, type ScoredIntent,
 } from '../../assistant/faq';
@@ -41,9 +41,21 @@ type ThreadItem =
   | { role: 'assistant-empty'; query: string };
 
 export function AssistantModal({ topic, initialMode = 'help', onClose }: Props) {
-  const { t } = useTranslation('modals');
+  const { t, i18n } = useTranslation('modals');
   const open = useDeepLinkStore(s => s.open);
   const setShowSupport = useAppStore(s => s.setShowSupport);
+
+  // Пересчитываются на каждый рендер — подхватывают смену языка (i18n.language
+  // меняет весь FAQ-каталог: getFaq/getTopIntents/getCategoryMeta/getAssistantKb
+  // читают i18n.language напрямую, см. assistant/faq.ts).
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const FAQ = useMemo(() => getFaq(), [i18n.language]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const TOP_INTENTS = useMemo(() => getTopIntents(), [i18n.language]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const CATEGORY_META = useMemo(() => getCategoryMeta(), [i18n.language]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const ASSISTANT_KB = useMemo(() => getAssistantKb(), [i18n.language]);
 
   const [mode, setMode] = useState<AssistantMode>(topic ? 'help' : initialMode);
   const [query, setQuery] = useState('');

@@ -1,0 +1,249 @@
+{
+  "category": {
+    "start": "Getting started",
+    "chat": "Chats & messages",
+    "media": "Media & voice",
+    "groups": "Groups",
+    "calls": "Calls",
+    "rituals": "Rituals",
+    "appearance": "Appearance",
+    "privacy": "Privacy",
+    "legal": "Documents"
+  },
+  "intent": {
+    "invite": {
+      "question": "How do I invite family?",
+      "keywords": ["invite", "invitation", "link", "qr", "friends", "family", "add people"],
+      "answer": "You have a **personal invite link** and a QR code. Send them to your family and friends — once they install the app, you'll **instantly get a direct chat** with that person, no manual search needed.\n- Open the invite screen and share the link or QR code\n- The link is permanent — you can send it to as many people as you like",
+      "actions": ["Open invite"]
+    },
+    "find-friends": {
+      "question": "How do I start chatting with someone?",
+      "keywords": ["find", "search user", "message", "start chat", "username", "add contact", "new chat", "message someone"],
+      "answer": "There's no separate \"friends system\" — just find the person and message them. Type their **@username** in the search bar above the chat list, open their profile, and start a direct chat.\n_If the person isn't on the app yet — send them an invite link instead._",
+      "actions": ["Find by username", "Invite someone new"]
+    },
+    "create-group": {
+      "question": "How do I create a group?",
+      "keywords": ["group", "create", "group chat", "family group", "add members"],
+      "answer": "Create a group chat, give it a name, and add members. Groups support roles and **granular permissions** (who can edit info, delete messages, manage members).",
+      "actions": ["Create a group"]
+    },
+    "saved": {
+      "question": "What is \"Saved messages\"?",
+      "keywords": ["saved messages", "saved", "notes to self", "myself"],
+      "answer": "\"Saved messages\" is a private chat with yourself. Forward important messages there, and keep links, files, and ideas. It also has a welcome guide to the app.",
+      "actions": ["Open Saved messages"]
+    },
+    "voice": {
+      "question": "How do I record a voice message or video note?",
+      "keywords": ["voice message", "voice", "video note", "record", "microphone"],
+      "answer": "There's a record button in the message field:\n- **Hold** the microphone button to record a voice message\n- **Swipe up** while recording to lock it (you can release your finger)\n- **Switch** the mode to video to record a video note\nRelease to send, or swipe sideways to cancel.",
+      "actions": []
+    },
+    "media-send": {
+      "question": "How do I send a photo, video, or file?",
+      "keywords": ["photo", "video", "file", "picture", "document", "attachment", "attach", "send", "media"],
+      "answer": "Tap the paperclip in the message field and pick a file — or simply **drag and drop** it into the chat window. You can send several files at once.",
+      "actions": []
+    },
+    "stickers": {
+      "question": "How do I add stickers and GIFs?",
+      "keywords": ["stickers", "gif", "gifs", "emoji", "packs", "sticker pack", "sticker studio"],
+      "answer": "Open the emoji/sticker panel in the message field. It has standard sets, GIF search, and your own packs. You can build your own stickers in the **Sticker Studio**.",
+      "actions": []
+    },
+    "scheduled": {
+      "question": "How do I send a message later (scheduled)?",
+      "keywords": ["scheduled", "schedule", "later", "timer", "send later", "scheduled messages", "cancel scheduled", "scheduled list"],
+      "answer": "Write a message and instead of sending it normally, choose **send later** — pick a date and time, and it will be sent automatically at that moment.\nYou can view and **cancel** all of a chat's scheduled messages from the scheduled list.",
+      "actions": ["Scheduled messages"]
+    },
+    "poll": {
+      "question": "How do I create a poll?",
+      "keywords": ["poll", "vote", "voting", "choice"],
+      "answer": "In the attachment menu (paperclip), choose **Poll**, set the question and options. Chat members can vote, and you'll see results in real time.",
+      "actions": []
+    },
+    "reactions": {
+      "question": "What can I do with a message?",
+      "keywords": ["reaction", "emoji", "reply", "quote", "forward", "pin", "unpin", "edit", "edit message", "delete message", "delete for everyone", "delete for me", "copy", "select", "select multiple"],
+      "answer": "Hover over a message (or press and hold on your phone) to open the menu:\n- **React** — a quick emoji on the message\n- **Reply** — quote it in your own message\n- **Forward** — send it to another chat\n- **Copy** — copy the text\n- **Edit** — change your own message\n- **Delete** — for yourself or for everyone (your own messages)\n- **Pin** — keep an important message at the top of the chat\nYou can select several messages and forward or delete them at once.",
+      "actions": []
+    },
+    "search": {
+      "question": "How do I find a message in a conversation?",
+      "keywords": ["find message", "search chat", "search", "links", "history"],
+      "answer": "Open search in the chat header and type your text — matches will show up. There's also a dedicated **links** tab — every link from the conversation in one place.\n_Messages are encrypted; search happens securely._",
+      "actions": []
+    },
+    "calls": {
+      "question": "How do I make a call?",
+      "keywords": ["call", "audio", "video", "video call", "voice call"],
+      "answer": "In a direct chat's header, tap the call button — **audio and video calls** are available right inside the app. An incoming call shows up as a full screen with accept/decline.",
+      "actions": []
+    },
+    "daily-prompt": {
+      "question": "How do I set up the \"Daily prompt\"?",
+      "keywords": ["daily prompt", "ritual", "daily", "question bank", "streak", "every day"],
+      "answer": "The \"Daily prompt\" is a warm daily ritual: the chat gets a new question every day, and you and your family answer it (with text, voice, video note, or media).\nYou can turn it on and configure it (time, question bank, your own questions, reminders) in **chat settings → Daily prompt**.",
+      "actions": ["Daily prompt settings", "Answer archive"]
+    },
+    "notes": {
+      "question": "What are chat notes?",
+      "keywords": ["notes", "lists", "plans", "shared", "notebook"],
+      "answer": "Chat notes are a shared notebook for lists, plans, and decisions. Chat members can see them (with configurable edit permissions).",
+      "actions": ["Open notes"]
+    },
+    "appearance": {
+      "question": "How do I change the theme and accent color?",
+      "keywords": ["theme", "accent", "color", "dark", "light", "appearance", "look and feel", "app background"],
+      "answer": "There's an **Appearance** tab in your profile settings: dark/light theme, accent color (recolors the whole interface), and app background.",
+      "actions": ["Open Appearance"]
+    },
+    "chat-bg": {
+      "question": "How do I set my own chat background?",
+      "keywords": ["chat background", "wallpaper", "chat appearance", "background image"],
+      "answer": "In **chat settings → Appearance** you can choose a background: a preset, a color, a gradient, or an image. You can set it just for yourself or for everyone in the chat.",
+      "actions": ["Chat appearance"]
+    },
+    "security": {
+      "question": "How do I secure my account (2FA, passkeys)?",
+      "keywords": ["password", "change password", "2fa", "two-factor", "totp", "passkey", "security", "protect", "protect account", "sessions"],
+      "answer": "In your profile settings you can change your password, enable **two-factor authentication (2FA)**, add a **passkey**, and review active sessions.\n_Conversations are encrypted and stored in encrypted form._",
+      "actions": ["Profile settings"]
+    },
+    "privacy": {
+      "question": "What privacy settings are available?",
+      "keywords": ["privacy", "who can see", "last seen", "last seen time", "was online", "hide avatar", "hide profile photo", "hide email", "adding to groups", "visibility"],
+      "answer": "In profile settings, under \"Privacy\", you can configure:\n- **Hide last-seen time** — others will see \"offline\" instead of the exact time\n- **Block being added to groups** without your consent\n- **Hide your profile photo** — with the option to add exceptions (who can still see it)\n- **Hide your email** on your profile\nYou can also **block** a user from their profile.",
+      "actions": ["Profile settings"]
+    },
+    "change-name": {
+      "question": "How do I change my name or @username?",
+      "keywords": ["name", "nickname", "username", "login", "rename", "display name", "change name"],
+      "answer": "In profile settings you can change your **display name** and **@username** — open your profile and edit the fields.",
+      "actions": ["Profile settings"]
+    },
+    "change-email": {
+      "question": "How do I change or link an email?",
+      "keywords": ["email", "mail", "email address", "link email", "change email"],
+      "answer": "In profile settings you can **link or change your email**. A confirmation code will be sent to the new address — enter it, and your email will update.",
+      "actions": ["Profile settings"]
+    },
+    "delete-account": {
+      "question": "How do I delete my account?",
+      "keywords": ["delete", "delete account", "delete profile", "erase", "deactivate", "close profile"],
+      "answer": "At the very bottom of profile settings there's **delete account**. This action is **irreversible** — all your data and conversations will be deleted.",
+      "actions": ["Profile settings"]
+    },
+    "phone": {
+      "question": "Can I sign in with a phone number?",
+      "keywords": ["phone number", "phone", "sms", "sim card", "mobile"],
+      "answer": "Blizkie **doesn't use phone numbers** — sign-in is done with **email and password**. You can link or change your email in profile settings.",
+      "actions": ["Profile settings"]
+    },
+    "export-data": {
+      "question": "How do I download my conversation history and data?",
+      "keywords": ["export", "download data", "download history", "export data", "archive", "data copy", "backup conversations", "save conversations", "gdpr", "download", "download chats"],
+      "answer": "**Data export** gives you a copy of your entire account: profile, all messages (with decrypted text), contacts, and session history. Useful to keep your conversations or to exercise your GDPR data-portability right.\nOpen **Profile settings → Export data** and tap \"Download my data\" — you'll get a ZIP archive with JSON files. Available once per hour.",
+      "actions": ["Profile settings"]
+    },
+    "sessions": {
+      "question": "How do I see devices and end sessions?",
+      "keywords": ["sessions", "session", "devices", "sign out elsewhere", "end session", "active logins", "where am I signed in", "someone else's login", "sign out everywhere", "disconnect device", "who logged in"],
+      "answer": "**Profile settings → Sessions** shows a list of all active logins: device, IP address, and last activity time. It helps you spot someone else's login. You can **end** any session individually, or tap \"End all other sessions\" to keep only the current device.",
+      "actions": ["Profile settings"]
+    },
+    "permissions": {
+      "question": "Why do I need camera, microphone, and notification permissions?",
+      "keywords": ["permissions", "camera access", "microphone access", "microphone not working", "camera not working", "allow notifications", "access"],
+      "answer": "Some features need device access: **microphone** — for voice messages and calls, **camera** — for video notes and video calls, **notifications** — for push alerts about new messages. You can manage them in **Profile settings → Permissions**. If access is blocked by the browser, change it via the lock icon in the address bar.",
+      "actions": ["Profile settings"]
+    },
+    "notifications": {
+      "question": "How do I turn on message notifications?",
+      "keywords": ["notifications", "push", "alerts", "message sound", "notifications not arriving"],
+      "answer": "Blizkie can send **push notifications** for new messages (even as an installed app, PWA). Allow notifications in **Profile settings → Permissions**. For a single chat, you can also do the opposite and mute notifications from the chat menu.",
+      "actions": ["Profile settings"]
+    },
+    "block-user": {
+      "question": "How do I block a user?",
+      "keywords": ["block", "blocking", "unblock", "blocklist", "block user", "spam"],
+      "answer": "Open the **user's profile** (for example, by tapping their name in a chat) and choose **Block**. A blocked user won't be able to message you. You can unblock them from the same place — the action is reversible.",
+      "actions": []
+    },
+    "legal-find-docs": {
+      "question": "Where can I read the privacy policy and terms of use?",
+      "keywords": ["privacy policy", "terms of use", "legal documents", "documents", "user agreement", "where are the documents", "find documents", "terms of service", "legal information"],
+      "answer": "Both documents are always available right inside the app, no need to search online: open **Settings → Documents** (at the very bottom of the settings list) — you'll find the full text of the Privacy Policy and Terms of Use, with a switch between them.\nYou can also open them without signing in — via the direct links `/privacy` and `/terms` — for example, to read them before registering.",
+      "actions": ["Open documents"]
+    },
+    "legal-data-collected": {
+      "question": "What data does the app collect about me, and who is it shared with?",
+      "keywords": ["what data", "data collected", "personal data", "data processing", "who gets my data", "third-party services", "third parties", "groq", "yandex", "giphy", "data privacy"],
+      "answer": "We collect the data needed to run the messenger: username, email, profile (avatar, status, and optionally your birth date), technical session info (IP address, device), and your conversations. Conversations are stored encrypted, but this is **not end-to-end encryption** — technically, the server is able to decrypt them (more detail in the document).\nTo run the service, some data goes to processors: **Yandex Cloud** — media file storage, our email provider — service emails, **Groq** — only if you've enabled the AI assistant for your chat data yourself, **Giphy** — when searching for GIFs. We don't sell data or show ads.\nThe complete, precise list is in the Privacy Policy.",
+      "actions": ["Open Privacy Policy"]
+    },
+    "legal-moderation-privacy": {
+      "question": "Do admins read my private messages?",
+      "keywords": ["admin reads messages", "moderator sees conversation", "who reads messages", "reads conversation", "access to conversation", "conversation privacy", "admin sees messages"],
+      "answer": "Normally, no: messages are stored encrypted, and no one reads your conversations out of curiosity or for analytics.\nThe only exception is handling a **report**: if someone reports a specific message, an administrator may see the decrypted text of that particular message to determine whether the report is justified. Every such review is logged. This is described in detail in the Privacy Policy, in the \"Moderation and report handling\" section.",
+      "actions": ["Open documents"]
+    },
+    "legal-age-terms": {
+      "question": "What's the minimum age to use the app, and what happens if I break the rules?",
+      "keywords": ["age restriction", "minimum age", "registration age", "usage rules", "what's not allowed", "ban for what", "rule violation", "terms of use age"],
+      "answer": "The service can be used from **age 16** (ages 13–16 require a parent's or legal guardian's consent).\nSpam, threats and abuse, illegal content, impersonating someone else, and attempting to break into another account are all prohibited. Violations result in a warning or an account ban, depending on severity. The full rules are in the Terms of Use.",
+      "actions": ["Open Terms of Use"]
+    },
+    "ai-summary": {
+      "question": "What is the AI chat summary?",
+      "keywords": ["summary", "ai summary", "recap", "tldr", "digest", "what did we talk about", "haven't read", "summarize chat", "summarization", "chat recap"],
+      "answer": "**AI summary** is a short recap of a conversation, generated by AI: handy when a lot of messages have piled up and you don't have time to read them all. You can choose the **period** (hour, day, 3 days, week, everything, or just unread) and the **format** (short / normal / detailed). Open it from the chat menu.",
+      "actions": ["Make an AI summary"]
+    },
+    "media-gallery": {
+      "question": "Where can I see all of a chat's photos, files, and links?",
+      "keywords": ["chat media", "gallery", "all photos", "all files", "chat links", "chat attachments", "shared files"],
+      "answer": "Every chat has an **attachment gallery** with **Media**, **Files**, and **Links** tabs — everything ever shared in that chat, gathered in one place.",
+      "actions": ["Open chat media"]
+    },
+    "formatting": {
+      "question": "How do I format text (bold, italic, spoiler)?",
+      "keywords": ["formatting", "bold", "italic", "spoiler", "markup", "markdown", "highlight text", "mention", "hidden text"],
+      "answer": "Messages support simple markup:\n- `**bold**` → **bold**\n- `_italic_` → _italic_\n- `||spoiler||` — hidden text that reveals on tap\n- links and **@mentions** of members in groups\nYou can also insert custom emoji from your own packs.",
+      "actions": []
+    },
+    "sticker-studio": {
+      "question": "How do I create my own stickers or custom emoji?",
+      "keywords": ["create sticker", "my stickers", "sticker studio", "custom emoji", "my own pack", "upload stickers", "make a sticker pack", "gif stickers"],
+      "answer": "In the **Sticker Studio** you can build your own set of stickers or custom emoji: upload images/videos/GIFs, and they'll become available to send in chats. There are limits on count and length (quotas are shown in the studio).",
+      "actions": []
+    },
+    "folders": {
+      "question": "How do I organize chats into folders?",
+      "keywords": ["folders", "folder", "chat categories", "sort chats", "group chats", "chat tabs"],
+      "answer": "**Folders** help you organize chats by topic (e.g. \"Family\", \"Work\"). Create a folder with a name and emoji next to the filters above the chat list, then add chats to it — tabs will appear at the top for quick switching.",
+      "actions": []
+    },
+    "pin-mute-chat": {
+      "question": "How do I pin a chat or mute notifications?",
+      "keywords": ["pin chat", "unpin chat", "to the top", "important chat", "mute notifications", "silent", "mute", "mute chat", "no sound"],
+      "answer": "Right-click a chat (or press and hold on your phone) — the menu lets you **Pin** it to the top of the list (up to 5 chats) or **Mute notifications** (silent mode). Both actions are reversible from the same menu.",
+      "actions": []
+    },
+    "status": {
+      "question": "How do I set a status (Available / Busy / Do not disturb)?",
+      "keywords": ["status", "presence", "available", "busy", "do not disturb", "dnd", "online status", "set status", "unavailable"],
+      "answer": "Your status shows your availability to family and friends: **Available**, **Busy**, or **Do not disturb**. Open your profile at the bottom of the sidebar and pick a status — you can add a short note and set it to auto-clear after a set time (30 min, an hour, end of day, etc.).",
+      "actions": []
+    },
+    "group-roles": {
+      "question": "How do I manage members and permissions in a group?",
+      "keywords": ["members", "add member", "remove member", "admin", "administrator", "moderator", "permissions", "roles", "transfer admin", "manage group", "group name", "group avatar", "close group"],
+      "answer": "Open the **group profile** (tap the group name at the top of the chat). There, admins and moderators can add and remove members, and change the name, description, and avatar. **Granular permissions** are available for moderators (edit info, delete messages, manage members), along with **transferring admin rights** and closing the group.",
+      "actions": []
+    }
+  }
+}

@@ -1528,7 +1528,7 @@
   .mpLangCard.active {
     background: var(--accent-dim); border-color: var(--accent); color: var(--accent);
   }
-  .mpLangFlag { font-size: 20px; line-height: 1; }
+  .mpLangFlag { width: 24px; height: 17px; border-radius: 3px; overflow: hidden; flex-shrink: 0; box-shadow: 0 0 0 1px color-mix(in srgb, var(--text) 14%, transparent); }
 
   /* ── Нижнее меню с вырезом-колыбелью под центральный орб ───────────── */
   .mNav {
@@ -1770,7 +1770,7 @@
   .npLangCard.active {
     background: var(--accent-dim); border-color: var(--accent); color: var(--accent);
   }
-  .npLangFlag { font-size: 18px; line-height: 1; }
+  .npLangFlag { width: 21px; height: 15px; border-radius: 3px; overflow: hidden; flex-shrink: 0; box-shadow: 0 0 0 1px color-mix(in srgb, var(--text) 14%, transparent); }
 
   /* ── Сцена чата: переписка + правая панель ─────────────────────────── */
   .chatStage { display: flex; flex-direction: row; flex: 1; min-height: 0; overflow: hidden; position: relative; }

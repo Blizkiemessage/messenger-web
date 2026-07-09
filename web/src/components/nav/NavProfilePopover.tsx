@@ -10,6 +10,7 @@ import { useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Avatar } from '../ui/Avatar';
 import { StatusPicker } from '../ui/StatusPicker';
+import { LangFlag } from '../ui/LangFlag';
 import { type User } from '../../types';
 import { type Theme } from '../../utils/theme';
 import { type Locale } from '../../i18n';
@@ -154,14 +155,14 @@ export function NavProfilePopover({
             className={`npLangCard${language === 'ru' ? ' active' : ''}`}
             onClick={() => onSetLanguage('ru')}
           >
-            <span className="npLangFlag" aria-hidden>🇷🇺</span>
+            <LangFlag locale="ru" className="npLangFlag" />
             {t('languageRussian')}
           </button>
           <button
             className={`npLangCard${language === 'en' ? ' active' : ''}`}
             onClick={() => onSetLanguage('en')}
           >
-            <span className="npLangFlag" aria-hidden>🇬🇧</span>
+            <LangFlag locale="en" className="npLangFlag" />
             {t('languageEnglish')}
           </button>
         </div>

@@ -7,6 +7,8 @@
  *
  * Вариант задаётся классом-модификатором: `asstOrbSidebar` | `asstOrbHeader`.
  */
+import i18n from '../../i18n';
+
 interface Props {
   onClick: () => void;
   /** Модификатор размещения: 'asstOrbSidebar' (плавающий) | 'asstOrbHeader' (в шапке). */
@@ -14,14 +16,15 @@ interface Props {
   title?: string;
 }
 
-export function AssistantOrb({ onClick, variant = 'asstOrbSidebar', title = 'Помощник' }: Props) {
+export function AssistantOrb({ onClick, variant = 'asstOrbSidebar', title }: Props) {
+  const label = title ?? i18n.t('nav:common.openAssistant');
   return (
     <button
       type="button"
       className={`asstOrb ${variant}`}
       onClick={onClick}
-      title={title}
-      aria-label="Открыть помощника"
+      title={label}
+      aria-label={label}
     >
       <span className="asstOrbAura" aria-hidden />
       <svg

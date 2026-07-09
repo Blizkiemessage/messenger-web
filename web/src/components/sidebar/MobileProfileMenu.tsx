@@ -10,6 +10,7 @@ import { useTranslation } from 'react-i18next';
 import { Portal } from '../ui/Portal';
 import { Avatar } from '../ui/Avatar';
 import { StatusPicker } from '../ui/StatusPicker';
+import { LangFlag } from '../ui/LangFlag';
 import { type User } from '../../types';
 import { type Theme } from '../../utils/theme';
 import { type Locale } from '../../i18n';
@@ -139,14 +140,14 @@ export function MobileProfileMenu({
                 className={`mpLangCard${language === 'ru' ? ' active' : ''}`}
                 onClick={() => onSetLanguage('ru')}
               >
-                <span className="mpLangFlag" aria-hidden>🇷🇺</span>
+                <LangFlag locale="ru" className="mpLangFlag" />
                 {t('languageRussian')}
               </button>
               <button
                 className={`mpLangCard${language === 'en' ? ' active' : ''}`}
                 onClick={() => onSetLanguage('en')}
               >
-                <span className="mpLangFlag" aria-hidden>🇬🇧</span>
+                <LangFlag locale="en" className="mpLangFlag" />
                 {t('languageEnglish')}
               </button>
             </div>
