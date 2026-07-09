@@ -9,8 +9,11 @@ WORKDIR /app
 
 COPY backend/package*.json ./
 
-# Install production deps; sharp will use its prebuilt Debian x64 binary
-RUN npm install -g npm@latest --quiet && npm install --omit=dev --prefer-offline
+# Install production deps; sharp will use its prebuilt Debian x64 binary.
+# Do NOT `npm install -g npm@latest` here — npm's own engine requirement can
+# (and did, 2026-07-09) outpace the pinned Node 20 base image, breaking every
+# build. The npm bundled with node:20-slim is sufficient for a plain install.
+RUN npm install --omit=dev --prefer-offline
 
 COPY backend/ .
 
