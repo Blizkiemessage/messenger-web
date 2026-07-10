@@ -371,12 +371,12 @@
 </div>
 
 <!-- ─── App ───────────────────────────────────────────────────────────────── -->
-<div id="sidebar-overlay" onclick="App.closeSidebar()"></div>
+<div id="sidebar-overlay"></div>
 <div id="app">
 
   <!-- Mobile header (hamburger + logo) — visible only on small screens -->
   <header id="mobile-header">
-    <button id="hamburger" onclick="App.toggleSidebar()" aria-label="Меню">
+    <button id="hamburger" aria-label="Меню">
       <i class="bi bi-list"></i>
     </button>
     <div class="mob-logo">
@@ -396,30 +396,30 @@
     </div>
 
     <div class="sidebar-nav">
-      <button class="nav-item active" onclick="App.nav('dashboard')" id="nav-dashboard">
+      <button class="nav-item active" id="nav-dashboard">
         <i class="bi bi-speedometer2"></i> Дашборд
       </button>
-      <button class="nav-item" onclick="App.nav('users')" id="nav-users">
+      <button class="nav-item" id="nav-users">
         <i class="bi bi-people"></i> Пользователи
       </button>
-      <button class="nav-item" onclick="App.nav('chats')" id="nav-chats">
+      <button class="nav-item" id="nav-chats">
         <i class="bi bi-chat-dots"></i> Чаты
       </button>
-      <button class="nav-item" onclick="App.nav('content')" id="nav-content">
+      <button class="nav-item" id="nav-content">
         <i class="bi bi-flag"></i> Контент
         <span id="badge-content" class="nav-badge" style="display:none"></span>
       </button>
 
       <div class="sidebar-sep"></div>
 
-      <button class="nav-item" onclick="App.nav('errors')" id="nav-errors">
+      <button class="nav-item" id="nav-errors">
         <i class="bi bi-exclamation-octagon"></i> Лог ошибок
         <span id="badge-errors" class="nav-badge" style="display:none"></span>
       </button>
-      <button class="nav-item" onclick="App.nav('audit')" id="nav-audit">
+      <button class="nav-item" id="nav-audit">
         <i class="bi bi-clock-history"></i> Аудит
       </button>
-      <button class="nav-item" onclick="App.nav('tools')" id="nav-tools">
+      <button class="nav-item" id="nav-tools">
         <i class="bi bi-tools"></i> Инструменты
       </button>
     </div>
@@ -430,7 +430,7 @@
         <div class="uname" id="sidebar-username">admin</div>
         <div class="urole">Administrator</div>
       </div>
-      <button class="logout-btn" onclick="App.logout()" title="Выйти"><i class="bi bi-box-arrow-right"></i></button>
+      <button class="logout-btn" id="logout-btn" title="Выйти"><i class="bi bi-box-arrow-right"></i></button>
     </div>
   </nav>
 
@@ -442,7 +442,7 @@
       <div class="page-header">
         <h1 class="page-title">Дашборд</h1>
         <div class="page-actions">
-          <button class="btn btn-ghost btn-sm" onclick="Pages.dashboard.load()">
+          <button class="btn btn-ghost btn-sm" id="dashboard-refresh-btn">
             <i class="bi bi-arrow-clockwise"></i> Обновить
           </button>
         </div>
@@ -453,10 +453,10 @@
         <input type="date" id="filter-from">
         <label>По</label>
         <input type="date" id="filter-to">
-        <button class="btn btn-primary btn-sm" onclick="Pages.dashboard.load()">
+        <button class="btn btn-primary btn-sm" id="dashboard-filter-apply-btn">
           <i class="bi bi-funnel"></i> Применить
         </button>
-        <button class="btn btn-ghost btn-sm" onclick="Pages.dashboard.clearFilter()">
+        <button class="btn btn-ghost btn-sm" id="dashboard-filter-clear-btn">
           <i class="bi bi-x"></i> Сбросить
         </button>
         <span id="filter-label" style="font-size:12px;color:var(--text-2);margin-left:4px"></span>
@@ -478,13 +478,13 @@
       <div class="page-header">
         <h1 class="page-title">Пользователи <span id="users-count" style="font-size:14px;font-weight:400;color:var(--text-2)"></span></h1>
         <div class="page-actions">
-          <button class="btn btn-ghost btn-sm" onclick="Pages.users.load()"><i class="bi bi-arrow-clockwise"></i> Обновить</button>
+          <button class="btn btn-ghost btn-sm" id="users-refresh-btn"><i class="bi bi-arrow-clockwise"></i> Обновить</button>
         </div>
       </div>
       <div class="filter-bar">
         <div class="input-wrap" style="flex:1;max-width:360px">
           <i class="bi bi-search input-icon"></i>
-          <input id="users-search" class="form-input with-icon" placeholder="Поиск по username, email, имени…" oninput="Pages.users.search(this.value)">
+          <input id="users-search" class="form-input with-icon" placeholder="Поиск по username, email, имени…">
         </div>
       </div>
       <div class="card">
@@ -492,10 +492,10 @@
           <table>
             <thead>
               <tr>
-                <th class="sortable" onclick="Pages.users.sort('display_name')">Пользователь <span class="sort-icon none" id="sort-users-display_name"></span></th>
-                <th class="sortable" onclick="Pages.users.sort('email')">Email <span class="sort-icon none" id="sort-users-email"></span></th>
-                <th class="sortable" onclick="Pages.users.sort('created_at')">Создан <span class="sort-icon none" id="sort-users-created_at"></span></th>
-                <th class="sortable" onclick="Pages.users.sort('last_seen_at')">Последний вход <span class="sort-icon none" id="sort-users-last_seen_at"></span></th>
+                <th class="sortable" data-col="display_name">Пользователь <span class="sort-icon none" id="sort-users-display_name"></span></th>
+                <th class="sortable" data-col="email">Email <span class="sort-icon none" id="sort-users-email"></span></th>
+                <th class="sortable" data-col="created_at">Создан <span class="sort-icon none" id="sort-users-created_at"></span></th>
+                <th class="sortable" data-col="last_seen_at">Последний вход <span class="sort-icon none" id="sort-users-last_seen_at"></span></th>
                 <th style="text-align:right">Действия</th>
               </tr>
             </thead>
@@ -510,13 +510,13 @@
       <div class="page-header">
         <h1 class="page-title">Чаты <span id="chats-count" style="font-size:14px;font-weight:400;color:var(--text-2)"></span></h1>
         <div class="page-actions">
-          <button class="btn btn-ghost btn-sm" onclick="Pages.chats.load()"><i class="bi bi-arrow-clockwise"></i> Обновить</button>
+          <button class="btn btn-ghost btn-sm" id="chats-refresh-btn"><i class="bi bi-arrow-clockwise"></i> Обновить</button>
         </div>
       </div>
       <div class="filter-bar">
         <div class="input-wrap" style="flex:1;max-width:360px">
           <i class="bi bi-search input-icon"></i>
-          <input id="chats-search" class="form-input with-icon" placeholder="Поиск по названию…" oninput="Pages.chats.search(this.value)">
+          <input id="chats-search" class="form-input with-icon" placeholder="Поиск по названию…">
         </div>
       </div>
       <div class="card">
@@ -524,10 +524,10 @@
           <table>
             <thead>
               <tr>
-                <th class="sortable" onclick="Pages.chats.sort('name')">Название <span class="sort-icon none" id="sort-chats-name"></span></th>
-                <th class="sortable" onclick="Pages.chats.sort('type')">Тип <span class="sort-icon none" id="sort-chats-type"></span></th>
-                <th class="sortable" onclick="Pages.chats.sort('member_count')">Участники <span class="sort-icon none" id="sort-chats-member_count"></span></th>
-                <th class="sortable" onclick="Pages.chats.sort('created_at')">Создан <span class="sort-icon none" id="sort-chats-created_at"></span></th>
+                <th class="sortable" data-col="name">Название <span class="sort-icon none" id="sort-chats-name"></span></th>
+                <th class="sortable" data-col="type">Тип <span class="sort-icon none" id="sort-chats-type"></span></th>
+                <th class="sortable" data-col="member_count">Участники <span class="sort-icon none" id="sort-chats-member_count"></span></th>
+                <th class="sortable" data-col="created_at">Создан <span class="sort-icon none" id="sort-chats-created_at"></span></th>
                 <th style="text-align:right">Действия</th>
               </tr>
             </thead>
@@ -542,14 +542,14 @@
       <div class="page-header">
         <h1 class="page-title">Модерация контента</h1>
         <div class="page-actions">
-          <button class="btn btn-ghost btn-sm" onclick="Pages.content.reload()"><i class="bi bi-arrow-clockwise"></i> Обновить</button>
+          <button class="btn btn-ghost btn-sm" id="content-reload-btn"><i class="bi bi-arrow-clockwise"></i> Обновить</button>
         </div>
       </div>
       <div class="subtab-bar">
-        <button class="subtab-btn active" id="stab-reports" onclick="Pages.content.subTab('reports')">
+        <button class="subtab-btn active" id="stab-reports" data-subtab="reports">
           <i class="bi bi-flag me-1"></i> Жалобы <span id="reports-cnt-badge" style="display:none;font-size:11px;background:var(--danger);color:#fff;padding:1px 5px;border-radius:99px;margin-left:4px"></span>
         </button>
-        <button class="subtab-btn" id="stab-packs" onclick="Pages.content.subTab('packs')">
+        <button class="subtab-btn" id="stab-packs" data-subtab="packs">
           <i class="bi bi-collection me-1"></i> Стикерпаки
         </button>
       </div>
@@ -558,7 +558,7 @@
       <div id="stab-pane-reports" class="subtab-pane active">
         <div class="filter-bar">
           <label class="toggle-wrap">
-            <span class="toggle"><input type="checkbox" id="show-resolved-toggle" onchange="Pages.content.loadReports()"><span class="toggle-slider"></span></span>
+            <span class="toggle"><input type="checkbox" id="show-resolved-toggle"><span class="toggle-slider"></span></span>
             Показать решённые
           </label>
         </div>
@@ -577,7 +577,7 @@
         <div class="filter-bar">
           <div class="input-wrap" style="flex:1;max-width:360px">
             <i class="bi bi-search input-icon"></i>
-            <input id="packs-search" class="form-input with-icon" placeholder="Поиск по паку или автору…" oninput="Pages.content.filterPacks(this.value)">
+            <input id="packs-search" class="form-input with-icon" placeholder="Поиск по паку или автору…">
           </div>
         </div>
         <div class="card"><div class="table-wrap">
@@ -596,22 +596,22 @@
       <div class="page-header">
         <h1 class="page-title">Лог ошибок</h1>
         <div class="page-actions">
-          <button class="btn btn-ghost btn-sm" onclick="Pages.errors.load()"><i class="bi bi-arrow-clockwise"></i> Обновить</button>
-          <button class="btn btn-ghost-danger btn-sm" onclick="Pages.errors.clearAll()"><i class="bi bi-trash3"></i> Очистить всё</button>
+          <button class="btn btn-ghost btn-sm" id="errors-refresh-btn"><i class="bi bi-arrow-clockwise"></i> Обновить</button>
+          <button class="btn btn-ghost-danger btn-sm" id="errors-clearall-btn"><i class="bi bi-trash3"></i> Очистить всё</button>
         </div>
       </div>
       <div class="filter-bar">
-        <select id="errors-level" class="form-select" style="width:140px" onchange="Pages.errors.load()">
+        <select id="errors-level" class="form-select" style="width:140px">
           <option value="">Все уровни</option>
           <option value="error">Ошибки</option>
           <option value="warn">Предупреждения</option>
         </select>
-        <select id="errors-tag" class="form-select" style="width:160px" onchange="Pages.errors.load()">
+        <select id="errors-tag" class="form-select" style="width:160px">
           <option value="">Все теги</option>
         </select>
         <div class="input-wrap" style="flex:1;max-width:360px">
           <i class="bi bi-search input-icon"></i>
-          <input id="errors-search" class="form-input with-icon" placeholder="Поиск в тексте ошибок…" oninput="Pages.errors.debounce()">
+          <input id="errors-search" class="form-input with-icon" placeholder="Поиск в тексте ошибок…">
         </div>
         <span id="errors-total" style="font-size:12px;color:var(--text-2);white-space:nowrap"></span>
       </div>
@@ -636,11 +636,11 @@
       <div class="page-header">
         <h1 class="page-title">Журнал аудита</h1>
         <div class="page-actions">
-          <button class="btn btn-ghost btn-sm" onclick="Pages.audit.load()"><i class="bi bi-arrow-clockwise"></i> Обновить</button>
+          <button class="btn btn-ghost btn-sm" id="audit-refresh-btn"><i class="bi bi-arrow-clockwise"></i> Обновить</button>
         </div>
       </div>
       <div class="filter-bar">
-        <select id="audit-action" class="form-select" style="width:200px" onchange="Pages.audit.load()">
+        <select id="audit-action" class="form-select" style="width:200px">
           <option value="">Все действия</option>
           <option value="delete_user">Удаление пользователя</option>
           <option value="delete_chat">Удаление чата</option>
@@ -690,7 +690,7 @@
             Тестовый запуск (не изменять файлы)
           </label>
         </div>
-        <button class="btn btn-primary" id="repair-btn" onclick="Pages.tools.runRepair()">
+        <button class="btn btn-primary" id="repair-btn">
           <i class="bi bi-wrench-adjustable"></i> Запустить восстановление
         </button>
 
@@ -727,14 +727,14 @@
   <div class="modal-box wide">
     <div class="modal-header">
       <span class="modal-title" id="user-modal-title">Профиль пользователя</span>
-      <button class="modal-close" onclick="Modals.user.close()"><i class="bi bi-x-lg"></i></button>
+      <button class="modal-close"><i class="bi bi-x-lg"></i></button>
     </div>
     <div class="modal-body" id="user-modal-body">Загрузка…</div>
     <div class="modal-footer">
       <button class="btn btn-ghost-danger btn-sm" id="user-modal-delete-btn"><i class="bi bi-trash3"></i> Удалить аккаунт</button>
       <button class="btn btn-ghost-warning btn-sm" id="user-modal-warn-btn"><i class="bi bi-exclamation-triangle"></i> Предупредить</button>
       <button class="btn btn-ghost-danger btn-sm" id="user-modal-ban-btn"><i class="bi bi-slash-circle"></i> Заблокировать</button>
-      <button class="btn btn-ghost btn-sm" onclick="Modals.user.close()">Закрыть</button>
+      <button class="btn btn-ghost btn-sm" id="user-modal-close-btn">Закрыть</button>
     </div>
   </div>
 </div>
@@ -744,13 +744,13 @@
   <div class="modal-box wide">
     <div class="modal-header">
       <span class="modal-title"><i class="bi bi-search" style="color:var(--warning)"></i> Разбор жалобы</span>
-      <button class="modal-close" onclick="Modals.report.close()"><i class="bi bi-x-lg"></i></button>
+      <button class="modal-close"><i class="bi bi-x-lg"></i></button>
     </div>
     <div class="modal-body" id="report-modal-body">Загрузка…</div>
     <div class="modal-footer">
-      <button class="btn btn-ghost-warning btn-sm" id="report-modal-warn-btn" onclick="Modals.report.warn()"><i class="bi bi-exclamation-triangle"></i> Предупредить</button>
-      <button class="btn btn-ghost-danger btn-sm" id="report-modal-ban-btn" onclick="Modals.report.ban()"><i class="bi bi-slash-circle"></i> Заблокировать</button>
-      <button class="btn btn-ghost btn-sm" onclick="Modals.report.close()">Закрыть</button>
+      <button class="btn btn-ghost-warning btn-sm" id="report-modal-warn-btn"><i class="bi bi-exclamation-triangle"></i> Предупредить</button>
+      <button class="btn btn-ghost-danger btn-sm" id="report-modal-ban-btn"><i class="bi bi-slash-circle"></i> Заблокировать</button>
+      <button class="btn btn-ghost btn-sm" id="report-modal-close-btn">Закрыть</button>
     </div>
   </div>
 </div>
@@ -760,12 +760,12 @@
   <div class="modal-box wide">
     <div class="modal-header">
       <span class="modal-title"><i class="bi bi-bug" style="color:var(--danger)"></i> Детали ошибки</span>
-      <button class="modal-close" onclick="Modals.error.close()"><i class="bi bi-x-lg"></i></button>
+      <button class="modal-close"><i class="bi bi-x-lg"></i></button>
     </div>
     <div class="modal-body" id="error-modal-body"></div>
     <div class="modal-footer">
       <button class="btn btn-ghost-danger btn-sm" id="error-modal-delete-btn"><i class="bi bi-trash3"></i> Удалить запись</button>
-      <button class="btn btn-ghost btn-sm" onclick="Modals.error.close()">Закрыть</button>
+      <button class="btn btn-ghost btn-sm" id="error-modal-close-btn">Закрыть</button>
     </div>
   </div>
 </div>

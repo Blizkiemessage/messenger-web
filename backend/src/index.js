@@ -103,18 +103,17 @@ app.use(helmet({
 }));
 
 // Content Security Policy
-// Admin panel needs 'unsafe-inline' for scriptSrc: Bootstrap JS is loaded from
-// cdn.jsdelivr.net AND the HTML uses dozens of inline onclick="..." handlers
-// (Bootstrap-generated markup). All other routes get the strict policy.
+// Admin panel's inline onclick="..." handlers (docs/STORE_LAUNCH_TZ.md §13)
+// were replaced with addEventListener in public/admin/admin.js, so scriptSrc/
+// scriptSrcAttr no longer need 'unsafe-inline' for /admin either — every
+// route now gets the strict policy for scripts.
 app.use((req, res, next) => {
   const isAdmin = req.path.startsWith('/admin');
   return helmet.contentSecurityPolicy({
     directives: {
       defaultSrc:  ["'self'"],
-      scriptSrc:     isAdmin
-        ? ["'self'", "'unsafe-inline'", 'https://cdn.jsdelivr.net']
-        : ["'self'"],
-      scriptSrcAttr: isAdmin ? ["'unsafe-inline'"] : ["'none'"],
+      scriptSrc:     ["'self'"],
+      scriptSrcAttr: ["'none'"],
       styleSrc:      ["'self'", "'unsafe-inline'", 'https://cdn.jsdelivr.net'],
       imgSrc:        ["'self'", 'data:', 'blob:', ...(_s3Origin ? [_s3Origin] : [])],
       mediaSrc:      ["'self'", 'blob:', ...(_s3Origin ? [_s3Origin] : [])],

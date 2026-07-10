@@ -82,8 +82,9 @@ const Toast = (() => {
         <div class="toast-title">${esc(title)}</div>
         ${msg ? `<div class="toast-msg">${esc(msg)}</div>` : ''}
       </div>
-      <button class="toast-close" onclick="this.closest('.toast').remove()"><i class="bi bi-x"></i></button>
+      <button class="toast-close"><i class="bi bi-x"></i></button>
     `;
+    t.querySelector('.toast-close').addEventListener('click', () => remove(t));
     container.appendChild(t);
     if (ttl > 0) setTimeout(() => remove(t), ttl);
     return t;
@@ -217,23 +218,37 @@ const Api = (() => {
 //  PAGINATION HELPER
 // ═══════════════════════════════════════════════════════════════════════════
 
+// onPage is a real function reference (page: number) => void — no more
+// stringified-arrow-function-in-an-onclick-attribute trick, which needed
+// unsafe-inline to run.
 function renderPagination(containerId, { total, limit, page, onPage }) {
   const container = document.getElementById(containerId);
   if (!container) return;
   const pages = Math.ceil(total / limit);
-  if (pages <= 1) { container.innerHTML = ''; return; }
+  container.innerHTML = '';
+  if (pages <= 1) return;
 
-  let html = '';
-  if (page > 1)     html += `<button class="page-btn" onclick="(${onPage})(${page - 1})">‹</button>`;
+  const addBtn = (label, targetPage, active = false) => {
+    const btn = document.createElement('button');
+    btn.className = 'page-btn' + (active ? ' active' : '');
+    btn.textContent = label;
+    btn.addEventListener('click', () => onPage(targetPage));
+    container.appendChild(btn);
+  };
+  const addEllipsis = () => {
+    const span = document.createElement('span');
+    span.className = 'page-info';
+    span.textContent = '…';
+    container.appendChild(span);
+  };
+
   const start = Math.max(1, page - 2);
   const end   = Math.min(pages, page + 2);
-  if (start > 1)    html += `<button class="page-btn" onclick="(${onPage})(1)">1</button>${start > 2 ? '<span class="page-info">…</span>' : ''}`;
-  for (let i = start; i <= end; i++)
-    html += `<button class="page-btn ${i === page ? 'active' : ''}" onclick="(${onPage})(${i})">${i}</button>`;
-  if (end < pages)  html += `${end < pages - 1 ? '<span class="page-info">…</span>' : ''}<button class="page-btn" onclick="(${onPage})(${pages})">${pages}</button>`;
-  if (page < pages) html += `<button class="page-btn" onclick="(${onPage})(${page + 1})">›</button>`;
-
-  container.innerHTML = html;
+  if (page > 1) addBtn('‹', page - 1);
+  if (start > 1) { addBtn('1', 1); if (start > 2) addEllipsis(); }
+  for (let i = start; i <= end; i++) addBtn(String(i), i, i === page);
+  if (end < pages) { if (end < pages - 1) addEllipsis(); addBtn(String(pages), pages); }
+  if (page < pages) addBtn('›', page + 1);
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -364,7 +379,7 @@ const Modals = {
                   ${s.revoked ? ' · <span style="color:var(--danger)">Отозвана</span>' : ''}
                 </div>
               </div>
-              ${!s.revoked ? `<button class="btn btn-ghost btn-sm" onclick="Modals.user._revokeSession('${esc(s.id)}', this)" title="Отозвать сессию"><i class="bi bi-shield-x"></i></button>` : ''}
+              ${!s.revoked ? `<button class="btn btn-ghost btn-sm" data-revoke-session="${esc(s.id)}" title="Отозвать сессию"><i class="bi bi-shield-x"></i></button>` : ''}
             </div>`).join('');
 
       document.getElementById('user-modal-body').innerHTML = `
@@ -395,6 +410,10 @@ const Modals = {
         </div>
         <div id="sessions-list">${sessHtml}</div>
       `;
+
+      document.querySelectorAll('#sessions-list [data-revoke-session]').forEach(btn => {
+        btn.addEventListener('click', () => Modals.user._revokeSession(btn.dataset.revokeSession, btn));
+      });
     },
 
     async _revokeSession(sessionId, btn) {
@@ -677,13 +696,16 @@ const Pages = {
           <td style="font-size:12px;color:var(--text-2)">${fmtDate(u.created_at)}</td>
           <td style="font-size:12px;color:var(--text-2)">${timeAgo(u.last_seen_at)}</td>
           <td style="text-align:right">
-            <button class="btn btn-ghost-danger btn-sm btn-icon"
-              onclick="event.stopPropagation();Pages.users.delete('${esc(u.id)}','${esc(u.username)}')"
+            <button class="btn btn-ghost-danger btn-sm btn-icon" data-action="delete-user"
               ${isMe ? 'disabled title="Нельзя удалить себя"' : 'title="Удалить"'}>
               <i class="bi bi-trash3"></i>
             </button>
           </td>
         `;
+        tr.querySelector('[data-action="delete-user"]').addEventListener('click', e => {
+          e.stopPropagation();
+          Pages.users.delete(u.id, u.username);
+        });
         tbody.appendChild(tr);
       });
     },
@@ -762,11 +784,12 @@ const Pages = {
           <td style="font-size:13px"><i class="bi bi-people" style="color:var(--text-3)"></i> ${c.member_count}</td>
           <td style="font-size:12px;color:var(--text-2)">${fmtDate(c.created_at)}</td>
           <td style="text-align:right">
-            <button class="btn btn-ghost-danger btn-sm btn-icon" onclick="Pages.chats.delete('${esc(c.id)}','${esc(name)}')" title="Удалить">
+            <button class="btn btn-ghost-danger btn-sm btn-icon" data-action="delete-chat" title="Удалить">
               <i class="bi bi-trash3"></i>
             </button>
           </td>
         `;
+        tr.querySelector('[data-action="delete-chat"]').addEventListener('click', () => Pages.chats.delete(c.id, name));
         tbody.appendChild(tr);
       });
     },
@@ -836,7 +859,7 @@ const Pages = {
             titleHtml = r.target_username ? '@' + esc(r.target_username) : 'Аккаунт удалён';
             subHtml   = 'Жалоба на пользователя';
             investigateBtnHtml = `
-              <button class="btn btn-ghost btn-sm" onclick="Modals.report.open('${esc(r.id)}')">
+              <button class="btn btn-ghost btn-sm" data-action="investigate">
                 <i class="bi bi-search"></i> Подробнее
               </button>
             `;
@@ -845,7 +868,7 @@ const Pages = {
             titleHtml = r.message_sender_username ? 'От @' + esc(r.message_sender_username) : 'Сообщение удалено';
             subHtml   = r.message_chat_id ? `Чат ${esc(String(r.message_chat_id).slice(0, 8))}…` : 'Жалоба на сообщение';
             investigateBtnHtml = `
-              <button class="btn btn-ghost btn-sm" onclick="Modals.report.open('${esc(r.id)}')">
+              <button class="btn btn-ghost btn-sm" data-action="investigate">
                 <i class="bi bi-search"></i> Подробнее
               </button>
             `;
@@ -856,7 +879,7 @@ const Pages = {
             titleHtml = esc(r.pack_name || 'Удалён');
             subHtml   = r.pack_type === 'emoji' ? 'Эмодзи-пак' : 'Стикерпак';
             deleteBtnHtml = `
-              <button class="btn btn-ghost-danger btn-sm" onclick="Pages.content.deletePack('${esc(r.content_id)}')">
+              <button class="btn btn-ghost-danger btn-sm" data-action="delete-pack">
                 <i class="bi bi-trash3"></i> Удалить пак
               </button>
             `;
@@ -883,13 +906,16 @@ const Pages = {
                 <div style="display:flex;gap:6px;justify-content:flex-end">
                   ${investigateBtnHtml}
                   ${deleteBtnHtml}
-                  <button class="btn btn-ghost btn-sm" onclick="Pages.content.dismissReport('${esc(r.id)}')">
+                  <button class="btn btn-ghost btn-sm" data-action="dismiss">
                     <i class="bi bi-x-circle"></i> Отклонить
                   </button>
                 </div>
               ` : '<span class="badge badge-success"><i class="bi bi-check"></i> Решено</span>'}
             </td>
           `;
+          tr.querySelector('[data-action="investigate"]')?.addEventListener('click', () => Modals.report.open(r.id));
+          tr.querySelector('[data-action="delete-pack"]')?.addEventListener('click', () => Pages.content.deletePack(r.content_id));
+          tr.querySelector('[data-action="dismiss"]')?.addEventListener('click', () => Pages.content.dismissReport(r.id));
           tbody.appendChild(tr);
         });
 
@@ -966,11 +992,12 @@ const Pages = {
           <td>${p.report_count > 0 ? `<span class="badge badge-danger">${p.report_count}</span>` : '<span style="color:var(--text-3)">—</span>'}</td>
           <td style="font-size:12px;color:var(--text-2)">${fmtDate(p.created_at)}</td>
           <td style="text-align:right">
-            <button class="btn btn-ghost-danger btn-sm btn-icon" onclick="Pages.content.deletePack('${esc(p.id)}')" title="Удалить">
+            <button class="btn btn-ghost-danger btn-sm btn-icon" data-action="delete-pack" title="Удалить">
               <i class="bi bi-trash3"></i>
             </button>
           </td>
         `;
+        tr.querySelector('[data-action="delete-pack"]').addEventListener('click', () => Pages.content.deletePack(p.id));
         tbody.appendChild(tr);
       });
     },
@@ -1045,16 +1072,18 @@ const Pages = {
             </td>
             <td style="font-size:11px;font-family:monospace;color:var(--info)">${r.user_id ? esc(r.user_id.split('-')[0]) + '…' : '<span style="color:var(--text-3)">—</span>'}</td>
             <td style="text-align:right">
-              <button class="btn btn-ghost btn-sm btn-icon" onclick="event.stopPropagation();Modals.error.open(${r.id})" title="Подробнее"><i class="bi bi-search"></i></button>
-              <button class="btn btn-ghost-danger btn-sm btn-icon" onclick="event.stopPropagation();Pages.errors.deleteOne(${r.id})" title="Удалить"><i class="bi bi-trash3"></i></button>
+              <button class="btn btn-ghost btn-sm btn-icon" data-action="view" title="Подробнее"><i class="bi bi-search"></i></button>
+              <button class="btn btn-ghost-danger btn-sm btn-icon" data-action="delete" title="Удалить"><i class="bi bi-trash3"></i></button>
             </td>
           `;
+          tr.querySelector('[data-action="view"]').addEventListener('click', e => { e.stopPropagation(); Modals.error.open(r.id); });
+          tr.querySelector('[data-action="delete"]').addEventListener('click', e => { e.stopPropagation(); Pages.errors.deleteOne(r.id); });
           tbody.appendChild(tr);
         });
 
         renderPagination('errors-pagination', {
           total: data.total, limit: this._limit, page,
-          onPage: `(p => Pages.errors.load(p))`,
+          onPage: p => Pages.errors.load(p),
         });
       } catch (e) {
         tbody.innerHTML = `<tr class="loading-row"><td colspan="6" style="color:var(--danger)">${esc(e.message)}</td></tr>`;
@@ -1144,7 +1173,7 @@ const Pages = {
 
         renderPagination('audit-pagination', {
           total: data.total, limit: this._limit, page,
-          onPage: `(p => Pages.audit.load(p))`,
+          onPage: p => Pages.audit.load(p),
         });
       } catch (e) {
         tbody.innerHTML = `<tr class="loading-row"><td colspan="5" style="color:var(--danger)">${esc(e.message)}</td></tr>`;
@@ -1215,19 +1244,77 @@ const App = {
 
   init() {
     Confirm.setup();
+    App._bindStatic();
 
     // Close modals on overlay click
-    ['user-modal', 'error-modal'].forEach(id => {
+    ['user-modal', 'report-modal', 'error-modal'].forEach(id => {
       document.getElementById(id).addEventListener('click', e => {
         if (e.target === e.currentTarget) e.currentTarget.classList.remove('open');
       });
     });
 
-    // Chat search binding
-    document.getElementById('chats-search').addEventListener('input', () => Pages.chats.search());
-
     if (_token) this._showApp();
     else this._showLogin();
+  },
+
+  // Wires every static (never re-rendered) control in index.html — CSP admin
+  // scriptSrc/scriptSrcAttr no longer allows 'unsafe-inline', so nothing here
+  // can use onclick="..."/onchange="..." HTML attributes. Handlers for
+  // dynamically re-rendered rows (tables, modal bodies) are bound locally,
+  // right after their innerHTML is set — see Pages.*/Modals.* below.
+  _bindStatic() {
+    document.getElementById('sidebar-overlay').addEventListener('click', () => App.closeSidebar());
+    document.getElementById('hamburger').addEventListener('click', () => App.toggleSidebar());
+    document.getElementById('logout-btn').addEventListener('click', () => App.logout());
+
+    document.querySelectorAll('.nav-item[id^="nav-"]').forEach(btn => {
+      btn.addEventListener('click', () => App.nav(btn.id.replace('nav-', '')));
+    });
+
+    const MODAL_KEY = { 'user-modal': 'user', 'report-modal': 'report', 'error-modal': 'error' };
+    document.querySelectorAll('.modal-overlay .modal-close').forEach(btn => {
+      const key = MODAL_KEY[btn.closest('.modal-overlay').id];
+      if (key) btn.addEventListener('click', () => Modals[key].close());
+    });
+    document.getElementById('user-modal-close-btn').addEventListener('click', () => Modals.user.close());
+    document.getElementById('report-modal-close-btn').addEventListener('click', () => Modals.report.close());
+    document.getElementById('error-modal-close-btn').addEventListener('click', () => Modals.error.close());
+    document.getElementById('report-modal-warn-btn').addEventListener('click', () => Modals.report.warn());
+    document.getElementById('report-modal-ban-btn').addEventListener('click', () => Modals.report.ban());
+
+    document.getElementById('dashboard-refresh-btn').addEventListener('click', () => Pages.dashboard.load());
+    document.getElementById('dashboard-filter-apply-btn').addEventListener('click', () => Pages.dashboard.load());
+    document.getElementById('dashboard-filter-clear-btn').addEventListener('click', () => Pages.dashboard.clearFilter());
+
+    document.getElementById('users-refresh-btn').addEventListener('click', () => Pages.users.load());
+    document.getElementById('users-search').addEventListener('input', e => Pages.users.search(e.target.value));
+    document.querySelectorAll('#page-users th.sortable[data-col]').forEach(th => {
+      th.addEventListener('click', () => Pages.users.sort(th.dataset.col));
+    });
+
+    document.getElementById('chats-refresh-btn').addEventListener('click', () => Pages.chats.load());
+    document.getElementById('chats-search').addEventListener('input', () => Pages.chats.search());
+    document.querySelectorAll('#page-chats th.sortable[data-col]').forEach(th => {
+      th.addEventListener('click', () => Pages.chats.sort(th.dataset.col));
+    });
+
+    document.getElementById('content-reload-btn').addEventListener('click', () => Pages.content.reload());
+    document.querySelectorAll('.subtab-btn[data-subtab]').forEach(btn => {
+      btn.addEventListener('click', () => Pages.content.subTab(btn.dataset.subtab));
+    });
+    document.getElementById('show-resolved-toggle').addEventListener('change', () => Pages.content.loadReports());
+    document.getElementById('packs-search').addEventListener('input', e => Pages.content.filterPacks(e.target.value));
+
+    document.getElementById('errors-refresh-btn').addEventListener('click', () => Pages.errors.load());
+    document.getElementById('errors-clearall-btn').addEventListener('click', () => Pages.errors.clearAll());
+    document.getElementById('errors-level').addEventListener('change', () => Pages.errors.load());
+    document.getElementById('errors-tag').addEventListener('change', () => Pages.errors.load());
+    document.getElementById('errors-search').addEventListener('input', () => Pages.errors.debounce());
+
+    document.getElementById('audit-refresh-btn').addEventListener('click', () => Pages.audit.load());
+    document.getElementById('audit-action').addEventListener('change', () => Pages.audit.load());
+
+    document.getElementById('repair-btn').addEventListener('click', () => Pages.tools.runRepair());
   },
 
   _showLogin() {
