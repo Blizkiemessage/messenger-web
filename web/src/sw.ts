@@ -89,7 +89,7 @@ self.addEventListener('push', e => {
     const options = {
       body: data.body || '',
       icon: '/pwa-192x192.png',
-      badge: '/favicon.svg',
+      badge: '/favicon-32x32.png',
       data: { chatId: data.chatId, type: data.type, callId: data.callId },
       // Звонок: настойчивая вибрация + держим уведомление, пока не нажмут.
       vibrate: isCall ? [400, 200, 400, 200, 400] : [200, 100, 200],
