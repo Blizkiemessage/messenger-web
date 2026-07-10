@@ -29,7 +29,19 @@ export default defineConfig({
             src: 'pwa-512x512.png',
             sizes: '512x512',
             type: 'image/png',
-            purpose: 'any maskable',
+            purpose: 'any',
+          },
+          // Separate maskable variant (docs/STORE_LAUNCH_TZ.md §15): the plain
+          // icon's content reaches ~84% of the canvas diameter, past the ~80%
+          // safe zone Android's circular/squircle masks guarantee — a shared
+          // any+maskable icon risked the logo's edge being clipped on some
+          // launchers. This one is scaled down (~90%) so its content sits
+          // safely inside the 80% zone with margin to spare.
+          {
+            src: 'pwa-512x512-maskable.png',
+            sizes: '512x512',
+            type: 'image/png',
+            purpose: 'maskable',
           },
           { src: 'favicon.svg', sizes: 'any', type: 'image/svg+xml' },
         ],
