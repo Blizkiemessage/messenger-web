@@ -31,12 +31,14 @@ export default defineConfig({
             type: 'image/png',
             purpose: 'any',
           },
-          // Separate maskable variant (docs/STORE_LAUNCH_TZ.md §15): the plain
-          // icon's content reaches ~84% of the canvas diameter, past the ~80%
-          // safe zone Android's circular/squircle masks guarantee — a shared
-          // any+maskable icon risked the logo's edge being clipped on some
-          // launchers. This one is scaled down (~90%) so its content sits
-          // safely inside the 80% zone with margin to spare.
+          // Separate maskable variant (docs/STORE_LAUNCH_TZ.md §15): a shared
+          // any+maskable icon risks the logo's edge being clipped by Android's
+          // circular/squircle masks outside the guaranteed 80%-diameter safe
+          // zone. Current logo content sits at ~75% diameter (verified by
+          // pixel measurement against the flattened background) — inside the
+          // safe zone with margin, no extra scaling needed. Re-verify this
+          // margin (see the circle-mask simulation in the CLAUDE.md journal
+          // entry for the method) whenever the logo artwork changes.
           {
             src: 'pwa-512x512-maskable.png',
             sizes: '512x512',
