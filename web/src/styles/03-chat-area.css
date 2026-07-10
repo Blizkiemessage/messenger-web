@@ -1,5 +1,13 @@
 /* ── Chat area ──────────────────────────────────────────────────────── */
 .chatArea { display: flex; flex-direction: column; background: var(--bg); overflow: hidden; }
+/* .chatStage wraps .chatAreaInner (+ .chatInfoPanel on desktop, see the
+   >700px media query in 18-aurora-overrides.css which switches this to a
+   row layout). Without flex:1/min-height:0 here, .chatStage falls back to
+   block layout on mobile and collapses to its content height instead of
+   filling the viewport — header/messages/composer then render squeezed at
+   the top with the rest of the screen blank, and the message list can't
+   establish its own internal scroll container. */
+.chatStage { display: flex; flex-direction: column; flex: 1; min-height: 0; overflow: hidden; }
 .chatHeader {
   display: flex;
   align-items: center;
