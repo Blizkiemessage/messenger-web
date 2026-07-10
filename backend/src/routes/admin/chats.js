@@ -14,27 +14,29 @@ const { clientIp } = require('./_shared');
 const router = express.Router();
 
 // GET /chats?search=<query>
+// Filtering is done in JS, not SQL: SQLite's LOWER() only folds ASCII a-z
+// (no ICU extension loaded), so `WHERE LOWER(name) LIKE ?` silently never
+// matches non-ASCII names — a chat named "Тестовая группа" would never be
+// found by searching "тестовая". JS's toLowerCase() is Unicode-aware, so
+// comparing there (same pattern already used by the admin UI's own
+// Pages.users.search()) is correct for any script, not just Latin.
 router.get('/chats', (req, res, next) => {
   try {
     const db = getDb();
-    const search = req.query.search ? `%${req.query.search.toLowerCase()}%` : null;
-    const chats = search
-      ? db.prepare(`
-          SELECT c.id, c.type, c.name, c.created_at, c.creator_id, COUNT(cm.user_id) as member_count
-          FROM chats c
-          LEFT JOIN chat_members cm ON c.id = cm.chat_id
-          WHERE LOWER(COALESCE(c.name,'')) LIKE ?
-          GROUP BY c.id
-          ORDER BY c.created_at DESC
-        `).all([search])
-      : db.prepare(`
-          SELECT c.id, c.type, c.name, c.created_at, c.creator_id, COUNT(cm.user_id) as member_count
-          FROM chats c
-          LEFT JOIN chat_members cm ON c.id = cm.chat_id
-          GROUP BY c.id
-          ORDER BY c.created_at DESC
-        `).all();
-    res.json(chats);
+    const chats = db.prepare(`
+      SELECT c.id, c.type, c.name, c.created_at, c.creator_id, COUNT(cm.user_id) as member_count
+      FROM chats c
+      LEFT JOIN chat_members cm ON c.id = cm.chat_id
+      GROUP BY c.id
+      ORDER BY c.created_at DESC
+    `).all();
+
+    const search = req.query.search ? req.query.search.toLowerCase() : null;
+    const result = search
+      ? chats.filter(c => (c.name || '').toLowerCase().includes(search))
+      : chats;
+
+    res.json(result);
   } catch (err) {
     next(err);
   }
