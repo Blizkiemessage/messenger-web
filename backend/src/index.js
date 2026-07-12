@@ -1,6 +1,11 @@
 require('dotenv').config();
 
 const logger = require('./utils/logger');
+const { initSentry, captureException } = require('./utils/sentry');
+// As early as possible (docs/STORE_LAUNCH_TZ.md §6) — before other modules
+// load, so a crash during their own require() is still captured. No-op
+// without SENTRY_DSN set.
+initSentry();
 
 // ─── Startup env validation ────────────────────────────────────────────────
 // Always required (server cannot function without these)
@@ -26,6 +31,7 @@ process.on('unhandledRejection', (reason) => {
   const err = reason instanceof Error ? reason : null;
   const message = err ? err.message : String(reason);
   logger.error('[PROCESS]', 'Unhandled Promise Rejection', err, { reason: message });
+  if (err) captureException(err);
   // Do NOT exit — one bad promise must not kill the server for all users
 });
 
@@ -34,6 +40,7 @@ process.on('uncaughtException', (err) => {
   console.error('[FATAL] Uncaught Exception:', err?.message);
   console.error(err?.stack || err);
   logger.error('[PROCESS]', 'Uncaught Exception — завершение', err, {});
+  if (err) captureException(err);
   // Synchronous crash: state is undefined, exit is the only safe option
   process.exit(1);
 });

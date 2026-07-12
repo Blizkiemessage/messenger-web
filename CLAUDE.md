@@ -79,6 +79,9 @@ backend/src/
   socket/socketServer.js  # весь realtime: new-message, typing, presence, call:* (сигналинг WebRTC);
                     #   intervals: отложенные сообщения + «Вопрос дня» (рассылка по расписанию)
   utils/            # jwt, s3 (подпись ссылок), otp, logger
+                    #   sentry.js — опц. error-tracking (§6 STORE_LAUNCH_TZ), неактивен без
+                    #   SENTRY_DSN; scrubEvent() вырезает тело запроса/куки/Authorization,
+                    #   к пользователю привязывается только непрозрачный ID
   workers/          # dbBackup.js (бэкап БД в S3), s3Cleanup.js, deletedAccountCleanup.js
                     #   (ретеншн контента «Удалённого аккаунта» — см. userService.DELETED_ACCOUNT_USER_ID)
 backend/tests/smoke.test.js   # node --test; запуск: cd backend && npm test
@@ -163,7 +166,9 @@ web/src/
   services/webrtcManager.ts  # WebRTC peer connection звонков
   utils/            # theme.ts (тема), accent.ts (акцент пользователя), appBackground.ts (фон
                     #   приложения: solid/gradient через --app-bg; модель AppBg переиспользовать
-                    #   для будущих per-chat фонов через --chat-bg на .chatArea), format.ts, push.ts
+                    #   для будущих per-chat фонов через --chat-bg на .chatArea), format.ts, push.ts,
+                    #   sentry.ts (опц. error-tracking, зеркалит backend/src/utils/sentry.js —
+                    #   неактивен без VITE_SENTRY_DSN, та же scrubEvent-приватность)
 ```
 
 ## Типовые задачи — куда лезть (для экономии токенов)
@@ -206,6 +211,8 @@ web/src/
 3. **Если структура изменилась** (новая папка, новый стор, новый роут) — обнови соответствующий
    раздел выше, а не только журнал.
 4. Журнал держать не длиннее ~40 строк: старые записи группировать в одну строку-сводку.
+
+- 2026-07-10 | feature/fullstack | docs/STORE_LAUNCH_TZ.md §6 — Sentry error-tracking, код готов, ждёт DSN от пользователя (создание аккаунта на sentry.io — единственное, что я не могу выполнить сам, прямо запрещённое действие даже с разрешения). `backend/src/utils/sentry.js` + `web/src/utils/sentry.ts` — зеркальная реализация: `initSentry()` полностью неактивен без `SENTRY_DSN`/`VITE_SENTRY_DSN` (тот же opt-in паттерн, что у AI-ассистентов/S3), `tracesSampleRate:0` (только ошибки, без performance-трейсинга — экономит квоту бесплатного тарифа). **Приватность (самое важное для этого проекта):** общая `scrubEvent()` вырезает ДО отправки тело запроса (может содержать текст сообщения/пароль/токен), куки, заголовки `Authorization`/`Cookie` — к пользователю привязывается только непрозрачный внутренний ID, никогда email/username, даже если он случайно попадёт в scope откуда-то ещё (scrubEvent обрежет как second line of defence). Бэкенд: инициализация в `index.js` максимально рано (до остальных require) + `captureException` в `unhandledRejection`/`uncaughtException`, `errorHandler.js` репортит только 5xx (рядом с уже существующим `logger.error`, 4xx не трогает). Фронт: инициализация в `main.tsx`, `ErrorBoundary.componentDidCatch` репортит вместе с `console.error` (UI экрана краша не менялся), `useSessionStore` навешивает/снимает Sentry-пользователя на логин/логаут/восстановление сессии. **Продуманный флоу «чинить одного пользователя, не трогая остальных»** (по прямому запросу пользователя, до реализации): баг в коде чинится один раз для всех обычным деплоем (не риск — деплой не трогает данные, только код); проблема с ДАННЫМИ конкретного аккаунта — точечно через админку/SQL со `WHERE user_id=?`, никогда широким запросом; Sentry по анонимному ID помогает понять, какой это случай, и найти нужного человека в админ-панели. +13 backend-тестов (`tests/sentry.test.js` — off-by-default, scrubEvent все сценарии, errorHandler репортит 5xx/не репортит 4xx) + 8 frontend-тестов (`utils/sentry.test.ts`, vitest+`vi.mock`) — оба SDK (`@sentry/node`/`@sentry/react`) замоканы, ни одного реального сетевого вызова. 218/218 backend + 18/18 frontend тестов зелёные, обе сборки чистые. **Дальше:** пользователь заводит бесплатный аккаунт на sentry.io сам и присылает DSN → подставлю в env (Amvera/Vercel), сгенерирую тестовую ошибку на живом сервере, вместе настроим хотя бы один канал алертов.
 
 - 2026-07-10 | feature/web | PNG-фавикон вместо старого `favicon.svg` (продолжение замены логотипа). Старый `favicon.svg` (лого-молния) использовался в 3 местах — `index.html` (`<link rel="icon">`), `vite.config.ts` (manifest icons: `sizes:'any'`) и `sw.ts` (бейдж пуш-уведомлений); везде заменён на новый лого-PNG, файл удалён (не референсится больше нигде — grep подтвердил). **Важная находка по ходу:** оставь я старую SVG-запись в manifest icons массиве — некоторые браузеры/движки предпочитают `sizes:'any'` при показе превью «Добавить на главный экран», и старая молния могла бы вылезти в install-промпте, несмотря на то что 192/512/512-maskable PNG уже обновлены — запись из массива просто убрана (192/512/512-maskable и так полностью покрывают манифест, третья иконка не обязательна). Сгенерированы `favicon-32x32.png`/`favicon-16x16.png` из уже сведённого на фирменный фон `pwa-512x512.png`. Проверена читаемость на настоящих 16px и 32px (даунскейл→апскейл nearest) — буква узнаваема даже на 16px. `cd web && npm run build` зелёный; `dist/manifest.webmanifest`'s icons — только 3 PNG (без SVG); `dist/sw.js` содержит новый путь бейджа. Живая проверка в preview: оба `<link rel="icon">` в DOM корректны (32x32 + 16x16 image/png), консоль чистая.
 

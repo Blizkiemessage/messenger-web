@@ -4,6 +4,11 @@ import './index.css';
 import App from './App.tsx';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { LegalPage } from './components/legal/LegalPage';
+import { initSentry } from './utils/sentry';
+
+// As early as possible (docs/STORE_LAUNCH_TZ.md §6) — no-op without
+// VITE_SENTRY_DSN set.
+initSentry();
 
 // Register service worker early so app shell is cached before login.
 // Only in production — dev has no bundled assets to precache.

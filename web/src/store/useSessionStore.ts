@@ -12,6 +12,7 @@ import { onUserLogin, onUserLogout, applyAccentCss, saveUserAccent, DEFAULT_ACCE
 import { onUserLoginBg, onUserLogoutBg, applyServerAppBg } from '../utils/appBackground';
 import { applyTheme, type Theme } from '../utils/theme';
 import { useAppStore } from './useAppStore';
+import { setSentryUser, clearSentryUser } from '../utils/sentry';
 
 interface SessionState {
   me: User | null;
@@ -26,7 +27,10 @@ interface SessionState {
 const saved = getSession();
 // Apply saved user's accent and app background immediately on startup (before React renders)
 const initialAccent = saved?.user?.id ? onUserLogin(saved.user.id) : DEFAULT_ACCENT;
-if (saved?.user?.id) onUserLoginBg(saved.user.id);
+if (saved?.user?.id) {
+  onUserLoginBg(saved.user.id);
+  setSentryUser(saved.user.id); // opaque id only — see utils/sentry.ts
+}
 
 export const useSessionStore = create<SessionState>((set) => ({
   me:        saved?.user      ?? null,
@@ -35,6 +39,7 @@ export const useSessionStore = create<SessionState>((set) => ({
 
   setSession: (me, sessionId) => {
     persistSession({ user: me, sessionId });
+    setSentryUser(me.id); // opaque id only — see utils/sentry.ts
     // Apply accent from server (overrides localStorage default)
     if (me.accent_color) {
       applyAccentCss(me.accent_color);
@@ -56,6 +61,7 @@ export const useSessionStore = create<SessionState>((set) => ({
     clearPersisted();
     onUserLogout();                        // reset CSS to default accent
     onUserLogoutBg();                      // reset app background to default aurora
+    clearSentryUser();
     set({ me: null, sessionId: null, accent: DEFAULT_ACCENT });
   },
 
