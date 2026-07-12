@@ -21,7 +21,7 @@
 |----------------------|-------------------------------------------|
 | `VITE_API_BASE_URL`  | URL бэкенда на Amvera, напр. `https://blizkie-backend.amvera.io` |
 | `VITE_SOCKET_URL`    | то же, что `VITE_API_BASE_URL`            |
-| `VITE_SENTRY_DSN`    | (опц.) DSN проекта на sentry.io — включает отправку ошибок фронтенда. DSN клиента Sentry не секрет (предназначен для публичных бандлов), можно смело класть в `VITE_*` |
+| `VITE_SENTRY_DSN`    | (опц.) **НЕ sentry.io** — тот заблокировал доступ из РФ с 2024-09-10. DSN Sentry-совместимого провайдера, доступного из России (рекомендация: [Hawk](https://hawk-tracker.ru/), российский хостинг, официальный режим «Sentry DSN compatible» — код не меняется). Включает отправку ошибок фронтенда. DSN не секрет (предназначен для публичных бандлов), можно смело класть в `VITE_*` |
 
 > ⚠️ `VITE_*` попадают в публичный бандл — **никаких секретов**. После изменения переменных — **Redeploy** (старая сборка иначе продолжит использовать прежние значения).
 
@@ -60,7 +60,7 @@
 - **WebAuthn / passkeys:** `WEBAUTHN_RP_ID`, `WEBAUTHN_ORIGIN`.
 - **ИИ-ассистенты / сводки:** `AI_SUMMARY_*`, `AI_ASSISTANT_*`, `AI_DATA_*` (см. CLAUDE.md).
 - **GIF:** `GIPHY_API_KEY`.
-- **Error tracking (Sentry):** `SENTRY_DSN` (опц.) — без него `utils/sentry.js` полностью неактивен (как и все опциональные фичи). Ошибки уходят анонимно: тело запроса/куки/`Authorization` вырезаются до отправки (`scrubEvent`), к пользователю привязывается только внутренний ID (не email/username) — см. §6 `docs/STORE_LAUNCH_TZ.md`.
+- **Error tracking:** `SENTRY_DSN` (опц.) — без него `utils/sentry.js` полностью неактивен (как и все опциональные фичи). Использует стандартный `@sentry/node` SDK, но DSN должен указывать на Sentry-совместимого провайдера, доступного из РФ (**не sentry.io** — заблокирован для российских пользователей с 2024-09-10; рекомендация — [Hawk](https://hawk-tracker.ru/), см. §6 `docs/STORE_LAUNCH_TZ.md`). Ошибки уходят анонимно: тело запроса/куки/`Authorization` вырезаются до отправки (`scrubEvent`), к пользователю привязывается только внутренний ID (не email/username).
 - **Бэкапы БД в S3:** включены всегда (ключ — `DB_BACKUP_ENCRYPTION_KEY` либо HKDF от `MESSAGE_ENCRYPTION_KEY`); опц. изоляция `DB_BACKUP_S3_BUCKET`/`_ACCESS_KEY_ID`/`_SECRET_ACCESS_KEY`, расписание `DB_BACKUP_HOUR_UTC`, хранение `DB_BACKUP_KEEP_DAYS`. Восстановление — `npm run restore-backup -- <файл|--s3 ключ> [out.db]`.
 - **Удаление аккаунта («Удалённый аккаунт»):** опц. `DELETED_ACCOUNT_RETENTION_DAYS` (по умолчанию 180) — через сколько дней воркер `workers/deletedAccountCleanup.js` удаляет сообщения/звонки, унаследованные аккаунтом-заглушкой при удалении реальных аккаунтов.
 

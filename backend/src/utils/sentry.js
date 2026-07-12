@@ -1,6 +1,17 @@
 /**
  * utils/sentry.js — optional external error tracking (docs/STORE_LAUNCH_TZ.md §6).
  *
+ * Despite the filename/SDK, the actual ingest endpoint is NOT sentry.io —
+ * Sentry blocked all Russian users/accounts 2024-09-10, so SENTRY_DSN should
+ * point at a Sentry-protocol-compatible provider reachable from Russia, e.g.
+ * Hawk (hawk-tracker.ru — Russian-hosted, official "Sentry DSN compatible"
+ * migration endpoint, no code changes needed). Self-hosting real Sentry was
+ * considered and rejected — 25+ microservices, 16GB RAM recommended; Hawk's
+ * own native Node.js catcher (@hawk.so/nodejs) was also tried and rejected —
+ * it pulls a very old axios with 2 high-severity CVEs and no fix available.
+ * Keeping the standard @sentry/node SDK pointed at a compatible DSN gets the
+ * same result with an already-audited-clean dependency.
+ *
  * Off by default: without SENTRY_DSN, initSentry() is a no-op and every other
  * export degrades to a harmless no-op too — mirrors the project's convention
  * for optional integrations (AI assistants, S3, VAPID push, ...).
@@ -10,7 +21,8 @@
  * scrubEvent() strips request bodies, cookies and auth headers before every
  * event leaves the process, and only ever attaches an opaque user id (never
  * email/username) so a report can be traced back to one account via the
- * admin panel without Sentry itself ever seeing who that account belongs to.
+ * admin panel without the error-tracking provider itself ever seeing who
+ * that account belongs to.
  */
 const Sentry = require('@sentry/node');
 

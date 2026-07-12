@@ -1,17 +1,23 @@
 /**
  * utils/sentry.ts — optional external error tracking (docs/STORE_LAUNCH_TZ.md §6).
  *
+ * Despite the filename/SDK, the actual ingest endpoint is NOT sentry.io — see
+ * the long comment in backend/src/utils/sentry.js for why (Sentry blocked RF
+ * users 2024-09-10; VITE_SENTRY_DSN should point at a Sentry-protocol-
+ * compatible provider reachable from Russia, e.g. Hawk/hawk-tracker.ru).
+ *
  * Off by default: without VITE_SENTRY_DSN, initSentry() is a no-op and every
  * other export degrades to a harmless no-op too — mirrors backend/src/utils/sentry.js.
  *
- * VITE_SENTRY_DSN is NOT a secret the way an API key is — Sentry's client DSN
- * is a write-only ingest endpoint designed to ship inside public browser
- * bundles (every site using Sentry does this). It's fine as a VITE_* var.
+ * VITE_SENTRY_DSN is NOT a secret the way an API key is — a Sentry-protocol
+ * client DSN is a write-only ingest endpoint designed to ship inside public
+ * browser bundles (every site using this protocol does this). Fine as a VITE_* var.
  *
  * Privacy: mirrors the backend's scrubEvent — strips request bodies, cookies
  * and auth headers, and only ever attaches an opaque user id (never email/
  * username) so a report can be traced back to one account via the admin
- * panel without Sentry itself seeing who that account belongs to.
+ * panel without the error-tracking provider itself seeing who that account
+ * belongs to.
  */
 import * as Sentry from '@sentry/react';
 
