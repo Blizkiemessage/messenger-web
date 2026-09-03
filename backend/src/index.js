@@ -56,6 +56,7 @@ const { runMigrations }       = require('./db/migrations');
 const { initSocket }          = require('./socket/socketServer');
 const { errorHandler }        = require('./middleware/errorHandler');
 const { corsOriginCallback }  = require('./utils/corsOrigin');
+const { setUploadHeaders }    = require('./utils/staticHeaders');
 const { csrfOrigin }          = require('./middleware/csrfOrigin');
 const { closeDb }             = require('./config/database');
 const { startDbBackupWorker }  = require('./workers/dbBackup');
@@ -180,21 +181,10 @@ app.use('/export',        exportRoutes);
 app.use('/webauthn',      webauthnRoutes);
 app.use('/assistant',     assistantRoutes);
 
-// User-uploaded files served from our own origin must never be sniffed or
-// rendered inline as active content (e.g. an uploaded .html/.svg used for XSS
-// or phishing on a trusted domain). Always send nosniff; serve only real media
-// inline (mirrors the presign disposition logic), force download for everything
-// else. NB: production uses S3 — this static path is the local-disk fallback.
-const INLINE_EXT = new Set([
-  '.webp', '.jpg', '.jpeg', '.png', '.gif', '.mp4', '.webm', '.mov',
-]);
+// Headers for user-uploaded files (nosniff, CORP, inline-vs-attachment) live in
+// utils/staticHeaders.js so they can be unit-tested — see the rationale there.
 app.use('/uploads', express.static(path.join(__dirname, '../uploads'), {
-  setHeaders(res, filePath) {
-    res.setHeader('X-Content-Type-Options', 'nosniff');
-    if (!INLINE_EXT.has(path.extname(filePath).toLowerCase())) {
-      res.setHeader('Content-Disposition', 'attachment');
-    }
-  },
+  setHeaders: setUploadHeaders,
 }));
 app.use('/admin', express.static(path.join(__dirname, '../public/admin')));
 app.use('/upload', uploadRoutes);

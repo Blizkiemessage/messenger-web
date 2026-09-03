@@ -368,11 +368,24 @@ function toggleReaction(chatId, msgId, userId) {
   return liked;
 }
 
-// ✅ NEW: pin a message (admin/moderator only)
+// Pin/unpin privilege: in a GROUP chat only admin/moderator may pin; in a
+// direct chat both members are equal peers (same rule as the shared chat
+// background — «права как фон чата, ЛС оба»), so either of them may pin.
+// Roles only exist in groups: a direct chat's members are always role='member',
+// so without this chat-type gate pinning was permanently 403 in every DM.
+// Mirrors the chat.type gate deleteMessages() already uses above, but inverted:
+// there `isPrivileged` means "extra rights on top of being the author", here it
+// means "allowed at all".
+function canPin(db, chatId, requesterId) {
+  const member = db.prepare('SELECT role FROM chat_members WHERE chat_id = ? AND user_id = ?').get([chatId, requesterId]);
+  if (!member) return false;
+  const chat = db.prepare('SELECT type FROM chats WHERE id = ?').get(chatId);
+  return chat?.type !== 'group' || ['admin', 'moderator'].includes(member.role || 'member');
+}
+
 function pinMessage(chatId, messageId, requesterId) {
   const db = getDb();
-  const member = db.prepare('SELECT role FROM chat_members WHERE chat_id = ? AND user_id = ?').get([chatId, requesterId]);
-  if (!member || !['admin', 'moderator'].includes(member.role || 'member')) {
+  if (!canPin(db, chatId, requesterId)) {
     throw Object.assign(new Error('Только администраторы и модераторы могут закреплять сообщения'), { status: 403 });
   }
   const msg = db.prepare('SELECT id, chat_id FROM messages WHERE id = ? AND chat_id = ? AND deleted_at IS NULL').get([messageId, chatId]);
@@ -381,11 +394,10 @@ function pinMessage(chatId, messageId, requesterId) {
   return decryptMessage(db.prepare('SELECT * FROM messages WHERE id = ?').get(messageId));
 }
 
-// ✅ NEW: unpin a message (admin/moderator only)
+// Unpin — same permission rule as pinMessage (see canPin above).
 function unpinMessage(chatId, messageId, requesterId) {
   const db = getDb();
-  const member = db.prepare('SELECT role FROM chat_members WHERE chat_id = ? AND user_id = ?').get([chatId, requesterId]);
-  if (!member || !['admin', 'moderator'].includes(member.role || 'member')) {
+  if (!canPin(db, chatId, requesterId)) {
     throw Object.assign(new Error('Только администраторы и модераторы могут откреплять сообщения'), { status: 403 });
   }
   db.prepare('UPDATE messages SET is_pinned = 0 WHERE id = ? AND chat_id = ?').run([messageId, chatId]);

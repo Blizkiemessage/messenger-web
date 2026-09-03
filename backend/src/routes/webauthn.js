@@ -48,6 +48,8 @@ function getRpConfig() {
 }
 
 // ── Cookie helpers (mirrors auth.js) ────────────────────────────────────────
+// As in auth.js, these cookies are a fallback auth channel only — the client's
+// own Bearer token takes priority server-side (middleware/auth.js::extractToken).
 function setSessionCookie(res, token) {
   res.cookie('session', token, {
     httpOnly: true, secure: IS_PROD,

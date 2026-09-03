@@ -288,3 +288,44 @@ describe('routes/messages.js — attachmentExceedsLimit (413 size enforcement)',
     assert.equal(exceeds, false);
   });
 });
+
+// ── QA-прогон 2026-09-03 (docs/QA_FUNCTIONAL_MAP.md §2) ──────────────────────
+// Headers for the local-disk fallback at GET /uploads/<file>. helmet()'s global
+// default sets `Cross-Origin-Resource-Policy: same-origin` on every response,
+// which blocks <img>/<video>/<audio> embedding from another origin REGARDLESS of
+// CORS — and the frontend is always on another origin here (Vercel ↔ Amvera in
+// production, :5173 ↔ :3000 in dev), so every uploaded image rendered as a
+// broken file card with ERR_BLOCKED_BY_RESPONSE.NotSameOrigin.
+// The hook lives in utils/staticHeaders.js precisely so it stays testable —
+// index.js boots a real server and cannot be required here.
+describe('utils/staticHeaders.setUploadHeaders — /uploads response headers', () => {
+  const { setUploadHeaders } = require('../src/utils/staticHeaders');
+
+  function headersFor(filePath) {
+    const set = {};
+    setUploadHeaders({ setHeader: (k, v) => { set[k] = v; } }, filePath);
+    return set;
+  }
+
+  test('media is embeddable cross-origin and served inline', () => {
+    for (const file of ['photo.webp', 'clip.mp4', 'voice.webm', 'pic.JPG']) {
+      const h = headersFor(`/srv/uploads/${file}`);
+      assert.equal(h['Cross-Origin-Resource-Policy'], 'cross-origin', `${file} must be embeddable`);
+      assert.equal(h['X-Content-Type-Options'], 'nosniff');
+      assert.equal(h['Content-Disposition'], undefined, `${file} must not be forced to download`);
+    }
+  });
+
+  test('non-media is still forced to download and never sniffed (XSS guard intact)', () => {
+    for (const file of ['payload.html', 'vector.svg', 'doc.pdf', 'archive.zip']) {
+      const h = headersFor(`/srv/uploads/${file}`);
+      assert.equal(h['Content-Disposition'], 'attachment', `${file} must download, not render`);
+      assert.equal(h['X-Content-Type-Options'], 'nosniff');
+    }
+  });
+
+  test('CORP is never left at the same-origin default that blocked media', () => {
+    const h = headersFor('/srv/uploads/anything.bin');
+    assert.notEqual(h['Cross-Origin-Resource-Policy'], 'same-origin');
+  });
+});

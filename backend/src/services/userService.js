@@ -14,6 +14,13 @@ const { verifyTotp, verifyAndConsumeBackupCode } = require('../utils/totp');
 // services/chat/teardown.js.
 const DELETED_ACCOUNT_USER_ID = 'deleted-account';
 
+// Kept in sync with web/src/utils/accent.ts's DEFAULT_ACCENT — the «Аврора»
+// brand purple. The users.accent_color column still carries the pre-redesign
+// blue '#2f81f7' as its own DB DEFAULT (db/versions/001_initial.js, an applied
+// migration that must not be rewritten), so every code path that creates a user
+// or falls back for a missing value has to name this constant explicitly.
+const DEFAULT_ACCENT_COLOR = '#8e75f2';
+
 function sanitizeUser(u, { showPrivate = false, viewerId = null } = {}, alias = undefined) {
   if (!u) return null;
 
@@ -51,7 +58,7 @@ function sanitizeUser(u, { showPrivate = false, viewerId = null } = {}, alias = 
     totp_enabled:      showPrivate ? (u.totp_enabled ? true : false) : undefined,
     // Appearance — always returned to self (showPrivate), ignored for others
     theme:        showPrivate ? (u.theme        || 'dark')     : undefined,
-    accent_color: showPrivate ? (u.accent_color || '#2f81f7')  : undefined,
+    accent_color: showPrivate ? (u.accent_color || DEFAULT_ACCENT_COLOR) : undefined,
     app_bg:       showPrivate ? (u.app_bg       || null)       : undefined,
     language:     showPrivate ? (u.language     || 'ru')       : undefined,
     // F3: presence intention status — intentionally visible to chat members (not sensitive)
@@ -236,4 +243,5 @@ module.exports = {
   updatePresenceStatus, clearExpiredPresenceStatuses,
   verifyAccountDeletionAuth,
   DELETED_ACCOUNT_USER_ID,
+  DEFAULT_ACCENT_COLOR,
 };

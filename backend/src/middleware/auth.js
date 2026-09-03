@@ -1,12 +1,25 @@
 const { verify } = require('../utils/jwt');
 const { getDb } = require('../config/database');
 
+// Bearer identifies THIS specific tab/client — always prefer it when present.
+// The httpOnly cookie is shared by the whole browser profile (one cookie per
+// host, independent of port or tab), so if a *different* login happened more
+// recently in another tab, the cookie silently belongs to that other account
+// and would otherwise override the tab's own in-memory access token
+// (web/src/storage/session.ts). That mismatch made the admin panel unusable
+// while any regular user was logged in elsewhere in the same browser, and let
+// one tab's action be recorded under another tab's identity.
+// Cookie stays as a fallback for requests that cannot carry a header
+// (a bare <img>/<a> navigation, a first socket handshake before refresh).
+function extractToken(req) {
+  const bearer = req.headers.authorization?.startsWith('Bearer ')
+    ? req.headers.authorization.slice(7)
+    : null;
+  return bearer || req.cookies?.session || null;
+}
+
 function authMiddleware(req, res, next) {
-  // Prefer HttpOnly session cookie; fall back to Bearer for admin panel / API clients
-  const token = req.cookies?.session
-    || (req.headers.authorization?.startsWith('Bearer ')
-        ? req.headers.authorization.slice(7)
-        : null);
+  const token = extractToken(req);
 
   if (!token) {
     return res.status(401).json({ error: 'Unauthorized' });
@@ -40,4 +53,4 @@ function authMiddleware(req, res, next) {
   next();
 }
 
-module.exports = { authMiddleware };
+module.exports = { authMiddleware, extractToken };

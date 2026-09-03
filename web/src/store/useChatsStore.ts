@@ -16,6 +16,7 @@
 import { create } from 'zustand';
 import { type Chat, type Message } from '../types';
 import { getChats } from '../api/chats';
+import { isAuthError } from '../api/errors';
 import i18n from '../i18n';
 
 // 'all' | 'groups' | 'direct' | 'folder:<id>'
@@ -425,7 +426,7 @@ export const useChatsStore = create<ChatsState>((set) => ({
       });
     } catch (e: any) {
       // Auth errors are transient (race on startup) — don't surface them to the user
-      if (e?.status === 401 || e?.status === 403) {
+      if (isAuthError(e)) {
         set({ loadingChats: false });
         return;
       }

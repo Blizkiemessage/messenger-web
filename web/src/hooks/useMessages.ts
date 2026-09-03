@@ -10,6 +10,7 @@ import { joinChat, setActiveChat } from '../socket/socketClient';
 import { useSessionStore } from '../store/useSessionStore';
 import { useChatsStore } from '../store/useChatsStore';
 import { useAppStore } from '../store/useAppStore';
+import { isAuthError } from '../api/errors';
 import i18n from '../i18n';
 
 export function useMessages() {
@@ -32,7 +33,17 @@ export function useMessages() {
         useChatsStore.getState().setMessages(msgs);
         // Read marking is driven by scroll position in MessageList — not auto-marked here
       })
-      .catch((e: any) => useChatsStore.getState().setDataError(e?.message ?? i18n.t('common:errorGeneric')))
+      .catch((e: any) => {
+        // `dataError` is rendered by the chat LIST (Sidebar → ChatList), so a
+        // raw server string from a message load used to end up there verbatim —
+        // e.g. the untranslated «Forbidden» seen during the QA run 2026-09-03,
+        // which stayed on screen until a manual reload. Auth errors here are
+        // transient (token refresh in flight right after a logout→login), and
+        // the effect re-runs on the next chat switch / socket reconnect, so
+        // stay quiet — same rule loadChats already applies.
+        if (isAuthError(e)) return;
+        useChatsStore.getState().setDataError(e?.message ?? i18n.t('common:errorGeneric'));
+      })
       .finally(() => useChatsStore.getState().setLoadingMessages(false));
 
 

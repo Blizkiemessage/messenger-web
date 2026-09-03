@@ -19,3 +19,6 @@ backend/data/*.db
 backend/data/*.db-shm
 backend/data/*.db-wal
 backend/data/*.db-journal
+
+# Local-disk upload fallback (used when S3_* env vars aren't set) — user content
+backend/uploads/

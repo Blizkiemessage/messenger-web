@@ -115,14 +115,22 @@ function initSocket(httpServer) {
 
   // ── Auth middleware ─────────────────────────────────────────────────────────
   io.use((socket, next) => {
-    // Try HttpOnly cookie first, then fall back to auth.token (legacy / admin panel)
-    const cookieHeader = socket.handshake.headers.cookie || '';
-    const cookieToken = cookieHeader.split(';')
-      .map(c => c.trim())
-      .find(c => c.startsWith('session='))
-      ?.slice('session='.length)
-      .trim() || null;
-    const token = cookieToken || socket.handshake.auth?.token || null;
+    // The token from the client's `auth` payload identifies THIS specific
+    // socket/tab — prefer it. The httpOnly cookie is shared by the whole
+    // browser profile (see backend/src/middleware/auth.js for the full
+    // rationale) and is only a fallback for handshakes that couldn't attach
+    // auth.token (e.g. the very first connect after a cold reload).
+    const authToken = socket.handshake.auth?.token || null;
+    let cookieToken = null;
+    if (!authToken) {
+      const cookieHeader = socket.handshake.headers.cookie || '';
+      cookieToken = cookieHeader.split(';')
+        .map(c => c.trim())
+        .find(c => c.startsWith('session='))
+        ?.slice('session='.length)
+        .trim() || null;
+    }
+    const token = authToken || cookieToken;
 
     if (!token) return next(new Error('No token'));
 

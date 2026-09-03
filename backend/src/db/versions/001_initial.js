@@ -140,6 +140,12 @@ function up(db) {
     "ALTER TABLE messages ADD COLUMN reactions TEXT NOT NULL DEFAULT '[]'",
     'ALTER TABLE users ADD COLUMN hide_last_seen INTEGER NOT NULL DEFAULT 0',
     "ALTER TABLE users ADD COLUMN theme TEXT NOT NULL DEFAULT 'dark'",
+    // NB: this DEFAULT is the pre-«Аврора» blue and is intentionally left as-is
+    // (an applied migration must never be rewritten; changing a column DEFAULT
+    // in SQLite would require rebuilding the whole users table). Every real user
+    // is created through authService.js, which passes DEFAULT_ACCENT_COLOR
+    // ('#8e75f2') explicitly — see the 2026-09-03 fix. Direct SQL inserts that
+    // bypass authService would still get the stale colour.
     "ALTER TABLE users ADD COLUMN accent_color TEXT NOT NULL DEFAULT '#2f81f7'",
     'ALTER TABLE messages ADD COLUMN poll_id TEXT',
     'ALTER TABLE messages ADD COLUMN search_text TEXT',

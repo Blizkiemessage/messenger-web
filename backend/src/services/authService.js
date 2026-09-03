@@ -2,12 +2,15 @@ const { v4: uuidv4 } = require('uuid');
 const bcrypt = require('bcryptjs');
 const { getDb } = require('../config/database');
 const { signAccess, signRefresh } = require('../utils/jwt');
-const { sanitizeUser: sanitizeUserFull } = require('./userService');
+const { sanitizeUser: sanitizeUserFull, DEFAULT_ACCENT_COLOR } = require('./userService');
 const { generateOtp } = require('../utils/otp');
 const { sendOtpEmail, sendPasswordResetEmail } = require('../config/email');
 const crypto = require('crypto');
 
 const REFRESH_TTL_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
+// DEFAULT_ACCENT_COLOR (imported above) is passed explicitly on every user
+// INSERT below — relying on the users.accent_color column DEFAULT silently gave
+// every new account the retired pre-«Аврора» blue.
 
 /**
  * Creates a session + refresh token record in one place.
@@ -135,9 +138,9 @@ async function registerWithPassword(username, password, userAgent = '', ipAddres
   const userId = uuidv4();
 
   db.prepare(
-    `INSERT INTO users (id, username, display_name, password_hash, created_at, last_seen_at)
-     VALUES (?, ?, ?, ?, ?, ?)`
-  ).run([userId, clean, clean, hash, now, now]);
+    `INSERT INTO users (id, username, display_name, password_hash, accent_color, created_at, last_seen_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?)`
+  ).run([userId, clean, clean, hash, DEFAULT_ACCENT_COLOR, now, now]);
 
   const user = db.prepare('SELECT * FROM users WHERE id = ?').get(userId);
   const { accessToken, refreshToken, sessionId } = createSessionWithTokens(db, userId, userAgent, ipAddress, now);
@@ -275,9 +278,9 @@ async function verifyEmailAndCreateAccount(email, otp, userAgent = '', ipAddress
 
   const userId = uuidv4();
   db.prepare(
-    `INSERT INTO users (id, username, display_name, email, password_hash, created_at, last_seen_at, terms_accepted_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
-  ).run([userId, username, username, cleanEmail, password_hash, now, now, terms_accepted_at || now]);
+    `INSERT INTO users (id, username, display_name, email, password_hash, accent_color, created_at, last_seen_at, terms_accepted_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+  ).run([userId, username, username, cleanEmail, password_hash, DEFAULT_ACCENT_COLOR, now, now, terms_accepted_at || now]);
 
   const user = db.prepare('SELECT * FROM users WHERE id = ?').get(userId);
   const { accessToken, refreshToken, sessionId } = createSessionWithTokens(db, userId, userAgent, ipAddress, now);

@@ -298,8 +298,9 @@ mockModule('../src/config/email', {
 mockModule('../src/utils/s3Delete', { deleteFromS3: () => {}, deleteManyFromS3: () => {} });
 
 // ── Services (loaded after mocks) ────────────────────────────────────────────
-const { validatePassword, loginOrRegister, initiateRegistration, verifyEmailAndCreateAccount } = require('../src/services/authService');
-const { deleteMessages, editMessage, getChatMessages, saveMessage, forwardMessages, searchMessages, toggleReaction, toggleEmojiReaction } = require('../src/services/messageService');
+const { validatePassword, loginOrRegister, registerWithPassword, initiateRegistration, verifyEmailAndCreateAccount } = require('../src/services/authService');
+const { DEFAULT_ACCENT_COLOR } = require('../src/services/userService');
+const { deleteMessages, editMessage, getChatMessages, saveMessage, forwardMessages, searchMessages, toggleReaction, toggleEmojiReaction, pinMessage, unpinMessage, getPinnedMessages } = require('../src/services/messageService');
 const { ALLOWED_TYPES }                     = require('../src/utils/allowedMimeTypes');
 const { encrypt, decrypt }                  = require('../src/crypto/aes');
 const { setChatBackground, deleteAccount }  = require('../src/services/chatService');
@@ -444,6 +445,33 @@ describe('initiateRegistration / verifyEmailAndCreateAccount — terms acceptanc
   });
 });
 
+// ── QA-прогон 2026-09-03 (docs/QA_FUNCTIONAL_MAP.md): новые аккаунты получали ──
+// старый синий акцент '#2f81f7' — колонка users.accent_color хранит его как
+// собственный DB DEFAULT, а оба INSERT'а регистрации его не передавали.
+describe('registration — «Аврора» accent colour by default', () => {
+  test('email registration stores the purple accent, not the retired blue', async () => {
+    await initiateRegistration('accenttester', 'accent@example.com', 'SecurePass1!', true);
+    const result = await verifyEmailAndCreateAccount('accent@example.com', lastSentOtp);
+
+    assert.equal(result.user.accent_color, DEFAULT_ACCENT_COLOR);
+    const row = db.prepare('SELECT accent_color FROM users WHERE username = ?').get('accenttester');
+    assert.equal(row.accent_color, DEFAULT_ACCENT_COLOR);
+    assert.notEqual(row.accent_color, '#2f81f7');
+  });
+
+  test('username+password registration path stores the same default', async () => {
+    const result = await registerWithPassword('accentlegacy', 'SecurePass1!');
+
+    assert.equal(result.user.accent_color, DEFAULT_ACCENT_COLOR);
+    const row = db.prepare('SELECT accent_color FROM users WHERE username = ?').get('accentlegacy');
+    assert.equal(row.accent_color, DEFAULT_ACCENT_COLOR);
+  });
+
+  test('the shared constant is the Аврора purple (guards against a silent revert)', () => {
+    assert.equal(DEFAULT_ACCENT_COLOR, '#8e75f2');
+  });
+});
+
 // ── 3. deleteMessages — permission checks ────────────────────────────────────
 describe('deleteMessages — permission checks', () => {
   test('author can delete own message in direct chat', () => {
@@ -485,6 +513,66 @@ describe('deleteMessages — permission checks', () => {
     deleteMessages('chat-direct', 'alice', ['dm-a3']);
     const row = db.prepare('SELECT deleted_at FROM messages WHERE id=?').get('dm-a3');
     assert.ok(row.deleted_at > 0, 'message must be soft-deleted');
+  });
+});
+
+// ── QA-прогон 2026-09-03 (docs/QA_FUNCTIONAL_MAP.md): pin всегда 403 в ЛС ─────
+// admin/moderator — понятие ТОЛЬКО групповых чатов; у участников личного чата
+// роль всегда 'member', поэтому проверка роли без учёта типа чата делала
+// закрепление нерабочим во всех личных чатах.
+describe('pinMessage / unpinMessage — permission checks', () => {
+  test('either member of a direct chat can pin and unpin', () => {
+    insertMsg('pin-dm-1', 'chat-direct', 'alice');
+    const pinned = pinMessage('chat-direct', 'pin-dm-1', 'bob'); // не автор и не admin
+    assert.equal(pinned.id, 'pin-dm-1');
+    assert.equal(db.prepare('SELECT is_pinned FROM messages WHERE id=?').get('pin-dm-1').is_pinned, 1);
+
+    unpinMessage('chat-direct', 'pin-dm-1', 'alice');
+    assert.equal(db.prepare('SELECT is_pinned FROM messages WHERE id=?').get('pin-dm-1').is_pinned, 0);
+  });
+
+  test('a non-member still cannot pin in a direct chat', () => {
+    insertMsg('pin-dm-2', 'chat-direct', 'alice');
+    assert.throws(() => pinMessage('chat-direct', 'pin-dm-2', 'carol'), (err) => {
+      assert.equal(err.status, 403);
+      return true;
+    });
+    assert.equal(db.prepare('SELECT is_pinned FROM messages WHERE id=?').get('pin-dm-2').is_pinned, 0);
+  });
+
+  test('group chat still requires admin/moderator (regression guard)', () => {
+    insertMsg('pin-gr-1', 'chat-group', 'alice');
+    assert.throws(() => pinMessage('chat-group', 'pin-gr-1', 'carol'), (err) => { // carol = member
+      assert.equal(err.status, 403);
+      return true;
+    });
+    assert.equal(db.prepare('SELECT is_pinned FROM messages WHERE id=?').get('pin-gr-1').is_pinned, 0);
+
+    pinMessage('chat-group', 'pin-gr-1', 'alice');  // admin
+    assert.equal(db.prepare('SELECT is_pinned FROM messages WHERE id=?').get('pin-gr-1').is_pinned, 1);
+
+    assert.throws(() => unpinMessage('chat-group', 'pin-gr-1', 'carol'), (err) => {
+      assert.equal(err.status, 403);
+      return true;
+    });
+    unpinMessage('chat-group', 'pin-gr-1', 'bob'); // moderator
+    assert.equal(db.prepare('SELECT is_pinned FROM messages WHERE id=?').get('pin-gr-1').is_pinned, 0);
+  });
+
+  test('pinning a message from another chat is not possible (404, not a silent cross-chat pin)', () => {
+    insertMsg('pin-gr-2', 'chat-group', 'alice');
+    assert.throws(() => pinMessage('chat-direct', 'pin-gr-2', 'alice'), (err) => {
+      assert.equal(err.status, 404);
+      return true;
+    });
+  });
+
+  test('getPinnedMessages returns what a direct-chat member pinned', () => {
+    insertMsg('pin-dm-3', 'chat-direct', 'bob', 'закреплённое');
+    pinMessage('chat-direct', 'pin-dm-3', 'bob');
+    const pinned = getPinnedMessages('chat-direct', 'alice');
+    assert.ok(pinned.some(m => m.id === 'pin-dm-3' && m.text === 'закреплённое'));
+    unpinMessage('chat-direct', 'pin-dm-3', 'bob');
   });
 });
 

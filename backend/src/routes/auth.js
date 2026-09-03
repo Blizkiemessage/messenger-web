@@ -22,6 +22,11 @@ const router = express.Router();
 const isProduction = process.env.NODE_ENV === 'production';
 
 // Access token cookie — 15 minutes.
+// NB: the cookie is a FALLBACK auth channel, not the source of truth. It is
+// host-only and shared by every tab of the browser profile, so it cannot tell
+// two concurrent logins apart. Server-side, the client's own token
+// (Authorization header / socket auth.token / request body) always wins —
+// see backend/src/middleware/auth.js::extractToken.
 function setSessionCookie(res, token) {
   res.cookie('session', token, {
     httpOnly: true,                                   // JS cannot read this cookie
@@ -351,13 +356,16 @@ router.post('/logout', authMiddleware, (req, res, next) => {
 // Rotation means a stolen refresh token is detected on first re-use:
 // the legitimate user's next refresh will find the token already revoked.
 //
-// Accepts the refresh token from the HttpOnly cookie (same-origin / Safari)
-// OR from the request body (cross-origin clients: Vercel → Amvera).
+// Accepts the refresh token from the request body (this specific client) OR,
+// as a fallback, from the HttpOnly cookie (same-origin / Safari). The body wins
+// for the same reason authMiddleware prefers Bearer: the cookie is shared by the
+// whole browser profile and may belong to a different, more recent login in
+// another tab, which would silently rotate the wrong session's tokens.
 const REFRESH_TTL_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
 
 router.post('/refresh', refreshLimiter, async (req, res, next) => {
   try {
-    const incomingRefreshToken = req.cookies?.refresh || req.body?.refreshToken;
+    const incomingRefreshToken = req.body?.refreshToken || req.cookies?.refresh;
     if (!incomingRefreshToken) {
       return res.status(401).json({ error: 'Refresh token missing' });
     }

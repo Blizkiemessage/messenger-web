@@ -296,3 +296,52 @@ describe('call:* signaling', () => {
     assert.equal(err.reason, 'rate_limited');
   });
 });
+
+// ── QA-прогон 2026-09-03 (docs/QA_FUNCTIONAL_MAP.md §1) ──────────────────────
+// The handshake half of the token-priority fix. The httpOnly cookie is shared by
+// the whole browser profile (one per host, no port/tab distinction), so while it
+// outranked auth.token a socket opened by tab A could be bound to whichever
+// account logged in last anywhere in that browser — presence, typing and
+// incoming calls then went to the wrong identity. See middleware/auth.js and
+// tests/authPriority.test.js for the REST side of the same fix.
+describe('handshake auth — the socket\'s own token wins over the shared cookie', () => {
+  function connectRaw(opts) {
+    const socket = ioClient(`http://localhost:${port}`, {
+      transports: ['websocket'], forceNew: true, reconnection: false, ...opts,
+    });
+    openSockets.push(socket);
+    return socket;
+  }
+
+  async function connected(socket) {
+    await new Promise((resolve, reject) => {
+      socket.once('connect', resolve);
+      socket.once('connect_error', reject);
+    });
+    return io.sockets.sockets.get(socket.id).data.userId;
+  }
+
+  test('auth.token of alice + session cookie of bob → the socket is alice', async () => {
+    const socket = connectRaw({
+      auth: { token: tokenFor('alice') },
+      extraHeaders: { Cookie: `session=${tokenFor('bob')}` },
+    });
+    assert.equal(await connected(socket), 'alice');
+  });
+
+  test('the cookie still authenticates a handshake carrying no auth.token (fallback preserved)', async () => {
+    const socket = connectRaw({ extraHeaders: { Cookie: `session=${tokenFor('bob')}` } });
+    assert.equal(await connected(socket), 'bob');
+  });
+
+  test('an invalid auth.token is rejected instead of falling through to a valid cookie', async () => {
+    const socket = connectRaw({
+      auth: { token: 'not-a-jwt' },
+      extraHeaders: { Cookie: `session=${tokenFor('bob')}` },
+    });
+    await assert.rejects(
+      () => connected(socket),
+      (err) => { assert.match(String(err.message), /Invalid token/); return true; },
+    );
+  });
+});
