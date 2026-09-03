@@ -1,6 +1,14 @@
 # ТЗ: Улучшения безопасности, надёжности и функционала
 ## Проект: Blizkie Messenger (devDK)
-### Дата: 2026-05-12
+### Дата: 2026-05-12 (статус блоков сверен 2026-09-03)
+
+> **Не входит** в список «прочитать перед задачей» из шапки `CLAUDE.md` — не
+> обновлялся вместе с остальными документами. Четыре пункта ниже закрыты, но
+> ДРУГИМ путём, чем предложено здесь изначально (см. отметки `✅ ЗАКРЫТО
+> ИНАЧЕ` внутри B1/B3/C1/C2) — их код-рецепты вычищены, инструкции по
+> реализации могли устареть по путям к файлам. Всё остальное — A1–A3, B2, B4,
+> C3, D1–D4, E1–E3, F1 — реально не начато, можно брать в работу как есть,
+> но перепроверить актуальные пути перед использованием.
 
 ---
 
@@ -36,14 +44,14 @@
   A3. Per-chat деривация ключа (Forward Secrecy)
 
 БЛОК B — Надёжность и операционная безопасность
-  B1. Воркер доставки запланированных сообщений
+  B1. ✅ закрыто иначе — воркер доставки запланированных сообщений
   B2. Idempotency key для отправки сообщений
-  B3. Мониторинг (Sentry)
+  B3. ✅ закрыто — мониторинг (Sentry-совместимый Hawk)
   B4. Аудит-лог пользовательских действий
 
 БЛОК C — Дополнительная безопасность
-  C1. CSRF-защита
-  C2. Rate limit для Socket.IO событий (messages, typing)
+  C1. ✅ закрыто иначе — CSRF-защита (через Origin-проверку)
+  C2. ✅ закрыто иначе — rate limit для Socket.IO (общий per-socket, не по событиям)
   C3. Отдельный строгий лимит для backup-кодов
 
 БЛОК D — Функционал (высокий приоритет)
@@ -213,89 +221,10 @@ text = decrypt({ ciphertext: msg.ciphertext, iv: msg.iv, authTag: msg.auth_tag }
 
 ### B1. Воркер доставки запланированных сообщений
 
-**Файлы:** `backend/src/workers/scheduledMessages.js` (создать), `backend/src/index.js`
-
-**Проблема:**
-Сообщения с `deliver_at` хранятся в БД, но никогда не отправляются — нет фонового процесса.
-
-**Что сделать:**
-
-1. Создать файл `backend/src/workers/scheduledMessages.js`:
-```js
-'use strict';
-const { getDb } = require('../config/database');
-const { decrypt } = require('../crypto/aes');
-
-const POLL_INTERVAL_MS = 15_000; // check every 15 seconds
-let timer = null;
-
-async function deliverPending(io) {
-  const db  = getDb();
-  const now = Date.now();
-
-  const pending = db.prepare(`
-    SELECT m.*, c.id AS chat_id
-    FROM messages m
-    JOIN chats c ON c.id = m.chat_id
-    WHERE m.deliver_at IS NOT NULL
-      AND m.deliver_at <= ?
-      AND m.is_delivered = 0
-      AND m.deleted_at IS NULL
-    LIMIT 50
-  `).all(now);
-
-  for (const msg of pending) {
-    try {
-      // Mark delivered atomically
-      const result = db.prepare(
-        'UPDATE messages SET is_delivered = 1 WHERE id = ? AND is_delivered = 0'
-      ).run(msg.id);
-      if (result.changes === 0) continue; // already delivered by concurrent call
-
-      // Decrypt and broadcast (same logic as POST /messages)
-      let text = null;
-      if (msg.ciphertext) {
-        try { text = decrypt({ ciphertext: msg.ciphertext, iv: msg.iv, authTag: msg.auth_tag }, msg.chat_id); }
-        catch { text = null; }
-      }
-
-      const payload = buildMessagePayload(msg, text); // extract to shared util
-      io.to(`chat:${msg.chat_id}`).emit('new-message', payload);
-
-      // Web Push for offline members
-      notifyOfflineMembers(msg.chat_id, msg.sender_id, payload);
-    } catch (err) {
-      console.error('[scheduledMessages] failed to deliver', msg.id, err.message);
-    }
-  }
-}
-
-function startScheduledDelivery(io) {
-  timer = setInterval(() => deliverPending(io), POLL_INTERVAL_MS);
-  console.log('[scheduledMessages] worker started, polling every', POLL_INTERVAL_MS / 1000, 's');
-}
-
-function stopScheduledDelivery() {
-  if (timer) clearInterval(timer);
-}
-
-module.exports = { startScheduledDelivery, stopScheduledDelivery };
-```
-
-2. В `backend/src/index.js` после `initSocket(server)`:
-```js
-const { startScheduledDelivery, stopScheduledDelivery } = require('./workers/scheduledMessages');
-startScheduledDelivery(io);
-```
-
-3. В функции `shutdown()` в `index.js` добавить:
-```js
-stopScheduledDelivery();
-```
-
-4. **Логику формирования payload** (поля сообщения для Socket.IO emit) вынести в общий модуль `backend/src/utils/messagePayload.js`, чтобы использовать и в HTTP-роуте и в воркере.
-
-**Тест:** Создать сообщение с `deliver_at = Date.now() + 60_000`, подождать 60 сек, убедиться что оно появилось в чате.
+**✅ ЗАКРЫТО ИНАЧЕ.** Есть — `messageService.deliverPendingMessages` +
+`setInterval` внутри `backend/src/socket/socketServer.js`, не отдельным
+файлом-воркером, как предлагалось здесь. Функционально задача решена: отложенные
+сообщения доставляются без ручного вмешательства.
 
 ---
 
@@ -368,49 +297,14 @@ await apiClient.post(`/chats/${chatId}/messages`, body, {
 
 ### B3. Мониторинг ошибок (Sentry)
 
-**Файлы:** `backend/src/index.js`, `web/src/main.tsx`
-
-**Проблема:**
-Ошибки теряются в логах Amvera. Нет алертинга, нет трассировки, нет статистики.
-
-**Что сделать:**
-
-**Backend:**
-1. `npm install @sentry/node` в `backend/`
-2. В `backend/src/index.js` в самом начале (до всех imports):
-```js
-const Sentry = require('@sentry/node');
-if (process.env.SENTRY_DSN) {
-  Sentry.init({
-    dsn: process.env.SENTRY_DSN,
-    environment: process.env.NODE_ENV || 'development',
-    tracesSampleRate: 0.1,
-  });
-}
-```
-3. В Express error handler (`backend/src/middleware/errorHandler.js`):
-```js
-if (process.env.SENTRY_DSN) Sentry.captureException(err);
-```
-4. Добавить `SENTRY_DSN` в `PROD_REQUIRED_ENV` или сделать опциональным (отсутствие = просто не логируется).
-
-**Frontend:**
-1. `npm install @sentry/react` в `web/`
-2. В `web/src/main.tsx`:
-```ts
-import * as Sentry from '@sentry/react';
-if (import.meta.env.VITE_SENTRY_DSN) {
-  Sentry.init({
-    dsn: import.meta.env.VITE_SENTRY_DSN,
-    environment: import.meta.env.MODE,
-    tracesSampleRate: 0.05,
-    ignoreErrors: ['ResizeObserver loop', 'AbortError'],
-  });
-}
-```
-3. Добавить `VITE_SENTRY_DSN` в Vercel env vars.
-
-**Итог:** Все необработанные исключения на backend и frontend автоматически попадают в Sentry с stacktrace и контекстом запроса.
+**✅ ЗАКРЫТО (2026-07-12, подтверждено на проде).** Реализовано практически
+как здесь предложено (`@sentry/node`/`@sentry/react`, `SENTRY_DSN`/
+`VITE_SENTRY_DSN`, опционально), с двумя отличиями: DSN указывает не на
+sentry.io (заблокирован для РФ с 2024-09-10), а на Sentry-совместимый
+[Hawk](https://hawk-tracker.ru/); и добавлен `scrubEvent()` — вырезает тело
+запроса/куки/`Authorization` до отправки, к пользователю привязывается
+только непрозрачный ID. Детали — `docs/STORE_LAUNCH_TZ.md` §6 (закрытый
+раздел) и журнал `CLAUDE.md`.
 
 ---
 
@@ -494,154 +388,22 @@ module.exports = { logSecurityEvent, ACTIONS };
 
 ### C1. CSRF-защита
 
-**Файлы:** `backend/src/middleware/csrf.js` (создать), `backend/src/index.js`
-
-**Проблема:**
-Cookie-based аутентификация без CSRF-токенов уязвима к Cross-Site Request Forgery атакам. Злоумышленник может заставить браузер жертвы выполнить POST-запрос на behalf of пользователя.
-
-**Что сделать:**
-
-Использовать паттерн **Double Submit Cookie** (без состояния на сервере):
-
-1. Создать `backend/src/middleware/csrf.js`:
-```js
-'use strict';
-const crypto = require('crypto');
-
-const IS_PROD   = process.env.NODE_ENV === 'production';
-const TOKEN_TTL = 24 * 60 * 60 * 1000; // 24h
-
-// Safe methods don't need CSRF protection
-const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
-
-// Routes exempt from CSRF (token-based, not cookie-based)
-const EXEMPT_PATHS = [
-  '/auth/login', '/auth/register', '/auth/verify-email',
-  '/auth/forgot-password', '/auth/reset-password',
-  '/webauthn/auth/options', '/webauthn/auth/verify',
-  '/health',
-];
-
-function generateCsrfToken() {
-  return crypto.randomBytes(32).toString('hex');
-}
-
-function setCsrfCookie(res) {
-  const token = generateCsrfToken();
-  res.cookie('_csrf', token, {
-    httpOnly: false, // JS must be able to read this
-    secure: IS_PROD,
-    sameSite: IS_PROD ? 'none' : 'lax',
-    maxAge: TOKEN_TTL,
-    path: '/',
-  });
-  return token;
-}
-
-function csrfMiddleware(req, res, next) {
-  // Issue token on GET requests (SPA boot)
-  if (req.method === 'GET' && !req.cookies._csrf) {
-    setCsrfCookie(res);
-    return next();
-  }
-
-  if (SAFE_METHODS.has(req.method)) return next();
-  if (EXEMPT_PATHS.some(p => req.path.startsWith(p))) return next();
-
-  const cookieToken  = req.cookies._csrf;
-  const headerToken  = req.headers['x-csrf-token'];
-
-  if (!cookieToken || !headerToken || cookieToken !== headerToken) {
-    return res.status(403).json({ error: 'CSRF token mismatch' });
-  }
-  next();
-}
-
-module.exports = { csrfMiddleware, setCsrfCookie };
-```
-
-2. В `backend/src/index.js` после `cookieParser()`:
-```js
-const { csrfMiddleware } = require('./middleware/csrf');
-app.use(csrfMiddleware);
-```
-
-3. На фронтенде в `web/src/api/client.ts` в request interceptor:
-```ts
-// Read CSRF token from cookie and add to header
-const csrfToken = document.cookie
-  .split('; ')
-  .find(row => row.startsWith('_csrf='))
-  ?.split('=')[1];
-
-if (csrfToken && !['GET', 'HEAD'].includes(config.method?.toUpperCase() ?? '')) {
-  config.headers['X-CSRF-Token'] = csrfToken;
-}
-```
+**✅ ЗАКРЫТО ИНАЧЕ.** Есть, но через Origin-проверку мутаций
+(`backend/src/middleware/csrfOrigin.js`), не double-submit-cookie, как
+предложено здесь. Тот же класс защиты (мутации отклоняются, если Origin
+запроса не совпадает с разрешённым фронтом) при меньшей сложности — не
+требует дополнительной cookie/заголовка на каждый запрос.
 
 ---
 
 ### C2. Rate limiting на Socket.IO события
 
-**Файл:** `backend/src/socket/socketServer.js`
-
-**Проблема:**
-HTTP-эндпоинты ограничены (60 msg/min), но через WebSocket можно слать сообщения в обход ограничений.
-
-**Что сделать:**
-
-1. Добавить в `socketServer.js` класс RateLimiter:
-```js
-// Per-user per-event rate limiter (in-memory, resets each window)
-class SocketRateLimiter {
-  constructor(maxPerWindow, windowMs) {
-    this.max = maxPerWindow;
-    this.windowMs = windowMs;
-    this.map = new Map(); // userId:event -> { count, resetAt }
-  }
-  isLimited(userId, event) {
-    const key = `${userId}:${event}`;
-    const now = Date.now();
-    let entry = this.map.get(key);
-    if (!entry || now >= entry.resetAt) {
-      entry = { count: 1, resetAt: now + this.windowMs };
-      this.map.set(key, entry);
-      return false;
-    }
-    if (entry.count >= this.max) return true;
-    entry.count++;
-    return false;
-  }
-}
-
-const msgLimiter    = new SocketRateLimiter(60, 60_000);   // 60 msg/min
-const typingLimiter = new SocketRateLimiter(30, 60_000);   // 30 typing/min
-```
-
-2. Применить в обработчиках:
-```js
-socket.on('send-message', (data, cb) => {
-  if (msgLimiter.isLimited(userId, 'msg')) {
-    return cb?.({ error: 'Слишком много сообщений' });
-  }
-  // ... existing logic
-});
-
-socket.on('typing-start', (data) => {
-  if (typingLimiter.isLimited(userId, 'typing')) return;
-  // ... existing logic
-});
-```
-
-3. Очищать `map` раз в 5 минут от устаревших записей:
-```js
-setInterval(() => {
-  const now = Date.now();
-  for (const [key, val] of msgLimiter.map) {
-    if (now >= val.resetAt) msgLimiter.map.delete(key);
-  }
-}, 5 * 60 * 1000);
-```
+**✅ ЗАКРЫТО ИНАЧЕ.** Есть, но общий per-socket лимитер (`socket.use(...)` в
+`backend/src/socket/socketServer.js`, 50 событий/сек на сокет), не
+по-событийные классы (отдельно messages/typing), как предложено здесь.
+Защищает от того же класса злоупотребления (обход HTTP rate-limit через
+WebSocket) при меньшей сложности. Если понадобится более тонкая настройка
+по типу события — этот код-рецепт остаётся рабочим ориентиром.
 
 ---
 
@@ -1141,12 +903,8 @@ ALTER TABLE calls ADD COLUMN participants TEXT; -- JSON array of user_ids
 feat(security/A1): add PBKDF2 key derivation for message encryption
 feat(security/A2): separate JWT_REFRESH_SECRET for refresh tokens
 feat(security/A3): per-chat HKDF key derivation with legacy fallback
-feat(reliability/B1): scheduled message delivery worker
 feat(reliability/B2): idempotency keys for message send
-feat(monitoring/B3): Sentry integration (backend + frontend)
 feat(audit/B4): user security audit log table and events
-feat(security/C1): double-submit cookie CSRF protection
-feat(security/C2): per-user Socket.IO rate limiting
 feat(security/C3): strict rate limit for 2FA backup codes
 feat(messaging/D1): message delivered status (✓✓ grey)
 feat(messaging/D2): @mentions with push notification
