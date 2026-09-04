@@ -22,3 +22,12 @@ backend/data/*.db-journal
 
 # Local-disk upload fallback (used when S3_* env vars aren't set) — user content
 backend/uploads/
+
+# Скиллы агента (docs/SKILLS.md). Внешний набор — реальные файлы в .agents/skills/,
+# они коммитятся. .claude/skills/ — локальный слой симлинков, созданный
+# установщиком: при core.symlinks=false (Windows) git развернул бы их в дубли
+# файлов, поэтому содержимое игнорируется и восстанавливается командой
+# `npx skills experimental_install` по skills-lock.json. Исключение — собственный
+# скилл проекта: он лежит там обычным файлом и должен быть в репозитории.
+.claude/skills/*
+!.claude/skills/blizkie-migration/
