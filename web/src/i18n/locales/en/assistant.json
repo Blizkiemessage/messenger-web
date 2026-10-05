@@ -11,6 +11,16 @@
     "legal": "Documents"
   },
   "intent": {
+    "language": {
+      "question": "How do I change the interface language?",
+      "keywords": ["language", "change language", "switch language", "english", "russian", "translate interface", "localization", "язык"],
+      "answer": "Blizkie is available in **English** and **Russian**.\n- **On a computer:** click your avatar at the bottom of the left panel and pick a flag in the **Language** block\n- **On a phone:** open the **Profile** tab at the bottom of the screen and choose the language there\n- **Before signing in:** use the flag button in the top-left corner of the sign-in screen\nYour choice is saved to your account and applied on your other devices; emails and push notifications also arrive in that language."
+    },
+    "send-message": {
+      "question": "How do I write and send a message?",
+      "keywords": ["write message", "send message", "message", "write", "reply", "forward", "edit message", "delete message", "new line", "enter"],
+      "answer": "Open a chat from the list (or find someone by **@username** in search), type in the field at the bottom and press **Enter** or the send button.\n- **Shift+Enter** adds a new line; on a phone Enter adds a new line and you send with the button\n- Message menu (right-click, or long-press on a phone): **reply, edit, forward, pin, react, copy, delete**\n- The paperclip in the input field sends photos, videos and files; the microphone button records a voice message (hold) or a video note (tap)\n- You can schedule a message for later and use simple formatting (**bold**, _italic_, spoiler)"
+    },
     "invite": {
       "question": "How do I invite family?",
       "keywords": ["invite", "invitation", "link", "qr", "friends", "family", "add people"],
@@ -108,7 +118,7 @@
       "actions": ["Chat appearance"]
     },
     "security": {
-      "question": "How do I secure my account (2FA, passkeys)?",
+      "question": "How do I change my password and secure my account (2FA, passkeys)?",
       "keywords": ["password", "change password", "2fa", "two-factor", "totp", "passkey", "security", "protect", "protect account", "sessions"],
       "answer": "In your profile settings you can change your password, enable **two-factor authentication (2FA)**, add a **passkey**, and review active sessions.\n_Conversations are encrypted and stored in encrypted form._",
       "actions": ["Profile settings"]

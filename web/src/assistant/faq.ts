@@ -106,6 +106,7 @@ const FAQ_DEFS: FaqIntentDef[] = [
 
   // ── Оформление ──────────────────────────────────────────────────────────────
   { id: 'appearance', category: 'appearance', top: true, actions: [{ type: 'appearance' }] },
+  { id: 'language', category: 'appearance' },
   { id: 'chat-bg', category: 'appearance', actions: [{ type: 'chat-settings', section: 'appearance' }] },
 
   // ── Приватность и безопасность ──────────────────────────────────────────────
@@ -132,6 +133,7 @@ const FAQ_DEFS: FaqIntentDef[] = [
   // ── Инструменты чата ──────────────────────────────────────────────────────
   { id: 'ai-summary', category: 'chat', actions: [{ type: 'ai-summary' }] },
   { id: 'media-gallery', category: 'media', actions: [{ type: 'media' }] },
+  { id: 'send-message', category: 'chat' },
   { id: 'formatting', category: 'chat' },
   { id: 'sticker-studio', category: 'media' },
 
@@ -144,18 +146,35 @@ const FAQ_DEFS: FaqIntentDef[] = [
   { id: 'group-roles', category: 'groups' },
 ];
 
-/** Собрать полный переведённый каталог интентов для текущего языка. */
-export function getFaq(): FaqIntent[] {
+/** Язык базы знаний. */
+export type FaqLang = 'ru' | 'en';
+
+/**
+ * Язык ВОПРОСА (не интерфейса): кириллица → русский, иначе английский.
+ * Пользователь с английским интерфейсом часто пишет по-русски — если искать
+ * по базе на языке интерфейса, ни LLM, ни локальный поиск не находят ответ
+ * (баг 2026-10-05: «Как сменить тему?» при EN-интерфейсе → «не нашёл»).
+ */
+export function detectQueryLang(q: string): FaqLang {
+  return /[а-яё]/i.test(q) ? 'ru' : 'en';
+}
+
+function uiLang(): FaqLang {
+  return i18n.language === 'en' ? 'en' : 'ru';
+}
+
+/** Собрать полный переведённый каталог интентов (по умолчанию — язык интерфейса). */
+export function getFaq(lng: FaqLang = uiLang()): FaqIntent[] {
   return FAQ_DEFS.map(def => {
     const base = `assistant:intent.${def.id}`;
-    const actionLabels = i18n.t(`${base}.actions`, { returnObjects: true, defaultValue: [] as string[] }) as string[];
+    const actionLabels = i18n.t(`${base}.actions`, { lng, returnObjects: true, defaultValue: [] as string[] }) as string[];
     return {
       id: def.id,
       category: def.category,
       top: def.top,
-      question: i18n.t(`${base}.question`),
-      answer: i18n.t(`${base}.answer`),
-      keywords: i18n.t(`${base}.keywords`, { returnObjects: true, defaultValue: [] as string[] }) as string[],
+      question: i18n.t(`${base}.question`, { lng }),
+      answer: i18n.t(`${base}.answer`, { lng }),
+      keywords: i18n.t(`${base}.keywords`, { lng, returnObjects: true, defaultValue: [] as string[] }) as string[],
       actions: def.actions?.map((action, idx) => ({ label: actionLabels[idx] ?? '', action })),
     };
   });
@@ -214,9 +233,9 @@ function stemEn(w: string): string {
   return w;
 }
 
-/** Разбить строку на значимые стеммированные токены (без стоп-слов), под текущий язык. */
-function tokensOf(s: string): string[] {
-  const isEn = i18n.language === 'en';
+/** Разбить строку на значимые стеммированные токены (без стоп-слов) для языка. */
+function tokensOf(s: string, lang: FaqLang): string[] {
+  const isEn = lang === 'en';
   const norm = isEn ? normEn : normRu;
   const stopwords = isEn ? STOPWORDS_EN : STOPWORDS_RU;
   const stem = isEn ? stemEn : stemRu;
@@ -247,16 +266,17 @@ export const FAQ_SCORE_STRONG = 4;
 
 export interface ScoredIntent { intent: FaqIntent; score: number; total: number }
 
-/** Поиск с оценками — ранжирование по совпадению ключевых слов (с приоритетом). */
-export function searchFaqScored(query: string): ScoredIntent[] {
-  const qTokens = tokensOf(query);
+/** Поиск с оценками — ранжирование по совпадению ключевых слов (с приоритетом).
+ *  Ищет по базе на языке ВОПРОСА (см. detectQueryLang). */
+export function searchFaqScored(query: string, lang: FaqLang = detectQueryLang(query)): ScoredIntent[] {
+  const qTokens = tokensOf(query, lang);
   if (!qTokens.length) return [];
 
-  return getFaq()
+  return getFaq(lang)
     .map(intent => {
       const kwTokens = new Set<string>();
-      for (const k of intent.keywords) for (const t of tokensOf(k)) kwTokens.add(t);
-      const qIntentTokens = new Set(tokensOf(intent.question));
+      for (const k of intent.keywords) for (const t of tokensOf(k, lang)) kwTokens.add(t);
+      const qIntentTokens = new Set(tokensOf(intent.question, lang));
 
       let keywordScore = 0;  // совпадения по ключевым словам (даёт уверенный ответ)
       let weakScore = 0;     // совпадения только по словам вопроса (только подсказки)
@@ -291,8 +311,8 @@ export function getIntentCatalog(): { id: string; question: string }[] {
 /**
  * Полная база знаний для LLM-генератора ответа: вопрос + ответ + доступные
  * кнопки (только labels — сами deep-links резолвит фронт по id, поэтому LLM не
- * может выдумать действие). ЕДИНЫЙ источник — этот же FAQ, для ТЕКУЩЕГО языка
- * интерфейса (LLM получит базу и вопрос на одном языке и ответит на нём же).
+ * может выдумать действие). ЕДИНЫЙ источник — этот же FAQ. Передавайте язык
+ * ВОПРОСА (`detectQueryLang`), чтобы база и вопрос были на одном языке.
  */
 export interface AssistantKbItem {
   id: string;
@@ -300,8 +320,8 @@ export interface AssistantKbItem {
   answer: string;
   actions: { label: string }[];
 }
-export function getAssistantKb(): AssistantKbItem[] {
-  return getFaq().map(i => ({
+export function getAssistantKb(lang: FaqLang = uiLang()): AssistantKbItem[] {
+  return getFaq(lang).map(i => ({
     id: i.id,
     question: i.question,
     answer: i.answer,

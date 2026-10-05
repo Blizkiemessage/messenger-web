@@ -18,7 +18,7 @@ import { getAssistantStatus, askAssistant } from '../../api/assistant';
 import { AssistantDataMode } from './assistant/AssistantDataMode';
 import {
   getFaq, getTopIntents, getCategoryMeta, getAssistantKb,
-  searchFaqScored, getIntentById, FAQ_SCORE_STRONG,
+  searchFaqScored, getIntentById, FAQ_SCORE_STRONG, detectQueryLang,
   type FaqIntent, type FaqAction, type FaqCategory, type ScoredIntent,
 } from '../../assistant/faq';
 
@@ -46,16 +46,15 @@ export function AssistantModal({ topic, initialMode = 'help', onClose }: Props) 
   const setShowSupport = useAppStore(s => s.setShowSupport);
 
   // Пересчитываются на каждый рендер — подхватывают смену языка (i18n.language
-  // меняет весь FAQ-каталог: getFaq/getTopIntents/getCategoryMeta/getAssistantKb
-  // читают i18n.language напрямую, см. assistant/faq.ts).
+  // меняет весь FAQ-каталог: getFaq/getTopIntents/getCategoryMeta читают
+  // i18n.language напрямую, см. assistant/faq.ts). База для LLM собирается
+  // в runSearch — на языке вопроса, а не интерфейса.
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const FAQ = useMemo(() => getFaq(), [i18n.language]);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const TOP_INTENTS = useMemo(() => getTopIntents(), [i18n.language]);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const CATEGORY_META = useMemo(() => getCategoryMeta(), [i18n.language]);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  const ASSISTANT_KB = useMemo(() => getAssistantKb(), [i18n.language]);
 
   const [mode, setMode] = useState<AssistantMode>(topic ? 'help' : initialMode);
   const [query, setQuery] = useState('');
@@ -121,6 +120,13 @@ export function AssistantModal({ topic, initialMode = 'help', onClose }: Props) 
     return out.slice(0, 3);
   }
 
+  /** Ответ локального поиска: уверенное совпадение → сам ответ, иначе подсказки. */
+  function localAnswer(q: string): ThreadItem {
+    const scored = searchFaqScored(q);
+    if (scored[0] && scored[0].score >= FAQ_SCORE_STRONG) return { role: 'assistant', intent: scored[0].intent };
+    return buildNoMatch(q, scored);
+  }
+
   async function runSearch(raw: string) {
     const q = raw.trim();
     if (!q || busy) return;
@@ -133,7 +139,9 @@ export function AssistantModal({ topic, initialMode = 'help', onClose }: Props) 
       setThread(t => [...t, { role: 'user', text: q }, { role: 'thinking' }]);
       setBusy(true);
       try {
-        const { reply, covered, relatedIds } = await askAssistant(q, ASSISTANT_KB);
+        // База — на языке ВОПРОСА: при английском интерфейсе люди часто пишут
+        // по-русски, и LLM должна получить базу, с которой вопрос сопоставим.
+        const { reply, covered, relatedIds } = await askAssistant(q, getAssistantKb(detectQueryLang(q)));
         if (reply) {
           replaceLast({
             role: 'assistant-generated',
@@ -142,11 +150,11 @@ export function AssistantModal({ topic, initialMode = 'help', onClose }: Props) 
             showSupport: !covered,
           });
         } else {
-          replaceLast(buildNoMatch(q, searchFaqScored(q)));
+          replaceLast(localAnswer(q));
         }
       } catch {
-        // Сбой LLM → мягкая деградация на локальный поиск.
-        replaceLast(buildNoMatch(q, searchFaqScored(q)));
+        // Сбой LLM → мягкая деградация на локальный поиск (уверенный ответ, если есть).
+        replaceLast(localAnswer(q));
       } finally {
         setBusy(false);
       }
@@ -154,12 +162,7 @@ export function AssistantModal({ topic, initialMode = 'help', onClose }: Props) 
     }
 
     // Без LLM — локальный поиск: уверенное совпадение → ответ, иначе подсказки.
-    const scored = searchFaqScored(q);
-    if (scored[0] && scored[0].score >= FAQ_SCORE_STRONG) {
-      setThread(t => [...t, { role: 'user', text: q }, { role: 'assistant', intent: scored[0].intent }]);
-      return;
-    }
-    setThread(t => [...t, { role: 'user', text: q }, buildNoMatch(q, scored)]);
+    setThread(t => [...t, { role: 'user', text: q }, localAnswer(q)]);
   }
 
   function runAction(item: { action: import('../../deeplinks').DeepLinkAction }) {
