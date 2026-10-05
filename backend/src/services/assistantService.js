@@ -11,14 +11,17 @@
  *     предлагает поддержку. Никаких выдуманных фактов.
  *
  * Провайдер переиспользуется от AI-сводки (OpenAI-совместимый, у пользователя —
- * Groq + llama-3.3-70b). Env (с фолбэком на AI_SUMMARY_*):
+ * Groq). Вызов — через общий utils/llmClient (фолбэк модели + reasoning-модели).
+ * Env (с фолбэком на AI_SUMMARY_*):
  *   AI_ASSISTANT_ENABLED  | AI_SUMMARY_ENABLED   — "true" чтобы включить
  *   AI_ASSISTANT_API_KEY  | AI_SUMMARY_API_KEY   — ключ
  *   AI_ASSISTANT_BASE_URL | AI_SUMMARY_BASE_URL  — base URL (OpenAI-совместимый)
  *   AI_ASSISTANT_MODEL    | AI_SUMMARY_MODEL      — модель
  */
 const DEFAULT_BASE_URL = 'https://api.groq.com/openai/v1';
-const DEFAULT_MODEL    = 'llama-3.3-70b-versatile';
+// 2026-09: Groq made llama-3.3-70b-versatile enterprise-only → 404 model_not_found.
+const DEFAULT_MODEL    = 'openai/gpt-oss-120b';
+const { chatCompletion } = require('../utils/llmClient');
 
 const MAX_KB        = 60;    // макс. тем в базе (защита payload)
 const MAX_QUESTION  = 400;   // макс. длина вопроса (символов)
@@ -102,7 +105,6 @@ const SYSTEM_PROMPT =
   'Без какого-либо текста вне JSON.';
 
 async function callAI(question, kb, config) {
-  const url = `${config.baseUrl}/chat/completions`;
   const kbText = kb.map(i => {
     const acts = (i.actions || []).map(a => a.label).filter(Boolean);
     const actsLine = acts.length ? `\n  кнопки: ${acts.join(' / ')}` : '';
@@ -113,31 +115,19 @@ async function callAI(question, kb, config) {
     `Вопрос пользователя:\n"${question}"\n\n` +
     `База знаний приложения (темы):\n${kbText}`;
 
-  const resp = await fetch(url, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${config.apiKey}`,
-    },
-    body: JSON.stringify({
-      model: config.model,
-      messages: [
-        { role: 'system', content: SYSTEM_PROMPT },
-        { role: 'user', content: userMsg },
-      ],
-      max_tokens: 800,
-      temperature: 0.3,
-      response_format: { type: 'json_object' },
-    }),
-    signal: AbortSignal.timeout(15000),
+  return chatCompletion({
+    baseUrl: config.baseUrl,
+    apiKey: config.apiKey,
+    model: config.model,
+    messages: [
+      { role: 'system', content: SYSTEM_PROMPT },
+      { role: 'user', content: userMsg },
+    ],
+    maxTokens: 800,
+    temperature: 0.3,
+    json: true,
+    timeoutMs: 15000,
   });
-
-  if (!resp.ok) {
-    const errText = await resp.text().catch(() => resp.statusText);
-    throw new Error(`AI provider error ${resp.status}: ${errText.slice(0, 300)}`);
-  }
-  const data = await resp.json();
-  return data?.choices?.[0]?.message?.content?.trim() || '';
 }
 
 /**

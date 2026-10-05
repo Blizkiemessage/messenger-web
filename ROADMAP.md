@@ -215,7 +215,7 @@ saved-чата (`services/chat/*`, роут saved) либо разовый по�
 > строго по присланной базе знаний. Backend `assistantService.answerQuestion`
 > → `{reply, covered, relatedIds}`; `covered=false` → честно «нет такого» +
 > поддержка (ноль галлюцинаций). Кнопки-навигации фронт берёт по `relatedIds`
-> (deep-links валидны). Провайдер — Groq llama-3.3-70b (env `AI_SUMMARY_*`),
+> (deep-links валидны). Провайдер — Groq, модель `openai/gpt-oss-120b` (до 2026-09 — llama-3.3-70b; env `AI_SUMMARY_*`),
 > бесплатно на старте. Проверено на реальном Groq — ответы строго по теме.
 
 **Цель.** Снизить порог входа и нагрузку на поддержку: пользователь спрашивает

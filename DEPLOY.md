@@ -58,7 +58,7 @@
 - **Push:** `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_EMAIL`.
 - **Звонки (WebRTC):** `STUN_URLS`, и TURN — либо `METERED_API_KEY`/`METERED_TURN_SECRET`, либо `TURN_URL(S)`/`TURN_USERNAME`/`TURN_CREDENTIAL`.
 - **WebAuthn / passkeys:** `WEBAUTHN_RP_ID`, `WEBAUTHN_ORIGIN`.
-- **ИИ-ассистенты / сводки:** `AI_SUMMARY_*`, `AI_ASSISTANT_*`, `AI_DATA_*` (см. CLAUDE.md).
+- **ИИ-ассистенты / сводки:** `AI_SUMMARY_*`, `AI_ASSISTANT_*`, `AI_DATA_*` (см. CLAUDE.md). Модель для Groq — `openai/gpt-oss-120b` (`llama-3.3-70b-versatile` с 2026-09 доступна только enterprise-аккаунтам). Если провайдер ответит `404 model_not_found`, запрос сам повторится на `AI_FALLBACK_MODEL` (по умолчанию для Groq — `openai/gpt-oss-120b`), а в «Лог ошибок» админки попадёт предупреждение `[AI]` — значит, пора обновить `*_MODEL`.
 - **GIF:** `GIPHY_API_KEY`.
 - **Error tracking:** `SENTRY_DSN` (опц.) — без него `utils/sentry.js` полностью неактивен (как и все опциональные фичи). Использует стандартный `@sentry/node` SDK, но DSN должен указывать на Sentry-совместимого провайдера, доступного из РФ (**не sentry.io** — заблокирован для российских пользователей с 2024-09-10; рекомендация — [Hawk](https://hawk-tracker.ru/), см. §6 `docs/STORE_LAUNCH_TZ.md`). Ошибки уходят анонимно: тело запроса/куки/`Authorization` вырезаются до отправки (`scrubEvent`), к пользователю привязывается только внутренний ID (не email/username).
 - **Бэкапы БД в S3:** включены всегда (ключ — `DB_BACKUP_ENCRYPTION_KEY` либо HKDF от `MESSAGE_ENCRYPTION_KEY`); опц. изоляция `DB_BACKUP_S3_BUCKET`/`_ACCESS_KEY_ID`/`_SECRET_ACCESS_KEY`, расписание `DB_BACKUP_HOUR_UTC`, хранение `DB_BACKUP_KEEP_DAYS`. Восстановление — `npm run restore-backup -- <файл|--s3 ключ> [out.db]`.

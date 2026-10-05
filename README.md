@@ -21,7 +21,7 @@ Blizkie (Russian for "close ones") is a full-stack web messenger, installable as
 - Voice and video calls over WebRTC, with a TURN relay for mobile networks
 - Incoming-call push notifications, call history, output-device switching
 
-**AI features** (Llama 3.3 70B via Groq, OpenAI-compatible API)
+**AI features** (GPT-OSS 120B via Groq, OpenAI-compatible API; the model is configurable)
 - **Chat summary**: a short recap of recent messages for a chosen period
 - **In-app help assistant**: answers "how do I…" questions strictly from a 39-topic knowledge base; navigation buttons are attached by the app from topic IDs, so the model cannot invent actions; questions outside the knowledge base get an honest "not covered" plus a link to support
 - **Personal data assistant** ("second brain"): answers questions about the user's own chats ("When is the dinner?"). Strictly opt-in, scoped to chats the user selects, every answer must cite a source message, decrypted text stays in memory only, and structured facts such as birthdays are answered without the LLM at all
@@ -55,7 +55,7 @@ flowchart LR
 | Front end | React 19, TypeScript, Vite, Zustand, react-i18next, PWA with a custom service worker |
 | Back end | Node.js, Express, Socket.io, better-sqlite3 (22 versioned migrations) |
 | Media | S3-compatible object storage with presigned uploads, sharp for image processing |
-| AI | Groq (Llama 3.3 70B) through an OpenAI-compatible client; provider is configurable |
+| AI | Groq (GPT-OSS 120B) through a shared OpenAI-compatible client with automatic fallback when a provider retires a model; provider and model are configurable |
 | Hosting | Back end in Docker on Amvera, front end on Vercel, CI on GitHub Actions |
 | Monitoring | Sentry-compatible error tracking (Hawk) with request bodies and identities scrubbed |
 

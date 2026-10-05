@@ -24,7 +24,9 @@ const { getDb } = require('../config/database');
 const { decrypt } = require('../crypto/aes');
 
 const DEFAULT_BASE_URL = 'https://api.groq.com/openai/v1';
-const DEFAULT_MODEL    = 'llama-3.3-70b-versatile';
+// 2026-09: Groq made llama-3.3-70b-versatile enterprise-only → 404 model_not_found.
+const DEFAULT_MODEL    = 'openai/gpt-oss-120b';
+const { chatCompletion } = require('../utils/llmClient');
 
 const MAX_QUESTION   = 300;   // макс. длина вопроса
 const SCAN_CAP       = 4000;  // макс. сообщений (по всем разрешённым чатам) для скана
@@ -373,28 +375,19 @@ async function callSemantic(question, candidates, config) {
 
   const userMsg = `Вопрос пользователя:\n"${question}"\n\nСообщения из переписок:\n${list}`;
 
-  const resp = await fetch(`${config.baseUrl}/chat/completions`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${config.apiKey}` },
-    body: JSON.stringify({
-      model: config.model,
-      messages: [
-        { role: 'system', content: SEMANTIC_SYSTEM },
-        { role: 'user', content: userMsg },
-      ],
-      max_tokens: 700,
-      temperature: 0.2,
-      response_format: { type: 'json_object' },
-    }),
-    signal: AbortSignal.timeout(20000),
+  return chatCompletion({
+    baseUrl: config.baseUrl,
+    apiKey: config.apiKey,
+    model: config.model,
+    messages: [
+      { role: 'system', content: SEMANTIC_SYSTEM },
+      { role: 'user', content: userMsg },
+    ],
+    maxTokens: 700,
+    temperature: 0.2,
+    json: true,
+    timeoutMs: 20000,
   });
-
-  if (!resp.ok) {
-    const errText = await resp.text().catch(() => resp.statusText);
-    throw new Error(`AI provider error ${resp.status}: ${errText.slice(0, 300)}`);
-  }
-  const data = await resp.json();
-  return data?.choices?.[0]?.message?.content?.trim() || '';
 }
 
 function snippetOf(text) {

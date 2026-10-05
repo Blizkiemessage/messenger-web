@@ -13,6 +13,7 @@
 const { v4: uuidv4 } = require('uuid');
 const { getDb } = require('../config/database');
 const { decrypt } = require('../crypto/aes');
+const { chatCompletion } = require('../utils/llmClient');
 
 const DEFAULT_BASE_URL = 'https://generativelanguage.googleapis.com/v1beta/openai';
 const DEFAULT_MODEL    = 'gemini-2.0-flash';
@@ -138,34 +139,18 @@ function buildPrompt(messages, format) {
 }
 
 async function callAI(prompt, format, config) {
-  const url = `${config.baseUrl}/chat/completions`;
-  const body = {
+  const text = await chatCompletion({
+    baseUrl: config.baseUrl,
+    apiKey: config.apiKey,
     model: config.model,
     messages: [
       { role: 'system', content: 'Ты — помощник, который делает краткие и точные сводки переписок на русском языке.' },
       { role: 'user', content: prompt },
     ],
-    max_tokens: FORMAT_TOKENS[format] ?? FORMAT_TOKENS.normal,
+    maxTokens: FORMAT_TOKENS[format] ?? FORMAT_TOKENS.normal,
     temperature: FORMAT_TEMP[format] ?? FORMAT_TEMP.normal,
-  };
-
-  const resp = await fetch(url, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${config.apiKey}`,
-    },
-    body: JSON.stringify(body),
-    signal: AbortSignal.timeout(15000),
+    timeoutMs: 15000,
   });
-
-  if (!resp.ok) {
-    const errText = await resp.text().catch(() => resp.statusText);
-    throw new Error(`AI provider error ${resp.status}: ${errText.slice(0, 300)}`);
-  }
-
-  const data = await resp.json();
-  const text = data?.choices?.[0]?.message?.content?.trim();
   if (!text) throw new Error('AI provider вернул пустой ответ');
   return text;
 }
