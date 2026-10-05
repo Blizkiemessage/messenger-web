@@ -139,6 +139,12 @@ app.use((req, res, next) => {
 app.use(cors({
   origin: corsOriginCallback,
   credentials: true,
+  // Front (Vercel) and API (Amvera) are always cross-origin, so every request
+  // carrying `Authorization` is preceded by an OPTIONS preflight. Without
+  // Access-Control-Max-Age, Chrome caches a preflight for only 5 s — i.e. almost
+  // every API call costs two round trips to the server. Browsers clamp this
+  // value themselves (Chrome to 2 h, Firefox to 24 h).
+  maxAge: 86400,
 }));
 app.use(cookieParser());
 app.use(express.json());

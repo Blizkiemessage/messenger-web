@@ -7,7 +7,7 @@
 - **Хранилище медиа** — S3-совместимое (Yandex Object Storage).
 - **CI** — `.github/workflows/deploy-amvera.yml`: на push в `devDK` сначала прогоняются тесты (`backend npm test` + `web build`), затем деплой. На PR — только тесты.
 
-> Рабочая ветка — `devDK`, основная — `main`.
+> Единственная ветка — `devDK` (ветка по умолчанию; `main` удалена 2026-10-05). Push в неё деплоит прод.
 
 ---
 

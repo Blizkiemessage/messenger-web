@@ -121,10 +121,12 @@ export default function App() {
   useSocket();
   const { deleteSelected } = useMessages();
 
-  // Load chats on login
+  // Load chats on login / account switch. Keyed by id, not the `me` object: a
+  // session refresh re-sets `me` with the same user and must not refetch. Forced
+  // so a different account never reuses the previous user's "fresh" list.
   useEffect(() => {
-    if (me) useChatsStore.getState().loadChats();
-  }, [me]); // eslint-disable-line
+    if (me?.id) useChatsStore.getState().loadChats({ force: true });
+  }, [me?.id]); // eslint-disable-line
 
   // Предвыбранный интент ассистента (из deep-link `assistant?topic=`)
   const [assistantTopic, setAssistantTopic] = useState<string | undefined>(undefined);

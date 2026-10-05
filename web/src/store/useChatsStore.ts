@@ -37,6 +37,15 @@ function readLastChatId(): string | null {
   return null;
 }
 
+// Startup fires loadChats from several places within ~100 ms (login effect,
+// socket 'connect', the session refresh that re-sets `me`). Against a remote API
+// each duplicate costs a full round trip, so concurrent calls share one request
+// and a list fetched moments ago is reused. `force` bypasses both — used when a
+// message arrives for a chat we don't know yet, which must never be missed.
+const CHATS_FRESH_MS = 3000;
+let chatsInFlight: Promise<void> | null = null;
+let chatsLoadedAt = 0;
+
 interface ChatsState {
   chats: Chat[];
   activeChatId: string | null;
@@ -124,8 +133,9 @@ interface ChatsState {
   setScrollToMessageId: (id: string | null) => void;
 
   // ── Async ──────────────────────────────────────────────────────────────────
-  /** Fetch the full chats list from the API and update state. */
-  loadChats: () => Promise<void>;
+  /** Fetch the full chats list from the API and update state. Concurrent and
+   *  back-to-back calls are coalesced unless `force` is set. */
+  loadChats: (opts?: { force?: boolean }) => Promise<void>;
 }
 
 export const useChatsStore = create<ChatsState>((set) => ({
@@ -409,31 +419,47 @@ export const useChatsStore = create<ChatsState>((set) => ({
 
   // ── Async ──────────────────────────────────────────────────────────────────
 
-  loadChats: async () => {
-    set({ loadingChats: true, dataError: null });
-    try {
-      const list = await getChats();
-      set(state => {
-        // Восстанавливаем последний открытый чат (если свежее 15 минут и он ещё
-        // существует). НЕ открываем первый чат по умолчанию — иначе приложение
-        // всегда «залипает» на одном диалоге. Иначе — общий список (нет чата).
-        let activeChatId = state.activeChatId;
-        if (!activeChatId) {
-          const last = readLastChatId();
-          if (last && list.some(c => c.id === last)) activeChatId = last;
-        }
-        return { chats: list, loadingChats: false, activeChatId: activeChatId ?? null };
-      });
-    } catch (e: any) {
-      // Auth errors are transient (race on startup) — don't surface them to the user
-      if (isAuthError(e)) {
-        set({ loadingChats: false });
-        return;
-      }
-      set({ dataError: e?.message ?? i18n.t('nav:chatList.loadFailed'), loadingChats: false });
+  loadChats: (opts) => {
+    const force = opts?.force === true;
+    if (!force) {
+      if (chatsInFlight) return chatsInFlight;
+      if (Date.now() - chatsLoadedAt < CHATS_FRESH_MS) return Promise.resolve();
     }
+    const run = loadChatsNow().finally(() => {
+      if (chatsInFlight === run) chatsInFlight = null;
+    });
+    chatsInFlight = run;
+    return run;
   },
 }));
+
+/** The actual chats fetch behind `loadChats` (which adds coalescing). */
+async function loadChatsNow(): Promise<void> {
+  const set = useChatsStore.setState;
+  set({ loadingChats: true, dataError: null });
+  try {
+    const list = await getChats();
+    chatsLoadedAt = Date.now();
+    set(state => {
+      // Восстанавливаем последний открытый чат (если свежее 15 минут и он ещё
+      // существует). НЕ открываем первый чат по умолчанию — иначе приложение
+      // всегда «залипает» на одном диалоге. Иначе — общий список (нет чата).
+      let activeChatId = state.activeChatId;
+      if (!activeChatId) {
+        const last = readLastChatId();
+        if (last && list.some(c => c.id === last)) activeChatId = last;
+      }
+      return { chats: list, loadingChats: false, activeChatId: activeChatId ?? null };
+    });
+  } catch (e: any) {
+    // Auth errors are transient (race on startup) — don't surface them to the user
+    if (isAuthError(e)) {
+      set({ loadingChats: false });
+      return;
+    }
+    set({ dataError: e?.message ?? i18n.t('nav:chatList.loadFailed'), loadingChats: false });
+  }
+}
 
 // ── Selectors (helpers for components) ────────────────────────────────────────
 

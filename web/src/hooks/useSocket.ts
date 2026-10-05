@@ -97,7 +97,9 @@ export function useSocket() {
 
     const onNewMessage = (msg: Message) => {
       const { chats, loadChats, handleNewMessage } = useChatsStore.getState();
-      if (!chats.some(c => c.id === msg.chat_id)) { loadChats(); return; }
+      // Unknown chat (just created by someone else): must refetch even if the
+      // list was loaded a moment ago, so bypass loadChats' coalescing.
+      if (!chats.some(c => c.id === msg.chat_id)) { loadChats({ force: true }); return; }
       handleNewMessage(msg);
       // Read tracking is handled by MessageList scroll observer — no auto-mark here
     };
