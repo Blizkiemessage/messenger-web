@@ -53,5 +53,8 @@ jobs:
         run: |
           git config user.email "ci@github.com"
           git config user.name "GitHub Actions"
-          git remote add amvera https://keshetash:${AMVERA_PASSWORD}@git.msk0.amvera.ru/keshetash/blizkie-messenger
+          # 2026-10-14: проект переехал с кластера msk0 (лёг вместе со своим
+          # git-сервером, деплой падал «Couldn't connect») на варшавский waw0.
+          # Пароль — учётки Amvera, не проекта, поэтому секрет тот же.
+          git remote add amvera https://keshetash:${AMVERA_PASSWORD}@git.waw0.amvera.ru/keshetash/blizkie-warsaw
           git push amvera devDK:master --force
