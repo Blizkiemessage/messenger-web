@@ -41,11 +41,22 @@ export function LoginForm({ onAuthenticated, onSwitchTab, onForgotPassword }: Pr
       if (res.refreshToken) saveRefreshToken(res.refreshToken);
       onAuthenticated(res.user, res.sessionId ?? null);
     } catch (e: any) {
-      const msg = e?.message ?? '';
-      if (msg.toLowerCase().includes('cancel') || msg.toLowerCase().includes('abort') || msg.toLowerCase().includes('not allowed')) {
+      // The WebAuthn spec deliberately reports "user cancelled", "no passkey for
+      // this site on this device" and "timed out" as the same NotAllowedError
+      // (privacy: a site must not learn whether you have a passkey). Swallowing
+      // it made the button look dead whenever the passkey lived in another
+      // browser or on another device — so explain instead of staying silent.
+      // AbortError is a programmatic abort (a newer ceremony replaced this one),
+      // not something the user did, so that one stays quiet.
+      console.warn('[passkey] sign-in failed:', e?.name, e?.message);
+      const name = String(e?.name ?? '');
+      const msg = String(e?.message ?? '').toLowerCase();
+      if (name === 'AbortError' || msg.includes('abort')) {
         setError(null);
+      } else if (name === 'NotAllowedError' || msg.includes('not allowed') || msg.includes('cancel')) {
+        setError(t('login.passkeyNotFound'));
       } else {
-        setError(e?.response?.data?.error ?? msg ?? t('login.passkeyError'));
+        setError(e?.response?.data?.error || e?.message || t('login.passkeyError'));
       }
     } finally {
       setBusy(false);
